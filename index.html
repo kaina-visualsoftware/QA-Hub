@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub de Tarefas - Painel de Controle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .folder-icon {
+            transition: transform 0.2s ease;
+        }
+        
+        .card-hover:hover .folder-icon {
+            transform: scale(1.1);
+        }
+        
+        .search-input:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+            outline: none;
+        }
+        
+        /* Animações */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="font-sans">
+    
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        
+        <!-- Header -->
+        <div class="text-center mb-12 fade-in-up">
+            <div class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 mb-4">
+                <i class="fas fa-folder-open text-white mr-2"></i>
+                <span class="text-white text-sm font-semibold">Sistema de Gerenciamento</span>
+            </div>
+            <h1 class="text-5xl font-bold text-white mb-4">
+                📁 Hub de Tarefas
+            </h1>
+            <p class="text-xl text-white/80 max-w-2xl mx-auto">
+                Navegue pelas pastas e acesse os projetos desenvolvidos
+            </p>
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 fade-in-up">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                <i class="fas fa-folder text-2xl text-white mb-2"></i>
+                <p class="text-2xl font-bold text-white" id="total-pastas">0</p>
+                <p class="text-white/70 text-sm">Pastas/Projetos</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                <i class="fas fa-code text-2xl text-white mb-2"></i>
+                <p class="text-2xl font-bold text-white" id="total-tarefas">0</p>
+                <p class="text-white/70 text-sm">Tarefas</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                <i class="fas fa-calendar-alt text-2xl text-white mb-2"></i>
+                <p class="text-2xl font-bold text-white" id="ultima-atualizacao">-</p>
+                <p class="text-white/70 text-sm">Última atualização</p>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                <i class="fas fa-check-circle text-2xl text-white mb-2"></i>
+                <p class="text-2xl font-bold text-white" id="status-concluido">0</p>
+                <p class="text-white/70 text-sm">Concluídos</p>
+            </div>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="mb-8 fade-in-up">
+            <div class="relative max-w-md mx-auto">
+                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="search-input" placeholder="Buscar tarefa por nome, descrição ou ID..." 
+                       class="search-input w-full pl-12 pr-4 py-3 rounded-xl bg-white shadow-lg focus:ring-2 focus:ring-indigo-500 transition-all">
+            </div>
+        </div>
+        
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="cards-container">
+            <!-- Cards serão inseridos via JavaScript -->
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-12 pt-6 border-t border-white/20">
+            <p class="text-white/60 text-sm">
+                <i class="fas fa-code-branch mr-1"></i> 
+                Hub de Tarefas v1.0 | Clique nos cards para acessar os projetos
+            </p>
+        </div>
+        
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURAÇÃO DAS TAREFAS/PASTAS
+        // ============================================================
+        // Adicione suas tarefas aqui seguindo o formato abaixo
+        // Cada tarefa representa uma pasta com seu index.html
+        
+        const tarefas = [
+            {
+                id: 184728,
+                titulo: "Entrada de XML da MEG",
+                descricao: "Visualização dos produtos contendo dados de custo, venda e percentuais. (BACKUP)",
+                icone: "fa-table",
+                cor: "from-blue-500 to-indigo-600",
+                pasta: "184728",
+                arquivo: "page.html",
+                data: "2026-04-14",
+                status: "concluido",
+                tags: ["tabela", "produtos", "tailwind", "json"]
+            },
+        ];
+        
+        // ============================================================
+        // CÓDIGO PARA RENDERIZAR OS CARDS
+        // ============================================================
+        
+        const cardsContainer = document.getElementById('cards-container');
+        const searchInput = document.getElementById('search-input');
+        const totalPastasSpan = document.getElementById('total-pastas');
+        const totalTarefasSpan = document.getElementById('total-tarefas');
+        const ultimaAtualizacaoSpan = document.getElementById('ultima-atualizacao');
+        const statusConcluidoSpan = document.getElementById('status-concluido');
+        
+        // Função para obter o ícone do status
+        function getStatusBadge(status) {
+            switch(status) {
+                case 'concluido':
+                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check-circle mr-1 text-xs"></i> Concluído</span>';
+                case 'desenvolvimento':
+                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fas fa-spinner fa-pulse mr-1"></i> Em desenvolvimento</span>';
+                case 'pendente':
+                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="fas fa-clock mr-1"></i> Pendente</span>';
+                default:
+                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">-</span>';
+            }
+        }
+        
+        // Função para formatar data
+        function formatarData(dataStr) {
+            const data = new Date(dataStr);
+            return data.toLocaleDateString('pt-BR');
+        }
+        
+        // Função para renderizar os cards
+        function renderizarCards(filtro = '') {
+            const filtroLower = filtro.toLowerCase();
+            const filtered = tarefas.filter(tarefa => 
+                tarefa.titulo.toLowerCase().includes(filtroLower) ||
+                tarefa.descricao.toLowerCase().includes(filtroLower) ||
+                tarefa.id.toString().includes(filtroLower) ||
+                tarefa.tags.some(tag => tag.includes(filtroLower))
+            );
+            
+            if (filtered.length === 0) {
+                cardsContainer.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-search text-5xl text-white/40 mb-4"></i>
+                        <p class="text-white/60 text-lg">Nenhuma tarefa encontrada para "${filtro}"</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            cardsContainer.innerHTML = filtered.map(tarefa => `
+                <div class="card-hover fade-in-up" style="animation-delay: ${Math.random() * 0.2}s">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer" onclick="acessarTarefa('${tarefa.pasta}', '${tarefa.arquivo}')">
+                        <!-- Header colorido -->
+                        <div class="h-2 bg-gradient-to-r ${tarefa.cor}"></div>
+                        
+                        <div class="p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center">
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-r ${tarefa.cor} flex items-center justify-center shadow-lg">
+                                        <i class="fas ${tarefa.icone} text-white text-xl"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="font-bold text-lg text-gray-800">${tarefa.titulo}</h3>
+                                        <p class="text-gray-500 text-sm">COD SIA: ${tarefa.id}</p>
+                                    </div>
+                                </div>
+                                ${getStatusBadge(tarefa.status)}
+                            </div>
+                            
+                            <p class="text-gray-600 text-sm mb-4 line-clamp-2">${tarefa.descricao}</p>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                ${tarefa.tags.map(tag => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">#${tag}</span>`).join('')}
+                            </div>
+                            
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                <div class="flex items-center text-gray-400 text-xs">
+                                    <i class="far fa-calendar-alt mr-1"></i>
+                                    ${formatarData(tarefa.data)}
+                                </div>
+                                <div class="flex items-center text-indigo-600 text-sm font-medium">
+                                    Acessar projeto
+                                    <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Função para acessar a tarefa
+        function acessarTarefa(pasta, arquivo) {
+            // Constrói o caminho relativo
+            const caminho = `${pasta}/${arquivo}`;
+            window.location.href = caminho;
+        }
+        
+        // Atualizar estatísticas
+        function atualizarEstatisticas() {
+            totalPastasSpan.textContent = tarefas.length;
+            totalTarefasSpan.textContent = tarefas.reduce((total, t) => total + 1, 0);
+            
+            const datas = tarefas.map(t => new Date(t.data));
+            const ultimaData = new Date(Math.max(...datas));
+            ultimaAtualizacaoSpan.textContent = ultimaData.toLocaleDateString('pt-BR');
+            
+            const concluidos = tarefas.filter(t => t.status === 'concluido').length;
+            statusConcluidoSpan.textContent = concluidos;
+        }
+        
+        // Evento de busca
+        searchInput.addEventListener('input', (e) => {
+            renderizarCards(e.target.value);
+        });
+        
+        // Inicializar
+        renderizarCards();
+        atualizarEstatisticas();
+        
+        // Tornar a função global para ser chamada pelo onclick
+        window.acessarTarefa = acessarTarefa;
+    </script>
+    
+    <!-- Estilo adicional para line-clamp -->
+    <style>
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+    
+</body>
+</html>
