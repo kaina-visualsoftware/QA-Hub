@@ -3,277 +3,436 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hub de Tarefas - Painel de Controle</title>
+    <title>Hub de Tarefas - Painel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Roboto', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
     <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-        
-        .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        
-        .folder-icon {
-            transition: transform 0.2s ease;
-        }
-        
-        .card-hover:hover .folder-icon {
-            transform: scale(1.1);
-        }
-        
-        .search-input:focus {
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-            outline: none;
-        }
-        
-        /* Animações */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .fade-in-up {
-            animation: fadeInUp 0.5s ease-out;
-        }
+        :root { --transition-duration: 0.25s; }
+        body, .surface { transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease, box-shadow var(--transition-duration) ease; }
+        .elevation-1 { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+        .elevation-2 { box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23); }
+        .elevation-3 { box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23); }
+        .project-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .project-card:hover { transform: translateY(-4px); box-shadow: 0 12px 17px rgba(0,0,0,0.25), 0 5px 5px rgba(0,0,0,0.22); }
+        .stat-card { transition: transform 0.15s ease; }
+        .stat-card:hover { transform: scale(1.02); }
+        .menu-overlay { transition: opacity 0.2s ease, visibility 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.35s ease-out forwards; opacity: 0; }
+        .status-badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+        .tag-chip { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .light .elevation-1 { box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); }
+        .light .elevation-2 { box-shadow: 0 3px 6px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08); }
+        .light .elevation-3 { box-shadow: 0 10px 20px rgba(0,0,0,0.12), 0 3px 6px rgba(0,0,0,0.06); }
+        .light .project-card:hover { box-shadow: 0 14px 28px rgba(0,0,0,0.2), 0 10px 10px rgba(0,0,0,0.12); }
     </style>
 </head>
-<body class="font-sans">
-    
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+<body class="font-sans antialiased flex flex-col min-h-screen" style="background-color: #121212; color: #E0E0E0;">
+    <div id="app-root" class="dark">
         
-        <!-- Header -->
-        <div class="text-center mb-12 fade-in-up">
-            <div class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 mb-4">
-                <i class="fas fa-folder-open text-white mr-2"></i>
-                <span class="text-white text-sm font-semibold">Sistema de Gerenciamento</span>
+        <!-- Top Bar -->
+        <header class="fixed top-0 left-0 right-0 z-50 surface elevation-1">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <button class="p-2 rounded-lg hover:bg-white/10" onclick="toggleMenu()">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+                        <h1 class="text-xl font-medium hidden sm:block">
+                            <span class="font-light opacity-70">Hub</span><span class="font-bold">Tarefas</span>
+                        </h1>
+                    </div>
+                    
+                    <div class="flex-1 max-w-xs mx-4 hidden md:block">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 opacity-50 text-sm"></i>
+                            <input type="text" id="search-input" placeholder="Buscar..." 
+                                   class="w-full pl-9 pr-3 py-1.5 rounded-lg elevation-1 focus:outline-none text-sm">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-1">
+                        <button class="md:hidden p-2 rounded-lg hover:bg-white/10" onclick="document.getElementById('mobile-search').classList.toggle('hidden')">
+                            <i class="fas fa-search text-sm"></i>
+                        </button>
+                        <button class="p-2 rounded-lg hover:bg-white/10" onclick="toggleTheme()">
+                            <i class="fas fa-moon text-lg" id="theme-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="mobile-search" class="hidden md:hidden mt-3">
+                    <input type="text" id="mobile-search-input" placeholder="Buscar..." 
+                           class="w-full pl-9 pr-3 py-1.5 rounded-lg elevation-1 text-sm">
+                </div>
             </div>
-            <h1 class="text-5xl font-bold text-white mb-4">
-                📁 Hub de Tarefas
+        </header>
+        
+        <!-- Side Menu -->
+        <div id="menu-overlay" class="menu-overlay fixed inset-0 bg-black/60 z-40 hidden" onclick="toggleMenu()">
+            <aside class="fixed left-0 top-0 bottom-0 w-56 surface elevation-3 -translate-x-full transition-transform duration-200 z-50" onclick="event.stopPropagation()">
+                <div class="p-4 border-b border-white/10 flex justify-between items-center">
+                    <h2 class="text-base font-medium">Menu</h2>
+                    <button class="p-1.5 hover:bg-white/10 rounded-lg" onclick="toggleMenu()">
+                        <i class="fas fa-times text-sm"></i>
+                    </button>
+                </div>
+                <nav class="p-2">
+                    <a href="#" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10text-sm">
+                        <i class="fas fa-home w-4"></i><span>Início</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10text-sm">
+                        <i class="fas fa-folder w-4"></i><span>Projetos</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10text-sm">
+                        <i class="fas fa-chart-pie w-4"></i><span>Estatísticas</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/10text-sm border-t border-white/10 mt-2 pt-3">
+                        <i class="fas fa-cog w-4"></i><span>Configurações</span>
+                    </a>
+                </nav>
+            </aside>
+        </div>
+        
+        <!-- Main (flex-grow para empurrar footer para baixo) -->
+        <main class="pt-20 pb-16 px-4 max-w-7xl mx-auto flex-grow">
+            <h1 class="text-2xl font-bold md:hidden mb-4">
+                <span class="font-light opacity-70">Hub</span><span>Tarefas</span>
             </h1>
-            <p class="text-xl text-white/80 max-w-2xl mx-auto">
-                Navegue pelas pastas e acesse os projetos desenvolvidos
-            </p>
-        </div>
-        
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 fade-in-up">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                <i class="fas fa-folder text-2xl text-white mb-2"></i>
-                <p class="text-2xl font-bold text-white" id="total-pastas">0</p>
-                <p class="text-white/70 text-sm">Pastas/Projetos</p>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                <div class="stat-card surface rounded-xl p-3.5 elevation-1 fade-in">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <i class="fas fa-folder text-blue-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold" id="total-pastas">0</p>
+                            <p class="text-xs opacity-60">Pastas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card surface rounded-xl p-3.5 elevation-1 fade-in">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                            <i class="fas fa-tasks text-purple-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold" id="total-tarefas">0</p>
+                            <p class="text-xs opacity-60">Tarefas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card surface rounded-xl p-3.5 elevation-1 fade-in">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-green-500/20 flex items-center justify-center">
+                            <i class="fas fa-check-circle text-green-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold" id="status-concluido">0</p>
+                            <p class="text-xs opacity-60">Concluídos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card surface rounded-xl p-3.5 elevation-1 fade-in">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                            <i class="fas fa-clock text-orange-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-base font-bold" id="ultima-atualizacao">-</p>
+                            <p class="text-xs opacity-60">Última att</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                <i class="fas fa-code text-2xl text-white mb-2"></i>
-                <p class="text-2xl font-bold text-white" id="total-tarefas">0</p>
-                <p class="text-white/70 text-sm">Tarefas</p>
+            
+            <!-- Header Projects -->
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-base font-medium">Projetos</h2>
+                <span class="text-xs opacity-60" id="results-count">0 resultados</span>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                <i class="fas fa-calendar-alt text-2xl text-white mb-2"></i>
-                <p class="text-2xl font-bold text-white" id="ultima-atualizacao">-</p>
-                <p class="text-white/70 text-sm">Última atualização</p>
+            
+            <!-- Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="cards-container"></div>
+            
+            <!-- Empty -->
+            <div id="empty-state" class="hidden text-center py-12">
+                <i class="fas fa-folder-open text-4xl opacity-25 mb-3"></i>
+                <p class="text-sm opacity-60">Nenhum projeto encontrado</p>
             </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                <i class="fas fa-check-circle text-2xl text-white mb-2"></i>
-                <p class="text-2xl font-bold text-white" id="status-concluido">0</p>
-                <p class="text-white/70 text-sm">Concluídos</p>
-            </div>
-        </div>
-        
-        <!-- Search Bar -->
-        <div class="mb-8 fade-in-up">
-            <div class="relative max-w-md mx-auto">
-                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="search-input" placeholder="Buscar tarefa por nome, descrição ou ID..." 
-                       class="search-input w-full pl-12 pr-4 py-3 rounded-xl bg-white shadow-lg focus:ring-2 focus:ring-indigo-500 transition-all">
-            </div>
-        </div>
-        
-        <!-- Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="cards-container">
-            <!-- Cards serão inseridos via JavaScript -->
-        </div>
+        </main>
         
         <!-- Footer -->
-        <div class="text-center mt-12 pt-6 border-t border-white/20">
-            <p class="text-white/60 text-sm">
-                <i class="fas fa-code-branch mr-1"></i> 
-                Hub de Tarefas v1.0 | Clique nos cards para acessar os projetos
-            </p>
-        </div>
-        
+        <footer class="fixed bottom-0 left-0 right-0 border-t border-white/10 py-3 px-4">
+            <div class="max-w-7xl mx-auto text-center">
+                <p class="text-xs opacity-40">
+                    <i class="fas fa-code-branch mr-1"></i>Hub de Tarefas v2.0
+                </p>
+            </div>
+        </footer>
     </div>
-
+    
     <script>
-        // ============================================================
-        // CONFIGURAÇÃO DAS TAREFAS/PASTAS
-        // ============================================================
-        // Adicione suas tarefas aqui seguindo o formato abaixo
-        // Cada tarefa representa uma pasta com seu index.html
-        
-        const tarefas = [
-            {
-                id: 184728,
+        // ==================== CONFIG ====================
+        const pastaConfig = {
+            "184728": {
                 titulo: "Entrada de XML da MEG",
-                descricao: "Visualização dos produtos contendo dados de custo, venda e percentuais. (BACKUP)",
+                descricao: "Visualização dos produtos contendo dados de custo, venda e percentuais.",
                 icone: "fa-table",
-                cor: "from-blue-500 to-indigo-600",
-                pasta: "184728",
-                arquivo: "page.html",
-                data: "2026-04-14",
+                cor: "#2196F3",
                 status: "concluido",
-                tags: ["tabela", "produtos", "tailwind", "json"]
-            },
-        ];
+                tags: ["tabela", "produtos", "xml"]
+            }
+        };
         
-        // ============================================================
-        // CÓDIGO PARA RENDERIZAR OS CARDS
-        // ============================================================
+        // ==================== HELPERS ====================
+        const cores = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#795548', '#607D8B'];
+        const now = new Date().toISOString().split('T')[0];
         
-        const cardsContainer = document.getElementById('cards-container');
+        function getPastas() {
+            const keys = Object.keys(pastaConfig);
+            return keys.map((pasta, i) => {
+                const c = pastaConfig[pasta];
+                return {
+                    id: pasta,
+                    titulo: c.titulo || `Projeto ${pasta}`,
+                    descricao: c.descricao || 'Sem descrição',
+                    icone: c.icone || 'fa-folder',
+                    cor: c.cor || cores[i % cores.length],
+                    pasta: pasta,
+                    arquivo: c.arquivo || 'page.html',
+                    data: c.data || now,
+                    status: c.status || 'pendente',
+                    tags: c.tags || ['projeto']
+                };
+            });
+        }
+        
+        function getStatusBadge(status, isDark) {
+            const colors = {
+                concluido: isDark ? { bg: 'rgba(76, 175, 80, 0.18)', text: '#4CAF50' } : { bg: '#E8F5E9', text: '#2E7D32' },
+                desenvolvimento: isDark ? { bg: 'rgba(255, 193, 7, 0.18)', text: '#FFC107' } : { bg: '#FFF8E1', text: '#F9A825' },
+                pendente: isDark ? { bg: 'rgba(244, 67, 54, 0.18)', text: '#F44336' } : { bg: '#FFEBEE', text: '#C62828' },
+            };
+            const s = colors[status] || colors.pendente;
+            const label = { concluido: 'Concluído', desenvolvimento: 'Em Dev', pendente: 'Pendente' }[status];
+            const icon = { concluido: 'fa-check', desenvolvimento: 'fa-spinner fa-pulse', pendente: 'fa-clock' }[status];
+            return `<span class="status-badge" style="background:${s.bg};color:${s.text}"><i class="fas ${icon} mr-1"></i>${label}</span>`;
+        }
+        
+        function formatDate(dataStr) {
+            return new Date(dataStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+        }
+        
+        // ==================== DOM ====================
+        const app = document.getElementById('app-root');
+        const container = document.getElementById('cards-container');
         const searchInput = document.getElementById('search-input');
-        const totalPastasSpan = document.getElementById('total-pastas');
-        const totalTarefasSpan = document.getElementById('total-tarefas');
-        const ultimaAtualizacaoSpan = document.getElementById('ultima-atualizacao');
-        const statusConcluidoSpan = document.getElementById('status-concluido');
+        const mobileSearch = document.getElementById('mobile-search-input');
+        const themeIcon = document.getElementById('theme-icon');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const sideMenu = menuOverlay.querySelector('aside');
+        const emptyState = document.getElementById('empty-state');
         
-        // Função para obter o ícone do status
-        function getStatusBadge(status) {
-            switch(status) {
-                case 'concluido':
-                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check-circle mr-1 text-xs"></i> Concluído</span>';
-                case 'desenvolvimento':
-                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="fas fa-spinner fa-pulse mr-1"></i> Em desenvolvimento</span>';
-                case 'pendente':
-                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="fas fa-clock mr-1"></i> Pendente</span>';
-                default:
-                    return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">-</span>';
+        const stats = {
+            totalPastas: document.getElementById('total-pastas'),
+            totalTarefas: document.getElementById('total-tarefas'),
+            statusConcluido: document.getElementById('status-concluido'),
+            ultimaAtualizacao: document.getElementById('ultima-atualizacao'),
+            resultsCount: document.getElementById('results-count')
+        };
+        
+        let tarefas = [];
+        let filtroAtual = '';
+        
+        // ==================== THEME ====================
+        function initTheme() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            applyTheme(saved);
+        }
+        
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            const colors = isDark ? {
+                bg: '#121212',
+                surface: '#1E1E1E',
+                text: '#E0E0E0',
+                textSec: '#A0A0A0',
+                border: 'rgba(255,255,255,0.08)',
+                hover: 'rgba(255,255,255,0.08)'
+            } : {
+                bg: '#f5f5f5',
+                surface: '#FFFFFF',
+                text: '#1F1F1F',
+                textSec: '#666666',
+                border: 'rgba(0,0,0,0.08)',
+                hover: 'rgba(0,0,0,0.06)'
+            };
+            
+            document.body.style.backgroundColor = colors.bg;
+            document.body.style.color = colors.text;
+            
+            document.querySelectorAll('.surface').forEach(el => {
+                el.style.backgroundColor = colors.surface;
+                el.style.color = colors.text;
+            });
+            
+            document.querySelectorAll('header, footer, main, aside').forEach(el => {
+                el.style.backgroundColor = colors.surface;
+                el.style.color = colors.text;
+            });
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+                app.classList.remove('light'); app.classList.add('dark');
+                themeIcon.classList.remove('fa-sun'); themeIcon.classList.add('fa-moon');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+                app.classList.remove('dark'); app.classList.add('light');
+                themeIcon.classList.remove('fa-moon'); themeIcon.classList.add('fa-sun');
+            }
+            localStorage.setItem('theme', theme);
+            renderizarCards(filtroAtual);
+        }
+        
+        function toggleTheme() {
+            applyTheme(app.classList.contains('dark') ? 'light' : 'dark');
+        }
+        
+        // ==================== MENU ====================
+        function toggleMenu() {
+            const isOpen = !menuOverlay.classList.contains('hidden');
+            if (isOpen) {
+                sideMenu.classList.add('-translate-x-full');
+                menuOverlay.classList.add('hidden');
+            } else {
+                menuOverlay.classList.remove('hidden');
+                setTimeout(() => sideMenu.classList.remove('-translate-x-full'), 10);
             }
         }
         
-        // Função para formatar data
-        function formatarData(dataStr) {
-            const data = new Date(dataStr);
-            return data.toLocaleDateString('pt-BR');
-        }
-        
-        // Função para renderizar os cards
+        // ==================== RENDER ====================
         function renderizarCards(filtro = '') {
-            const filtroLower = filtro.toLowerCase();
-            const filtered = tarefas.filter(tarefa => 
-                tarefa.titulo.toLowerCase().includes(filtroLower) ||
-                tarefa.descricao.toLowerCase().includes(filtroLower) ||
-                tarefa.id.toString().includes(filtroLower) ||
-                tarefa.tags.some(tag => tag.includes(filtroLower))
+            const isDark = app.classList.contains('dark');
+            const fl = filtro.toLowerCase();
+            
+            const filtradas = tarefas.filter(t => 
+                t.titulo.toLowerCase().includes(fl) ||
+                t.descricao.toLowerCase().includes(fl) ||
+                t.id.includes(fl) ||
+                some(t.tags, tag => tag.toLowerCase().includes(fl))
             );
             
-            if (filtered.length === 0) {
-                cardsContainer.innerHTML = `
-                    <div class="col-span-full text-center py-12">
-                        <i class="fas fa-search text-5xl text-white/40 mb-4"></i>
-                        <p class="text-white/60 text-lg">Nenhuma tarefa encontrada para "${filtro}"</p>
-                    </div>
-                `;
+            stats.resultsCount.textContent = `${filtradas.length} resultado${filtradas.length !== 1 ? 's' : ''}`;
+            
+            if (filtradas.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
                 return;
             }
+            emptyState.classList.add('hidden');
             
-            cardsContainer.innerHTML = filtered.map(tarefa => `
-                <div class="card-hover fade-in-up" style="animation-delay: ${Math.random() * 0.2}s">
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer" onclick="acessarTarefa('${tarefa.pasta}', '${tarefa.arquivo}')">
-                        <!-- Header colorido -->
-                        <div class="h-2 bg-gradient-to-r ${tarefa.cor}"></div>
-                        
-                        <div class="p-6">
-                            <div class="flex items-start justify-between mb-4">
-                                <div class="flex items-center">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-r ${tarefa.cor} flex items-center justify-center shadow-lg">
-                                        <i class="fas ${tarefa.icone} text-white text-xl"></i>
-                                    </div>
-                                    <div class="ml-4">
-                                        <h3 class="font-bold text-lg text-gray-800">${tarefa.titulo}</h3>
-                                        <p class="text-gray-500 text-sm">COD SIA: ${tarefa.id}</p>
-                                    </div>
+            const bg = isDark ? '#1E1E1E' : '#FFFFFF';
+            const text = isDark ? '#E0E0E0' : '#1F1F1F';
+            const textSec = isDark ? '#A0A0A0' : '#666666';
+            const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+            const tagBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+            
+            container.innerHTML = filtradas.map((t, i) => `
+                <div class="project-card surface rounded-xl overflow-hidden cursor-pointer elevation-1 fade-in" 
+                     style="background:${bg};animation-delay:${Math.min(i*0.04,0.25)}s"
+                     onclick="window.location.href='${t.pasta}/${t.arquivo}'">
+                    <div class="h-1" style="background:${t.cor}"></div>
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:${t.cor}20">
+                                    <i class="${t.icone}" style="color:${t.cor}"></i>
                                 </div>
-                                ${getStatusBadge(tarefa.status)}
-                            </div>
-                            
-                            <p class="text-gray-600 text-sm mb-4 line-clamp-2">${tarefa.descricao}</p>
-                            
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                ${tarefa.tags.map(tag => `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">#${tag}</span>`).join('')}
-                            </div>
-                            
-                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <div class="flex items-center text-gray-400 text-xs">
-                                    <i class="far fa-calendar-alt mr-1"></i>
-                                    ${formatarData(tarefa.data)}
-                                </div>
-                                <div class="flex items-center text-indigo-600 text-sm font-medium">
-                                    Acessar projeto
-                                    <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                                <div>
+                                    <h3 class="font-medium text-sm" style="color:${text}">${t.titulo}</h3>
+                                    <p class="text-xs" style="color:${textSec}">COD:${t.id}</p>
                                 </div>
                             </div>
+                            ${getStatusBadge(t.status, isDark)}
+                        </div>
+                        <p class="text-xs mb-3 line-clamp-2" style="color:${textSec}">${t.descricao}</p>
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            ${t.tags.map(tag => `<span class="tag-chip" style="background:${tagBg};color:${textSec}">#${tag}</span>`).join('')}
+                        </div>
+                        <div class="flex items-center justify-between pt-2.5 border-t" style="border-color:${border}">
+                            <span class="text-xs" style="color:${textSec}"><i class="far fa-calendar-alt mr-1"></i>${formatDate(t.data)}</span>
+                            <span class="text-xs font-medium" style="color:${t.cor}">Acessar <i class="fas fa-arrow-right ml-1"></i></span>
                         </div>
                     </div>
                 </div>
             `).join('');
         }
         
-        // Função para acessar a tarefa
-        function acessarTarefa(pasta, arquivo) {
-            // Constrói o caminho relativo
-            const caminho = `${pasta}/${arquivo}`;
-            window.location.href = caminho;
-        }
+        function some(arr, fn) { return arr.find(fn) !== undefined; }
         
-        // Atualizar estatísticas
-        function atualizarEstatisticas() {
-            totalPastasSpan.textContent = tarefas.length;
-            totalTarefasSpan.textContent = tarefas.reduce((total, t) => total + 1, 0);
-            
-            const datas = tarefas.map(t => new Date(t.data));
-            const ultimaData = new Date(Math.max(...datas));
-            ultimaAtualizacaoSpan.textContent = ultimaData.toLocaleDateString('pt-BR');
-            
+        // ==================== STATS ====================
+        function atualizarStats() {
             const concluidos = tarefas.filter(t => t.status === 'concluido').length;
-            statusConcluidoSpan.textContent = concluidos;
+            stats.totalPastas.textContent = tarefas.length;
+            stats.totalTarefas.textContent = tarefas.length;
+            stats.statusConcluido.textContent = concluidos;
+            
+            if (tarefas.length > 0) {
+                const datas = tarefas.map(t => new Date(t.data));
+                constultima = new Date(Math.max(...datas));
+                stats.ultimaAtualizacao.textContent = ultima.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+            }
         }
         
-        // Evento de busca
-        searchInput.addEventListener('input', (e) => {
-            renderizarCards(e.target.value);
+        // ==================== EVENTS ====================
+        searchInput.addEventListener('input', e => {
+            filtroAtual = e.target.value;
+            mobileSearch.value = e.target.value;
+            renderizarCards(filtroAtual);
         });
         
-        // Inicializar
-        renderizarCards();
-        atualizarEstatisticas();
+        mobileSearch.addEventListener('input', e => {
+            filtroAtual = e.target.value;
+            searchInput.value = e.target.value;
+            renderizarCards(filtroAtual);
+        });
         
-        // Tornar a função global para ser chamada pelo onclick
-        window.acessarTarefa = acessarTarefa;
-    </script>
-    
-    <!-- Estilo adicional para line-clamp -->
-    <style>
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+        menuOverlay.addEventListener('click', toggleMenu);
+        
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !menuOverlay.classList.contains('hidden')) toggleMenu();
+        });
+        
+        // ==================== INIT ====================
+        function initAsync() {
+            initTheme();
+            tarefas = getPastas();
+            filtroAtual = '';
+            renderizarCards(filtroAtual);
+            atualizarStats();
         }
-    </style>
-    
+        
+        initAsync();
+        
+        window.toggleTheme = toggleTheme;
+        window.toggleMenu = toggleMenu;
+    </script>
 </body>
 </html>
