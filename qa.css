@@ -157,8 +157,6 @@ button:disabled{cursor:wait;opacity:.7}
 .wizard-stage.current{color:#0a7669}
 .wizard-stage>span{white-space:nowrap}
 .wizard-line{height:1px;width:clamp(20px,6vw,92px);background:#b9d5d0}
-.assist-consent{display:flex;align-items:flex-start;gap:12px;margin:18px 0 12px;padding:13px 15px;border-radius:10px;background:#eaf4f2;color:#31505a;font-size:.82rem;line-height:1.55;font-weight:550}
-.assist-consent input{width:18px;height:18px;flex:none;margin:1px 0 0;accent-color:#116b60}
 .assist-manual-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid #dce7e5;margin-top:22px;padding-top:18px;color:#57717c;font-size:.84rem}
 .assist-loading{display:flex;align-items:center;gap:17px;border:1px solid #acd3ca;border-radius:11px;margin-top:18px;padding:17px 20px;background:#e7f5f1;color:#1c504c}
 .assist-loading strong{font-size:.91rem}
