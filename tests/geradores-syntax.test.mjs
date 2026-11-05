@@ -23,17 +23,17 @@ test('QA Hub integrates all six productivity modules under one navigation',()=>{
    assert.match(qa,new RegExp('data-route="ferramentas/'+route+'"'));
    assert.match(html,new RegExp('n-'+route));
  }
- assert.doesNotMatch(qa,/href="\\.\\/geradores\\.html#/);
+ assert.doesNotMatch(qa,/href="\.\/geradores\.html#/);
  assert.match(qa,/id="view-ferramentas"/);
  assert.match(qa,/id="tool-frame"/);
- assert.match(qaScript,/const toolRoute = hash\\.match/);
+ assert.match(qaScript,/const toolRoute = hash\.match/);
  assert.match(qaScript,/qa-hub:navigate-tool/);
- assert.match(qaScript,/event\\.origin !== location\\.origin/);
- assert.match(qaScript,/state\\.toolFrameContext/);
- assert.match(qaScript,/task-post-link'\\)\\.href='#\\/ferramentas\\/post\\?tf=/);
- assert.match(qaScript,/task-testplan-link'\\)\\.href='#\\/ferramentas\\/teste\\?tf=/);
- assert.match(html,/nav\\{display:none!important\\}/);
- assert.match(html,/location\\.replace\\(destination\\.href\\)/);
+ assert.match(qaScript,/event\.origin !== location\.origin/);
+ assert.match(qaScript,/state\.toolFrameContext/);
+ assert.match(qaScript,/task-post-link'\)\.href='#\/ferramentas\/post\?tf=/);
+ assert.match(qaScript,/task-testplan-link'\)\.href='#\/ferramentas\/teste\?tf=/);
+ assert.match(html,/nav\{display:none!important\}/);
+ assert.match(html,/location\.replace\(destination\.href\)/);
  assert.match(html,/session-label/);
 });
 
