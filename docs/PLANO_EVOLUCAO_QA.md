@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Manter o projeto público `kaina-visualsoftware/Tarefas` como sistema de gestão de testes de software, sem interface do catálogo legado. A raiz abre diretamente o QA Hub; `qa.html` permanece compatível com callbacks do Supabase.
+Manter o projeto público `kaina-visualsoftware/QA-Hub` como sistema de gestão de testes de software, sem interface do catálogo legado. A raiz abre diretamente o QA Hub; `qa.html` permanece compatível com callbacks do Supabase.
 
 **Diretriz visual:** produto de operação diária, com alta legibilidade, densidade equilibrada, foco em busca, leitura de relatórios e registros extensos, sem excesso de animações.
 

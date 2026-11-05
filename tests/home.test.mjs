@@ -22,21 +22,29 @@ function redirectFrom(url) {
 
 test('GitHub Pages root opens QA without showing another homepage', () => {
   assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/Tarefas/'),
-    'https://kaina-visualsoftware.github.io/Tarefas/qa.html'
+    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/'),
+    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html'
   );
   assert.doesNotMatch(root, /pastaConfig|renderizarCards|HubTarefas|tailwindcss/i);
 });
 
 test('root preserves search and hash for auth callbacks and deep links', () => {
   assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/Tarefas/?next=home#access_token=example&type=signup'),
-    'https://kaina-visualsoftware.github.io/Tarefas/qa.html?next=home#access_token=example&type=signup'
+    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/?next=home#access_token=example&type=signup'),
+    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html?next=home#access_token=example&type=signup'
   );
   assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/Tarefas/index.html#/tarefas'),
-    'https://kaina-visualsoftware.github.io/Tarefas/qa.html#/tarefas'
+    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/index.html#/tarefas'),
+    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/tarefas'
   );
+});
+
+test('canonical and Auth production URLs use renamed QA-Hub Pages path', () => {
+  const origin='https://kaina-visualsoftware.github.io/QA-Hub/';
+  assert.match(root, /rel="canonical" href="https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/qa\.html"/);
+  assert.ok(config.includes(origin+'qa.html'));
+  assert.equal(redirectFrom(origin+'?source=login#/tarefas'),origin+'qa.html?source=login#/tarefas');
+  assert.doesNotMatch(root+config,/github\.io\/Tarefas/);
 });
 
 test('single QA UI has no legacy-home navigation', () => {
@@ -44,7 +52,7 @@ test('single QA UI has no legacy-home navigation', () => {
   assert.doesNotMatch(qa, /Hub anterior|Voltar ao Hub de Tarefas/i);
   assert.match(qa, /id="auth-form"/);
   assert.match(qa, /id="view-dashboard"/);
-  assert.match(config, /authRedirectUrl:\s*'https:\/\/kaina-visualsoftware\.github\.io\/Tarefas\/qa\.html'/);
+  assert.match(config, /authRedirectUrl:\s*'https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/qa\.html'/);
   assert.equal(existsSync(new URL('../184728/page.html', import.meta.url)), false);
 });
 
