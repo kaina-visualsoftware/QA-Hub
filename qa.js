@@ -5,7 +5,7 @@ import { parseReport, extractExplicitScenarios } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
-import { collectTaskContext, cleanMermaid, requestAiDiagram } from './qa-mermaid-ai.mjs';
+import { collectTaskContext, cleanMermaid, horizontalFlowchart, requestAiDiagram } from './qa-mermaid-ai.mjs';
 import { createDiagramViewer } from './qa-diagram-viewer.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
@@ -376,7 +376,7 @@ function openDiagram(d=null) {
   form.reset();
   form.elements.id.value=d?.id||'';
   form.elements.titulo.value=d?.titulo||'';
-  form.elements.conteudo.value=d?.conteudo||'flowchart TD\n  A[Início] --> B{Condição}\n  B -->|Sim| C[Resultado]\n  B -->|Não| D[Alternativa]';
+  form.elements.conteudo.value=d?.conteudo||'flowchart LR\n  A[Início] --> B{Condição}\n  B -->|Sim| C[Resultado]\n  B -->|Não| D[Alternativa]';
   $('#diagram-form-title').textContent=d?'Editar diagrama':'Novo diagrama';
   $('#diagram-ai-error').hidden=true;
   $('#diagram-ai-text').value='';
@@ -397,8 +397,9 @@ async function previewMermaid(text, target) {
     const {default:mermaid} = await import('https://esm.sh/mermaid@12.3.0');
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'neutral',maxTextSize:16000});
     const id='qa-diagram-'+crypto.randomUUID().replaceAll('-','');
-    if(mermaid.parse)await mermaid.parse(text);
-    const {svg} = await mermaid.render(id,text);
+    const displayCode=horizontalFlowchart(text);
+    if(mermaid.parse)await mermaid.parse(displayCode);
+    const {svg} = await mermaid.render(id,displayCode);
     // Mermaid renderiza e sanitiza o SVG quando securityLevel = strict.
     target.innerHTML = svg;
     return svg;
@@ -797,7 +798,7 @@ $('#diagram-form').addEventListener('submit',async event=>{
   if(!form.reportValidity())return;
   busy(button,true);
   try{
-    const values={titulo:form.elements.titulo.value.trim(),conteudo:form.elements.conteudo.value.trim(),updated_at:new Date().toISOString()};
+    const values={titulo:form.elements.titulo.value.trim(),conteudo:horizontalFlowchart(form.elements.conteudo.value.trim()),updated_at:new Date().toISOString()};
     const id=form.elements.id.value;
     const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
