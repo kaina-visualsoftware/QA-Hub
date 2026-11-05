@@ -339,3 +339,7 @@ button:disabled{cursor:wait;opacity:.7}
   .public-main{padding:24px 15px}
 }
 @media(prefers-reduced-motion:reduce){.diagram-viewer-art{will-change:auto}}
+
+/* Keep the skip link fully out of view until keyboard focus reaches it. */
+.public-site .skip-link:not(:focus){left:-10000px;transform:none}
+.public-site .skip-link:focus{left:10px;top:10px;transform:none}
