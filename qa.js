@@ -612,9 +612,7 @@ function checkLocalAiAvailability(){
   const button=$('#assist-device'),capability=$('#assist-capability');
   const supported=typeof Worker!=='undefined'&&typeof WebAssembly!=='undefined';
   button.disabled=!supported;
-  capability.textContent=supported
-    ? 'IA NVIDIA: exige configuração segura no Supabase e permite uso de modelos do catálogo gratuito, sujeitos a cotas. IA no dispositivo: gratuita, mas o primeiro download é grande e pode exigir bastante memória.'
-    : 'A IA do dispositivo não é compatível neste navegador. A NVIDIA e a extração sem IA continuam disponíveis.';
+  capability.textContent=supported ? '' : 'IA local indisponível neste navegador.';
 }
 
 function showAssistDraft(draft,method){
@@ -681,8 +679,8 @@ async function runAssistExtraction(method){
   const names={nvidia:'NVIDIA Build',device:'IA local do dispositivo',local:'Extração de texto'};
   title.textContent='Preparando '+names[method]+'…';
   details.textContent=method==='nvidia'?
-    'Enviando o texto autorizado. A resposta pode levar alguns instantes.':
-    method==='device'?'Preparando modelo local. O primeiro uso pode baixar arquivos grandes.':
+    'Processando o relatório…':
+    method==='device'?'Carregando o modelo no dispositivo…':
     'Lendo e organizando os campos…';
   $('#assist-loading').hidden=false;
   $('#assist-panel').setAttribute('aria-busy','true');
