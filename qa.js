@@ -46,7 +46,7 @@ function busy(button, active) {
 function setFormDirty(formId, dirty = true) {
   if (dirty) state.dirtyForms.add(formId);
   else state.dirtyForms.delete(formId);
-  $('#save-status').hidden = state.dirtyForms.size === 0;
+  $('#save-status').hidden = state.dirtyForms.size === 0 || $('#editor-fields').hidden;
 }
 function clearFormDirty() {
   state.dirtyForms.clear();
@@ -236,6 +236,7 @@ function setTaskStep(step, focus=false) {
   $('#editor-fields').hidden=entering;
   $('#save-task').hidden=entering;
   $('#editor-caption').hidden=entering;
+  $('#save-status').hidden=entering || state.dirtyForms.size===0;
   if(focus){
     const target=entering?$('#assist-text'):$('#task-form input[name="titulo"]');
     target.focus();
@@ -394,7 +395,6 @@ $('#auth-form').addEventListener('submit',async (event)=>{
     $('#auth-password').value='';
     showApp();
     await loadData(); location.hash='#/dashboard'; await route();
-    toast('Acesso realizado.');
   }catch(e){
     if (e?.code === 'email_not_confirmed') $('#resend-confirmation').hidden = false;
     toast(errMessage(e),true);
