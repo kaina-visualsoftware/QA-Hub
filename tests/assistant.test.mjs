@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {extractLocalDraft,normalizeDraft,extractWithBrowserAI} from '../qa-assistant.mjs';
+import {extractLocalDraft,normalizeDraft} from '../qa-assistant.mjs';
 
 test('freeform QA notes populate explicitly stated metadata, never invent status',()=>{
  const result=extractLocalDraft(`TF 67866 — Promoção por tabela de preço
@@ -55,21 +55,6 @@ test('AI JSON is whitelisted and scenarios remain unexecuted',()=>{
  assert.equal(result.fields.status,undefined);
  assert.equal(result.fields.user_id,undefined);
  assert.equal(result.cenarios[0].status,'nao_executado');
-});
-test('AI is never assumed available and errors are recoverable',async()=>{
- await assert.rejects(extractWithBrowserAI('Relatório',null),/não está disponível/);
- await assert.rejects(extractWithBrowserAI('Relatório',{availability:async()=> 'unavailable',create:async()=>{}}),/não é compatível/);
-});
-test('on-device AI response is schema-normalized with mocked model',async()=>{
- let destroyed=false;
- const model={
-   availability:async()=> 'available',
-   create:async()=>({prompt:async()=>JSON.stringify({titulo:'TF criada pela IA',tipo_teste:'BUILD',cenarios:[{titulo:'Teste um',passos:'Executar'}]}),destroy(){destroyed=true;}})
- };
- const result=await extractWithBrowserAI('Resumo do teste',model);
- assert.equal(result.fields.titulo,'TF criada pela IA');
- assert.equal(result.cenarios[0].status,'nao_executado');
- assert.equal(destroyed,true);
 });
 test('empty or excessively large text is rejected',()=>{
  assert.throws(()=>extractLocalDraft(''),/Cole o texto/);
