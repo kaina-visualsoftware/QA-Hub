@@ -140,7 +140,16 @@ try {
     await page.locator('#auth-email').fill('qa.fixture@example.test');
     await page.locator('#auth-password').fill('OnlyForAutomatedTests123!');
     await page.locator('#auth-submit').click();
-    await page.locator('#shell').waitFor({state:'visible'});
+    await page.locator('#shell').waitFor({state:'visible',timeout:8500}).catch(async error=>{
+      const info=await page.evaluate(()=>({
+        authMessage:document.querySelector('#toast')?.innerText,
+        authWarning:document.querySelector('#auth-warning')?.innerText,
+        shellHidden:document.querySelector('#shell')?.hidden,
+        scriptLoaded:document.querySelector('#auth-submit')?.getAttribute('aria-busy')
+      }));
+      console.error('QA AUTH DIAGNOSTIC',JSON.stringify(info),'PAGE ERRORS',errors);
+      throw error;
+    });
     await page.locator('#view-dashboard').waitFor({state:'visible'});
     assert.equal(await page.locator('#user-role').innerText(),'Testador');
     overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
