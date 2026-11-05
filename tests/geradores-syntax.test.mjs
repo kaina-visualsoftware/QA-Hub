@@ -6,6 +6,7 @@ import {POST_SYSTEM,TEST_SYSTEM,messagesForGenerator} from '../supabase/function
 
 const html=readFileSync(new URL('../geradores.html',import.meta.url),'utf8');
 const qa=readFileSync(new URL('../qa.html',import.meta.url),'utf8');
+const qaScript=readFileSync(new URL('../qa.js',import.meta.url),'utf8');
 const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 
 test('geradores starts without Claude runtime and uses Supabase and NVIDIA',()=>{
@@ -16,13 +17,23 @@ test('geradores starts without Claude runtime and uses Supabase and NVIDIA',()=>
  assert.doesNotThrow(()=>new Script(check));
 });
 
-test('QA Hub links all seven requested productivity routes',()=>{
+test('QA Hub integrates all six productivity modules under one navigation',()=>{
  for(const route of ['post','teste','release','lib','diff','xml']){
-   assert.match(qa,new RegExp('geradores\\.html#'+route));
+   assert.match(qa,new RegExp('href="#/ferramentas/'+route+'"'));
+   assert.match(qa,new RegExp('data-route="ferramentas/'+route+'"'));
    assert.match(html,new RegExp('n-'+route));
  }
- assert.match(qa,/task-testplan-link/);
- assert.match(qa,/task-post-link/);
+ assert.doesNotMatch(qa,/href="\\.\\/geradores\\.html#/);
+ assert.match(qa,/id="view-ferramentas"/);
+ assert.match(qa,/id="tool-frame"/);
+ assert.match(qaScript,/const toolRoute = hash\\.match/);
+ assert.match(qaScript,/qa-hub:navigate-tool/);
+ assert.match(qaScript,/event\\.origin !== location\\.origin/);
+ assert.match(qaScript,/state\\.toolFrameContext/);
+ assert.match(qaScript,/task-post-link'\\)\\.href='#\\/ferramentas\\/post\\?tf=/);
+ assert.match(qaScript,/task-testplan-link'\\)\\.href='#\\/ferramentas\\/teste\\?tf=/);
+ assert.match(html,/nav\\{display:none!important\\}/);
+ assert.match(html,/location\\.replace\\(destination\\.href\\)/);
  assert.match(html,/session-label/);
 });
 
