@@ -673,11 +673,6 @@ async function runAssistExtraction(method){
     toast('Cole um relatório ou descrição antes de extrair os campos.',true);
     return;
   }
-  if(method==='nvidia' && !$('#assist-consent').checked){
-    $('#assist-consent').focus();
-    toast('Autorize o envio do texto à NVIDIA ou use a extração sem IA.',true);
-    return;
-  }
   const button=$('#assist-'+(method==='nvidia'?'ai':method==='device'?'device':'local'));
   const buttons=['assist-ai','assist-device','assist-local','assist-manual'].map(id=>$('#'+id));
   busy(button,true);
