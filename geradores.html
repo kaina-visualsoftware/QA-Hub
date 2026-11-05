@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8">
+<html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Geradores</title>
+<title>QA Hub — Geradores</title>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mut:#667085;--bd:#d8dce3;--ac:#1f5fbf;--acx:#fff;--sel:#e6eefb}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d222a;--tx:#e8ebf0;--mut:#98a2b3;--bd:#323946;--ac:#5b9bff;--acx:#0b1220;--sel:#243350}}
@@ -61,10 +61,31 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 .tl:hover{border-color:var(--ac);background:var(--sel);transform:translateY(-1px)}.tl:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .tl .th{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:6px}.tl .ti{font-size:22px;line-height:1}.tl .tt2{font-weight:600;font-size:14px}.tl .td{color:var(--mut);font-size:12.5px;line-height:1.4}
 .lc2{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}.lc2 select{width:auto;flex:none}.lc2 .rw{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.lc2 button{padding:5px 12px;font-size:13px}
+</style>
+<style id="qa-generator-style">
+:root[data-theme="dark"]{--ac:#55c9b3;--acx:#082821;--sel:#183f3b}
+:root[data-theme="dark"] nav{background:#131e27}
+:root[data-theme="dark"] .card,:root[data-theme="dark"] .hc{background:#1c2b36}
+.qa-return{display:block;margin:4px 9px 13px;padding:10px 12px;border:1px solid var(--bd);border-radius:9px;color:var(--ac);font-size:13px;font-weight:700}
+.qa-return:hover{background:var(--sel)}
+.qa-generator-brand{margin:0 12px 14px;font-size:16px;font-weight:750;letter-spacing:-.02em}
+.qa-generator-brand span{display:block;font-size:10px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase}
+.qa-generator-session{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 22px;padding:13px 17px;background:var(--card);border:1px solid var(--bd);border-radius:12px}
+.qa-generator-session strong,.qa-generator-session small{display:block}
+.qa-generator-session strong{font-size:14px}.qa-generator-session small{font-size:12px;color:var(--mut)}
+.qa-generator-session>div:last-child{display:flex;align-items:center;gap:10px}
+.qa-return-mobile{font-size:12px;color:var(--ac)}
+.qa-ai-note{margin:0 0 14px;color:var(--mut);font-size:12px}
+#prev{overflow-wrap:anywhere}
+#exec .xd{min-width:0}
+#exec button{max-width:100%}
+@media(max-width:800px){.qa-generator-session{align-items:flex-start;flex-direction:column}.qa-generator-session>div:last-child{flex-wrap:wrap}}
 </style></head><body><div class="app">
-<nav><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
+<nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
 <main>
+<div class="qa-generator-session"><div><strong>Ferramentas de QA</strong><small id="session-label">As ferramentas locais não precisam de login.</small></div><div><button id="import-task" class="s" type="button" hidden>Usar dados da TF</button><a href="./qa.html" class="qa-return-mobile">Voltar às TFs</a></div></div>
 <h2 class="t" id="ttl"></h2><div id="tool"></div>
+<p id="ai-privacy-info" class="qa-ai-note" hidden>O relatório é enviado à NVIDIA somente ao clicar em Gerar.</p>
 <div class="grid" id="gr">
 <div><label for="t" id="l1"></label><textarea id="t"></textarea></div>
 <div><label for="r" id="l2"></label><textarea id="r"></textarea></div>
@@ -81,7 +102,10 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <div id="hp" style="display:none;margin-bottom:10px"><textarea id="hb" style="height:110px" placeholder="Cole aqui o backup copiado antes" spellcheck="false"></textarea><div class="acts"><button class="p" id="hg">Validar backup</button></div></div>
 <div id="hl"></div></div>
 </main></div>
-<script>
+<script type="module">
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
+import {QA_CONFIG} from './qa-config.js';
+const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
 const POST=`Você escreve posts de melhoria para o fórum de uma software house (ERP MyCommerce), em português do Brasil, a partir da TAREFA e, se houver, do REQUISITO colados pelo usuário.
 
@@ -277,7 +301,7 @@ function parseRec(r,team){const txt=r.lines.join("\n"),n=tn(r.lines[0])[0]?"#"+t
  if(!sp&&r.lines.length===1)sp=txt.replace(obs,"").replace(/\d{1,2}\/\d{1,2}\/\d{2,4}(\s+\d{1,2}:\d{2}(:\d{2})?)?/g," ").replace(/#?\d{4,7}/,"").replace(/\(?\b(BUG|MELHORIA)\b\)?/i,"").replace(/^[\s\-*•—–|]+|[\s\-—–|]+$/g,"").replace(/\s*[—–|\t]+\s*/g," ").trim();
  if(!sp)sp="SEM SPRINT";if(!ty)at.push(n+": tipo (BUG/MELHORIA) não encontrado");
  return{n,ty,sp,obs,at}}
-async function allT(k="tarefas"){const st=store(k),L=(await st.list()).map(p=>({...p,_s:st}));if(db&&!fb){const lc=store(k,true);try{L.push(...(await lc.list()).map(p=>({...p,_s:lc})))}catch(e){}}return L}
+async function allT(k="tarefas"){const st=store(k),L=(await st.list()).map(p=>({...p,_s:st}));if(db&&!fb&&k!=="lib"){const lc=store(k,true);try{L.push(...(await lc.list()).map(p=>({...p,_s:lc})))}catch(e){}}return L}
 let LB=[];
 const dias=v=>{if(!v)return null;const[y,m,d]=v.split("-").map(Number),t=new Date();t.setHours(0,0,0,0);return Math.round((new Date(y,m-1,d)-t)/864e5)},fdt=v=>v?v.split("-").reverse().join("/"):"";
 const dtx=n=>n===null?"Sem data de vencimento":n<0?"Vencida há "+(-n)+" dia"+(n<-1?"s":""):n===0?"Vence hoje":n===1?"Vence amanhã":"Vence em "+n+" dias",dcl=n=>n===null?"#667085":n<0?"#f85149":n<=7?"#d29922":"#2ea043";
@@ -288,7 +312,7 @@ function toolLib(){
  <div class="ff"><div id="fw-c"><label for="lc" id="lcl"></label><input id="lc" type="text" spellcheck="false" autocomplete="off"></div><div id="fw-p"><label for="lp">Senha</label><input id="lp" type="password" autocomplete="new-password"></div></div>
  <div class="ff"><div id="fw-v" style="flex:0 1 240px"><label for="lv">Vencimento <span>(opcional)</span></label><input id="lv" type="date"></div><div id="fw-n"><label for="ln" id="lnl"></label><textarea id="ln" spellcheck="false"></textarea></div></div>
  <div class="acts"><button class="p" id="ls">Salvar</button><span id="lm" style="color:var(--mut);font-size:13px"></span></div>
- <small style="color:var(--mut)">Fica salvo na sua conta, sem criptografia. Para senhas de sistemas críticos, prefira um gerenciador de senhas.</small></div>
+ <small style="color:var(--mut)">Fica somente neste navegador, sem criptografia. Evite guardar senhas de sistemas críticos.</small></div>
  <div class="acts" style="margin:0 0 10px"><div id="lf" class="xb"></div><input id="lq" type="text" placeholder="Buscar por título, valor ou observação"></div><div id="ll"></div>`;
  const msg=t=>{$("lm").textContent=t},cat=x=>x.cat||"Código";
  const ff=()=>{const k=$("lk").value,a=k==="Anotação";$("fw-c").style.display=a?"none":"";$("lcl").textContent=k==="Código"?"Código de liberação":"Usuário";$("fw-p").style.display=k==="Acesso (login)"?"":"none";$("fw-v").style.display=a?"none":"";$("lnl").textContent=a?"Anotação":"Observações (opcional)";$("ln").style.height=a?"150px":"72px"};
