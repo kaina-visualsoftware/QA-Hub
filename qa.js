@@ -612,9 +612,7 @@ function checkLocalAiAvailability(){
   const button=$('#assist-device'),capability=$('#assist-capability');
   const supported=typeof Worker!=='undefined'&&typeof WebAssembly!=='undefined';
   button.disabled=!supported;
-  capability.textContent=supported
-    ? 'IA NVIDIA: exige configuração segura no Supabase e permite uso de modelos do catálogo gratuito, sujeitos a cotas. IA no dispositivo: gratuita, mas o primeiro download é grande e pode exigir bastante memória.'
-    : 'A IA do dispositivo não é compatível neste navegador. A NVIDIA e a extração sem IA continuam disponíveis.';
+  capability.textContent=supported ? '' : 'IA local indisponível neste navegador.';
 }
 
 function showAssistDraft(draft,method){
@@ -673,11 +671,6 @@ async function runAssistExtraction(method){
     toast('Cole um relatório ou descrição antes de extrair os campos.',true);
     return;
   }
-  if(method==='nvidia' && !$('#assist-consent').checked){
-    $('#assist-consent').focus();
-    toast('Autorize o envio do texto à NVIDIA ou use a extração sem IA.',true);
-    return;
-  }
   const button=$('#assist-'+(method==='nvidia'?'ai':method==='device'?'device':'local'));
   const buttons=['assist-ai','assist-device','assist-local','assist-manual'].map(id=>$('#'+id));
   busy(button,true);
@@ -686,8 +679,8 @@ async function runAssistExtraction(method){
   const names={nvidia:'NVIDIA Build',device:'IA local do dispositivo',local:'Extração de texto'};
   title.textContent='Preparando '+names[method]+'…';
   details.textContent=method==='nvidia'?
-    'Enviando o texto autorizado. A resposta pode levar alguns instantes.':
-    method==='device'?'Preparando modelo local. O primeiro uso pode baixar arquivos grandes.':
+    'Processando o relatório…':
+    method==='device'?'Carregando o modelo no dispositivo…':
     'Lendo e organizando os campos…';
   $('#assist-loading').hidden=false;
   $('#assist-panel').setAttribute('aria-busy','true');
@@ -702,7 +695,7 @@ async function runAssistExtraction(method){
       'Aguardando o resultado da NVIDIA ('+elapsed+' s). O texto será revisável antes de salvar.';
   },4000);
   try{
-    let draft,source=names[method];
+    let draft,source=names[method],usedFallback=false;
     if(method==='nvidia'){
       const result=await extractWithNvidia(raw,db,text=>{
         feedback.textContent=text;
@@ -710,6 +703,7 @@ async function runAssistExtraction(method){
       });
       draft=result.draft;
       source=result.model;
+      usedFallback=Boolean(result.fallback);
     }else if(method==='device'){
       draft=await extractWithOpenModel(raw,text=>{
         feedback.textContent=text;
@@ -722,6 +716,7 @@ async function runAssistExtraction(method){
     if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
     showAssistDraft(draft,source);
     applyAssistDraft();
+    if(usedFallback)toast('A NVIDIA não retornou campos válidos. Organizei o texto localmente; revise antes de salvar.');
   }catch(error){
     if(location.hash!==startHash || state.user?.id!==startUser)return;
     const message=error?.name==='TimeoutError'?

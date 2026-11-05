@@ -93,7 +93,7 @@ Ao criar uma **Nova TF**, cole um relatório ou uma explicação na seção de p
 
 A página **Nova TF** abre na **Etapa 1 — Entrada de texto**. O formulário completo fica oculto até ocorrer uma destas ações:
 
-- **Gerar com IA NVIDIA:** após marcar a autorização de envio do relatório, o navegador chama a função autenticada `qa-ai` do Supabase, que usa a chave de forma privada. O sistema tenta primeiro `nvidia/nemotron-3.5-lightning-30b-a3b` e depois `z-ai/glm-5-3-flash`, ambos identificados no catálogo NVIDIA Build como **Free Endpoint** em 05/11/2026. Tenta identificar os modelos disponíveis usando `GET /v1/models` e só tenta modelos dessa lista previamente permitida. Uma resposta válida avança para a Etapa 2.
+- **Gerar com IA NVIDIA:** ao clicar no botão, o navegador chama a função autenticada `qa-ai` do Supabase, que usa a chave de forma privada. O sistema tenta primeiro `nvidia/nemotron-3.5-lightning-30b-a3b` e depois `z-ai/glm-5-3-flash`, ambos identificados no catálogo NVIDIA Build como **Free Endpoint** em 05/11/2026. Tenta identificar os modelos disponíveis usando `GET /v1/models` e só tenta modelos dessa lista previamente permitida. Uma resposta válida avança para a Etapa 2.
 - **Extrair sem IA:** interpreta o relatório por regras locais, sem enviar o texto à NVIDIA, e avança para a Etapa 2.
 - **Usar IA no dispositivo:** utiliza o modelo aberto local Qwen via Web Worker; requer download e hardware compatível e avança após concluir. Não usa chave da NVIDIA.
 - **Seguir manualmente:** abre imediatamente a Etapa 2 com formulário vazio, sem chamada de IA.
@@ -108,6 +108,12 @@ A **Etapa 2 — Revisão** permite editar todos os campos, retornar ao texto, vi
 4. A função `qa-ai` e o controle de cota precisam estar implantados no mesmo projeto. A função exige JWT de usuário válido, permite apenas origem do QA Hub, limita relatórios a 20.000 caracteres, aplica 12 requisições por usuário por dia e intervalo mínimo de 15 segundos, e nunca envia a chave ao navegador.
 5. Para verificar, entre no QA Hub, crie uma nova TF, marque o consentimento de enviar a descrição à NVIDIA e clique em **Gerar com IA NVIDIA**. Confira a prévia preenchida. Se a chave estiver ausente, a interface informa isso e oferece extração sem IA.
 
-**Privacidade:** somente a ação explícita de IA NVIDIA envia o conteúdo à NVIDIA; textos podem conter informações de clientes e dados internos, então remova informações sensíveis antes de compartilhar. A extração sem IA e a IA local não enviam relatórios à NVIDIA. A NVIDIA pode impor cotas de uso/alterar modelos gratuitos; um endpoint denominado gratuito **não** significa gratuidade ilimitada. A lista estática de candidatos precisa ser revisada quando o catálogo mudar.
+**Privacidade:** clicar em **Gerar com IA NVIDIA** inicia diretamente o envio do conteúdo à NVIDIA, sem caixa de autorização adicional. Essa transferência é informada na interface; remova informações sensíveis e dados de clientes antes de usar a IA online. A extração sem IA e a IA local não enviam relatórios à NVIDIA. A NVIDIA pode impor cotas de uso/alterar modelos gratuitos; um endpoint denominado gratuito **não** significa gratuidade ilimitada. A lista estática de candidatos precisa ser revisada quando o catálogo mudar.
 
 **Observabilidade:** os erros do provedor são traduzidos para mensagens sem expor credenciais. A resposta estruturada é normalizada no cliente e limitada às colunas esperadas da TF.
+
+### Respostas flexíveis da NVIDIA
+
+O backend usa `supabase/functions/qa-ai/response.mjs` para reconhecer JSON, blocos Markdown, campos aninhados, pequenas falhas de sintaxe e respostas rotuladas em linguagem natural. Para Nemotron 3.5, a função solicita saída sem raciocínio estendido, evitando consumir o limite de resposta antes de gerar os campos. Se a resposta ainda estiver incompleta, o QA Hub utiliza automaticamente a extração local do texto original, informando isso ao usuário. Não são inventados campos, resultados ou aprovações.
+
+A interface da etapa 1 mantém somente instruções curtas. O clique em **Gerar com IA NVIDIA** inicia diretamente o processamento e informa discretamente que o relatório é enviado ao serviço. Respostas do provedor são tratadas como dados, jamais como comandos.
