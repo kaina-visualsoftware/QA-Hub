@@ -146,6 +146,8 @@ try {
 
     await page.locator('#new-task').click();
     await page.locator('#view-editor').waitFor({state:'visible'});
+    assert.equal(await page.locator('#assist-ai').isDisabled(),false);
+    assert.match(await page.locator('#assist-capability').innerText(),/sem login nem token/);
     await page.locator('#assist-text').fill(`TF 67866 — Inclusão de produto
 O QUE FOI TESTADO:
 Validar inclusão pelo catálogo.

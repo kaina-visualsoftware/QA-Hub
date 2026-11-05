@@ -94,10 +94,10 @@
             <div class="assist-body">
               <label for="assist-text">Descrição, relatório ou análise da tarefa</label>
               <textarea id="assist-text" rows="7" maxlength="30000" placeholder="Ex.: TF 67866 — promoção por tabela de preço. Versão 12.08.08.0000. O problema acontece ao incluir kits..."></textarea>
-              <p class="assist-help">O texto é analisado neste dispositivo. A IA gratuita usa o modelo integrado do Chrome quando disponível; nenhuma informação é enviada a serviços de IA externos. Revise todos os campos antes de salvar.</p>
+              <p class="assist-help">O texto é analisado neste dispositivo. A IA usa um modelo aberto executado localmente por WebGPU ou WebAssembly, sem token ou cadastro. Na primeira utilização, é preciso baixar o modelo (cerca de 500 MB); em aparelhos com pouca memória pode não funcionar. O texto não é enviado para um serviço de IA. Revise os campos antes de salvar.</p>
               <div class="assist-actions">
                 <button id="assist-local" class="btn primary" type="button">Extrair campos do texto</button>
-                <button id="assist-ai" class="btn soft" type="button">Usar IA gratuita do Chrome</button>
+                <button id="assist-ai" class="btn soft" type="button">Usar IA gratuita · sem token</button>
               </div>
               <p id="assist-capability" class="muted fine" aria-live="polite"></p>
               <p id="assist-status" class="assist-status" role="status" aria-live="polite"></p>

@@ -71,16 +71,20 @@ Em **Supabase Dashboard → Authentication → URL Configuration**, configure a 
 
 O QA Hub usa `QA_CONFIG.authRedirectUrl` para cadastro e reenvio de confirmação. O redirecionamento da raiz para `qa.html` preserva o fragmento e os parâmetros, inclusive os de autenticação. Links de confirmação previamente expirados não são renovados automaticamente.
 
-## Preenchimento rápido de TF por texto
+## Preenchimento rápido de TF com IA sem token
 
-Na opção **Nova TF**, cole um relatório ou uma explicação em linguagem natural em **Preenchimento rápido**:
+Ao criar uma **Nova TF**, cole um relatório ou uma explicação na seção de preenchimento rápido. Há duas opções:
 
-1. **Extrair campos do texto** usa regras de interpretação locais. Funciona em qualquer navegador, sem chave de API ou custo adicional; entende relatórios com seções e também descrições livres, com resultado limitado ao que estiver explícito.
-2. **Usar IA gratuita do Chrome** tenta o modelo integrado no dispositivo, quando a versão do Chrome, o equipamento e o idioma forem compatíveis. O recurso pode estar indisponível, exigir download e não oferecer suporte pleno a português. O botão fica indisponível quando o navegador reporta incompatibilidade.
-3. Revise a prévia, selecione **Substituir campos já preenchidos** apenas se necessário e clique em **Aplicar no formulário**. Os campos são editáveis. Ao salvar uma nova TF, os cenários extraídos são criados como **não executados**, nunca como aprovados automaticamente.
+- **Extrair campos do texto:** extração por regras 100% local, sem baixar modelos, compatível com navegadores modernos. Útil para relatórios com seções e textos livres.
+- **Usar IA gratuita · sem token:** executa um modelo aberto **Qwen2.5-0.5B-Instruct** pelo [Transformers.js](https://huggingface.co/docs/transformers.js/v3.8.1/en/installation) em um Web Worker. Usa WebGPU quando possível; caso contrário, tenta WebAssembly/CPU. Não requer login, token, chave de API ou conta de IA. Não envia o relatório a um endpoint de inferência externa.
 
-**Privacidade:** nenhuma das duas extrações envia o texto a um provedor externo de IA. A informação só é enviada ao Supabase na operação normal de salvar a TF. Não há chaves de terceiros no frontend nem custos de tokens no fluxo local. Relatórios de sistemas internos não devem ser enviados para serviços gratuitos de IA externos sem autorização e avaliação de tratamento dos dados.
+**Limitações reais:** nenhum LLM local roda garantidamente em todo celular ou computador. A primeira utilização exige conexão para baixar a biblioteca e arquivos públicos do modelo (na ordem de centenas de MB, aproximadamente 500 MB conforme a variante) e memória suficiente. Equipamentos modestos podem ter lentidão ou falhar. Após baixar, os arquivos podem permanecer no cache do navegador, sujeito a limpeza e espaço disponível. A extração por regras fica sempre acessível como alternativa e não depende do modelo.
 
-**Limites:** extração local de até 30.000 caracteres, IA local de até 16.000 caracteres, até 50 cenários extraídos. É necessário conferir códigos, versões, etapas e resultados; a IA pode errar. O recurso não substitui a execução dos testes.
+1. Cole o texto (extração sem IA aceita até **30.000 caracteres**; IA local até **6.000**).
+2. Escolha uma opção de extração. No modo IA, a primeira execução pode baixar um modelo volumoso; a interface mostra o progresso.
+3. Revise a prévia antes de aplicar. Campos existentes só serão sobrescritos se o usuário marcar essa opção.
+4. Clique em **Aplicar no formulário** e depois em **Salvar TF**. Cenários extraídos são gravados como **não executados**, nunca aprovados automaticamente.
 
-Uma futura integração com API externa (por exemplo, plano gratuito do Gemini) exigirá chave guardada **exclusivamente** em Supabase Edge Function/Secrets, consentimento para compartilhar o texto, limite de consumo e revisão de privacidade. A integração externa **não foi habilitada**.
+**Privacidade:** o JavaScript e os arquivos públicos da IA são baixados de CDNs/Hugging Face; o texto de QA é processado localmente, no navegador, sem requisição de inferência a provedores externos. O conteúdo é transmitido ao Supabase **somente** no fluxo de salvar a TF. Não há segredo ou token de provedor no frontend. Evite incluir dados pessoais ou segredos em relatórios desnecessariamente.
+
+**Validação:** testes automatizados usam modelo simulado, verificação do protocolo do Worker e da normalização JSON. O download e a inferência efetiva do modelo volumoso **não** são exercitados na CI; a compatibilidade e a qualidade do texto gerado precisam de homologação em aparelhos reais. Dados de teste gerados por IA sempre precisam de conferência humana.
