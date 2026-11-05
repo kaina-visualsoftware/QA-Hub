@@ -39,6 +39,14 @@ test('root preserves search and hash for auth callbacks and deep links', () => {
   );
 });
 
+test('canonical and Auth production URLs use renamed QA-Hub Pages path', () => {
+  const origin='https://kaina-visualsoftware.github.io/QA-Hub/';
+  assert.match(root, /rel="canonical" href="https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/qa\.html"/);
+  assert.ok(config.includes(origin+'qa.html'));
+  assert.equal(redirectFrom(origin+'?source=login#/tarefas'),origin+'qa.html?source=login#/tarefas');
+  assert.doesNotMatch(root+config,/github\.io\/Tarefas/);
+});
+
 test('single QA UI has no legacy-home navigation', () => {
   assert.doesNotMatch(qa, /href=["']\.\/index\.html["']/i);
   assert.doesNotMatch(qa, /Hub anterior|Voltar ao Hub de Tarefas/i);
