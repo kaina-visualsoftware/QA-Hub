@@ -100,6 +100,8 @@ try {
     });
     await page.goto(site, {waitUntil:'load'});
     await page.waitForURL('**/qa.html');
+    await page.waitForLoadState('load');
+    await page.locator('#auth-screen').waitFor({state:'visible'});
     assert.equal(await page.locator('#auth-screen').isVisible(),true);
     assert.equal(await page.locator('#auth-form').count(),1);
     let overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -112,6 +114,13 @@ try {
     await page.locator('#view-dashboard').waitFor({state:'visible'});
     assert.equal(await page.locator('#user-role').innerText(),'Testador');
     overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    if(overflow>1){
+      const exceeding=await page.evaluate(()=>[...document.querySelectorAll('body *')].map(el=>{
+        const r=el.getBoundingClientRect();
+        return {tag:el.tagName,id:el.id,cls:String(el.className).slice(0,80),right:Math.round(r.right),width:Math.round(r.width)};
+      }).filter(el=>el.right>innerWidth+1).slice(0,12));
+      console.log('Overflow details',width,JSON.stringify(exceeding));
+    }
     assert.ok(overflow<=1,'Dashboard horizontal overflow at '+width+': '+overflow);
 
     if(width<=768){
