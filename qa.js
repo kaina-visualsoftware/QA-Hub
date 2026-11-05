@@ -215,9 +215,9 @@ const toolPages = {
   xml: { title:'Comparar XML', description:'Compare estruturas e conteúdos XML.' }
 };
 function setView(name) {
-  $('.view').forEach(node => { node.hidden = node.id !== 'view-'+name; });
+  $$('.view').forEach(node => { node.hidden = node.id !== 'view-'+name; });
   const activeRoute = name === 'ferramentas' ? 'ferramentas/' + state.toolMode : name;
-  $('.navigation a[data-route]').forEach(node => {
+  $$('.navigation a[data-route]').forEach(node => {
     const active = node.dataset.route === activeRoute;
     node.classList.toggle('active', active);
     if (active) node.setAttribute('aria-current', 'page');
