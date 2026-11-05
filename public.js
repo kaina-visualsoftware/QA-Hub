@@ -1,6 +1,7 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
 import {createDiagramViewer} from './qa-diagram-viewer.mjs';
+import {horizontalFlowchart} from './qa-mermaid-ai.mjs';
 
 const db=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey,{
   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
@@ -52,8 +53,9 @@ async function drawMermaid(source,target){
     const {default:mermaid}=await import('https://esm.sh/mermaid@12.3.0');
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'neutral',maxTextSize:16000});
     if(source.length>16000)throw Error('Conteúdo muito extenso.');
-    if(mermaid.parse)await mermaid.parse(source);
-    const {svg}=await mermaid.render('public-mermaid-'+crypto.randomUUID().replaceAll('-',''),source);
+    const displayCode=horizontalFlowchart(source);
+    if(mermaid.parse)await mermaid.parse(displayCode);
+    const {svg}=await mermaid.render('public-mermaid-'+crypto.randomUUID().replaceAll('-',''),displayCode);
     target.innerHTML=svg;
     return svg;
   }catch{
