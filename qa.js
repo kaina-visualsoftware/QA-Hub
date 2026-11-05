@@ -2,7 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
 import { QA_CONFIG } from './qa-config.js';
 import { parseReport } from './qa-parser.mjs';
-import { extractLocalDraft, extractWithBrowserAI } from './qa-assistant.mjs';
+import { extractLocalDraft } from './qa-assistant.mjs';
+import { extractWithOpenModel } from './qa-ai-open.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -597,26 +598,15 @@ const assistLabels={
   causa:'Problema e causa',correcao:'O que foi alterado',
   conclusao:'Conclusão',observacoes:'Observações'
 };
-async function checkLocalAiAvailability(){
+function checkLocalAiAvailability(){
   const button=$('#assist-ai'),capability=$('#assist-capability');
-  const model=globalThis.LanguageModel;
-  button.disabled=true;
-  if(!model?.availability || !model?.create){
-    capability.textContent='IA do Chrome indisponível neste navegador. A extração local abaixo funciona sem IA.';
-    return;
-  }
-  try{
-    const status=await model.availability();
-    button.disabled=status==='unavailable';
-    capability.textContent=status==='unavailable'
-      ? 'O modelo local de IA não está disponível neste dispositivo ou idioma. Use a extração sem IA.'
-      : status==='available'?'IA local disponível. O texto não é enviado a provedores externos.'
-      : 'A IA pode exigir o download gratuito de um modelo no Chrome. A extração sem IA funciona imediatamente.';
-  }catch{
-    button.disabled=true;
-    capability.textContent='Não foi possível verificar o modelo de IA local. Use a extração sem IA.';
-  }
+  const supported=typeof Worker!=='undefined'&&typeof WebAssembly!=='undefined';
+  button.disabled=!supported;
+  capability.textContent=supported
+    ? 'IA aberta (Qwen2.5) no navegador: sem login nem token. Primeiro uso baixa cerca de 500 MB; celulares e computadores com pouca memória podem não conseguir executá-la.'
+    : 'Este navegador não suporta o processamento local da IA. Use a extração sem IA, disponível em todos os navegadores modernos.';
 }
+
 function showAssistDraft(draft,method){
   state.assistDraft=draft;
   const names=Object.keys(draft.fields);
@@ -651,12 +641,12 @@ async function runAssistExtraction(useAi){
   state.assistDraft=null;
   const feedback=$('#assist-status');
   feedback.classList.remove('error');
-  feedback.textContent=useAi?'Preparando IA local…':'Analisando texto no navegador…';
+  feedback.textContent=useAi?'Preparando modelo aberto, sem chave de API…':'Analisando texto no navegador…';
   try{
     const draft=useAi
-      ?await extractWithBrowserAI(raw,globalThis.LanguageModel,text=>{feedback.textContent=text;})
+      ?await extractWithOpenModel(raw,text=>{feedback.textContent=text;})
       :extractLocalDraft(raw);
-    showAssistDraft(draft,useAi?'Análise pela IA local':'Extração local');
+    showAssistDraft(draft,useAi?'Análise com modelo aberto':'Extração local');
   }catch(error){
     feedback.classList.add('error');
     feedback.textContent=error?.message||'Falha ao extrair os campos. Tente a extração local.';
