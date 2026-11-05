@@ -2,7 +2,7 @@
 
 Leia `README.md`, `docs/PLANO_EVOLUCAO_QA.md` e o código existente antes de alterar o projeto.
 
-- O hub anterior (`index.html` e `184728/page.html`) deve permanecer acessível.
+- A única interface do produto é `qa.html`. A raiz `index.html` redireciona para `qa.html` preservando URL query e fragmento; manter a rota por causa do Supabase Auth. Não reintroduzir o hub legado.
 - Para novas interfaces, aplicar `.agents/skills/frontend-design/SKILL.md`, `ui-ux-pro-max`, `accessibility` e `impeccable` em modo Operate. Interfaces densas devem priorizar leitura, busca e teclado.
 - Para alterações de banco ou Auth, aplicar `security-and-hardening`, Postgres Best Practices e documentação atual do Supabase. Nunca remover RLS nem usar chaves privilegiadas no navegador.
 - Para bugs, consultar `test-driven-development`, `code-review-and-quality` e `playwright-e2e`. Descrever claramente testes realmente executados, dependências e limitações.
