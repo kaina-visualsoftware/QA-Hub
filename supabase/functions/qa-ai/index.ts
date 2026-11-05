@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { parseNvidiaDraft } from "./response.mjs";
+import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 
 // Only models verified in NVIDIA Build's Free Endpoint catalog.
 // The runtime also attempts GET /v1/models and skips unavailable IDs.
@@ -98,6 +99,7 @@ Deno.serve(async req => {
     return respond(origin,400,{error:"bad_request",message:"Envie um relatório de texto válido."});
   }
   const text=typeof (body as {text?:unknown})?.text==="string" ? (body as {text:string}).text.trim():"";
+  const diagramMode=(body as {mode?:unknown})?.mode==="diagram";
   if(!text || text.length>MAX_REPORT_CHARS) {
     return respond(origin,400,{error:"too_long",message:"Informe um texto entre 1 e 20.000 caracteres."});
   }
@@ -136,9 +138,9 @@ Deno.serve(async req => {
         },
         body:JSON.stringify({
           model,
-          messages:promptForReport(text),
+          messages:diagramMode?diagramMessages(text):promptForReport(text),
           temperature:0.1,
-          max_tokens:4800,
+          max_tokens:diagramMode?2400:4800,
           stream:false,
           ...(model.startsWith("nvidia/nemotron-")?{
             chat_template_kwargs:{enable_thinking:false}
@@ -160,9 +162,12 @@ Deno.serve(async req => {
       }
       hadReply=true;
       const response=await result.json();
-      const extracted=parseNvidiaDraft(response);
-      if(extracted){
-        return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
+      if(diagramMode){
+        const mermaid=extractDiagramFromNvidia(response);
+        if(mermaid)return respond(origin,200,{mermaid,model,provider:"NVIDIA Build"});
+      }else{
+        const extracted=parseNvidiaDraft(response);
+        if(extracted)return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
       }
       console.warn("qa-ai unstructured response",{
         model,finish_reason:response?.choices?.[0]?.finish_reason||"unknown",
@@ -175,10 +180,10 @@ Deno.serve(async req => {
   if(hadReply){
     // A provider replied but did not produce recognizable fields; the client
     // will transparently use the local original-report parser.
-    return respond(origin,200,{
-      draft:{},fallback:true,
-      model:"Extração local",
-      provider:"NVIDIA Build"
+    return respond(origin,200,diagramMode ? {
+      mermaid:null,fallback:true,model:"Diagrama local",provider:"NVIDIA Build"
+    } : {
+      draft:{},fallback:true,model:"Extração local",provider:"NVIDIA Build"
     });
   }
   return respond(origin,503,{

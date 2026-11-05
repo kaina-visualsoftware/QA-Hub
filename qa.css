@@ -260,3 +260,86 @@ button:disabled{cursor:wait;opacity:.7}
   #view-editor #save-task{min-width:0}
   #view-editor #delete-task{width:100%;margin:0}
 }
+
+/* Publishing controls and read-only public library. */
+.visibility-field select{max-width:100%}
+.visibility-field small{display:block;font-size:.76rem;line-height:1.55;color:#647782;font-weight:500;margin:8px 0 0}
+.task-sharing{font-weight:750;font-size:.68rem;color:#176c60;background:#e1f2ec;border-radius:6px;padding:6px 8px}
+.public-entry{margin:12px 0 0}
+.public-entry a{color:#096f66;text-decoration:underline;text-underline-offset:3px;font-weight:650;font-size:.83rem}
+#task-public-link{border-color:#b5d5cd;color:#11665c}
+.diagram-ai-box{margin:22px 0 20px;padding:18px 20px;background:#f2f9f7;border:1px solid #d1e4df;border-radius:12px}
+.diagram-ai-head h4{font-size:.98rem;color:#1e4645;margin:0 0 6px}
+.diagram-ai-head p{font-size:.81rem;line-height:1.5;margin:0 0 18px;color:#566f76}
+.diagram-source-options{display:flex;gap:19px;flex-wrap:wrap;margin-bottom:14px}
+.diagram-source-options label{display:flex;align-items:center;gap:7px;font-size:.84rem;color:#314e59;font-weight:650}
+.diagram-source-options input{width:17px;height:17px;margin:0;accent-color:#0d786d}
+#diagram-ai-text-wrap textarea{min-height:110px;resize:vertical}
+.diagram-ai-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:15px}
+#diagram-ai-progress{font-size:.82rem;color:#355f5b}
+.diagram-ai-error{margin:12px 0 0;color:#9e3347;font-size:.82rem;line-height:1.5}
+.diagram-code-details{margin:15px 0}
+.diagram-code-details summary{cursor:pointer;font-size:.79rem;color:#536b75}
+.diagram-code-details pre{max-height:200px;overflow:auto}
+.diagram-render{min-height:40px;overflow:auto;margin-top:10px}
+.diagram-render svg{max-width:100%;height:auto}
+.diagram-viewer{position:fixed;width:min(98vw,1600px);height:min(95dvh,1100px);max-width:none;max-height:none;padding:0;border:1px solid #cbd8db;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 22px 80px #162b3c60}
+.diagram-viewer::backdrop{background:rgba(12,27,36,.75)}
+.diagram-viewer[open]{display:flex;flex-direction:column}
+.diagram-viewer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 18px;background:#f7faf9;border-bottom:1px solid #e0e8e9}
+.diagram-viewer-toolbar h2{font-size:1rem;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diagram-viewer-controls{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.diagram-viewer-controls button{min-width:40px;min-height:40px;cursor:pointer;border:1px solid #cedede;color:#263f48;background:#fff;border-radius:8px;padding:8px 11px;font-weight:700}
+.diagram-viewer-controls button:hover{background:#e9f4f1}
+#diagram-zoom-label{font-variant-numeric:tabular-nums;font-size:.79rem;font-weight:750;color:#41626a;min-width:44px;text-align:center}
+.diagram-viewer-viewport{position:relative;flex:1;min-height:0;overflow:hidden;background:#f2f5f5;cursor:grab;touch-action:none;user-select:none;outline-offset:-3px}
+.diagram-viewer-viewport.dragging{cursor:grabbing}
+.diagram-viewer-art{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+.diagram-viewer-art svg{width:100%;height:100%;max-width:none}
+.diagram-viewer-hint{padding:9px 14px;text-align:center;font-size:.75rem;color:#5a6f78;margin:0;background:#fff}
+.public-site{background:#f7f9f9;color:#243b47}
+.public-header{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-bottom:1px solid #e3ebec;padding:15px clamp(16px,5vw,60px)}
+.public-brand{display:flex;align-items:center;gap:10px}
+.public-brand strong{font-size:1.1rem;display:block}
+.public-brand small{font-size:.73rem;color:#59717b;display:block}
+.public-main{max-width:1120px;margin:0 auto;padding:32px 20px 90px}
+.public-heading h1{margin-bottom:8px}
+.public-heading p{font-size:.91rem;color:#5b707b}
+.public-search{display:block;max-width:630px;margin:23px 0 18px;font-size:.83rem}
+.public-search input{display:block;margin-top:8px;width:100%;padding:13px;border:1px solid #cbdcdb;background:#fff;border-radius:10px}
+.public-list{display:grid;gap:10px;margin-top:20px}
+.public-task-card{display:flex;flex-direction:column;gap:7px;padding:18px 20px;border-radius:11px;border:1px solid #dee8e8;background:#fff}
+.public-task-card:hover{border-color:#80bcb1;background:#f8fcfa}
+.public-task-card strong{font-size:.96rem}
+.public-task-card span{font-size:.8rem;color:#526c77}
+.public-detail-header{margin-bottom:24px}
+.public-shared{font-size:.73rem;font-weight:750;color:#0f766b;margin-bottom:8px}
+.public-panel{padding:24px 27px;margin-bottom:20px}
+.public-panel>h2{font-size:1.12rem;border-bottom:1px solid #e7eeef;padding-bottom:14px;margin-bottom:17px}
+.public-facts{display:grid;gap:16px}
+.public-facts h3,.public-scenario h3{font-size:.84rem;font-weight:800;margin:0 0 6px;color:#35525f}
+.public-facts p,.public-scenario p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.86rem;line-height:1.7;margin:0;color:#344d58}
+.public-scenario{padding:18px 0;border-bottom:1px solid #ebf0f0;display:grid;gap:12px}
+.public-scenario:last-child{border-bottom:0}
+.public-diagram{border:1px solid #e0e9e9;border-radius:11px;padding:16px}
+.public-diagram header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.public-diagram h3{margin:0;font-size:.96rem}
+.public-diagram-preview{max-height:420px;overflow:auto}
+.public-error{border:1px solid #f3cdd3;background:#fff1f3;color:#9c334a;border-radius:9px;padding:14px 17px;line-height:1.5}
+@media(max-width:650px){
+  .diagram-ai-box{padding:15px}
+  .diagram-source-options{flex-direction:column;gap:13px}
+  .diagram-viewer{width:100vw;height:100dvh;border-radius:0}
+  .diagram-viewer-toolbar{flex-wrap:wrap;padding:12px}
+  .diagram-viewer-toolbar h2{width:100%}
+  .diagram-viewer-controls{width:100%;justify-content:space-between;gap:4px}
+  .diagram-viewer-controls button{min-height:38px;min-width:38px;padding:6px}
+  .diagram-viewer-hint{font-size:.68rem}
+  .public-panel{padding:18px}
+  .public-main{padding:24px 15px}
+}
+@media(prefers-reduced-motion:reduce){.diagram-viewer-art{will-change:auto}}
+
+/* Keep the skip link fully out of view until keyboard focus reaches it. */
+.public-site .skip-link:not(:focus){left:-10000px;transform:none}
+.public-site .skip-link:focus{left:10px;top:10px;transform:none}

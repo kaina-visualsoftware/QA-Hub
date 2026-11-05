@@ -8,7 +8,22 @@ const site='http://127.0.0.1:8765/';
 mkdirSync('artifacts/ui', {recursive:true});
 const fakeSupabase = `
 export function createClient(){
-  const tables={qa_tarefas:[],qa_cenarios:[],qa_diagramas:[],qa_admins:[]};
+  const pub='11111111-1111-4111-8111-111111111111',priv='22222222-2222-4222-8222-222222222222';
+  const tables={
+    qa_tarefas:[
+      {id:pub,publica:true,user_id:'different-user',titulo:'TF exemplo pública',codigo:'PUB01',tipo_teste:'BUILD',status:'rascunho',sistema:'Exemplo',descricao:'Fluxo público visível'},
+      {id:priv,publica:false,user_id:'different-user',titulo:'TF particular secreta',codigo:'PRV01',tipo_teste:'BUILD',status:'rascunho',sistema:'Interno'}
+    ],
+    qa_cenarios:[
+      {id:'scenario-public',tarefa_id:pub,titulo:'Cenário compartilhado',passos:'Abrir tela',ordem:1},
+      {id:'scenario-private',tarefa_id:priv,titulo:'Cenário secreto',ordem:1}
+    ],
+    qa_diagramas:[
+      {id:'diagram-public',tarefa_id:pub,titulo:'Fluxo compartilhado',conteudo:'flowchart TD\\n A["Começo"] --> B["Fim"]'},
+      {id:'diagram-private',tarefa_id:priv,titulo:'Fluxo secreto',conteudo:'flowchart TD\\n A --> B'}
+    ],
+    qa_admins:[]
+  };
   let user=null;
   let nextId=0;
   function from(table){
@@ -60,6 +75,10 @@ export function createClient(){
       async invoke(name,{body}){
         if(name!=='qa-ai')return {data:null,error:new Error('Unknown function')};
         await new Promise(resolve=>setTimeout(resolve,400));
+        if(body.mode==='diagram'){
+          return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',
+            mermaid:'flowchart TD\\n  A["Início"] --> B["Validar pedido"]\\n  B --> C["Concluir"]'},error:null};
+        }
         return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',draft:{
           codigo:'67866',titulo:'Inclusão de produto',tipo_teste:'BUILD',
           descricao:body.text,cenarios:[{titulo:'Incluir produto',passos:'Abrir catálogo e incluir produto',
@@ -82,7 +101,7 @@ export function createClient(){
 }
 `;
 const fakeChart=`export default class Chart { constructor(){ } destroy(){ } }`;
-const fakeMermaid=`export default {initialize(){},async render(){return {svg:'<svg></svg>'}}}`;
+const fakeMermaid=`export default {initialize(){},async parse(){return true},async render(){return {svg:'<svg viewBox="0 0 900 500"></svg>'}}}`;
 
 function contrast(foreground,background) {
   function luma(s){
@@ -121,7 +140,16 @@ try {
     await page.locator('#auth-email').fill('qa.fixture@example.test');
     await page.locator('#auth-password').fill('OnlyForAutomatedTests123!');
     await page.locator('#auth-submit').click();
-    await page.locator('#shell').waitFor({state:'visible'});
+    await page.locator('#shell').waitFor({state:'visible',timeout:8500}).catch(async error=>{
+      const info=await page.evaluate(()=>({
+        authMessage:document.querySelector('#toast')?.innerText,
+        authWarning:document.querySelector('#auth-warning')?.innerText,
+        shellHidden:document.querySelector('#shell')?.hidden,
+        scriptLoaded:document.querySelector('#auth-submit')?.getAttribute('aria-busy')
+      }));
+      console.error('QA AUTH DIAGNOSTIC',JSON.stringify(info),'PAGE ERRORS',errors);
+      throw error;
+    });
     await page.locator('#view-dashboard').waitFor({state:'visible'});
     assert.equal(await page.locator('#user-role').innerText(),'Testador');
     overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -218,6 +246,10 @@ CENÁRIO 1 - Incluir produto
     }
     assert.equal(await page.locator('#task-form input[name="codigo"]').inputValue(),'67866');
     assert.equal(await page.locator('#task-form select[name="status"]').inputValue(),'rascunho');
+    assert.equal(await page.locator('#task-visibility').inputValue(),'false');
+    if(width===1366||width===390){
+      await page.locator('#task-visibility').selectOption('true');
+    }
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
     if(!(await page.locator('#save-status').isVisible())){
@@ -248,6 +280,40 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
     await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='1');
     assert.equal(await page.locator('#save-status').isVisible(),false);
+    if(width===1366||width===390){
+      assert.equal(await page.locator('#task-visibility').inputValue(),'true');
+      assert.equal(await page.locator('#task-public-link').isVisible(),true);
+      assert.match(await page.locator('#task-public-link').getAttribute('href'),/public\.html\?tf=/);
+    }else{
+      assert.equal(await page.locator('#task-public-link').isVisible(),false);
+    }
+    if(width===390||width===1366){
+      await page.locator('#tab-btn-diagramas').click();
+      await page.locator('#add-diagram').click();
+      await page.locator('#diagram-form').waitFor({state:'visible'});
+      assert.equal(await page.locator('#diagram-ai-text-wrap').isVisible(),false);
+      if(width===390){
+        await page.locator('input[name="diagram-ai-origin"][value="text"]').check();
+        await page.locator('#diagram-ai-text').fill('Abrir pedido, verificar estoque e concluir pedido.');
+      }
+      await page.locator('#diagram-generate').click();
+      await page.locator('#diagram-ai-progress').waitFor({state:'visible'});
+      await page.waitForFunction(()=>document.querySelector('#diagram-source').value.includes('flowchart TD'));
+      await page.waitForFunction(()=>document.querySelector('#diagram-ai-progress').hidden===true);
+      await page.locator('#zoom-diagram-preview').click();
+      await page.locator('#diagram-viewer').waitFor({state:'visible'});
+      const initialZoom=await page.locator('#diagram-zoom-label').innerText();
+      await page.locator('[data-viewer="plus"]').click();
+      const higherZoom=await page.locator('#diagram-zoom-label').innerText();
+      assert.notEqual(higherZoom,initialZoom,'Zoom should update');
+      await page.locator('[data-viewer="fit"]').click();
+      await page.locator('[data-viewer="close"]').click();
+      await page.locator('#diagram-form button[type="submit"]').click();
+      await page.waitForFunction(()=>document.querySelector('#diagrams-number').textContent==='1');
+      await page.locator('[data-zoom-diagram]').click();
+      await page.locator('#diagram-viewer').waitFor({state:'visible'});
+      await page.locator('[data-viewer="close"]').click();
+    }
     await page.locator('#sidebar .navigation a[data-route="tarefas"]').evaluate(el=>el.click());
     await page.locator('#view-tarefas').waitFor({state:'visible'});
     assert.equal(await page.locator('#task-list .task-item').count(),1);
@@ -268,6 +334,41 @@ CENÁRIO 1 - Incluir produto
     await page.screenshot({path:'artifacts/ui/qa-'+width+'.png',fullPage:true});
     await context.close();
     console.log('PASS '+width+'px: login, layout, mobile nav, tabs, draft guard, save, filters, contrast');
+  }
+  // Public gallery: guest can view only explicitly published TFs and related records.
+  for(const width of [390,1366]){
+    const context=await browser.newContext({viewport:{width,height:844}});
+    const page=await context.newPage();
+    page.on('pageerror',e=>errors.push('public '+width+': '+e.message));
+    await page.route('https://esm.sh/**', async route=>{
+      const url=route.request().url();
+      const source=url.includes('@supabase/supabase-js')?fakeSupabase:
+        url.includes('chart.js')?fakeChart:fakeMermaid;
+      await route.fulfill({status:200,contentType:'application/javascript',
+        headers:{'access-control-allow-origin':'*'},body:source});
+    });
+    await page.goto(site+'public.html',{waitUntil:'load'});
+    await page.waitForFunction(()=>document.querySelector('#public-list-count').textContent.includes('1 TF'));
+    assert.equal(await page.locator('.public-task-card').count(),1);
+    assert.match(await page.locator('#public-list').innerText(),/TF exemplo pública/);
+    assert.doesNotMatch(await page.locator('#public-list').innerText(),/secreta/);
+    await page.locator('.public-task-card').click();
+    await page.locator('#public-detail').waitFor({state:'visible'});
+    assert.match(await page.locator('#public-scenario-list').innerText(),/Cenário compartilhado/);
+    assert.match(await page.locator('#public-diagram-list').innerText(),/Fluxo compartilhado/);
+    assert.doesNotMatch(await page.locator('#public-detail').innerText(),/Cenário secreto|Fluxo secreto/);
+    await page.locator('.public-diagram button').click();
+    await page.locator('#diagram-viewer').waitFor({state:'visible'});
+    await page.locator('[data-viewer="plus"]').click();
+    await page.locator('[data-viewer="close"]').click();
+    await page.screenshot({path:'artifacts/ui/public-'+width+'.png',fullPage:true});
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    assert.ok(overflow<=1,'Public gallery overflow at '+width+': '+overflow);
+    await page.goto(site+'public.html?tf=22222222-2222-4222-8222-222222222222');
+    await page.locator('#public-error').waitFor({state:'visible'});
+    assert.match(await page.locator('#public-error').innerText(),/não é pública/);
+    await context.close();
+    console.log('PASS public '+width+'px: guest, public read, private isolation, diagrams and zoom');
   }
   assert.deepEqual(errors,[],'Unexpected browser JavaScript exceptions');
   console.log('QA UI smoke: all Chromium viewport tests passed');

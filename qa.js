@@ -5,6 +5,8 @@ import { parseReport } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
+import { collectTaskContext, cleanMermaid, requestAiDiagram } from './qa-mermaid-ai.mjs';
+import { createDiagramViewer } from './qa-diagram-viewer.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -12,9 +14,10 @@ const callbackErrorCode = location.hash.startsWith('#error=')
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const diagramViewer=createDiagramViewer($('#diagram-viewer'));
 const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
-const taskFields = ['codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
+const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
 const dateToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
@@ -101,9 +104,13 @@ async function loadData() {
   ]);
   if (tasksResult.error) throw tasksResult.error;
   if (scenariosResult.error) throw scenariosResult.error;
-  state.tasks = tasksResult.data || [];
-  state.scenarioStats = scenariosResult.data || [];
   state.isAdmin = !adminResult.error && Boolean(adminResult.data);
+  // Public records from other accounts are displayed in the read-only gallery,
+  // never as editable records in this workspace.
+  state.tasks = (tasksResult.data || []).filter(task =>
+    state.isAdmin || task.user_id === state.user.id);
+  const allowed = new Set(state.tasks.map(task=>task.id));
+  state.scenarioStats = (scenariosResult.data || []).filter(item=>allowed.has(item.tarefa_id));
   $('#user-role').textContent = state.isAdmin ? 'Administrador' : 'Testador';
   renderDashboard();
   renderTasks();
@@ -145,7 +152,7 @@ function taskItem(task) {
     '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
     '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
     scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
-    '</small></span></a>' + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
+    '</small></span></a>' + (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
 }
 function renderTasks() {
   const query = $('#task-search').value.toLocaleLowerCase('pt-BR').trim();
@@ -264,6 +271,9 @@ function openNewTask() {
   state.currentId = null;
   state.scenarios = []; state.diagrams = [];
   $('#task-form').reset();
+  $('#task-form').elements.publica.value='false';
+  $('#task-visibility').dispatchEvent(new Event('change'));
+  $('#task-public-link').hidden=true;
   $('#task-form').elements.executado_em.value = dateToday();
   $('#editor-kicker').textContent = 'NOVO REGISTRO';
   $('#editor-title').textContent = 'Nova tarefa de teste';
@@ -284,6 +294,8 @@ async function openTask(id) {
   state.currentId = id;
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
+  $('#task-visibility').dispatchEvent(new Event('change'));
+  updatePublicLink(task);
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
   $('#assist-back').hidden=true;
   revealTaskDetails(task);
@@ -304,6 +316,11 @@ async function openTask(id) {
     renderScenarios(); renderDiagrams();
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
+function updatePublicLink(task){
+  const anchor=$('#task-public-link');
+  anchor.hidden=!(task?.id&&task.publica);
+  if(task?.id&&task.publica)anchor.href='./public.html?tf='+encodeURIComponent(task.id);
+}
 function renderScenarios() {
   $('#scenarios-number').textContent = state.scenarios.length;
   $('#scenarios-list').innerHTML = state.scenarios.length ? state.scenarios.map((s,i)=>
@@ -320,9 +337,16 @@ function renderScenarios() {
 function renderDiagrams() {
   $('#diagrams-number').textContent = state.diagrams.length;
   $('#diagrams-list').innerHTML = state.diagrams.length ? state.diagrams.map(d=>
-    '<article class="diagram-card"><header><h3>'+esc(d.titulo)+'</h3><div class="card-actions"><button type="button" data-show-diagram="'+esc(d.id)+'">Visualizar</button><button type="button" data-edit-diagram="'+esc(d.id)+'">Editar</button><button type="button" data-delete-diagram="'+esc(d.id)+'">Excluir</button></div></header><pre>'+esc(d.conteudo)+'</pre><div class="diagram-render" data-diagram-target="'+esc(d.id)+'"></div></article>').join('') :
-    '<div class="empty"><strong>Nenhum diagrama por enquanto</strong>Use Mermaid para explicar processos, fluxos ou decisões.</div>';
+    '<article class="diagram-card"><header><h3>'+esc(d.titulo)+'</h3><div class="card-actions">'+
+    '<button type="button" data-show-diagram="'+esc(d.id)+'">Visualizar</button>'+
+    '<button type="button" data-zoom-diagram="'+esc(d.id)+'">Ampliar</button>'+
+    '<button type="button" data-edit-diagram="'+esc(d.id)+'">Editar</button>'+
+    '<button type="button" data-delete-diagram="'+esc(d.id)+'">Excluir</button></div></header>'+
+    '<details class="diagram-code-details"><summary>Ver código Mermaid</summary><pre>'+esc(d.conteudo)+'</pre></details>'+
+    '<div class="diagram-render" data-diagram-target="'+esc(d.id)+'"></div></article>').join('') :
+    '<div class="empty"><strong>Nenhum diagrama ainda</strong>Crie um fluxo manualmente ou gere com IA usando os dados desta TF.</div>';
 }
+
 function openScenario(s=null) {
   if (!state.currentId) return toast('Salve a TF primeiro.',true);
   if(!confirmDetailDiscard('scenario-form')) return;
@@ -346,22 +370,29 @@ function openDiagram(d=null) {
   form.elements.titulo.value=d?.titulo||'';
   form.elements.conteudo.value=d?.conteudo||'flowchart TD\n  A[Início] --> B{Condição}\n  B -->|Sim| C[Resultado]\n  B -->|Não| D[Alternativa]';
   $('#diagram-form-title').textContent=d?'Editar diagrama':'Novo diagrama';
-  $('#diagram-preview').textContent='Clique em Visualizar para gerar o diagrama.';
+  $('#diagram-ai-error').hidden=true;
+  $('#diagram-ai-text').value='';
+  form.querySelector('[name="diagram-ai-origin"][value="task"]').checked=true;
+  $('#diagram-ai-text-wrap').hidden=true;
+  $('#diagram-ai-progress').hidden=true;
+  $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
   form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
   form.elements.titulo.focus();
 }
 async function previewMermaid(text, target) {
   target.replaceChildren();
-  if(!text.trim()){target.textContent='Informe o código do diagrama.';return;}
-  if(text.length>16000){target.textContent='O diagrama excede 16.000 caracteres.';return;}
+  if(!text.trim()){target.textContent='Informe o código do diagrama.';return null;}
+  if(text.length>16000){target.textContent='O diagrama excede 16.000 caracteres.';return null;}
   try {
     const {default:mermaid} = await import('https://esm.sh/mermaid@12.3.0');
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'neutral',maxTextSize:16000});
     const id='qa-diagram-'+crypto.randomUUID().replaceAll('-','');
+    if(mermaid.parse)await mermaid.parse(text);
     const {svg} = await mermaid.render(id,text);
     // Mermaid renderiza e sanitiza o SVG quando securityLevel = strict.
     target.innerHTML = svg;
-  } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); }
+    return svg;
+  } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); return null; }
 }
 async function refreshAfterSave(id) {
   await loadData();
@@ -499,13 +530,17 @@ document.addEventListener('click',async (event)=>{
     $('#task-search').focus();
   }
   const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
-  const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram;
+  const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram, zoomDiagram=target.dataset.zoomDiagram;
   if(editScenario) openScenario(state.scenarios.find(s=>s.id===editScenario));
   if(editDiagram) openDiagram(state.diagrams.find(d=>d.id===editDiagram));
-  if(showDiagram) {
-    const item=state.diagrams.find(d=>d.id===showDiagram);
-    const region=$('[data-diagram-target="'+showDiagram+'"]');
-    if(item && region) await previewMermaid(item.conteudo,region);
+  if(showDiagram || zoomDiagram) {
+    const id=showDiagram||zoomDiagram;
+    const item=state.diagrams.find(d=>d.id===id);
+    const region=$('[data-diagram-target="'+id+'"]');
+    if(item && region){
+      const svg=await previewMermaid(item.conteudo,region);
+      if(svg && zoomDiagram)diagramViewer.open(svg,item.titulo);
+    }
   }
   if(deleteScenario && confirm('Excluir este cenário?')) {
     const {error}=await db.from('qa_cenarios').delete().eq('id',deleteScenario).eq('tarefa_id',state.currentId);
@@ -525,6 +560,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
     const data=inputValues(form,taskFields);
     data.erro_reproduzido=nullableBool(data.erro_reproduzido);
     data.funcionando=nullableBool(data.funcionando);
+    data.publica=data.publica==='true';
     data.executado_em ||= dateToday();
     data.updated_at=new Date().toISOString();
     let result;
@@ -588,6 +624,57 @@ $('#scenario-form').addEventListener('submit',async event=>{
     selectTab('cenarios');toast('Cenário salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
+$$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
+  $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
+}));
+$('#task-visibility').addEventListener('change',()=>{
+  const publicChoice=$('#task-visibility').value==='true';
+  $('#visibility-hint').textContent=publicChoice
+    ? 'Atenção: título, descrição, cenários, diagramas e dados informados nesta TF poderão ser vistos por qualquer pessoa com o link. Revise informações internas antes de publicar.'
+    : 'Somente sua conta e administradores podem consultar esta TF.';
+});
+$('#diagram-generate').addEventListener('click',async()=>{
+  if(state.isBusy || !state.currentId)return;
+  const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
+  const currentTask=state.tasks.find(t=>t.id===state.currentId);
+  const source=custom ? $('#diagram-ai-text').value.trim() :
+    collectTaskContext(currentTask||{},state.scenarios);
+  const error=$('#diagram-ai-error'),progress=$('#diagram-ai-progress');
+  error.hidden=true;error.textContent='';
+  if(!source.trim()){
+    error.textContent=custom?'Descreva o processo para gerar o diagrama.':'Esta TF ainda não tem informações suficientes.';
+    error.hidden=false;
+    return;
+  }
+  const button=$('#diagram-generate');
+  busy(button,true);
+  progress.hidden=false;
+  progress.textContent='Gerando diagrama…';
+  try{
+    const result=await requestAiDiagram({
+      db,text:source,
+      onProgress:message=>{progress.textContent=message;}
+    });
+    const code=cleanMermaid(result.code);
+    $('#diagram-source').value=code;
+    setFormDirty('diagram-form');
+    if(!$('#diagram-form').elements.titulo.value.trim()){
+      $('#diagram-form').elements.titulo.value=currentTask?.titulo
+        ? 'Fluxo — '+currentTask.titulo.slice(0,125):'Fluxo do processo';
+    }
+    const svg=await previewMermaid(code,$('#diagram-preview'));
+    if(!svg){
+      error.textContent='O diagrama precisa de ajustes. Edite o código e clique em Prévia.';
+      error.hidden=false;
+    }else if(result.fallback){
+      error.textContent='O modelo não respondeu corretamente. Gerei um fluxo básico a partir do texto para revisão.';
+      error.hidden=false;
+    }
+  }catch(e){
+    error.textContent=e?.message||'Não foi possível gerar o diagrama.';
+    error.hidden=false;
+  }finally{progress.hidden=true;busy(button,false);}
+});
 $('#add-diagram').addEventListener('click',()=>openDiagram());
 $('#cancel-diagram').addEventListener('click',()=>{
   if(!confirmDetailDiscard('diagram-form')) return;
@@ -595,6 +682,11 @@ $('#cancel-diagram').addEventListener('click',()=>{
   $('#diagram-form').hidden=true;
 });
 $('#preview-diagram').addEventListener('click',()=>previewMermaid($('#diagram-source').value,$('#diagram-preview')));
+$('#zoom-diagram-preview').addEventListener('click',async()=>{
+  const code=$('#diagram-source').value;
+  const svg=await previewMermaid(code,$('#diagram-preview'));
+  if(svg)diagramViewer.open(svg,$('#diagram-form').elements.titulo.value||'Diagrama');
+});
 $('#diagram-form').addEventListener('submit',async event=>{
   event.preventDefault();if(state.isBusy)return;
   const form=event.currentTarget, button=form.querySelector('[type=submit]');
