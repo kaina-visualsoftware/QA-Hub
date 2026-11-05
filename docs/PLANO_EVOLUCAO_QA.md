@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Transformar o projeto público `kaina-visualsoftware/Tarefas`, hoje um índice de páginas estáticas por pasta, em sistema de gestão pessoal de testes de software, preservando `184728/page.html` e a experiência do hub legado.
+Manter o projeto público `kaina-visualsoftware/Tarefas` como sistema de gestão de testes de software, sem interface do catálogo legado. A raiz abre diretamente o QA Hub; `qa.html` permanece compatível com callbacks do Supabase.
 
 **Diretriz visual:** produto de operação diária, com alta legibilidade, densidade equilibrada, foco em busca, leitura de relatórios e registros extensos, sem excesso de animações.
 
@@ -44,7 +44,8 @@ No formato do exemplo de promoção: a descrição, conclusão e observações f
 
 ### Fase 0 — Preservação e especificação
 - [x] Inspecionar repositório e identificar tecnologia legada.
-- [x] Criar branch isolada e não alterar a pasta `184728/`.
+- [x] Criar branch isolada e preservar o legado durante a migração inicial.
+- [x] Remover a home e página legadas após confirmar que o QA Hub cobre as operações necessárias; recuperação disponível pelo histórico Git.
 - [x] Definir esquema, UX e critérios de segurança.
 - [x] Identificar skills do BlockDOM úteis para o projeto.
 
@@ -56,7 +57,7 @@ No formato do exemplo de promoção: a descrição, conclusão e observações f
 - [x] Filtros e KPIs básicos.
 - [x] Importação inicial de texto formatado.
 - [x] Diagrama Mermaid e gráfico de situação.
-- [ ] Aplicar migração ao projeto autorizado e validar banco.
+- [x] Aplicar as migrações SQL de estrutura, RLS e admin no projeto Supabase SPA. Validação em duas contas ainda pendente.
 - [ ] Confirmar experiência real em navegadores.
 
 ### Fase 2 — Qualidade e evidências
@@ -94,7 +95,7 @@ Fonte: `kaina-visualsoftware/BlockDOM/.agents/skills/`; usar princípios de desi
 
 ## 7. Riscos e decisões
 
-- **Projeto Supabase fora do escopo autorizado:** SQL versionado, aplicação remota pendente.
+- **Supabase já autorizado (SPA/SIA):** banco e RLS configurados. Permanecem os testes de autorização e CRUD em contas reais.
 - **Relatórios reais contêm informação operacional:** não registrar dados em exemplos públicos.
 - **Importação textual não equivale a execução de testes:** manter rascunho e exigir revisão.
 - **MVP sem transação atômica de importação:** resultado parcial é informado ao usuário; migração futura para RPC transacional.
