@@ -10,6 +10,7 @@
   <script type="module" src="./qa.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <section id="auth-screen" class="auth-layout">
@@ -40,7 +41,7 @@
   </section>
 
   <div id="shell" class="shell" hidden>
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Menu principal">
       <a class="brand" href="#/dashboard"><span class="mark">Q<span>.</span></span><span><strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></a>
       <p class="nav-label">ESPAÇO DE TRABALHO</p>
       <nav aria-label="Navegação principal" class="navigation">
@@ -52,14 +53,15 @@
         <div class="user-summary"><span class="avatar">QA</span><span class="user-identity"><span id="user-email" class="ellipsis"></span><small id="user-role" class="user-role">Usuário</small></span></div>
       </div>
     </aside>
+    <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" hidden aria-label="Fechar o menu lateral"></button>
 
     <div class="workspace">
       <header class="topbar">
-        <div class="topbar-start"><button class="menu-button" id="menu-button" aria-label="Abrir menu" type="button">☰</button><div><span class="eyebrow">QUALIDADE DE SOFTWARE</span><div class="breadcrumb" id="breadcrumb">Visão geral</div></div></div>
+        <div class="topbar-start"><button class="menu-button" id="menu-button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false" type="button">☰</button><div><span class="eyebrow">QUALIDADE DE SOFTWARE</span><div class="breadcrumb" id="breadcrumb">Visão geral</div></div></div>
         <div class="topbar-actions"><button id="new-task" class="btn primary" type="button">+ Nova TF</button><button id="logout" class="btn soft" type="button">Sair</button></div>
       </header>
 
-      <main class="content">
+      <main class="content" id="main-content" tabindex="-1">
         <section id="view-dashboard" class="view" aria-labelledby="dashboard-title">
           <div class="page-heading"><div><p class="eyebrow">PAINEL DE ACOMPANHAMENTO</p><h1 id="dashboard-title">Visão geral</h1><p class="muted">Um resumo das tarefas e dos cenários registrados.</p></div><span id="dashboard-date" class="date-pill"></span></div>
           <div class="kpi-grid">
@@ -84,10 +86,10 @@
         </section>
 
         <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
-          <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
-          <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" type="button" data-tab="resumo" role="tab" aria-selected="true">Resumo</button><button class="tab" type="button" data-tab="cenarios" role="tab" aria-selected="false">Cenários <span id="scenarios-number">0</span></button><button class="tab" type="button" data-tab="diagramas" role="tab" aria-selected="false">Diagramas <span id="diagrams-number">0</span></button></div>
+          <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p><p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
+          <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
 
-          <div id="tab-resumo" class="tab-content">
+          <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
               <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">01</span><h2>Identificação</h2></div><p>Informações da execução</p></div><div class="field-grid">
                 <label>Código da TF <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
@@ -114,7 +116,7 @@
             </form>
           </div>
 
-          <div id="tab-cenarios" class="tab-content" hidden>
+          <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
             <div class="section-top"><div><h2>Cenários de teste</h2><p class="muted">Cada cenário possui passos e resultado próprios.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
             <div id="scenarios-list" class="stack gap-md"></div>
             <form id="scenario-form" class="panel form-panel" hidden>
@@ -126,7 +128,7 @@
             </form>
           </div>
 
-          <div id="tab-diagramas" class="tab-content" hidden>
+          <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
             <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
             <div id="diagrams-list" class="stack gap-md"></div>
             <form id="diagram-form" class="panel form-panel" hidden><h3 id="diagram-form-title">Novo diagrama</h3><input name="id" type="hidden"><label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo de carregamento da promoção"></label><label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;A[Selecionar tabela] --> B{Confirmou?}&#10;B -->|Sim| C[Incluir produtos]"></textarea></label><div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Visualizar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div><div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A visualização aparece aqui.</div></form>
