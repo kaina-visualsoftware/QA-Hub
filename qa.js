@@ -622,6 +622,51 @@ $('#scenario-form').addEventListener('submit',async event=>{
     selectTab('cenarios');toast('Cenário salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
+$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
+  $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
+}));
+$('#diagram-generate').addEventListener('click',async()=>{
+  if(state.isBusy || !state.currentId)return;
+  const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
+  const currentTask=state.tasks.find(t=>t.id===state.currentId);
+  const source=custom ? $('#diagram-ai-text').value.trim() :
+    collectTaskContext(currentTask||{},state.scenarios);
+  const error=$('#diagram-ai-error'),progress=$('#diagram-ai-progress');
+  error.hidden=true;error.textContent='';
+  if(!source.trim()){
+    error.textContent=custom?'Descreva o processo para gerar o diagrama.':'Esta TF ainda não tem informações suficientes.';
+    error.hidden=false;
+    return;
+  }
+  const button=$('#diagram-generate');
+  busy(button,true);
+  progress.hidden=false;
+  progress.textContent='Gerando diagrama…';
+  try{
+    const result=await requestAiDiagram({
+      db,text:source,
+      onProgress:message=>{progress.textContent=message;}
+    });
+    const code=cleanMermaid(result.code);
+    $('#diagram-source').value=code;
+    setFormDirty('diagram-form');
+    if(!$('#diagram-form').elements.titulo.value.trim()){
+      $('#diagram-form').elements.titulo.value=currentTask?.titulo
+        ? 'Fluxo — '+currentTask.titulo.slice(0,125):'Fluxo do processo';
+    }
+    const svg=await previewMermaid(code,$('#diagram-preview'));
+    if(!svg){
+      error.textContent='O diagrama precisa de ajustes. Edite o código e clique em Prévia.';
+      error.hidden=false;
+    }else if(result.fallback){
+      error.textContent='O modelo não respondeu corretamente. Gerei um fluxo básico a partir do texto para revisão.';
+      error.hidden=false;
+    }
+  }catch(e){
+    error.textContent=e?.message||'Não foi possível gerar o diagrama.';
+    error.hidden=false;
+  }finally{progress.hidden=true;busy(button,false);}
+});
 $('#add-diagram').addEventListener('click',()=>openDiagram());
 $('#cancel-diagram').addEventListener('click',()=>{
   if(!confirmDetailDiscard('diagram-form')) return;
