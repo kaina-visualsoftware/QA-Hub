@@ -38,3 +38,9 @@ Referências locais usadas: `web-quality-audit`, `frontend-design`, `ui-ux-pro-m
 5. O comportamento dos formulários de edição de cenário/diagrama precisa de homologação humana, especialmente textos extensos.
 
 **Critério de aceite:** CI estática e browser smoke aprovados, interface sem overflow nos tamanhos testados; homologação humana permanece separada.
+
+## Inspeção visual das capturas em Chromium
+
+Foram abertas e inspecionadas capturas reais geradas pelo fluxo de teste sintético (sem dados de usuários) em 320, 390, 768 e 1366 px. Em 390, 768 e 1366 px, a lista de TFs, filtros, hierarquia e navegação permaneceram legíveis, sem cortes ou sobreposições observados. Em 320 px foi identificado um aperto entre o título longo e o badge de situação; aplicou-se layout vertical específico para até 360 px. Essa alteração final requer repetição do browser smoke e nova inspeção da captura.
+
+As capturas comprovam apenas o estado exercitado pela suíte: lista com uma TF após salvar. Não equivalem à avaliação visual de dashboard com dados densos, formulário completo, modal de importação ou do site autenticado em produção.
