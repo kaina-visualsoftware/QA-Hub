@@ -245,7 +245,7 @@ CENÁRIO 1 - Incluir produto
       await page.locator('#draft-scenario-list input[type="checkbox"]').uncheck();
       assert.match(await page.locator('#draft-scenario-count').innerText(),/0 de 1/);
     }
-    assert.match(await page.locator('#editor-caption').innerText(),/1 cenário/);
+    assert.match(await page.locator('#editor-caption').innerText(),/1 caso/);
     assert.equal(await page.locator('#task-extra-details').evaluate(el=>el.open),false);
     assert.equal(await page.locator('#task-analysis-details').evaluate(el=>el.open),false);
     const saveIsAtBottom=await page.evaluate(()=>{
