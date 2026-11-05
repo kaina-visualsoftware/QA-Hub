@@ -183,6 +183,7 @@ CENÁRIOS TESTADOS:
 CENÁRIO 1 - Incluir produto
 - Abrir catálogo
 - Incluir produto`);
+    assert.equal(await page.locator('#save-status').isVisible(),false);
     if(width===390){
       assert.equal(await page.locator('#assist-consent').count(),0);
       await page.locator('#assist-ai').click();
@@ -192,6 +193,7 @@ CENÁRIO 1 - Incluir produto
       assert.equal(await page.locator('#assist-panel').getAttribute('aria-busy'),'true');
       assert.equal(await page.locator('#assist-loading .assist-spinner').count(),1);
       assert.equal(await page.locator('#assist-status').count(),0);
+      assert.equal(await page.locator('#toast').isVisible(),false);
       await page.screenshot({path:'artifacts/ui/qa-loading-390.png',fullPage:true});
     }else{
       await page.locator('#assist-local').click();
