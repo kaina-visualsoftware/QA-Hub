@@ -1,0 +1,32 @@
+name: QA Hub browser smoke
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test UI in Chromium with synthetic Supabase fixture
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/qa-http.log 2>&1 &
+          node tests/ui-smoke.mjs
+      - name: Upload visual captures for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-ui-captures
+          path: artifacts/ui/
+          if-no-files-found: ignore
+          retention-days: 7
