@@ -51,14 +51,14 @@
         <a href="#/tarefas" data-route="tarefas"><span class="nav-symbol">☷</span> Tarefas de teste</a>
         <a href="./public.html" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">◈</span> TFs públicas</a>
         <span class="nav-group-label">DOCUMENTAÇÃO · IA</span>
-        <a href="./geradores.html#post" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">▤</span> Posts do fórum</a>
+        <a href="#/ferramentas/post" data-route="ferramentas/post"><span class="nav-symbol" aria-hidden="true">▤</span> Posts do fórum</a>
         <span class="nav-group-label">QUALIDADE · IA</span>
-        <a href="./geradores.html#teste" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">☑</span> Roteiros de teste</a>
+        <a href="#/ferramentas/teste" data-route="ferramentas/teste"><span class="nav-symbol" aria-hidden="true">☑</span> Roteiros de teste</a>
         <span class="nav-group-label">FERRAMENTAS LOCAIS</span>
-        <a href="./geradores.html#release" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">▣</span> Lista e comunicado</a>
-        <a href="./geradores.html#lib" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">▥</span> Informações importantes</a>
-        <a href="./geradores.html#diff" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">⇄</span> Comparar textos</a>
-        <a href="./geradores.html#xml" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">⌘</span> Comparar XML</a>
+        <a href="#/ferramentas/release" data-route="ferramentas/release"><span class="nav-symbol" aria-hidden="true">▣</span> Lista e comunicado</a>
+        <a href="#/ferramentas/lib" data-route="ferramentas/lib"><span class="nav-symbol" aria-hidden="true">▥</span> Informações importantes</a>
+        <a href="#/ferramentas/diff" data-route="ferramentas/diff"><span class="nav-symbol" aria-hidden="true">⇄</span> Comparar textos</a>
+        <a href="#/ferramentas/xml" data-route="ferramentas/xml"><span class="nav-symbol" aria-hidden="true">⌘</span> Comparar XML</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-note"><span class="signal"></span><span>Visibilidade por TF<br><small>Controle de acesso</small></span></div>
@@ -209,8 +209,8 @@
                   <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
                   <a id="task-public-link" class="btn soft" href="./public.html" target="_blank" rel="noopener noreferrer" hidden>Ver página pública</a>
                   <span id="task-generator-links" class="task-generator-links" hidden>
-                    <a id="task-post-link" class="btn soft" href="./geradores.html#post" target="_blank" rel="noopener noreferrer">Gerar post com IA</a>
-                    <a id="task-testplan-link" class="btn soft" href="./geradores.html#teste" target="_blank" rel="noopener noreferrer">Gerar roteiro com IA</a>
+                    <a id="task-post-link" class="btn soft" href="#/ferramentas/post" data-route="ferramentas/post">Gerar post com IA</a>
+                    <a id="task-testplan-link" class="btn soft" href="#/ferramentas/teste" data-route="ferramentas/teste">Gerar roteiro com IA</a>
                   </span>
                   <a href="#/tarefas" class="btn soft task-cancel-link">Cancelar</a>
                   <button id="save-task" class="btn primary" type="submit">Salvar TF</button>
@@ -231,6 +231,17 @@
             
           </div>
           </div>
+        </section>
+
+        <section id="view-ferramentas" class="view qa-tools-view" aria-labelledby="tool-view-title" hidden>
+          <div class="page-heading qa-tools-heading">
+            <div>
+              <p class="eyebrow">FERRAMENTAS · QA HUB</p>
+              <h1 id="tool-view-title">Ferramentas</h1>
+              <p class="muted" id="tool-view-description">Trabalhe sem sair da plataforma.</p>
+            </div>
+          </div>
+          <iframe id="tool-frame" class="qa-tool-frame" title="Ferramentas do QA Hub" src="about:blank"></iframe>
         </section>
       </main>
     </div>
