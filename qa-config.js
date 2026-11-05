@@ -3,5 +3,5 @@
 export const QA_CONFIG = Object.freeze({
   url: 'https://pqadmlhcsimlcclpkyov.supabase.co',
   publishableKey: 'sb_publishable_3Duz2dETsyYNPtfY-8Mxjw_pGBvCUP9',
-  authRedirectUrl: 'https://kaina-visualsoftware.github.io/Tarefas/qa.html'
+  authRedirectUrl: 'https://kaina-visualsoftware.github.io/QA-Hub/qa.html'
 });
