@@ -623,5 +623,50 @@ $("go").onclick=async()=>{
 };
 async function recover(){for(const k in M){try{const d=JSON.parse(localStorage.getItem("draft_"+k)||"null");if(d&&d.md){localStorage.removeItem("draft_"+k);await store(k).save({ts:d.ts,titulo:"(interrompido) "+((d.md.match(/^# (.+)$/m)||[])[1]||""),tarefa:d.t,requisito:d.r,md:d.md})}}catch(e){}}renderHist()}
 document.addEventListener("keydown",e=>{if(mode==="teste"&&CN&&(e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();CN()}});
-(async()=>{load();addEventListener("beforeunload",e=>{if($("go").disabled){e.preventDefault();e.returnValue=""}});try{const d=await claude.use("db"),u=await claude.use("user");if(d&&u){uid=await u.id();db=d}}catch(e){}await recover();if(mode==="home"&&HR)HR()})();
+const initialMode=(new URLSearchParams(location.search).get("mode")
+  ||location.hash.slice(1)||(new URLSearchParams(location.search).has("tf")?"teste":"home")).toLowerCase();
+if(Object.hasOwn(M,initialMode))mode=initialMode;
+function reflectMode(){
+ $("ai-privacy-info").hidden=!(mode==="post"||mode==="teste");
+ history.replaceState(null,"",location.pathname+location.search+"#"+mode);
+}
+for(const k in M){
+ $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
+}
+const linkedTf=new URLSearchParams(location.search).get("tf");
+if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
+ $("import-task").hidden=false;
+ $("import-task").onclick=async()=>{
+  if(!uid){$("session-label").textContent="Entre no QA Hub para importar uma TF.";return}
+  const {data,error}=await supa.from("qa_tarefas").select("*").eq("id",linkedTf).maybeSingle();
+  if(error||!data){$("session-label").textContent="TF indisponível ou sem permissão.";return}
+  const fields=[
+   ["Código",data.codigo],["Título",data.titulo],["Sistema",data.sistema],
+   ["O que foi testado",data.descricao],["Como funciona",data.explicacao],
+   ["Problema e causa",data.causa],["O que foi alterado",data.correcao],
+   ["Conclusão",data.conclusao],["Observações",data.observacoes]
+  ];
+  const text=fields.filter(([,v])=>String(v||"").trim()).map(([k,v])=>k+": "+v).join("\n\n");
+  if(mode!=="post"&&mode!=="teste")sw("teste");
+  S[mode].t=text;$("t").value=text;
+  $("session-label").textContent="Dados da TF carregados. Confira antes de gerar.";
+ };
+}
+(async()=>{
+ load();reflectMode();
+ addEventListener("beforeunload",e=>{
+  if($("go").disabled){e.preventDefault();e.returnValue=""}
+ });
+ try{
+  const {data,error}=await supa.auth.getUser();
+  if(!error&&data.user&&!data.user.is_anonymous){
+   uid=data.user.id;db=supa;fb=false;
+   $("session-label").textContent="Histórico sincronizado com sua conta.";
+  }else $("session-label").textContent="Entre no QA Hub para usar IA e sincronizar resultados.";
+ }catch{
+  $("session-label").textContent="Sem conexão: ferramentas locais disponíveis.";
+ }
+ await recover();
+ if(mode==="home"&&HR)HR();
+})();
 </script></body></html>
