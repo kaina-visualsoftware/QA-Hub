@@ -250,7 +250,7 @@
                 <div class="diagram-ai-actions"><button id="diagram-generate" type="button" class="btn primary">Gerar diagrama com IA</button><span id="diagram-ai-progress" role="status" aria-live="polite" hidden>Gerando diagrama…</span></div>
                 <p id="diagram-ai-error" class="diagram-ai-error" role="alert" hidden></p>
               </section>
-              <label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;  A[Início] --> B[Executar]"></textarea></label>
+              <label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart LR&#10;  A[Início] --> B[Executar]"></textarea></label>
               <div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Prévia</button><button type="button" class="btn soft" id="zoom-diagram-preview">Ampliar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div>
               <div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A prévia aparece aqui.</div>
             </form>
