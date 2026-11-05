@@ -70,3 +70,17 @@ A migração `supabase/admin_roles.sql` adiciona o papel de administrador do **Q
 Em **Supabase Dashboard → Authentication → URL Configuration**, configure a **Site URL** e adicione em **Redirect URLs**: `https://kaina-visualsoftware.github.io/Tarefas/qa.html`. A tela continua nesse endereço para não invalidar confirmações de e-mail existentes. Não use `localhost:3000` como endereço público do sistema.
 
 O QA Hub usa `QA_CONFIG.authRedirectUrl` para cadastro e reenvio de confirmação. O redirecionamento da raiz para `qa.html` preserva o fragmento e os parâmetros, inclusive os de autenticação. Links de confirmação previamente expirados não são renovados automaticamente.
+
+## Preenchimento rápido de TF por texto
+
+Na opção **Nova TF**, cole um relatório ou uma explicação em linguagem natural em **Preenchimento rápido**:
+
+1. **Extrair campos do texto** usa regras de interpretação locais. Funciona em qualquer navegador, sem chave de API ou custo adicional; entende relatórios com seções e também descrições livres, com resultado limitado ao que estiver explícito.
+2. **Usar IA gratuita do Chrome** tenta o modelo integrado no dispositivo, quando a versão do Chrome, o equipamento e o idioma forem compatíveis. O recurso pode estar indisponível, exigir download e não oferecer suporte pleno a português. O botão fica indisponível quando o navegador reporta incompatibilidade.
+3. Revise a prévia, selecione **Substituir campos já preenchidos** apenas se necessário e clique em **Aplicar no formulário**. Os campos são editáveis. Ao salvar uma nova TF, os cenários extraídos são criados como **não executados**, nunca como aprovados automaticamente.
+
+**Privacidade:** nenhuma das duas extrações envia o texto a um provedor externo de IA. A informação só é enviada ao Supabase na operação normal de salvar a TF. Não há chaves de terceiros no frontend nem custos de tokens no fluxo local. Relatórios de sistemas internos não devem ser enviados para serviços gratuitos de IA externos sem autorização e avaliação de tratamento dos dados.
+
+**Limites:** extração local de até 30.000 caracteres, IA local de até 16.000 caracteres, até 50 cenários extraídos. É necessário conferir códigos, versões, etapas e resultados; a IA pode errar. O recurso não substitui a execução dos testes.
+
+Uma futura integração com API externa (por exemplo, plano gratuito do Gemini) exigirá chave guardada **exclusivamente** em Supabase Edge Function/Secrets, consentimento para compartilhar o texto, limite de consumo e revisão de privacidade. A integração externa **não foi habilitada**.

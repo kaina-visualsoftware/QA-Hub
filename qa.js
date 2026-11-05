@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
 import { QA_CONFIG } from './qa-config.js';
 import { parseReport } from './qa-parser.mjs';
+import { extractLocalDraft, extractWithBrowserAI } from './qa-assistant.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -9,7 +10,7 @@ const callbackErrorCode = location.hash.startsWith('#error=')
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null };
+const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
@@ -229,6 +230,16 @@ async function route() {
 }
 function openNewTask() {
   clearFormDirty();
+  state.assistDraft=null;
+  state.pendingScenarios=[];
+  $('#assist-panel').hidden=false;
+  $('#assist-panel').open=true;
+  $('#assist-text').value='';
+  $('#assist-result').hidden=true;
+  $('#assist-status').textContent='';
+  $('#assist-capability').textContent='';
+  $('#assist-overwrite').checked=false;
+  checkLocalAiAvailability();
   state.currentId = null;
   state.scenarios = []; state.diagrams = [];
   $('#task-form').reset();
@@ -245,6 +256,7 @@ function openNewTask() {
   selectTab('resumo'); setView('editor');
 }
 async function openTask(id) {
+  $('#assist-panel').hidden=true;
   const task = state.tasks.find(t=>t.id === id);
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
   clearFormDirty();
@@ -502,9 +514,22 @@ $('#task-form').addEventListener('submit',async (event)=>{
     if(result.error) throw result.error;
     const id=result.data.id;
     setFormDirty('task-form',false);
+    let scenarioWarning='';
+    if(state.pendingScenarios.length){
+      const payload=state.pendingScenarios.map((scenario,index)=>({
+        ...scenario,tarefa_id:id,user_id:state.user.id,ordem:index+1,status:'nao_executado'
+      }));
+      const {error:scenarioError}=await db.from('qa_cenarios').insert(payload);
+      if(scenarioError){
+        scenarioWarning='TF salva, mas os cenários não foram adicionados. Salve novamente para tentar: '+errMessage(scenarioError);
+      }else {
+        state.pendingScenarios=[];
+      }
+    }
     await refreshAfterSave(id);
+    if(scenarioWarning)toast(scenarioWarning,true);
     location.hash='#/tarefa/'+id;
-    toast('Tarefa salva com sucesso.');
+    if(!scenarioWarning)toast('Tarefa salva com sucesso.');
   }catch(e){toast('Falha ao salvar TF: '+errMessage(e),true)}finally{busy(button,false)}
 });
 $('#delete-task').addEventListener('click',async()=>{
@@ -562,6 +587,112 @@ $('#diagram-form').addEventListener('submit',async event=>{
     await refreshAfterSave(state.currentId);
     selectTab('diagramas');toast('Diagrama salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+});
+
+
+const assistLabels={
+  codigo:'Código da TF',titulo:'Título',tipo_teste:'Tipo',sistema:'Sistema',
+  versao:'Versão',ambiente:'Ambiente',base_teste:'Base de teste',empresa:'Empresa',
+  testador:'Testador',descricao:'O que foi testado',explicacao:'Como funciona',
+  causa:'Problema e causa',correcao:'O que foi alterado',
+  conclusao:'Conclusão',observacoes:'Observações'
+};
+async function checkLocalAiAvailability(){
+  const button=$('#assist-ai'),capability=$('#assist-capability');
+  const model=globalThis.LanguageModel;
+  button.disabled=true;
+  if(!model?.availability || !model?.create){
+    capability.textContent='IA do Chrome indisponível neste navegador. A extração local abaixo funciona sem IA.';
+    return;
+  }
+  try{
+    const status=await model.availability();
+    button.disabled=status==='unavailable';
+    capability.textContent=status==='unavailable'
+      ? 'O modelo local de IA não está disponível neste dispositivo ou idioma. Use a extração sem IA.'
+      : status==='available'?'IA local disponível. O texto não é enviado a provedores externos.'
+      : 'A IA pode exigir o download gratuito de um modelo no Chrome. A extração sem IA funciona imediatamente.';
+  }catch{
+    button.disabled=true;
+    capability.textContent='Não foi possível verificar o modelo de IA local. Use a extração sem IA.';
+  }
+}
+function showAssistDraft(draft,method){
+  state.assistDraft=draft;
+  const names=Object.keys(draft.fields);
+  const scenarios=draft.cenarios.length;
+  $('#assist-summary').textContent=names.length+' campo(s) extraído(s), '+scenarios+
+    ' cenário(s) identificado(s). Confira os dados antes de aplicar.';
+  const list=$('#assist-preview-list');
+  list.replaceChildren();
+  for(const key of names){
+    const li=document.createElement('li');
+    const value=draft.fields[key].replace(/\s+/g,' ');
+    li.textContent=(assistLabels[key]||key)+': '+value.slice(0,150)+(value.length>150?'…':'');
+    list.append(li);
+  }
+  if(scenarios){
+    const li=document.createElement('li');
+    li.textContent='Cenários: '+draft.cenarios.map(s=>s.titulo).slice(0,4).join(' · ')+
+      (scenarios>4?' (e outros '+(scenarios-4)+')':'');
+    list.append(li);
+  }
+  $('#assist-result').hidden=false;
+  $('#assist-status').classList.remove('error');
+  $('#assist-status').textContent=method+' concluída. Revise a prévia e clique em Aplicar.';
+}
+async function runAssistExtraction(useAi){
+  const raw=$('#assist-text').value;
+  const button=$('#assist-'+(useAi?'ai':'local'));
+  if(!raw.trim())return toast('Cole o texto da TF antes de preencher.',true);
+  if(state.isBusy)return;
+  busy(button,true);
+  $('#assist-result').hidden=true;
+  state.assistDraft=null;
+  const feedback=$('#assist-status');
+  feedback.classList.remove('error');
+  feedback.textContent=useAi?'Preparando IA local…':'Analisando texto no navegador…';
+  try{
+    const draft=useAi
+      ?await extractWithBrowserAI(raw,globalThis.LanguageModel,text=>{feedback.textContent=text;})
+      :extractLocalDraft(raw);
+    showAssistDraft(draft,useAi?'Análise pela IA local':'Extração local');
+  }catch(error){
+    feedback.classList.add('error');
+    feedback.textContent=error?.message||'Falha ao extrair os campos. Tente a extração local.';
+  }finally{busy(button,false);}
+}
+$('#assist-local').addEventListener('click',()=>runAssistExtraction(false));
+$('#assist-ai').addEventListener('click',()=>runAssistExtraction(true));
+$('#assist-dismiss').addEventListener('click',()=>{
+  state.assistDraft=null;
+  $('#assist-result').hidden=true;
+  $('#assist-status').textContent='Prévia descartada. O texto colado permanece disponível.';
+});
+$('#assist-apply').addEventListener('click',()=>{
+  const draft=state.assistDraft;
+  if(!draft)return;
+  const form=$('#task-form'), overwrite=$('#assist-overwrite').checked;
+  const total=Object.entries(draft.fields).reduce((count,[key,value])=>{
+    const field=form.elements.namedItem(key);
+    if(!field||!value)return count;
+    // BUILD is only the initial select default; an explicit RELEASE must be used.
+    const defaultType=key==='tipo_teste'&&field.value==='BUILD';
+    if(overwrite||!String(field.value||'').trim()||defaultType){
+      field.value=value;
+      return count+1;
+    }
+    return count;
+  },0);
+  // Application only stages scenarios; no database mutation until the user saves the TF.
+  state.pendingScenarios=draft.cenarios.map(s=>({...s,status:'nao_executado'}));
+  form.elements.namedItem('status').value='rascunho';
+  if(total||state.pendingScenarios.length)setFormDirty('task-form');
+  $('#assist-panel').open=false;
+  $('#assist-status').textContent=total+' campo(s) aplicado(s). '+
+    state.pendingScenarios.length+' cenário(s) aguardando salvamento.';
+  $('#task-form input[name="titulo"]').focus();
+  toast('Campos preenchidos. Revise e salve a TF para registrar os dados.');
 });
 
 // O importador analisa o texto localmente, sem inferir aprovação de cenários.

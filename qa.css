@@ -111,3 +111,35 @@ button:disabled{cursor:wait;opacity:.7}
   .menu-button .menu-icon{width:25px;height:25px;display:block;stroke:currentColor}
   .menu-button:focus-visible{outline:3px solid #126b62;outline-offset:3px}
 }
+
+/* QA text assistant: progressive disclosure without a separate workflow. */
+.assist-panel{padding:0;margin-bottom:23px;border-color:#bcded8;background:#f8fcfb}
+.assist-heading{list-style:none;display:flex;gap:13px;align-items:center;cursor:pointer;padding:18px 22px}
+.assist-heading::-webkit-details-marker{display:none}
+.assist-heading::after{content:"⌄";margin-left:auto;font-size:1.3rem;color:#57727a;transition:transform .15s}
+.assist-panel[open] .assist-heading::after{transform:rotate(180deg)}
+.assist-heading strong{display:block;font-size:.99rem;color:#233b47}
+.assist-heading small{display:block;margin-top:4px;color:#5b6e79;font-size:.79rem;font-weight:450}
+.assist-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;flex:none;background:#dcefeb;color:#106e61;font-size:1.23rem}
+.assist-body{padding:0 22px 22px}
+.assist-body>label{margin-bottom:7px}
+#assist-text{width:100%;display:block;resize:vertical;min-height:130px;border:1px solid #c7d9d8;border-radius:10px;padding:13px;color:#233b47;background:white;font:inherit;font-size:.88rem;line-height:1.55}
+.assist-help{font-size:.78rem;line-height:1.55;color:#536b75;margin:10px 0 16px;max-width:95ch}
+.assist-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.assist-status{font-size:.83rem;font-weight:600;min-height:1em;color:#2a675f;margin:10px 0 0}
+.assist-status.error{color:#a33448}
+.assist-result{background:white;border:1px solid #cddfdb;border-radius:11px;padding:18px;margin-top:17px}
+.assist-result>strong{display:block;font-size:.94rem}
+.assist-result>p{font-size:.84rem;line-height:1.5;color:#526873;margin:8px 0 12px}
+.assist-preview-list{padding-left:19px;margin:10px 0 15px;display:grid;gap:6px;max-height:180px;overflow:auto;font-size:.81rem;line-height:1.45;color:#314a57}
+.assist-preview-list li{overflow-wrap:anywhere}
+.assist-checkbox{display:flex;align-items:center;gap:9px;font-weight:550;margin:12px 0 17px;color:#344e59}
+.assist-checkbox input{margin:0;width:18px;height:18px;accent-color:#0d786d;flex:none}
+.assist-result .assist-actions{margin-bottom:10px}
+@media(max-width:600px){
+  .assist-heading{padding:15px 16px;gap:10px}
+  .assist-body{padding:0 16px 17px}
+  .assist-actions .btn{flex:1 1 175px;white-space:normal}
+  .assist-result{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){.assist-heading::after{transition:none}}

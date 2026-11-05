@@ -146,6 +146,19 @@ try {
 
     await page.locator('#new-task').click();
     await page.locator('#view-editor').waitFor({state:'visible'});
+    await page.locator('#assist-text').fill(`TF 67866 — Inclusão de produto
+O QUE FOI TESTADO:
+Validar inclusão pelo catálogo.
+CENÁRIOS TESTADOS:
+CENÁRIO 1 - Incluir produto
+- Abrir catálogo
+- Incluir produto`);
+    await page.locator('#assist-local').click();
+    await page.locator('#assist-result').waitFor({state:'visible'});
+    assert.match(await page.locator('#assist-summary').innerText(), /1 cenário/);
+    await page.locator('#assist-apply').click();
+    assert.equal(await page.locator('#task-form input[name="codigo"]').inputValue(),'67866');
+    assert.equal(await page.locator('#task-form select[name="status"]').inputValue(),'rascunho');
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
     if(!(await page.locator('#save-status').isVisible())){
@@ -174,6 +187,7 @@ try {
 
     await page.locator('#save-task').click();
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
+    await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='1');
     assert.equal(await page.locator('#save-status').isVisible(),false);
     await page.locator('#sidebar .navigation a[data-route="tarefas"]').evaluate(el=>el.click());
     await page.locator('#view-tarefas').waitFor({state:'visible'});
