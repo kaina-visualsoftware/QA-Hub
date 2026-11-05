@@ -534,21 +534,93 @@ async function copy(txt,html){try{
 $("cp").onclick=()=>copy($("prev").innerText,$("prev").innerHTML);
 $("cb").onclick=()=>copy($("bb").value);
 $("cm").onclick=()=>copy(S[mode].md);
+async function streamGenerator(kind,task,requirement,onText){
+ const {data:session,error:sessionError}=await supa.auth.getSession();
+ const token=session?.session?.access_token;
+ if(sessionError||!token)throw Error("Entre no QA Hub para gerar com IA NVIDIA.");
+ const response=await fetch(QA_CONFIG.url+"/functions/v1/qa-generators",{
+  method:"POST",
+  headers:{"Authorization":"Bearer "+token,"apikey":QA_CONFIG.publishableKey,
+    "Content-Type":"application/json","Accept":"text/event-stream"},
+  body:JSON.stringify({mode:kind,tarefa:task,requisito:requirement}),
+  signal:AbortSignal.timeout(135000)
+ });
+ if(!response.ok){
+  let data={};try{data=await response.json()}catch{}
+  throw Error(data.message||"A NVIDIA não respondeu. Tente mais tarde.");
+ }
+ if(!response.body)throw Error("A NVIDIA não retornou dados.");
+ const reader=response.body.getReader(),decoder=new TextDecoder();
+ let buffer="",full="",done=false,truncated=false;
+ const dispatch=raw=>{
+  const lines=raw.split(/\r?\n/),event=(lines.find(x=>x.startsWith("event:"))||"event: chunk").slice(6).trim();
+  const payload=lines.filter(x=>x.startsWith("data:")).map(x=>x.slice(5).trimStart()).join("\n");
+  if(!payload)return;
+  let data;try{data=JSON.parse(payload)}catch{return}
+  if(event==="error")throw Error(data.message||"Falha ao receber o texto da NVIDIA.");
+  if(event==="done"){done=true;truncated=Boolean(data.truncated);return}
+  if(event==="chunk"&&typeof data.text==="string"){
+   full+=data.text;
+   if(full.length>115000)throw Error("Texto gerado acima do limite.");
+   onText(full);
+  }
+ };
+ try{
+  for(;;){
+   const {value,done:ended}=await reader.read();
+   if(ended)break;
+   buffer+=decoder.decode(value,{stream:true});
+   let m;while((m=buffer.match(/\r?\n\r?\n/))){
+    const segment=buffer.slice(0,m.index);
+    buffer=buffer.slice(m.index+m[0].length);
+    dispatch(segment);
+   }
+  }
+  if(buffer.trim())dispatch(buffer);
+ }catch(e){e.partial=full;throw e}finally{try{await reader.cancel()}catch{}}
+ if(!full.trim())throw Error("O modelo não retornou texto utilizável.");
+ return {text:full,truncated:truncated||!done};
+}
 $("go").onclick=async()=>{
  const k=mode,t=$("t").value.trim(),r=$("r").value.trim();
- if(!t&&!r){$("st").textContent="Cole a tarefa primeiro.";return}
- $("go").disabled=true;$("st").textContent="Gerando... (roteiros longos podem levar alguns minutos)";var part="",lt=0;
+ if(!t){$("st").textContent="Cole a tarefa do SIA antes de gerar.";return}
+ if(!uid){$("st").textContent="Entre no QA Hub para usar a NVIDIA. As ferramentas locais continuam disponíveis.";return}
+ $("go").disabled=true;$("st").textContent="Gerando com NVIDIA…";let part="",lt=0;
  try{
-  const sample=await claude.use("sample");
-  if(!sample){$("st").textContent="Recurso de IA indisponível nesta visualização.";return}
-  const res=await sample(M[k].rules+"\n\n=== TAREFA ===\n"+t.slice(0,30000)+(r?"\n\n=== REQUISITO ===\n"+r.slice(0,20000):""),{cache:false,modelTier:"default",onText:({text})=>{part=text;try{if(Date.now()-lt>1500){lt=Date.now();localStorage.setItem("draft_"+k,JSON.stringify({t,r,md:text,ts:Date.now()}))}}catch(e){}if(k===mode){$("prev").style.display="";$("exec").innerHTML="";$("prev").innerHTML=toHTML(text);$("out").style.display="block"}}});
-  let md=res.text.trim().replace(/^```\w*\n?|```$/g,"").trim();if(res.truncated)md+="\n\n**ATENÇÃO:** o texto foi cortado pelo limite de tamanho; gere novamente com menos conteúdo.";
+  const result=await streamGenerator(k,t.slice(0,30000),r.slice(0,20000),text=>{
+   part=text;
+   try{if(Date.now()-lt>1200){lt=Date.now();localStorage.setItem("draft_"+k,JSON.stringify({t,r,md:text,ts:Date.now()}))}}catch{}
+   if(k===mode){$("prev").innerHTML=toHTML(text);$("out").style.display="block";$("st").textContent="Gerando em tempo real…"}
+  });
+  let md=result.text.trim();
+  if(result.truncated)md+="\n\n**ATENÇÃO:** o resultado pode estar incompleto devido ao limite da IA.";
   S[k]={t,r,md,exec:k==="teste"?defExec(md):{}};
   if(k===mode)load();
-  const rec={ts:Date.now(),titulo:(md.match(/^# (.+)$/m)||[])[1]||"",tarefa:t,requisito:r,md,exec:S[k].exec};try{S[k].id=await store(k).save(rec);if(k===mode){renderHist();renderExec()}}
-  catch(e){const m=e&&(e.message||e.code)||String(e);fb=true;try{await store(k).save(rec);$("st").textContent="Salvo só neste navegador (erro no banco: "+m+")";if(k===mode)renderHist()}catch(e2){$("st").textContent="Não salvou: "+m}}
- }catch(e){$("st").textContent="Erro: "+(e&&(e.message||e.code)||"falha ao gerar")+(part?" — o texto parcial foi salvo no histórico.":"");if(part){try{S[k]={t,r,md:part};await store(k).save({ts:Date.now(),titulo:"(parcial) "+((part.match(/^# (.+)$/m)||[])[1]||""),tarefa:t,requisito:r,md:part});if(k===mode)renderHist()}catch(e2){}}}
- finally{$("go").disabled=false;try{localStorage.removeItem("draft_"+k)}catch(e){}}};
+  const record={ts:Date.now(),titulo:(md.match(/^# (.+)$/m)||[])[1]||"",
+   tarefa:t,requisito:r,md,exec:S[k].exec};
+  try{
+   S[k].id=await store(k).save(record);
+   if(k===mode){await renderHist();renderExec();$("st").textContent="Resultado salvo no histórico."}
+  }catch(error){
+   try{
+    S[k].id=await store(k,true).save(record);
+    if(k===mode){await renderHist();$("st").textContent="Salvo somente neste navegador (sincronização indisponível)."}
+   }catch{$("st").textContent="Não foi possível salvar o resultado."}
+  }
+ }catch(error){
+  part=error?.partial||part;
+  $("st").textContent="Erro: "+(error?.message||"Falha ao gerar")+(part?" — resposta parcial preservada.":"");
+  if(part){
+   const draft={ts:Date.now(),titulo:"(interrompido) "+((part.match(/^# (.+)$/m)||[])[1]||""),
+    tarefa:t,requisito:r,md:part,exec:k==="teste"?defExec(part):{}};
+   try{await store(k).save(draft)}catch{await store(k,true).save(draft)}
+   if(k===mode){S[k]={t,r,md:part,exec:draft.exec};await renderHist();renderExec()}
+  }
+ }finally{
+  $("go").disabled=false;
+  try{localStorage.removeItem("draft_"+k)}catch{}
+ }
+};
 async function recover(){for(const k in M){try{const d=JSON.parse(localStorage.getItem("draft_"+k)||"null");if(d&&d.md){localStorage.removeItem("draft_"+k);await store(k).save({ts:d.ts,titulo:"(interrompido) "+((d.md.match(/^# (.+)$/m)||[])[1]||""),tarefa:d.t,requisito:d.r,md:d.md})}}catch(e){}}renderHist()}
 document.addEventListener("keydown",e=>{if(mode==="teste"&&CN&&(e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();CN()}});
 (async()=>{load();addEventListener("beforeunload",e=>{if($("go").disabled){e.preventDefault();e.returnValue=""}});try{const d=await claude.use("db"),u=await claude.use("user");if(d&&u){uid=await u.id();db=d}}catch(e){}await recover();if(mode==="home"&&HR)HR()})();
