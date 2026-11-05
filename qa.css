@@ -375,3 +375,53 @@ button:disabled{cursor:wait;opacity:.7}
   .ai-loading-content{padding:28px 20px}
 }
 @media(prefers-reduced-motion:reduce){.ai-loading-spinner{animation:none;border-style:dashed}}
+
+/* Unified, accessible modal workflow for editing/deleting TF records.
+   Dialogs live outside tab panels so hidden tabs cannot hide open editors. */
+.qa-editor-dialog,.qa-confirm-dialog{
+  padding:0;border:1px solid #d8e4e5;border-radius:16px;background:#fff;color:#233d49;
+  max-width:calc(100vw - 28px);max-height:calc(100dvh - 28px);
+  box-shadow:0 26px 90px rgba(14,37,50,.27);
+  overflow:hidden;
+}
+.qa-editor-dialog{width:min(780px,calc(100vw - 28px))}
+.qa-diagram-dialog{width:min(940px,calc(100vw - 28px))}
+.qa-confirm-dialog{width:min(430px,calc(100vw - 32px))}
+.qa-editor-dialog::backdrop,.qa-confirm-dialog::backdrop{
+  background:rgba(12,31,41,.56);backdrop-filter:blur(3px);
+}
+.qa-dialog-shell{max-height:calc(100dvh - 28px);overflow:auto;overscroll-behavior:contain}
+.qa-modal-form{padding:27px 30px}
+.qa-modal-form>h3{font-size:1.18rem;letter-spacing:-.025em;margin:0 0 22px}
+.qa-modal-form .field-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.qa-modal-form .form-actions{
+  position:sticky;bottom:-27px;z-index:2;flex-wrap:wrap;
+  padding:14px 0 1px;background:#fff;
+  border-top:1px solid #e8eeee;
+}
+.qa-modal-form label{line-height:1.45}
+.qa-modal-form textarea{max-height:42vh}
+.qa-modal-form textarea[name="passos"]{min-height:150px}
+.qa-diagram-dialog .diagram-preview{min-height:125px;max-height:330px;overflow:auto}
+.qa-confirm-body{padding:26px}
+.qa-confirm-symbol{
+  width:35px;height:35px;display:grid;place-items:center;
+  background:#fff0f0;color:#a63845;border-radius:9px;font-weight:900;
+  margin-bottom:14px
+}
+.qa-confirm-body h2{font-size:1.15rem;margin:0 0 10px}
+.qa-confirm-body p{color:#56707b;font-size:.87rem;line-height:1.6;overflow-wrap:anywhere;margin:0 0 24px}
+.qa-confirm-actions{display:flex;justify-content:flex-end;gap:9px}
+.qa-confirm-actions .btn{min-width:103px}
+@media(max-width:600px){
+  .qa-editor-dialog,.qa-diagram-dialog{width:100vw;max-width:100vw;max-height:100dvh;height:100dvh;border-radius:0}
+  .qa-dialog-shell{max-height:100dvh}
+  .qa-modal-form{padding:20px 16px}
+  .qa-modal-form .field-grid{grid-template-columns:1fr}
+  .qa-modal-form .form-actions{bottom:-20px}
+  .qa-modal-form .form-actions .btn{flex:1 1 auto}
+  .qa-confirm-actions .btn{flex:1 1 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .qa-editor-dialog::backdrop,.qa-confirm-dialog::backdrop{backdrop-filter:none}
+}
