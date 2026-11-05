@@ -1,7 +1,7 @@
 name: QA Hub checks
 on:
   push:
-    branches: [feature/qa-hub-supabase]
+    branches: [main]
   pull_request:
     branches: [main]
 permissions:
@@ -20,7 +20,7 @@ jobs:
           node --check qa-parser.mjs
           node --check qa-config.js
       - name: Run report parser tests
-        run: node --test tests/parser.test.mjs
+        run: node --test tests/*.test.mjs
       - name: Detect accidental sensitive credentials in app code
         run: |
           if grep -RniE '(service_role|sb_secret_)' --include='qa*.js' --include='qa*.mjs' . | grep -v 'NUNCA\|nunca'; then
