@@ -22,11 +22,20 @@ export function fallbackFlowchart(text){
   if(steps.length===0)steps.push('Descrever o processo','Verificar o resultado');
   if(steps.length===1)steps.push('Validar o resultado');
   const ids='ABCDEFGH';
-  return 'flowchart TD\n'+steps.map((s,i)=>{
+  return 'flowchart LR\n'+steps.map((s,i)=>{
     const a='  '+ids[i]+'["'+s+'"]';
     return i?'  '+ids[i-1]+' --> '+ids[i]+'\n'+a:a;
   }).join('\n');
 }
+// Keep every generated flowchart (including subgraphs) left-to-right.
+// Do not rewrite other Mermaid diagram types or mutate existing stored records.
+export function horizontalFlowchart(source){
+  if(typeof source!=='string')return source;
+  return source
+    .replace(/^(\s*)(?:flowchart|graph)\s+(?:TD|TB|BT|RL|LR)\b/im,'$1flowchart LR')
+    .replace(/^(\s*direction\s+)(?:TD|TB|BT|RL|LR)\b/gim,'$1LR');
+}
+
 export function cleanMermaid(source){
   let content=String(source||'').trim();
   if(!content||content.length>16000)throw Error('O diagrama está vazio ou ultrapassa 16.000 caracteres.');
@@ -39,7 +48,7 @@ export function cleanMermaid(source){
   if(/%%\s*\{|\b(?:click|href|callback)\s+|javascript:|<\s*(?:script|iframe)|\b(?:accTitle|accDescr)\s*:/i.test(content))
     throw Error('O diagrama contém comandos não permitidos.');
   if(!/-->|---|==>|-.->/.test(content))throw Error('O diagrama não contém conexões entre etapas.');
-  return content;
+  return horizontalFlowchart(content);
 }
 export async function requestAiDiagram({db,text,onProgress=()=>{}}){
   if(!db?.functions?.invoke)throw Error('Serviço de IA indisponível.');
