@@ -369,7 +369,7 @@ CENÁRIO 1 - Incluir produto
       }
       await page.locator('#diagram-generate').click();
       await page.locator('#diagram-ai-progress').waitFor({state:'visible'});
-      await page.waitForFunction(()=>document.querySelector('#diagram-source').value.includes('flowchart TD'));
+      await page.waitForFunction(()=>document.querySelector('#diagram-source').value.startsWith('flowchart LR'));
       await page.waitForFunction(()=>document.querySelector('#diagram-ai-progress').hidden===true);
       await page.locator('#zoom-diagram-preview').click();
       await page.locator('#diagram-viewer').waitFor({state:'visible'});
