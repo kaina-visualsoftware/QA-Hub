@@ -125,6 +125,14 @@ try {
 
     if(width<=768){
       const menu=page.locator('#menu-button');
+      assert.equal(await menu.locator('svg.menu-icon').count(),1);
+      const menuColors = await menu.evaluate(button => {
+        const style = getComputedStyle(button);
+        return { foreground: style.color, background: style.backgroundColor, visible: button.offsetParent !== null };
+      });
+      assert.equal(menuColors.visible,true,'menu button hidden at '+width);
+      assert.ok(contrast(menuColors.foreground, menuColors.background)>=7,
+        'mobile menu lacks visible contrast at '+width+': '+JSON.stringify(menuColors));
       await menu.click();
       assert.equal(await menu.getAttribute('aria-expanded'),'true');
       assert.equal(await page.locator('#sidebar-backdrop').isVisible(),true);
