@@ -126,3 +126,13 @@ O repositório oficial agora é [`kaina-visualsoftware/QA-Hub`](https://github.c
 **Configuração necessária no Supabase Dashboard** (o app não pode configurar isso automaticamente): em **Authentication → URL Configuration**, ajuste **Site URL** para `https://kaina-visualsoftware.github.io/QA-Hub/` e inclua **Redirect URLs** `https://kaina-visualsoftware.github.io/QA-Hub/qa.html`. Confira se os templates de e-mail usam `{{ .RedirectTo }}` ou o novo site. Após validar o login e a confirmação, remova a URL antiga da lista quando não for mais necessária.
 
 Para quem possui clone local, atualize o remote: `git remote set-url origin https://github.com/kaina-visualsoftware/QA-Hub.git`.
+
+## Ferramentas integradas (navegação única)
+
+Os módulos de post, roteiro de testes, lista de release, informações importantes, comparação de textos e comparação XML são acessados **dentro do QA Hub** por rotas `qa.html#/ferramentas/{modo}`. Não abrem outra guia nem exibem outro menu/cabeçalho. O mesmo login Supabase e a sessão do navegador são usados nos módulos.
+
+Para preservar o isolamento do CSS e do JavaScript legado dos geradores, a área central usa um iframe interno **da mesma origem**, em modo `geradores.html?embedded=1&mode={modo}`, com atualização de altura e troca de ferramenta por mensagens validadas pela origem. O iframe é uma implementação interna da área de ferramentas, não uma segunda navegação. Os links externos antigos `geradores.html#post` e equivalentes redirecionam para as rotas do QA Hub.
+
+O fluxo de TF mantém contexto: ao selecionar “Gerar post com IA” ou “Gerar roteiro com IA” em uma TF, a rota inclui `?tf=<uuid>`, e o módulo oferece “Usar dados da TF”. Na troca entre módulos, os rascunhos atuais continuam em memória; ao trocar de TF, o contexto é recarregado. O logout desmonta o módulo para não manter dados de sessões anteriores.
+
+Verificar em homologação: login, links diretos antigos, navegação do menu no desktop/mobile, entrada contextual pela TF, edição sem perda ao alternar módulos, histórico e cópia/exportação, redimensionamento com resultados longos, e limpeza de sessão no logout.

@@ -15,7 +15,7 @@ const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
-const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
+const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], toolMode: null, toolFrameContext: null };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
@@ -142,7 +142,13 @@ async function start() {
   }
 }
 db.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_OUT') { state.user = null; state.tasks = []; state.scenarioStats = []; showAuth(); }
+  if (event === 'SIGNED_OUT') {
+    state.user = null; state.tasks = []; state.scenarioStats = [];
+    const frame = $('#tool-frame');
+    frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
+    state.toolMode = null; state.toolFrameContext = null;
+    showAuth();
+  }
 });
 
 function taskItem(task) {
@@ -200,11 +206,25 @@ function renderDashboard() {
     '<div class="type-row"><div class="type-label"><span>'+key+'</span><span>'+n+' TF(s)</span></div><div class="type-track"><span style="width:'+
     (tasks.length ? Math.round(n/tasks.length*100) : 0)+'%"></span></div></div>').join('');
 }
+const toolPages = {
+  post: { title:'Posts do fórum', description:'Gere e revise comunicados com IA.' },
+  teste: { title:'Roteiros de teste', description:'Crie cenários e acompanhe a execução dos testes.' },
+  release: { title:'Lista e comunicado', description:'Organize releases e compare alterações localmente.' },
+  lib: { title:'Informações importantes', description:'Consulte e organize seus registros.' },
+  diff: { title:'Comparar textos', description:'Identifique diferenças entre versões de textos.' },
+  xml: { title:'Comparar XML', description:'Compare estruturas e conteúdos XML.' }
+};
 function setView(name) {
   $$('.view').forEach(node => { node.hidden = node.id !== 'view-'+name; });
-  $$('.navigation a[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route===name));
+  const activeRoute = name === 'ferramentas' ? 'ferramentas/' + state.toolMode : name;
+  $$('.navigation a[data-route]').forEach(node => {
+    const active = node.dataset.route === activeRoute;
+    node.classList.toggle('active', active);
+    if (active) node.setAttribute('aria-current', 'page');
+    else node.removeAttribute('aria-current');
+  });
   const crumbs = {dashboard:'Visão geral',tarefas:'Tarefas de teste',editor:'Detalhes da TF'};
-  $('#breadcrumb').textContent = crumbs[name] || 'QA Hub';
+  $('#breadcrumb').textContent = name === 'ferramentas' ? toolPages[state.toolMode]?.title || 'Ferramentas' : crumbs[name] || 'QA Hub';
   setSidebar(false);
 }
 function selectTab(name) {
@@ -217,6 +237,46 @@ function selectTab(name) {
     button.tabIndex = selected ? 0 : -1;
   }
 }
+const toolFrame = $('#tool-frame');
+toolFrame.addEventListener('load', () => {
+  if (toolFrame.dataset.initialized === 'true' && state.toolMode) {
+    toolFrame.contentWindow?.postMessage({ type:'qa-hub:navigate-tool', mode:state.toolMode }, location.origin);
+  }
+});
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.source !== toolFrame.contentWindow) return;
+  if (event.data?.type === 'qa-hub:tool-height') {
+    const height = Number(event.data.height);
+    if (Number.isFinite(height) && height > 0) {
+      toolFrame.style.height = Math.max(520, Math.min(50000, Math.ceil(height) + 12)) + 'px';
+    }
+  }
+});
+function openTool(mode, taskId = '') {
+  const info = toolPages[mode];
+  if (!info) return;
+  // Preserve the selected TF while switching tools through the sidebar.
+  // A new TF context replaces the prior one; the iframe is never reloaded on a simple tool switch.
+  const tf = taskId && /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(taskId)
+    ? taskId : (state.toolFrameContext || '');
+  state.toolMode = mode;
+  $('#tool-view-title').textContent = info.title;
+  $('#tool-view-description').textContent = info.description;
+  toolFrame.title = info.title + ' · QA Hub';
+  if (toolFrame.dataset.initialized !== 'true' || state.toolFrameContext !== tf) {
+    state.toolFrameContext = tf;
+    toolFrame.dataset.initialized = 'true';
+    toolFrame.style.height = '740px';
+    const url = new URL('./geradores.html', location.href);
+    url.searchParams.set('embedded', '1');
+    url.searchParams.set('mode', mode);
+    if (tf) url.searchParams.set('tf', tf);
+    toolFrame.src = url.href;
+  } else {
+    toolFrame.contentWindow?.postMessage({ type:'qa-hub:navigate-tool', mode }, location.origin);
+  }
+  setView('ferramentas');
+}
 async function route() {
   if (!state.user) return;
   const hash = decodeURIComponent(location.hash || '#/dashboard');
@@ -226,6 +286,11 @@ async function route() {
   }
   if (hash !== state.activeHash) clearFormDirty();
   state.activeHash = hash;
+  const toolRoute = hash.match(/^#\/ferramentas\/(post|teste|release|lib|diff|xml)(?:\?([^#]*))?$/);
+  if (toolRoute) {
+    openTool(toolRoute[1], new URLSearchParams(toolRoute[2] || '').get('tf'));
+    return;
+  }
   if (hash === '#/tarefas') { setView('tarefas'); return; }
   if (hash === '#/nova') { openNewTask(); return; }
   if (hash.startsWith('#/tarefa/')) {
@@ -305,8 +370,8 @@ async function openTask(id) {
   updatePublicLink(task);
   const generatorLinks=$('#task-generator-links');
   generatorLinks.hidden=false;
-  $('#task-post-link').href='./geradores.html?tf='+encodeURIComponent(task.id)+'#post';
-  $('#task-testplan-link').href='./geradores.html?tf='+encodeURIComponent(task.id)+'#teste';
+  $('#task-post-link').href='#/ferramentas/post?tf='+encodeURIComponent(task.id);
+  $('#task-testplan-link').href='#/ferramentas/teste?tf='+encodeURIComponent(task.id);
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
   $('#assist-back').hidden=true;
   revealTaskDetails(task);

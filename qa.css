@@ -435,3 +435,9 @@ button:disabled{cursor:wait;opacity:.7}
  .task-generator-links{flex:1 1 100%;width:100%}
  .task-generator-links .btn{flex:1 1 auto}
 }
+
+/* Unified QA Hub shell for tool modules. A single sidebar and topbar own navigation. */
+.qa-tools-heading{margin-bottom:20px}
+.qa-tool-frame{display:block;width:100%;height:740px;border:0;background:transparent;min-width:0}
+.qa-tools-view{min-width:0}
+@media(max-width:600px){.qa-tools-heading{margin-bottom:14px}.qa-tool-frame{width:100%}}
