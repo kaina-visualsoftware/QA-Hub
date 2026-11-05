@@ -56,6 +56,17 @@ export function createClient(){
   }
   return {
     from,
+    functions:{
+      async invoke(name,{body}){
+        if(name!=='qa-ai')return {data:null,error:new Error('Unknown function')};
+        await new Promise(resolve=>setTimeout(resolve,400));
+        return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',draft:{
+          codigo:'67866',titulo:'Inclusão de produto',tipo_teste:'BUILD',
+          descricao:body.text,cenarios:[{titulo:'Incluir produto',passos:'Abrir catálogo e incluir produto',
+            esperado:'Produto incluído',obtido:'',observacoes:''}]
+        }},error:null};
+      }
+    },
     auth:{
       async getSession(){return {data:{session:user?{user}:null},error:null}},
       onAuthStateChange(){return {data:{subscription:{unsubscribe(){}}}}},
@@ -146,8 +157,16 @@ try {
 
     await page.locator('#new-task').click();
     await page.locator('#view-editor').waitFor({state:'visible'});
-    assert.equal(await page.locator('#assist-ai').isDisabled(),false);
-    assert.match(await page.locator('#assist-capability').innerText(),/sem login nem token/);
+    assert.equal(await page.locator('#editor-fields').isVisible(),false);
+    assert.equal(await page.locator('#assist-panel').isVisible(),true);
+    assert.equal(await page.locator('#save-task').isVisible(),false);
+    if(width===768){
+      await page.locator('#assist-manual').click();
+      assert.equal(await page.locator('#editor-fields').isVisible(),true);
+      await page.locator('#assist-back').click();
+      assert.equal(await page.locator('#assist-panel').isVisible(),true);
+      assert.equal(await page.locator('#editor-fields').isVisible(),false);
+    }
     await page.locator('#assist-text').fill(`TF 67866 — Inclusão de produto
 O QUE FOI TESTADO:
 Validar inclusão pelo catálogo.
@@ -155,10 +174,21 @@ CENÁRIOS TESTADOS:
 CENÁRIO 1 - Incluir produto
 - Abrir catálogo
 - Incluir produto`);
-    await page.locator('#assist-local').click();
-    await page.locator('#assist-result').waitFor({state:'visible'});
-    assert.match(await page.locator('#assist-summary').innerText(), /1 cenário/);
-    await page.locator('#assist-apply').click();
+    if(width===390){
+      await page.locator('#assist-ai').click();
+      assert.equal(await page.locator('#editor-fields').isVisible(),false);
+      assert.match(await page.locator('#toast').innerText(),/Autorize/);
+      await page.locator('#assist-consent').check();
+      await page.locator('#assist-ai').click();
+      await page.locator('#assist-loading').waitFor({state:'visible'});
+      assert.equal(await page.locator('#assist-ai').isDisabled(),true);
+    }else{
+      await page.locator('#assist-local').click();
+    }
+    await page.locator('#editor-fields').waitFor({state:'visible'});
+    assert.equal(await page.locator('#assist-panel').isVisible(),false);
+    assert.equal(await page.locator('#save-task').isVisible(),true);
+    assert.match(await page.locator('#assist-summary').innerText(),/1 cenário/);
     assert.equal(await page.locator('#task-form input[name="codigo"]').inputValue(),'67866');
     assert.equal(await page.locator('#task-form select[name="status"]').inputValue(),'rascunho');
     const title=page.locator('#task-form input[name="titulo"]');

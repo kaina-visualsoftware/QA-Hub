@@ -88,3 +88,26 @@ Ao criar uma **Nova TF**, cole um relatório ou uma explicação na seção de p
 **Privacidade:** o JavaScript e os arquivos públicos da IA são baixados de CDNs/Hugging Face; o texto de QA é processado localmente, no navegador, sem requisição de inferência a provedores externos. O conteúdo é transmitido ao Supabase **somente** no fluxo de salvar a TF. Não há segredo ou token de provedor no frontend. Evite incluir dados pessoais ou segredos em relatórios desnecessariamente.
 
 **Validação:** testes automatizados usam modelo simulado, verificação do protocolo do Worker e da normalização JSON. O download e a inferência efetiva do modelo volumoso **não** são exercitados na CI; a compatibilidade e a qualidade do texto gerado precisam de homologação em aparelhos reais. Dados de teste gerados por IA sempre precisam de conferência humana.
+
+## Criação de TF em duas etapas (IA + revisão)
+
+A página **Nova TF** abre na **Etapa 1 — Entrada de texto**. O formulário completo fica oculto até ocorrer uma destas ações:
+
+- **Gerar com IA NVIDIA:** após marcar a autorização de envio do relatório, o navegador chama a função autenticada `qa-ai` do Supabase, que usa a chave de forma privada. O sistema tenta primeiro `nvidia/nemotron-3.5-lightning-30b-a3b` e depois `z-ai/glm-5-3-flash`, ambos identificados no catálogo NVIDIA Build como **Free Endpoint** em 05/11/2026. Tenta identificar os modelos disponíveis usando `GET /v1/models` e só tenta modelos dessa lista previamente permitida. Uma resposta válida avança para a Etapa 2.
+- **Extrair sem IA:** interpreta o relatório por regras locais, sem enviar o texto à NVIDIA, e avança para a Etapa 2.
+- **Usar IA no dispositivo:** utiliza o modelo aberto local Qwen via Web Worker; requer download e hardware compatível e avança após concluir. Não usa chave da NVIDIA.
+- **Seguir manualmente:** abre imediatamente a Etapa 2 com formulário vazio, sem chamada de IA.
+
+A **Etapa 2 — Revisão** permite editar todos os campos, retornar ao texto, visualizar cenários e só grava no Supabase quando se escolhe **Salvar TF**. Cenários extraídos iniciam como `nao_executado`; a IA não declara um teste aprovado automaticamente. O processamento mostra spinner, estado de carregamento, mensagens amigáveis e toasts, incluindo erros de rede/cota.
+
+### Ativar NVIDIA Build com segurança
+
+1. A chave da NVIDIA foi compartilhada anteriormente em uma conversa: **revogue-a no painel da NVIDIA e gere outra**.
+2. No projeto Supabase **SIA** (`pqadmlhcsimlcclpkyov`), abra [Edge Functions > Secrets](https://supabase.com/dashboard/project/pqadmlhcsimlcclpkyov/functions/secrets).
+3. Cadastre o segredo **`NVIDIA_API_KEY`** com a nova chave da NVIDIA. **Nunca** inclua a chave em `qa.js`, HTML, `qa-config.js`, GitHub ou campos públicos do banco. O segredo deve ser configurado no ambiente da Edge Function.
+4. A função `qa-ai` e o controle de cota precisam estar implantados no mesmo projeto. A função exige JWT de usuário válido, permite apenas origem do QA Hub, limita relatórios a 20.000 caracteres, aplica 12 requisições por usuário por dia e intervalo mínimo de 15 segundos, e nunca envia a chave ao navegador.
+5. Para verificar, entre no QA Hub, crie uma nova TF, marque o consentimento de enviar a descrição à NVIDIA e clique em **Gerar com IA NVIDIA**. Confira a prévia preenchida. Se a chave estiver ausente, a interface informa isso e oferece extração sem IA.
+
+**Privacidade:** somente a ação explícita de IA NVIDIA envia o conteúdo à NVIDIA; textos podem conter informações de clientes e dados internos, então remova informações sensíveis antes de compartilhar. A extração sem IA e a IA local não enviam relatórios à NVIDIA. A NVIDIA pode impor cotas de uso/alterar modelos gratuitos; um endpoint denominado gratuito **não** significa gratuidade ilimitada. A lista estática de candidatos precisa ser revisada quando o catálogo mudar.
+
+**Observabilidade:** os erros do provedor são traduzidos para mensagens sem expor credenciais. A resposta estruturada é normalizada no cliente e limitada às colunas esperadas da TF.
