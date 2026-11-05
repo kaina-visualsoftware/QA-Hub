@@ -836,6 +836,8 @@ async function runAssistExtraction(method){
       draft=extractLocalDraft(raw);
     }
     if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
+    // Close the modal before moving focus to the now-visible review form.
+    if(modal.open)modal.close();
     showAssistDraft(draft);
     applyAssistDraft();
     if(usedFallback){
