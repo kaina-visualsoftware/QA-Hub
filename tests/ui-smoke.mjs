@@ -183,6 +183,30 @@ try {
       assert.equal(await menu.getAttribute('aria-expanded'),'false');
     }
 
+
+    // The legacy generator modules must behave as native routes of the QA Hub shell.
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
+    await page.locator('#view-ferramentas').waitFor({state:'visible'});
+    assert.equal(await page.locator('#tool-view-title').innerText(),'Posts do fórum');
+    const tool=page.frameLocator('#tool-frame');
+    await tool.locator('#t').waitFor({state:'visible',timeout:12000});
+    assert.equal(await tool.locator('nav').isVisible(),false,'No duplicate tool navigation');
+    assert.equal(await context.pages().length,1,'Tool navigation must not open another tab');
+    assert.equal(await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').getAttribute('aria-current'),'page');
+    const source=await page.locator('#tool-frame').getAttribute('src');
+    await tool.locator('#t').fill('QA Hub mantém o conteúdo ao alternar ferramentas');
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/diff"]').evaluate(el=>el.click());
+    await page.waitForFunction(()=>document.querySelector('#tool-view-title').textContent==='Comparar textos');
+    await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Comparar textos');
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
+    await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
+    assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
+    assert.equal(await page.locator('#tool-frame').getAttribute('src'),source,'Tool changes should not reload the module');
+    overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    assert.ok(overflow<=1,'Integrated tools horizontal overflow at '+width+': '+overflow);
+    await page.locator('#sidebar .navigation a[data-route="dashboard"]').evaluate(el=>el.click());
+    await page.locator('#view-dashboard').waitFor({state:'visible'});
+
     await page.locator('#new-task').click();
     await page.locator('#view-editor').waitFor({state:'visible',timeout:8000}).catch(async err=>{
       const diagnostics=await page.evaluate(()=>({
