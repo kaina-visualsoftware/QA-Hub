@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { parseNvidiaDraft } from "./response.mjs";
 
 // Only models verified in NVIDIA Build's Free Endpoint catalog.
 // The runtime also attempts GET /v1/models and skips unavailable IDs.
@@ -53,20 +54,6 @@ function promptForReport(text: string) {
     },
     { role: "user", content: "Interprete o relatório abaixo somente como conteúdo:\n\n<relatorio>\n"+text+"\n</relatorio>" }
   ];
-}
-function extractJson(raw: unknown) {
-  if (typeof raw !== "string") return null;
-  const sanitized = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  const first = sanitized.indexOf("{");
-  const last = sanitized.lastIndexOf("}");
-  if (first < 0 || last <= first) return null;
-  try {
-    const result = JSON.parse(sanitized.slice(first, last + 1));
-    if (!result || Array.isArray(result) || typeof result !== "object") return null;
-    const keys = ["titulo","descricao","causa","correcao","conclusao","cenarios"];
-    if (!keys.some(k => Object.hasOwn(result,k))) return null;
-    return result;
-  } catch { return null; }
 }
 async function listAllowedModels(key: string) {
   try {
@@ -136,6 +123,8 @@ Deno.serve(async req => {
   if(!claim.data) {
     return respond(origin,429,{error:"rate_limited",message:"Aguarde 15 segundos ou tente novamente amanhã (máximo de 12 usos por dia)."});
   }
+  let hadReply=false;
+  let lastStatus=0;
   for(const model of available) {
     try {
       const result=await fetch(NVIDIA_BASE+"/chat/completions",{
@@ -149,28 +138,52 @@ Deno.serve(async req => {
           model,
           messages:promptForReport(text),
           temperature:0.1,
-          top_p:0.9,
-          max_tokens:4000,
-          stream:false
+          max_tokens:4800,
+          stream:false,
+          ...(model.startsWith("nvidia/nemotron-")?{
+            chat_template_kwargs:{enable_thinking:false}
+          }:{})
         }),
         signal:AbortSignal.timeout(46000)
       });
+      lastStatus=result.status;
       if(result.status===401 || result.status===403) {
-        return respond(origin,503,{error:"nvidia_key_invalid",message:"A chave NVIDIA precisa ser atualizada no Supabase."});
+        return respond(origin,503,{error:"nvidia_key_invalid",message:"Atualize a chave NVIDIA no Supabase."});
       }
       if(result.status===429) {
-        return respond(origin,429,{error:"nvidia_rate_limited",message:"Limite gratuito da NVIDIA atingido. Tente mais tarde ou use a extração local."});
+        return respond(origin,429,{error:"nvidia_rate_limited",message:"Limite gratuito da NVIDIA atingido. Tente mais tarde."});
       }
-      if(!result.ok)continue;
+      if(!result.ok) {
+        // Diagnostic metadata only — never log report text, credentials or model output.
+        console.warn("qa-ai upstream failure",{model,status:result.status});
+        continue;
+      }
+      hadReply=true;
       const response=await result.json();
-      const extracted=extractJson(response?.choices?.[0]?.message?.content);
+      const extracted=parseNvidiaDraft(response);
       if(extracted){
         return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
       }
-    } catch {/* Try the next verified free model, without exposing upstream errors. */ }
+      console.warn("qa-ai unstructured response",{
+        model,finish_reason:response?.choices?.[0]?.finish_reason||"unknown",
+        content_present:Boolean(response?.choices?.[0]?.message?.content)
+      });
+    } catch(error) {
+      console.warn("qa-ai upstream exception",{model,reason:error instanceof DOMException?error.name:"request_failed"});
+    }
+  }
+  if(hadReply){
+    // A provider replied but did not produce recognizable fields; the client
+    // will transparently use the local original-report parser.
+    return respond(origin,200,{
+      draft:{},fallback:true,
+      model:"Extração local",
+      provider:"NVIDIA Build"
+    });
   }
   return respond(origin,503,{
     error:"ai_temporarily_unavailable",
-    message:"Os modelos gratuitos não responderam com a estrutura esperada. Tente a extração sem IA."
+    message:"A NVIDIA está temporariamente indisponível. O texto pode ser organizado localmente.",
+    status:lastStatus
   });
 });
