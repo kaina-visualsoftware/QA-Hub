@@ -9,7 +9,7 @@ Plataforma web para documentar tarefas de teste (TFs), cenários, resultados, ex
 - O hub estático anterior e a página legada `184728/page.html` foram retirados da versão atual. Permanecem recuperáveis no histórico Git.
 - Requer servidor HTTP (GitHub Pages ou desenvolvimento local), pois `qa.js` usa módulos ES.
 
-Site: `https://kaina-visualsoftware.github.io/Tarefas/` (abre o QA automaticamente). Para executar localmente, use `python -m http.server 8080` e acesse `http://localhost:8080/`. O aplicativo usa módulos ES e CDNs versionadas, sem etapa de build Node obrigatória.
+Site: `https://kaina-visualsoftware.github.io/QA-Hub/` (abre o QA automaticamente). Para executar localmente, use `python -m http.server 8080` e acesse `http://localhost:8080/`. O aplicativo usa módulos ES e CDNs versionadas, sem etapa de build Node obrigatória.
 
 ## Configurar Supabase
 
@@ -67,7 +67,7 @@ A migração `supabase/admin_roles.sql` adiciona o papel de administrador do **Q
 
 ## URL de autenticação e publicação
 
-Em **Supabase Dashboard → Authentication → URL Configuration**, configure a **Site URL** e adicione em **Redirect URLs**: `https://kaina-visualsoftware.github.io/Tarefas/qa.html`. A tela continua nesse endereço para não invalidar confirmações de e-mail existentes. Não use `localhost:3000` como endereço público do sistema.
+Em **Supabase Dashboard → Authentication → URL Configuration**, configure a **Site URL** e adicione em **Redirect URLs**: `https://kaina-visualsoftware.github.io/QA-Hub/qa.html`. Após a renomeação do repositório, confirme a nova URL de produção no Supabase Auth. Os links de confirmação novos devem usar o endereço QA-Hub; mantenha o endereço antigo na lista de redirecionamentos apenas pelo período necessário para confirmações já enviadas. Não use `localhost:3000` como endereço público do sistema.
 
 O QA Hub usa `QA_CONFIG.authRedirectUrl` para cadastro e reenvio de confirmação. O redirecionamento da raiz para `qa.html` preserva o fragmento e os parâmetros, inclusive os de autenticação. Links de confirmação previamente expirados não são renovados automaticamente.
 
@@ -117,3 +117,12 @@ A **Etapa 2 — Revisão** permite editar todos os campos, retornar ao texto, vi
 O backend usa `supabase/functions/qa-ai/response.mjs` para reconhecer JSON, blocos Markdown, campos aninhados, pequenas falhas de sintaxe e respostas rotuladas em linguagem natural. Para Nemotron 3.5, a função solicita saída sem raciocínio estendido, evitando consumir o limite de resposta antes de gerar os campos. Se a resposta ainda estiver incompleta, o QA Hub utiliza automaticamente a extração local do texto original, informando isso ao usuário. Não são inventados campos, resultados ou aprovações.
 
 A interface da etapa 1 mantém somente instruções curtas. O clique em **Gerar com IA NVIDIA** inicia diretamente o processamento e informa discretamente que o relatório é enviado ao serviço. Respostas do provedor são tratadas como dados, jamais como comandos.
+
+
+## Renomeação do repositório (QA-Hub)
+
+O repositório oficial agora é [`kaina-visualsoftware/QA-Hub`](https://github.com/kaina-visualsoftware/QA-Hub). O site usa o novo caminho `https://kaina-visualsoftware.github.io/QA-Hub/`.
+
+**Configuração necessária no Supabase Dashboard** (o app não pode configurar isso automaticamente): em **Authentication → URL Configuration**, ajuste **Site URL** para `https://kaina-visualsoftware.github.io/QA-Hub/` e inclua **Redirect URLs** `https://kaina-visualsoftware.github.io/QA-Hub/qa.html`. Confira se os templates de e-mail usam `{{ .RedirectTo }}` ou o novo site. Após validar o login e a confirmação, remova a URL antiga da lista quando não for mais necessária.
+
+Para quem possui clone local, atualize o remote: `git remote set-url origin https://github.com/kaina-visualsoftware/QA-Hub.git`.
