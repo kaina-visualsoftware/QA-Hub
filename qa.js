@@ -13,7 +13,8 @@ const callbackErrorCode = location.hash.startsWith('#error=')
   ? new URLSearchParams(location.hash.slice(1)).get('error_code') : null;
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => [...document.querySelectorAll(selector)];
+const $ = (selector) => [...document.querySelectorAll(selector)];
+const diagramViewer=createDiagramViewer($('#diagram-viewer'));
 const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
@@ -334,9 +335,16 @@ function renderScenarios() {
 function renderDiagrams() {
   $('#diagrams-number').textContent = state.diagrams.length;
   $('#diagrams-list').innerHTML = state.diagrams.length ? state.diagrams.map(d=>
-    '<article class="diagram-card"><header><h3>'+esc(d.titulo)+'</h3><div class="card-actions"><button type="button" data-show-diagram="'+esc(d.id)+'">Visualizar</button><button type="button" data-edit-diagram="'+esc(d.id)+'">Editar</button><button type="button" data-delete-diagram="'+esc(d.id)+'">Excluir</button></div></header><pre>'+esc(d.conteudo)+'</pre><div class="diagram-render" data-diagram-target="'+esc(d.id)+'"></div></article>').join('') :
-    '<div class="empty"><strong>Nenhum diagrama por enquanto</strong>Use Mermaid para explicar processos, fluxos ou decisões.</div>';
+    '<article class="diagram-card"><header><h3>'+esc(d.titulo)+'</h3><div class="card-actions">'+
+    '<button type="button" data-show-diagram="'+esc(d.id)+'">Visualizar</button>'+
+    '<button type="button" data-zoom-diagram="'+esc(d.id)+'">Ampliar</button>'+
+    '<button type="button" data-edit-diagram="'+esc(d.id)+'">Editar</button>'+
+    '<button type="button" data-delete-diagram="'+esc(d.id)+'">Excluir</button></div></header>'+
+    '<details class="diagram-code-details"><summary>Ver código Mermaid</summary><pre>'+esc(d.conteudo)+'</pre></details>'+
+    '<div class="diagram-render" data-diagram-target="'+esc(d.id)+'"></div></article>').join('') :
+    '<div class="empty"><strong>Nenhum diagrama ainda</strong>Crie um fluxo manualmente ou gere com IA usando os dados desta TF.</div>';
 }
+
 function openScenario(s=null) {
   if (!state.currentId) return toast('Salve a TF primeiro.',true);
   if(!confirmDetailDiscard('scenario-form')) return;
@@ -360,22 +368,29 @@ function openDiagram(d=null) {
   form.elements.titulo.value=d?.titulo||'';
   form.elements.conteudo.value=d?.conteudo||'flowchart TD\n  A[Início] --> B{Condição}\n  B -->|Sim| C[Resultado]\n  B -->|Não| D[Alternativa]';
   $('#diagram-form-title').textContent=d?'Editar diagrama':'Novo diagrama';
-  $('#diagram-preview').textContent='Clique em Visualizar para gerar o diagrama.';
+  $('#diagram-ai-error').hidden=true;
+  $('#diagram-ai-text').value='';
+  form.querySelector('[name="diagram-ai-origin"][value="task"]').checked=true;
+  $('#diagram-ai-text-wrap').hidden=true;
+  $('#diagram-ai-progress').hidden=true;
+  $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
   form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
   form.elements.titulo.focus();
 }
 async function previewMermaid(text, target) {
   target.replaceChildren();
-  if(!text.trim()){target.textContent='Informe o código do diagrama.';return;}
-  if(text.length>16000){target.textContent='O diagrama excede 16.000 caracteres.';return;}
+  if(!text.trim()){target.textContent='Informe o código do diagrama.';return null;}
+  if(text.length>16000){target.textContent='O diagrama excede 16.000 caracteres.';return null;}
   try {
     const {default:mermaid} = await import('https://esm.sh/mermaid@12.3.0');
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'neutral',maxTextSize:16000});
     const id='qa-diagram-'+crypto.randomUUID().replaceAll('-','');
+    if(mermaid.parse)await mermaid.parse(text);
     const {svg} = await mermaid.render(id,text);
     // Mermaid renderiza e sanitiza o SVG quando securityLevel = strict.
     target.innerHTML = svg;
-  } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); }
+    return svg;
+  } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); return null; }
 }
 async function refreshAfterSave(id) {
   await loadData();
@@ -513,13 +528,17 @@ document.addEventListener('click',async (event)=>{
     $('#task-search').focus();
   }
   const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
-  const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram;
+  const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram, zoomDiagram=target.dataset.zoomDiagram;
   if(editScenario) openScenario(state.scenarios.find(s=>s.id===editScenario));
   if(editDiagram) openDiagram(state.diagrams.find(d=>d.id===editDiagram));
-  if(showDiagram) {
-    const item=state.diagrams.find(d=>d.id===showDiagram);
-    const region=$('[data-diagram-target="'+showDiagram+'"]');
-    if(item && region) await previewMermaid(item.conteudo,region);
+  if(showDiagram || zoomDiagram) {
+    const id=showDiagram||zoomDiagram;
+    const item=state.diagrams.find(d=>d.id===id);
+    const region=$('[data-diagram-target="'+id+'"]');
+    if(item && region){
+      const svg=await previewMermaid(item.conteudo,region);
+      if(svg && zoomDiagram)diagramViewer.open(svg,item.titulo);
+    }
   }
   if(deleteScenario && confirm('Excluir este cenário?')) {
     const {error}=await db.from('qa_cenarios').delete().eq('id',deleteScenario).eq('tarefa_id',state.currentId);
@@ -610,6 +629,11 @@ $('#cancel-diagram').addEventListener('click',()=>{
   $('#diagram-form').hidden=true;
 });
 $('#preview-diagram').addEventListener('click',()=>previewMermaid($('#diagram-source').value,$('#diagram-preview')));
+$('#zoom-diagram-preview').addEventListener('click',async()=>{
+  const code=$('#diagram-source').value;
+  const svg=await previewMermaid(code,$('#diagram-preview'));
+  if(svg)diagramViewer.open(svg,$('#diagram-form').elements.titulo.value||'Diagrama');
+});
 $('#diagram-form').addEventListener('submit',async event=>{
   event.preventDefault();if(state.isBusy)return;
   const form=event.currentTarget, button=form.querySelector('[type=submit]');
