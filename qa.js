@@ -5,6 +5,8 @@ import { parseReport } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
+import { collectTaskContext, cleanMermaid, requestAiDiagram } from './qa-mermaid-ai.mjs';
+import { createDiagramViewer } from './qa-diagram-viewer.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -14,7 +16,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
-const taskFields = ['codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
+const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
 const dateToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
@@ -101,9 +103,13 @@ async function loadData() {
   ]);
   if (tasksResult.error) throw tasksResult.error;
   if (scenariosResult.error) throw scenariosResult.error;
-  state.tasks = tasksResult.data || [];
-  state.scenarioStats = scenariosResult.data || [];
   state.isAdmin = !adminResult.error && Boolean(adminResult.data);
+  // Public records from other accounts are displayed in the read-only gallery,
+  // never as editable records in this workspace.
+  state.tasks = (tasksResult.data || []).filter(task =>
+    state.isAdmin || task.user_id === state.user.id);
+  const allowed = new Set(state.tasks.map(task=>task.id));
+  state.scenarioStats = (scenariosResult.data || []).filter(item=>allowed.has(item.tarefa_id));
   $('#user-role').textContent = state.isAdmin ? 'Administrador' : 'Testador';
   renderDashboard();
   renderTasks();
@@ -145,7 +151,7 @@ function taskItem(task) {
     '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
     '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
     scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
-    '</small></span></a>' + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
+    '</small></span></a>' + (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
 }
 function renderTasks() {
   const query = $('#task-search').value.toLocaleLowerCase('pt-BR').trim();
@@ -264,6 +270,8 @@ function openNewTask() {
   state.currentId = null;
   state.scenarios = []; state.diagrams = [];
   $('#task-form').reset();
+  $('#task-form').elements.publica.value='false';
+  $('#task-public-link').hidden=true;
   $('#task-form').elements.executado_em.value = dateToday();
   $('#editor-kicker').textContent = 'NOVO REGISTRO';
   $('#editor-title').textContent = 'Nova tarefa de teste';
@@ -284,6 +292,7 @@ async function openTask(id) {
   state.currentId = id;
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
+  updatePublicLink(task);
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
   $('#assist-back').hidden=true;
   revealTaskDetails(task);
@@ -303,6 +312,11 @@ async function openTask(id) {
     state.scenarios=s.data||[]; state.diagrams=d.data||[];
     renderScenarios(); renderDiagrams();
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
+}
+function updatePublicLink(task){
+  const anchor=$('#task-public-link');
+  anchor.hidden=!(task?.id&&task.publica);
+  if(task?.id&&task.publica)anchor.href='./public.html?tf='+encodeURIComponent(task.id);
 }
 function renderScenarios() {
   $('#scenarios-number').textContent = state.scenarios.length;
@@ -525,6 +539,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
     const data=inputValues(form,taskFields);
     data.erro_reproduzido=nullableBool(data.erro_reproduzido);
     data.funcionando=nullableBool(data.funcionando);
+    data.publica=data.publica==='true';
     data.executado_em ||= dateToday();
     data.updated_at=new Date().toISOString();
     let result;
