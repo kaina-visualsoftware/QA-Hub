@@ -175,12 +175,10 @@ CENÁRIO 1 - Incluir produto
 - Abrir catálogo
 - Incluir produto`);
     if(width===390){
-      await page.locator('#assist-ai').click();
-      assert.equal(await page.locator('#editor-fields').isVisible(),false);
-      assert.match(await page.locator('#toast').innerText(),/Autorize/);
-      await page.locator('#assist-consent').check();
+      assert.equal(await page.locator('#assist-consent').count(),0);
       await page.locator('#assist-ai').click();
       await page.locator('#assist-loading').waitFor({state:'visible'});
+      assert.equal(await page.locator('#editor-fields').isVisible(),false);
       assert.equal(await page.locator('#assist-ai').isDisabled(),true);
     }else{
       await page.locator('#assist-local').click();
