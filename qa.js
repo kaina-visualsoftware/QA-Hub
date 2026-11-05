@@ -3,6 +3,9 @@ import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
 import { QA_CONFIG } from './qa-config.js';
 import { parseReport } from './qa-parser.mjs';
 
+// Capture Supabase Auth callback errors before the SDK processes the URL fragment.
+const callbackErrorCode = location.hash.startsWith('#error=')
+  ? new URLSearchParams(location.hash.slice(1)).get('error_code') : null;
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -83,6 +86,16 @@ async function loadData() {
   renderTasks();
 }
 async function start() {
+  if (callbackErrorCode) {
+    const message = callbackErrorCode === 'otp_expired'
+      ? 'O link de confirmação expirou ou já foi utilizado. Se sua conta estiver confirmada, entre com email e senha. Caso contrário, solicite um novo link.'
+      : 'Não foi possível concluir a confirmação pelo link. Solicite um novo email, se necessário.';
+    const notice = $('#auth-warning');
+    notice.textContent = message;
+    notice.hidden = false;
+    $('#resend-confirmation').hidden = false;
+    history.replaceState(null, '', location.pathname + location.search);
+  }
   try {
     const { data, error } = await db.auth.getSession();
     if (error) throw error;
@@ -287,16 +300,20 @@ $('#auth-toggle').addEventListener('click',()=>{
   $('#auth-submit').textContent=state.signingUp?'Criar conta':'Entrar';
   $('#auth-toggle').textContent=state.signingUp?'Já tenho uma conta':'Criar uma conta';
   $('#auth-warning').hidden=true;
+  $('#resend-confirmation').hidden=true;
 });
 $('#auth-form').addEventListener('submit',async (event)=>{
   event.preventDefault();
   const button=$('#auth-submit'); busy(button,true);
   try {
     const email=$('#auth-email').value.trim(), password=$('#auth-password').value;
-    const result=state.signingUp ? await db.auth.signUp({email,password}) : await db.auth.signInWithPassword({email,password});
+    const result=state.signingUp
+      ? await db.auth.signUp({email,password,options:{emailRedirectTo:QA_CONFIG.authRedirectUrl}})
+      : await db.auth.signInWithPassword({email,password});
     if(result.error) throw result.error;
     if(state.signingUp && !result.data.session) {
-      const warning=$('#auth-warning');warning.hidden=false;warning.textContent='Conta criada. Confira o email para confirmar seu cadastro antes de entrar.';
+      const warning=$('#auth-warning');warning.hidden=false;warning.textContent='Conta criada. Verifique seu email e confirme pelo link enviado. O link retornará ao QA Hub.';
+      $('#resend-confirmation').hidden = false;
       return;
     }
     state.user=result.data.user;
@@ -304,7 +321,28 @@ $('#auth-form').addEventListener('submit',async (event)=>{
     showApp();
     await loadData(); location.hash='#/dashboard'; await route();
     toast('Acesso realizado.');
-  }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+  }catch(e){
+    if (e?.code === 'email_not_confirmed') $('#resend-confirmation').hidden = false;
+    toast(errMessage(e),true);
+  }finally{busy(button,false)}
+});
+$('#resend-confirmation').addEventListener('click', async () => {
+  const email = $('#auth-email').value.trim();
+  if (!$('#auth-email').checkValidity() || !email) {
+    $('#auth-email').focus();
+    toast('Informe um email válido para reenviar a confirmação.',true);
+    return;
+  }
+  const button = $('#resend-confirmation');
+  busy(button,true);
+  try {
+    const {error} = await db.auth.resend({
+      type:'signup', email, options:{emailRedirectTo:QA_CONFIG.authRedirectUrl}
+    });
+    if (error) throw error;
+    toast('Se o cadastro estiver pendente de confirmação, um novo email será enviado.');
+  } catch(e) { toast(errMessage(e),true); }
+  finally { busy(button,false); }
 });
 $('#logout').addEventListener('click',async()=>{const {error}=await db.auth.signOut(); if(error)toast(errMessage(error),true);else location.hash='#/dashboard';});
 $('#menu-button').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
