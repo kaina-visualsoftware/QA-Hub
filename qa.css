@@ -343,3 +343,35 @@ button:disabled{cursor:wait;opacity:.7}
 /* Keep the skip link fully out of view until keyboard focus reaches it. */
 .public-site .skip-link:not(:focus){left:-10000px;transform:none}
 .public-site .skip-link:focus{left:10px;top:10px;transform:none}
+
+/* Task creation: keep secondary modules hidden until first successful save. */
+#task-detail-tabs[hidden],
+#draft-scenario-review[hidden],
+#ai-loading-modal:not([open]){display:none!important}
+#view-editor .task-footer-actions #assist-back{font-weight:600}
+#view-editor .task-form-footer #assist-back[hidden]{display:none!important}
+#view-editor .task-footer-actions{flex-wrap:wrap}
+#view-editor .draft-scenario-review{padding:20px 24px;margin:0 0 14px;border-color:#d6e6e2}
+.draft-scenario-header h2{margin:0 0 6px;font-size:1rem;color:#213e47}
+.draft-scenario-header p{margin:0;color:#58717c;font-size:.82rem;line-height:1.55}
+.draft-scenario-list{display:grid;gap:9px;margin:15px 0 10px}
+.draft-scenario-item{display:flex;align-items:flex-start;gap:12px;border:1px solid #e1ece9;border-radius:10px;background:#f9fcfb;padding:12px 14px;cursor:pointer}
+.draft-scenario-item:focus-within{outline:2px solid #248478;outline-offset:2px}
+.draft-scenario-item input{margin:2px 0 0;flex:none;width:19px;height:19px;accent-color:#147d70}
+.draft-scenario-item span{min-width:0;display:grid;gap:4px}
+.draft-scenario-item strong{font-size:.86rem;color:#2b4551;line-height:1.5}
+.draft-scenario-item small{font-size:.78rem;color:#526d76;overflow-wrap:anywhere;line-height:1.5}
+.draft-scenario-review #draft-scenario-count{margin:4px 0 0}
+.ai-loading-modal{padding:0;border:0;border-radius:18px;background:#fff;color:#213a47;width:min(90vw,360px);max-width:360px;box-shadow:0 24px 70px rgba(13,30,42,.24);overflow:hidden}
+.ai-loading-modal::backdrop{background:rgba(13,29,40,.48);backdrop-filter:blur(3px)}
+.ai-loading-modal[open]{display:block}
+.ai-loading-content{display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;padding:32px 25px}
+.ai-loading-content h2{margin:5px 0 0;font-size:1rem;font-weight:750;letter-spacing:-.01em}
+.ai-loading-content p{margin:0;color:#526b76;font-size:.83rem;line-height:1.6;overflow-wrap:anywhere}
+.ai-loading-spinner{width:40px;height:40px;border:4px solid #deece9;border-top-color:#0a8172;border-radius:50%;animation:qa-assist-spin .85s linear infinite}
+@media(max-width:600px){
+  #view-editor .draft-scenario-review{padding:16px}
+  #view-editor .task-footer-actions #assist-back{flex:1 1 100%}
+  .ai-loading-content{padding:28px 20px}
+}
+@media(prefers-reduced-motion:reduce){.ai-loading-spinner{animation:none;border-style:dashed}}
