@@ -89,3 +89,25 @@ button:disabled{cursor:wait;opacity:.7}
 @media(prefers-reduced-motion:reduce){
   .skip-link{transition:none}
 }
+
+/* Mobile navigation: high-contrast, consistently stroked menu icon. */
+@media(max-width:800px){
+  .menu-button{
+    color:#123d45;
+    background:#eaf4f2;
+    border:1px solid #b3d0cb;
+    box-shadow:none;
+    padding:0;
+    width:46px;
+    min-width:46px;
+    min-height:46px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    flex-shrink:0;
+  }
+  .menu-button:hover{color:#0b373e;background:#dcefeb;border-color:#78aba4}
+  .menu-button[aria-expanded="true"]{color:#fff;background:#126b62;border-color:#126b62}
+  .menu-button .menu-icon{width:25px;height:25px;display:block;stroke:currentColor}
+  .menu-button:focus-visible{outline:3px solid #126b62;outline-offset:3px}
+}
