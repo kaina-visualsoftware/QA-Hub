@@ -88,71 +88,121 @@
         </section>
 
         <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
-          <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p><p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
+          <div class="page-heading editor-heading">
+            <div>
+              <a class="back-link" href="#/tarefas">← Todas as tarefas</a>
+              <p class="eyebrow" id="editor-kicker" hidden>NOVA TF</p>
+              <h1 id="editor-title">Nova TF</h1>
+              <p class="muted" id="editor-caption" hidden></p>
+              <p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p>
+            </div>
+          </div>
           <section id="assist-panel" class="panel assist-panel" aria-labelledby="assist-title">
-            <div class="wizard-step-bar"><span class="wizard-stage current">1 <span>Colar relatório</span></span><span class="wizard-line"></span><span class="wizard-stage">2 <span>Revisar TF</span></span></div>
-            <div class="assist-heading"><span class="assist-icon" aria-hidden="true">✦</span><span><strong id="assist-title">Como deseja criar sua TF?</strong><small>Cole qualquer relatório ou descrição. A IA organiza os dados no formato esperado.</small></span></div>
+            <div class="wizard-step-bar" aria-label="Etapa 1 de 2">
+              <span class="wizard-stage current">1 <span>Descrição</span></span>
+              <span class="wizard-line"></span>
+              <span class="wizard-stage">2 <span>Revisão</span></span>
+            </div>
+            <div class="assist-heading">
+              <div><h2 id="assist-title">Comece pelo texto da tarefa</h2>
+                <p>Cole a descrição da TF. O sistema organiza os campos para você.</p></div>
+            </div>
             <div class="assist-body">
-              <label for="assist-text">Descrição, relatório ou análise da tarefa</label>
-              <textarea id="assist-text" rows="7" maxlength="30000" placeholder="Ex.: TF 67866 — promoção por tabela de preço. Versão 12.08.08.0000. O problema acontece ao incluir kits..."></textarea>
-              <p class="assist-help">A IA organiza sua TF automaticamente. Ao usar NVIDIA, o texto é enviado para processamento.</p>
+              <label for="assist-text">Relatório ou descrição</label>
+              <textarea id="assist-text" rows="9" maxlength="30000" placeholder="Cole aqui o problema, a análise ou o relatório de teste…"></textarea>
+              <p class="assist-help">Ao usar a IA NVIDIA, o texto é enviado para processamento.</p>
               <div class="assist-actions">
-                <button id="assist-ai" class="btn primary" type="button">Gerar com IA NVIDIA</button>
+                <button id="assist-ai" class="btn primary" type="button">Gerar com IA</button>
                 <button id="assist-local" class="btn soft" type="button">Extrair sem IA</button>
-                <button id="assist-device" class="btn soft" type="button">Usar IA no dispositivo</button>
               </div>
               <div id="assist-loading" class="assist-loading" role="status" aria-live="polite" hidden>
                 <span class="assist-spinner" aria-hidden="true"></span>
-                <div><strong id="assist-loading-title">Analisando o relatório…</strong><p id="assist-loading-description">Aguarde a resposta. Não é necessário preencher campos manualmente.</p></div>
+                <div><strong id="assist-loading-title">Analisando o texto…</strong><p id="assist-loading-description">Organizando os campos da tarefa.</p></div>
               </div>
-              <div class="assist-manual-choice"><span>Prefere informar os dados por conta própria?</span><button id="assist-manual" class="btn soft" type="button">Seguir manualmente</button></div>
-              <p id="assist-capability" class="muted fine" aria-live="polite"></p>
-              <p id="assist-status" class="assist-status" role="status" aria-live="polite"></p>
-              <div id="assist-result" class="assist-result" hidden>
-                <strong>Prévia da extração</strong>
-                <p id="assist-summary"></p>
-                <ul id="assist-preview-list" class="assist-preview-list"></ul>
-                <label class="assist-checkbox"><input type="checkbox" id="assist-overwrite"> Substituir campos já preenchidos</label>
-                <div class="assist-actions">
-                  <button id="assist-apply" class="btn primary" type="button">Aplicar no formulário</button>
-                  <button id="assist-dismiss" class="btn soft" type="button">Descartar prévia</button>
+              <p id="assist-error" class="assist-error" role="alert" hidden></p>
+              <details class="assist-more">
+                <summary>Outra opção de IA</summary>
+                <div class="assist-more-content">
+                  <button id="assist-device" class="btn soft" type="button">Executar IA no dispositivo</button>
+                  <p id="assist-capability" class="muted fine" hidden></p>
                 </div>
-                <p class="muted fine">Os cenários identificados serão adicionados ao salvar a TF como <strong>não executados</strong>. Nenhum resultado é aprovado automaticamente.</p>
+              </details>
+              <div class="assist-manual-choice">
+                <button id="assist-manual" class="text-button" type="button">Prefiro preencher manualmente</button>
               </div>
             </div>
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
           <div class="wizard-review-heading">
-            <div><p class="eyebrow">ETAPA 2 DE 2</p><h2>Revise as informações da TF</h2><p class="muted">Confira os campos gerados ou preencha manualmente. A TF só é gravada ao salvar.</p></div>
+            <div>
+              <h2>Revise os dados</h2>
+              <p class="muted">Ajuste o que precisar e salve ao final.</p>
+            </div>
             <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
           </div>
           <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
-              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">01</span><h2>Identificação</h2></div><p>Informações da execução</p></div><div class="field-grid">
-                <label>Código da TF <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
-                <label>Título da tarefa <input name="titulo" required minlength="3" maxlength="240" placeholder="Ex.: Promoção por tabela de preço"></label>
-                <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
-                <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
-                <label>Sistema / módulo <input name="sistema" placeholder="Ex.: Estoque · Promoções"></label>
-                <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
-                <label>Ambiente <input name="ambiente" placeholder="Ex.: Homologação"></label>
-                <label>Base de teste <input name="base_teste" placeholder="Ex.: Base de validação"></label>
-                <label>Empresa <input name="empresa" placeholder="Ex.: Empresa 1"></label>
-                <label>Testador <input name="testador" placeholder="Responsável"></label>
-                <label>Data do teste <input name="executado_em" type="date"></label>
-              </div></div>
-              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">02</span><h2>Contexto e documentação</h2></div><p>Informações para consultas futuras</p></div><div class="stack">
-                <label>O que foi testado? <textarea name="descricao" rows="4" placeholder="Objetivo, regra de negócio e abrangência do teste."></textarea></label>
-                <label>Como funciona? <textarea name="explicacao" rows="3" placeholder="Explicação simples do fluxo e suas regras."></textarea></label>
-                <div class="two-fields"><label>Problema e causa <textarea name="causa" rows="3" placeholder="Diagnóstico e origem do problema."></textarea></label><label>O que foi alterado <textarea name="correcao" rows="3" placeholder="Correção aplicada no sistema."></textarea></label></div>
-              </div></div>
-              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">03</span><h2>Validação final</h2></div><p>Registre o resultado efetivo da execução</p></div><div class="field-grid">
-                <label>Erro reproduzido? <select name="erro_reproduzido"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
-                <label>Funcionando corretamente? <select name="funcionando"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
-              </div><div class="stack top-gap"><label>Conclusão <textarea name="conclusao" rows="4" placeholder="Resultado final, impactos e critérios de aceite."></textarea></label><label>Observações adicionais <textarea name="observacoes" rows="3" placeholder="Base, empresa, usuário de teste, ressalvas e comportamentos conhecidos."></textarea></label></div></div>
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Dados da TF</h2></div>
+                <div class="field-grid task-primary-fields">
+                  <label class="field-span">Título da tarefa <input name="titulo" required minlength="3" maxlength="240" placeholder="Ex.: Desconto incorreto na venda"></label>
+                  <label>Código <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
+                  <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
+                  <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
+                  <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
+                  <label class="field-span">Sistema / módulo <input name="sistema" placeholder="Ex.: Vendas · Descontos"></label>
+                </div>
+                <details id="task-extra-details" class="optional-details">
+                  <summary>Mais informações <span>Ambiente, base, empresa e responsável</span></summary>
+                  <div class="field-grid">
+                    <label>Ambiente <input name="ambiente" placeholder="Ex.: Homologação"></label>
+                    <label>Base de teste <input name="base_teste" placeholder="Ex.: Base de validação"></label>
+                    <label>Empresa <input name="empresa" placeholder="Ex.: Empresa 1"></label>
+                    <label>Testador <input name="testador" placeholder="Responsável"></label>
+                    <label>Data do teste <input name="executado_em" type="date"></label>
+                  </div>
+                </details>
+              </section>
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Descrição e análise</h2></div>
+                <div class="stack">
+                  <label>O que foi testado? <textarea name="descricao" rows="4" placeholder="Objetivo e abrangência do teste"></textarea></label>
+                </div>
+                <details id="task-analysis-details" class="optional-details">
+                  <summary>Análise técnica <span>Funcionamento, causa e correção</span></summary>
+                  <div class="stack">
+                    <label>Como funciona? <textarea name="explicacao" rows="3" placeholder="Regras e fluxo do processo"></textarea></label>
+                    <div class="two-fields">
+                      <label>Problema e causa <textarea name="causa" rows="3" placeholder="Origem do problema"></textarea></label>
+                      <label>O que foi alterado <textarea name="correcao" rows="3" placeholder="Correção realizada"></textarea></label>
+                    </div>
+                  </div>
+                </details>
+              </section>
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Resultado</h2></div>
+                <div class="stack">
+                  <label>Conclusão <textarea name="conclusao" rows="4" placeholder="Resultado e observações da validação"></textarea></label>
+                </div>
+                <details id="task-validation-details" class="optional-details">
+                  <summary>Detalhes da validação <span>Indicadores e observações</span></summary>
+                  <div class="field-grid">
+                    <label>Erro reproduzido? <select name="erro_reproduzido"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                    <label>Funcionando corretamente? <select name="funcionando"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                  </div>
+                  <label class="top-gap">Observações adicionais <textarea name="observacoes" rows="3" placeholder="Ressalvas e comportamentos conhecidos"></textarea></label>
+                </details>
+              </section>
+              <div class="task-form-footer">
+                <button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button>
+                <div class="task-footer-actions">
+                  <a href="#/tarefas" class="btn soft task-cancel-link">Cancelar</a>
+                  <button id="save-task" class="btn primary" type="submit">Salvar TF</button>
+                </div>
+              </div>
             </form>
           </div>
 
