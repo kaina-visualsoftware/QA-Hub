@@ -19,6 +19,7 @@ jobs:
           node --check qa.js
           node --check qa-parser.mjs
           node --check qa-config.js
+          node --check supabase/functions/qa-generators/prompts.mjs
       - name: Run report parser tests
         run: node --test tests/*.test.mjs
       - name: Detect accidental sensitive credentials in app code
