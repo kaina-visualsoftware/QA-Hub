@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 
 mkdirSync('artifacts/ui',{recursive:true});
 const site='http://127.0.0.1:8765/';
-const stub=String.raw\`
+const stub=String.raw`
 const rows={qa_generator_posts:[],qa_generator_tests:[]};
 let seq=0;
 export function createClient(){
@@ -50,7 +50,7 @@ export function createClient(){
     }
   };
 }
-\`;
+`;
 const post='# MELHORIA NO PEDIDO\n\nO sistema recebeu uma melhoria no módulo **Vendas**.\n\nPara acessar a funcionalidade, acesse:\n[CAMINHO DO MENU]\n\n[IMAGEM]\n\n**TAREFA:** 123456\n\n**JUSTIFICATIVA:** Facilitar a operação.';
 const plan='# ROTEIRO DE TESTES — PEDIDO\n## Objetivo\nValidar comportamento do pedido.\n## Pré-requisitos\n- Cadastro já existente.\n---\n## Cenário 01 — Abrir pedido\n### Cenário\nVerificar abertura.\n### Passos\n1. Abrir pedido\n### Resultado esperado\n- Pedido aberto.\n---\n## Cenário 02 — Validar pedido\n### Cenário\nConfirmar retorno.\n### Passos\n1. Confirmar pedido\n### Resultado esperado\n- Resultado apresentado.\n---\n## Pontos de atenção / possíveis bugs\n- Verificar mensagens de erro não descritas.\n';
 const browser=await chromium.launch({headless:true});
