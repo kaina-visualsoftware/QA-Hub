@@ -695,7 +695,7 @@ async function runAssistExtraction(method){
       'Aguardando o resultado da NVIDIA ('+elapsed+' s). O texto será revisável antes de salvar.';
   },4000);
   try{
-    let draft,source=names[method];
+    let draft,source=names[method],usedFallback=false;
     if(method==='nvidia'){
       const result=await extractWithNvidia(raw,db,text=>{
         feedback.textContent=text;
@@ -703,6 +703,7 @@ async function runAssistExtraction(method){
       });
       draft=result.draft;
       source=result.model;
+      usedFallback=Boolean(result.fallback);
     }else if(method==='device'){
       draft=await extractWithOpenModel(raw,text=>{
         feedback.textContent=text;
@@ -715,6 +716,7 @@ async function runAssistExtraction(method){
     if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
     showAssistDraft(draft,source);
     applyAssistDraft();
+    if(usedFallback)toast('A NVIDIA não retornou campos válidos. Organizei o texto localmente; revise antes de salvar.');
   }catch(error){
     if(location.hash!==startHash || state.user?.id!==startUser)return;
     const message=error?.name==='TimeoutError'?
