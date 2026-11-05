@@ -666,6 +666,8 @@ function applyAssistDraft(){
 async function runAssistExtraction(method){
   if(state.isBusy)return;
   const raw=$('#assist-text').value;
+  const startHash=location.hash;
+  const startUser=state.user?.id;
   if(!raw.trim()){
     $('#assist-text').focus();
     toast('Cole um relatório ou descrição antes de extrair os campos.',true);
@@ -716,9 +718,12 @@ async function runAssistExtraction(method){
     }else{
       draft=extractLocalDraft(raw);
     }
+    // Ignore a late AI response if the user navigated away while processing.
+    if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
     showAssistDraft(draft,source);
     applyAssistDraft();
   }catch(error){
+    if(location.hash!==startHash || state.user?.id!==startUser)return;
     const message=error?.name==='TimeoutError'?
       'A requisição demorou demais. Tente novamente ou use a extração sem IA.':
       error?.message||'Não foi possível gerar a TF. Tente a extração sem IA.';
