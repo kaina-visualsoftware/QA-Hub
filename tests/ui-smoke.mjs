@@ -184,7 +184,18 @@ try {
     }
 
     await page.locator('#new-task').click();
-    await page.locator('#view-editor').waitFor({state:'visible'});
+    await page.locator('#view-editor').waitFor({state:'visible',timeout:8000}).catch(async err=>{
+      const diagnostics=await page.evaluate(()=>({
+        url:location.href,hash:location.hash,
+        authHidden:document.querySelector('#auth-screen').hidden,
+        dashboardHidden:document.querySelector('#view-dashboard').hidden,
+        editorHidden:document.querySelector('#view-editor').hidden,
+        toast:document.querySelector('#toast').textContent,
+        activeNav:[...document.querySelectorAll('.navigation .active')].map(x=>x.getAttribute('data-route'))
+      }));
+      console.error('NEW TF NAVIGATION DIAGNOSTICS',width,JSON.stringify(diagnostics),'PAGE ERRORS',errors);
+      throw err;
+    });
     assert.equal(await page.locator('#editor-fields').isVisible(),false);
     assert.equal(await page.locator('#assist-panel').isVisible(),true);
     assert.equal(await page.locator('#save-task').isVisible(),false);
