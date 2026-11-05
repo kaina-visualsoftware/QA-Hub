@@ -1,14 +1,15 @@
-# QA Hub — Hub de Tarefas
+# QA Hub — Gestão de testes de software
 
-Plataforma web para documentar testes de software: tarefas (TFs), cenários, resultados, explicações, diagramas Mermaid e indicadores. É uma evolução **não destrutiva** do hub estático existente.
+Plataforma web para documentar tarefas de teste (TFs), cenários, resultados, explicações, diagramas Mermaid e indicadores. O QA Hub é a **única interface** publicada neste repositório.
 
 ## Como abrir
 
-- `index.html`: hub original; a pasta `184728/` continua preservada.
-- `qa.html`: novo espaço de QA (acessível também pelo link na página inicial).
-- Requer um servidor HTTP (GitHub Pages ou desenvolvimento local), pois `qa.js` usa módulos ES.
+- `index.html`: redireciona automaticamente para o QA Hub, preservando parâmetros e fragmentos da URL.
+- `qa.html`: interface única do sistema; o endereço permanece para compatibilidade com os callbacks de confirmação do Supabase.
+- O hub estático anterior e a página legada `184728/page.html` foram retirados da versão atual. Permanecem recuperáveis no histórico Git.
+- Requer servidor HTTP (GitHub Pages ou desenvolvimento local), pois `qa.js` usa módulos ES.
 
-Para rodar localmente, por exemplo, use `python -m http.server 8080` e acesse `http://localhost:8080/qa.html`. O aplicativo usa ES modules no navegador e CDNs com versões fixadas; não há build de Node obrigatório neste incremento.
+Site: `https://kaina-visualsoftware.github.io/Tarefas/` (abre o QA automaticamente). Para executar localmente, use `python -m http.server 8080` e acesse `http://localhost:8080/`. O aplicativo usa módulos ES e CDNs versionadas, sem etapa de build Node obrigatória.
 
 ## Configurar Supabase
 
@@ -19,7 +20,7 @@ Para rodar localmente, por exemplo, use `python -m http.server 8080` e acesse `h
 5. A configuração pública do cliente está em `qa-config.js`. A `publishable key` pode estar no frontend; **não** coloque senha PostgreSQL, `service_role` ou secret key nesse arquivo.
 6. Abra `qa.html`, crie uma conta e faça login.
 
-O projeto informado pelo usuário precisa estar autorizado para aplicar e validar a migração: a conexão Supabase disponível ao agente **não tinha permissão** para acessar esse projeto no momento da implementação. Portanto, o SQL está versionado, mas **não foi aplicado no banco remoto**.
+As migrações de base e administrador foram aplicadas no projeto Supabase **SIA** pela conexão **SPA**. Ainda precisam de validação real de fluxos de navegação, CRUD e isolamento entre contas. Não execute a migração inicial novamente em um projeto que já possua as políticas.
 
 ## Funcionalidades do primeiro incremento
 
@@ -45,7 +46,7 @@ As tabelas foram criadas com RLS e acesso apenas a usuários autenticados, com r
 
 Realizado: inspeção do hub anterior; validação sintática do JavaScript; teste isolado do parser com cenário de importação e flags de validação.
 
-Pendente: aplicar SQL no Supabase-alvo; testar login/logout real, RLS para usuários diferentes, CRUD completo, Mermaid, gráfico e layouts em navegadores reais. Estes testes **não** devem ser registrados como aprovados sem execução.
+Pendente: testar login/logout real, RLS entre usuários diferentes, CRUD completo, Mermaid, gráficos e layouts em navegadores reais. As migrações estão aplicadas, mas esses testes não foram homologados.
 
 ## Limites atuais
 
@@ -63,3 +64,9 @@ A migração `supabase/admin_roles.sql` adiciona o papel de administrador do **Q
 - A tabela pública `qa_admins` tem RLS para leitura do próprio papel. Somente o serviço interno que consome convites pode cadastrar administradores.
 - A migração foi aplicada no projeto SIA pela conexão SPA. Um convite inicial foi configurado diretamente no banco, não neste repositório.
 - O cadastro Auth precisa ser realizado pelo fluxo regular do site, pois a conexão de administração de banco não possui operação de criação de usuários Auth.
+
+## URL de autenticação e publicação
+
+Em **Supabase Dashboard → Authentication → URL Configuration**, configure a **Site URL** e adicione em **Redirect URLs**: `https://kaina-visualsoftware.github.io/Tarefas/qa.html`. A tela continua nesse endereço para não invalidar confirmações de e-mail existentes. Não use `localhost:3000` como endereço público do sistema.
+
+O QA Hub usa `QA_CONFIG.authRedirectUrl` para cadastro e reenvio de confirmação. O redirecionamento da raiz para `qa.html` preserva o fragmento e os parâmetros, inclusive os de autenticação. Links de confirmação previamente expirados não são renovados automaticamente.
