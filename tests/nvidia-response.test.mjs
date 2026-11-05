@@ -62,7 +62,8 @@ test('recovers tool-call JSON and array content',()=>{
 
 test('returns null safely for unusable or incomplete responses',()=>{
   assert.equal(parseNvidiaDraft({choices:[{message:{content:''},finish_reason:'length'}]}),null);
-  assert.equal(parseNvidiaDraft({choices:[{message:{content:'JSON parcial: {"titulo":'}]}),null);
+  const partial={choices:[{message:{content:'JSON parcial: {"titulo":'}}]};
+  assert.equal(parseNvidiaDraft(partial),null);
   assert.equal(parseNvidiaDraft({choices:[{message:{content:'<think>Raciocínio</think>Não há dados reconhecíveis.'}}]}),null);
 });
 
