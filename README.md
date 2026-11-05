@@ -111,3 +111,9 @@ A **Etapa 2 — Revisão** permite editar todos os campos, retornar ao texto, vi
 **Privacidade:** clicar em **Gerar com IA NVIDIA** inicia diretamente o envio do conteúdo à NVIDIA, sem caixa de autorização adicional. Essa transferência é informada na interface; remova informações sensíveis e dados de clientes antes de usar a IA online. A extração sem IA e a IA local não enviam relatórios à NVIDIA. A NVIDIA pode impor cotas de uso/alterar modelos gratuitos; um endpoint denominado gratuito **não** significa gratuidade ilimitada. A lista estática de candidatos precisa ser revisada quando o catálogo mudar.
 
 **Observabilidade:** os erros do provedor são traduzidos para mensagens sem expor credenciais. A resposta estruturada é normalizada no cliente e limitada às colunas esperadas da TF.
+
+### Respostas flexíveis da NVIDIA
+
+O backend usa `supabase/functions/qa-ai/response.mjs` para reconhecer JSON, blocos Markdown, campos aninhados, pequenas falhas de sintaxe e respostas rotuladas em linguagem natural. Para Nemotron 3.5, a função solicita saída sem raciocínio estendido, evitando consumir o limite de resposta antes de gerar os campos. Se a resposta ainda estiver incompleta, o QA Hub utiliza automaticamente a extração local do texto original, informando isso ao usuário. Não são inventados campos, resultados ou aprovações.
+
+A interface da etapa 1 mantém somente instruções curtas. O clique em **Gerar com IA NVIDIA** inicia diretamente o processamento e informa discretamente que o relatório é enviado ao serviço. Respostas do provedor são tratadas como dados, jamais como comandos.
