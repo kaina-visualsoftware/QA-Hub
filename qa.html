@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>QA Hub · Registro de testes</title>
+  <meta name="description" content="Histórico de testes, cenários, evidências e fluxos de QA.">
+  <link rel="stylesheet" href="./qa.css">
+  <script type="module" src="./qa.js"></script>
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <section id="auth-screen" class="auth-layout">
+    <div class="auth-visual" aria-hidden="true">
+      <div class="mark large">Q<span>.</span></div>
+      <p class="eyebrow">QA HUB / ÁREA DE TRABALHO</p>
+      <h1>Testes bem registrados.<br>Decisões mais claras.</h1>
+      <p>Organize cada TF, documente cenários e transforme execuções em conhecimento consultável.</p>
+      <div class="auth-decoration"><span>01 / DOCUMENTAR</span><span>02 / VALIDAR</span><span>03 / APRENDER</span></div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-box">
+        <div class="mobile-brand mark">Q<span>.</span></div>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h2 id="auth-title">Entrar na plataforma</h2>
+        <p class="muted">Os registros ficam associados à sua conta Supabase.</p>
+        <form id="auth-form" class="stack gap-lg">
+          <label>Email <input id="auth-email" type="email" autocomplete="email" required placeholder="voce@empresa.com"></label>
+          <label>Senha <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Sua senha"></label>
+          <button id="auth-submit" class="btn primary full" type="submit">Entrar</button>
+        </form>
+        <button id="auth-toggle" class="text-button" type="button">Criar uma conta</button>
+        <p class="muted fine">O cadastro pode exigir confirmação por email, conforme as regras do projeto Supabase.</p>
+        <p id="auth-warning" class="notice" hidden></p>
+        <a class="back-link" href="./index.html">Voltar ao Hub de Tarefas</a>
+      </div>
+    </div>
+  </section>
+
+  <div id="shell" class="shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#/dashboard"><span class="mark">Q<span>.</span></span><span><strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></a>
+      <p class="nav-label">ESPAÇO DE TRABALHO</p>
+      <nav aria-label="Navegação principal" class="navigation">
+        <a href="#/dashboard" data-route="dashboard"><span class="nav-symbol">◫</span> Visão geral</a>
+        <a href="#/tarefas" data-route="tarefas"><span class="nav-symbol">☷</span> Tarefas de teste</a>
+        <a href="./index.html"><span class="nav-symbol">↗</span> Hub anterior</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="signal"></span><span>Registros privados<br><small>Supabase Auth + RLS</small></span></div>
+        <div class="user-summary"><span class="avatar">QA</span><span id="user-email" class="ellipsis"></span></div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-start"><button class="menu-button" id="menu-button" aria-label="Abrir menu" type="button">☰</button><div><span class="eyebrow">QUALIDADE DE SOFTWARE</span><div class="breadcrumb" id="breadcrumb">Visão geral</div></div></div>
+        <div class="topbar-actions"><button id="new-task" class="btn primary" type="button">+ Nova TF</button><button id="logout" class="btn soft" type="button">Sair</button></div>
+      </header>
+
+      <main class="content">
+        <section id="view-dashboard" class="view" aria-labelledby="dashboard-title">
+          <div class="page-heading"><div><p class="eyebrow">PAINEL DE ACOMPANHAMENTO</p><h1 id="dashboard-title">Visão geral</h1><p class="muted">Um resumo das tarefas e dos cenários registrados.</p></div><span id="dashboard-date" class="date-pill"></span></div>
+          <div class="kpi-grid">
+            <article class="kpi"><span>TFs cadastradas</span><strong id="stat-tasks">0</strong><small>Histórico de execuções</small></article>
+            <article class="kpi"><span>Cenários registrados</span><strong id="stat-scenarios">0</strong><small>Passos documentados</small></article>
+            <article class="kpi"><span>TFs aprovadas</span><strong id="stat-approved">0</strong><small>Validações concluídas</small></article>
+            <article class="kpi"><span>TFs com falha</span><strong id="stat-failed">0</strong><small>Necessitam atenção</small></article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="panel"><div class="panel-head"><div><h2>Resultado por situação</h2><p class="muted">Distribuição das TFs</p></div></div><div class="chart-container"><canvas id="status-chart" role="img" aria-label="Gráfico de tarefas por situação"></canvas></div><div id="chart-summary" class="chart-summary"></div></article>
+            <article class="panel"><div class="panel-head"><div><h2>Tipos de teste</h2><p class="muted">BUILD vs. RELEASE</p></div></div><div id="types-chart" class="types-chart"></div><hr><div class="mini-help">Os indicadores consideram os registros visíveis à sua conta.</div></article>
+          </div>
+          <article class="panel"><div class="panel-head"><div><h2>Últimas tarefas</h2><p class="muted">Acesse rapidamente as TFs mais recentes</p></div><a href="#/tarefas" class="subtle-link">Ver todas →</a></div><div id="recent-list" class="task-list"></div></article>
+        </section>
+
+        <section id="view-tarefas" class="view" aria-labelledby="list-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">BASE DE CONHECIMENTO</p><h1 id="list-title">Tarefas de teste</h1><p class="muted">Pesquise por código, título, sistema e versão.</p></div><button id="import-open" class="btn soft" type="button">Importar relatório</button></div>
+          <div class="panel">
+            <div class="filters"><label class="search-field"><span>Pesquisar</span><input id="task-search" placeholder="Ex.: promoção, 67866, versão 12..." type="search"></label><label><span>Situação</span><select id="filter-status"><option value="">Todas</option><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label><span>Tipo</span><select id="filter-type"><option value="">Todos</option><option>BUILD</option><option>RELEASE</option></select></label></div>
+            <div id="task-list" class="task-list"></div><p id="task-count" class="muted count-footer"></p>
+          </div>
+        </section>
+
+        <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
+          <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
+          <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" type="button" data-tab="resumo" role="tab" aria-selected="true">Resumo</button><button class="tab" type="button" data-tab="cenarios" role="tab" aria-selected="false">Cenários <span id="scenarios-number">0</span></button><button class="tab" type="button" data-tab="diagramas" role="tab" aria-selected="false">Diagramas <span id="diagrams-number">0</span></button></div>
+
+          <div id="tab-resumo" class="tab-content">
+            <form id="task-form">
+              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">01</span><h2>Identificação</h2></div><p>Informações da execução</p></div><div class="field-grid">
+                <label>Código da TF <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
+                <label>Título da tarefa <input name="titulo" required minlength="3" maxlength="240" placeholder="Ex.: Promoção por tabela de preço"></label>
+                <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
+                <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
+                <label>Sistema / módulo <input name="sistema" placeholder="Ex.: Estoque · Promoções"></label>
+                <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
+                <label>Ambiente <input name="ambiente" placeholder="Ex.: Homologação"></label>
+                <label>Base de teste <input name="base_teste" placeholder="Ex.: Base de validação"></label>
+                <label>Empresa <input name="empresa" placeholder="Ex.: Empresa 1"></label>
+                <label>Testador <input name="testador" placeholder="Responsável"></label>
+                <label>Data do teste <input name="executado_em" type="date"></label>
+              </div></div>
+              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">02</span><h2>Contexto e documentação</h2></div><p>Informações para consultas futuras</p></div><div class="stack">
+                <label>O que foi testado? <textarea name="descricao" rows="4" placeholder="Objetivo, regra de negócio e abrangência do teste."></textarea></label>
+                <label>Como funciona? <textarea name="explicacao" rows="3" placeholder="Explicação simples do fluxo e suas regras."></textarea></label>
+                <div class="two-fields"><label>Problema e causa <textarea name="causa" rows="3" placeholder="Diagnóstico e origem do problema."></textarea></label><label>O que foi alterado <textarea name="correcao" rows="3" placeholder="Correção aplicada no sistema."></textarea></label></div>
+              </div></div>
+              <div class="panel form-panel"><div class="section-heading"><div><span class="section-number">03</span><h2>Validação final</h2></div><p>Registre o resultado efetivo da execução</p></div><div class="field-grid">
+                <label>Erro reproduzido? <select name="erro_reproduzido"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                <label>Funcionando corretamente? <select name="funcionando"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+              </div><div class="stack top-gap"><label>Conclusão <textarea name="conclusao" rows="4" placeholder="Resultado final, impactos e critérios de aceite."></textarea></label><label>Observações adicionais <textarea name="observacoes" rows="3" placeholder="Base, empresa, usuário de teste, ressalvas e comportamentos conhecidos."></textarea></label></div></div>
+            </form>
+          </div>
+
+          <div id="tab-cenarios" class="tab-content" hidden>
+            <div class="section-top"><div><h2>Cenários de teste</h2><p class="muted">Cada cenário possui passos e resultado próprios.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
+            <div id="scenarios-list" class="stack gap-md"></div>
+            <form id="scenario-form" class="panel form-panel" hidden>
+              <h3 id="scenario-form-title">Novo cenário</h3>
+              <input type="hidden" name="id">
+              <div class="field-grid"><label>Título <input name="titulo" required maxlength="240" minlength="3" placeholder="Ex.: Inclusão automática com tabela válida"></label><label>Situação <select name="status"><option value="nao_executado">Não executado</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label>Ordem <input name="ordem" type="number" min="0" value="1"></label></div>
+              <div class="stack top-gap"><label>Passos executados <textarea name="passos" rows="7" placeholder="- Acessado o menu...&#10;- Clicado em adicionar..."></textarea></label><label>Resultado esperado <textarea name="esperado" rows="3"></textarea></label><label>Resultado observado <textarea name="obtido" rows="3"></textarea></label><label>Observações <textarea name="observacoes" rows="2"></textarea></label></div>
+              <div class="form-actions"><button id="cancel-scenario" type="button" class="btn soft">Cancelar</button><button type="submit" class="btn primary">Salvar cenário</button></div>
+            </form>
+          </div>
+
+          <div id="tab-diagramas" class="tab-content" hidden>
+            <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
+            <div id="diagrams-list" class="stack gap-md"></div>
+            <form id="diagram-form" class="panel form-panel" hidden><h3 id="diagram-form-title">Novo diagrama</h3><input name="id" type="hidden"><label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo de carregamento da promoção"></label><label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;A[Selecionar tabela] --> B{Confirmou?}&#10;B -->|Sim| C[Incluir produtos]"></textarea></label><div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Visualizar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div><div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A visualização aparece aqui.</div></form>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+</body>
+</html>
