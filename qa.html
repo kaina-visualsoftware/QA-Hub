@@ -115,10 +115,6 @@
                 <button id="assist-ai" class="btn primary" type="button">Gerar com IA</button>
                 <button id="assist-local" class="btn soft" type="button">Extrair sem IA</button>
               </div>
-              <div id="assist-loading" class="assist-loading" role="status" aria-live="polite" hidden>
-                <span class="assist-spinner" aria-hidden="true"></span>
-                <div><strong id="assist-loading-title">Analisando o texto…</strong><p id="assist-loading-description">Organizando os campos da tarefa.</p></div>
-              </div>
               <p id="assist-error" class="assist-error" role="alert" hidden></p>
               <details class="assist-more">
                 <summary>Outra opção de IA</summary>
@@ -134,14 +130,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div class="wizard-review-heading">
-            <div>
-              <h2>Revise os dados</h2>
-              <p class="muted">Ajuste o que precisar e salve ao final.</p>
-            </div>
-            <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
-          </div>
-          <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -196,9 +185,19 @@
                   <label class="top-gap">Observações adicionais <textarea name="observacoes" rows="3" placeholder="Ressalvas e comportamentos conhecidos"></textarea></label>
                 </details>
               </section>
+              <section id="draft-scenario-review" class="panel draft-scenario-review" hidden aria-labelledby="draft-scenario-title">
+                <div class="draft-scenario-header">
+                  <h2 id="draft-scenario-title">Casos de teste encontrados</h2>
+                  <p>Marque somente os que foram realmente testados. Itens desmarcados não serão gravados.</p>
+                </div>
+                <div id="draft-scenario-list" class="draft-scenario-list" role="group" aria-label="Confirmar casos de teste"></div>
+                <p id="draft-scenario-count" class="muted fine" aria-live="polite"></p>
+              </section>
               <div class="task-form-footer">
                 <button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button>
-                <div class="task-footer-actions"><a id="task-public-link" class="btn soft" href="./public.html" target="_blank" rel="noopener noreferrer" hidden>Ver página pública</a>
+                <div class="task-footer-actions">
+                  <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
+                  <a id="task-public-link" class="btn soft" href="./public.html" target="_blank" rel="noopener noreferrer" hidden>Ver página pública</a>
                   <a href="#/tarefas" class="btn soft task-cancel-link">Cancelar</a>
                   <button id="save-task" class="btn primary" type="submit">Salvar TF</button>
                 </div>
@@ -247,6 +246,13 @@
   </div>
 
   <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+<dialog id="ai-loading-modal" class="ai-loading-modal" aria-labelledby="assist-loading-title" aria-describedby="assist-loading-description" aria-modal="true">
+    <div class="ai-loading-content" role="status" aria-live="polite">
+      <span class="ai-loading-spinner" aria-hidden="true"></span>
+      <h2 id="assist-loading-title">Gerando com IA…</h2>
+      <p id="assist-loading-description">Organizando sua tarefa.</p>
+    </div>
+  </dialog>
 <dialog id="diagram-viewer" class="diagram-viewer" aria-labelledby="diagram-viewer-title">
     <header class="diagram-viewer-toolbar">
       <h2 id="diagram-viewer-title">Diagrama</h2>

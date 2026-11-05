@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
 import { QA_CONFIG } from './qa-config.js';
-import { parseReport } from './qa-parser.mjs';
+import { parseReport, extractExplicitScenarios } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
@@ -242,6 +242,7 @@ function setTaskStep(step, focus=false) {
   $('#assist-panel').hidden=!entering;
   $('#editor-fields').hidden=entering;
   $('#save-task').hidden=entering;
+  $('#task-detail-tabs').hidden=entering || !state.currentId;
   $('#editor-caption').hidden=entering;
   $('#save-status').hidden=entering || state.dirtyForms.size===0;
   if(focus){
@@ -258,11 +259,14 @@ function openNewTask() {
   clearFormDirty();
   state.assistDraft=null;
   state.pendingScenarios=[];
+  state.currentId=null;
   setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-error').hidden=true;
   $('#assist-error').textContent='';
-  $('#assist-loading').hidden=true;
+  if($('#ai-loading-modal').open)$('#ai-loading-modal').close();
+  $('#draft-scenario-review').hidden=true;
+  $('#draft-scenario-list').replaceChildren();
   $('#task-extra-details').open=false;
   $('#task-analysis-details').open=false;
   $('#task-validation-details').open=false;
@@ -287,11 +291,13 @@ function openNewTask() {
   selectTab('resumo'); setView('editor');
 }
 async function openTask(id) {
-  setTaskStep('review');
   const task = state.tasks.find(t=>t.id === id);
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
   clearFormDirty();
   state.currentId = id;
+  setTaskStep('review');
+  $('#draft-scenario-review').hidden=true;
+  $('#draft-scenario-list').replaceChildren();
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
   $('#task-visibility').dispatchEvent(new Event('change'));
@@ -574,9 +580,12 @@ $('#task-form').addEventListener('submit',async (event)=>{
     setFormDirty('task-form',false);
     setFormDirty('assist-text',false);
     let scenarioWarning='';
-    if(state.pendingScenarios.length){
-      const payload=state.pendingScenarios.map((scenario,index)=>({
-        ...scenario,tarefa_id:id,user_id:state.user.id,ordem:index+1,status:'nao_executado'
+    const confirmedScenarios=state.pendingScenarios.filter(scenario=>scenario.selected!==false);
+    if(confirmedScenarios.length){
+      const payload=confirmedScenarios.map((scenario,index)=>({
+        titulo:scenario.titulo,passos:scenario.passos,esperado:scenario.esperado,
+        obtido:scenario.obtido,observacoes:scenario.observacoes,
+        tarefa_id:id,user_id:state.user.id,ordem:index+1,status:'nao_executado'
       }));
       const {error:scenarioError}=await db.from('qa_cenarios').insert(payload);
       if(scenarioError){
@@ -585,6 +594,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
         state.pendingScenarios=[];
       }
     }
+    if(!scenarioWarning)state.pendingScenarios=[];
     await refreshAfterSave(id);
     if(scenarioWarning)toast(scenarioWarning,true);
     location.hash='#/tarefa/'+id;
@@ -728,7 +738,11 @@ function applyAssistDraft(){
     field.value=value;
     total++;
   }
-  state.pendingScenarios=draft.cenarios.map(item=>({...item,status:'nao_executado'}));
+  // The AI may invent cases from descriptive text. Only evidence of an explicitly
+  // numbered scenario with executable steps in the ORIGINAL report can be saved.
+  state.pendingScenarios=extractExplicitScenarios($('#assist-text').value)
+    .map(item=>({...item,status:'nao_executado',selected:true}));
+  renderPendingScenarios();
   form.elements.namedItem('status').value='rascunho';
   if(total || state.pendingScenarios.length)setFormDirty('task-form');
   setFormDirty('assist-text',false);
@@ -736,9 +750,45 @@ function applyAssistDraft(){
   setTaskStep('review',true);
   const count=state.pendingScenarios.length;
   $('#editor-caption').textContent=count
-    ? count+' cenário(s) identificado(s). Eles serão adicionados ao salvar.'
-    : 'Confira os campos antes de salvar.';
+    ? count+' caso(s) de teste identificado(s). Confirme antes de salvar.'
+    : '';
 }
+
+function renderPendingScenarios(){
+  const box=$('#draft-scenario-review'),list=$('#draft-scenario-list');
+  list.replaceChildren();
+  const isNew=!state.currentId;
+  const entries=state.pendingScenarios;
+  box.hidden=!isNew || entries.length===0;
+  entries.forEach((scenario,index)=>{
+    const row=document.createElement('label');
+    row.className='draft-scenario-item';
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox';
+    checkbox.checked=scenario.selected!==false;
+    checkbox.dataset.scenarioIndex=String(index);
+    const body=document.createElement('span');
+    const title=document.createElement('strong');
+    title.textContent=scenario.titulo;
+    const detail=document.createElement('small');
+    detail.textContent=scenario.passos.replace(/\s+/g,' ').slice(0,210);
+    body.append(title,detail);row.append(checkbox,body);list.append(row);
+  });
+  updatePendingScenarioCount();
+}
+function updatePendingScenarioCount(){
+  const count=state.pendingScenarios.filter(s=>s.selected!==false).length;
+  $('#draft-scenario-count').textContent=count+' de '+state.pendingScenarios.length+' selecionado(s) para salvar.';
+}
+$('#draft-scenario-list').addEventListener('change',event=>{
+  const checkbox=event.target.closest('input[data-scenario-index]');
+  if(!checkbox)return;
+  const item=state.pendingScenarios[Number(checkbox.dataset.scenarioIndex)];
+  if(!item)return;
+  item.selected=checkbox.checked;
+  setFormDirty('task-form');
+  updatePendingScenarioCount();
+});
 
 function showAssistError(message){
   const feedback=$('#assist-error');
@@ -757,6 +807,7 @@ async function runAssistExtraction(method){
   const startHash=location.hash;
   const startUser=state.user?.id;
   const buttons=['assist-ai','assist-device','assist-local','assist-manual'].map(id=>$('#'+id));
+  const modal=$('#ai-loading-modal');
   const title=$('#assist-loading-title');
   const detail=$('#assist-loading-description');
   const names={nvidia:'IA NVIDIA',device:'IA no dispositivo',local:'Extração'};
@@ -764,7 +815,7 @@ async function runAssistExtraction(method){
   detail.textContent='Analisando o relatório.';
   $('#assist-error').hidden=true;
   $('#assist-error').textContent='';
-  $('#assist-loading').hidden=false;
+  if(!modal.open)modal.showModal();
   $('#assist-panel').setAttribute('aria-busy','true');
   busy(null,true); // The loading panel is the only spinner.
   buttons.forEach(button=>{button.disabled=true;});
@@ -785,6 +836,8 @@ async function runAssistExtraction(method){
       draft=extractLocalDraft(raw);
     }
     if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
+    // Close the modal before moving focus to the now-visible review form.
+    if(modal.open)modal.close();
     showAssistDraft(draft);
     applyAssistDraft();
     if(usedFallback){
@@ -798,13 +851,16 @@ async function runAssistExtraction(method){
       ?'A IA demorou demais. Tente novamente ou use Extrair sem IA.'
       :error?.message||'Não foi possível gerar. Tente Extrair sem IA.');
   }finally{
-    $('#assist-loading').hidden=true;
+    if(modal.open)modal.close();
     $('#assist-panel').setAttribute('aria-busy','false');
     busy(null,false);
     buttons.forEach(button=>{button.disabled=false;});
     checkLocalAiAvailability();
   }
 }
+$('#ai-loading-modal').addEventListener('cancel',event=>{
+  if(state.isBusy)event.preventDefault();
+});
 $('#assist-local').addEventListener('click',()=>runAssistExtraction('local'));
 $('#assist-ai').addEventListener('click',()=>runAssistExtraction('nvidia'));
 $('#assist-device').addEventListener('click',()=>runAssistExtraction('device'));
@@ -820,6 +876,10 @@ $('#assist-back').addEventListener('click',()=>{
 $('#assist-text').addEventListener('input',()=>{
   setFormDirty('assist-text');
   state.assistDraft=null;
+  // Cases extracted from an older version of the report must not be saved
+  // if the pasted text is changed and the user proceeds manually.
+  state.pendingScenarios=[];
+  renderPendingScenarios();
   $('#assist-error').hidden=true;
   $('#assist-error').textContent='';
 });
