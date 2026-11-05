@@ -152,8 +152,15 @@ function renderTasks() {
     (!query || [t.titulo,t.codigo,t.sistema,t.versao,t.descricao].some(v => String(v ?? '').toLocaleLowerCase('pt-BR').includes(query))) &&
     (!status || t.status === status) && (!type || t.tipo_teste === type)
   );
+  const hasFilters = Boolean(query || status || type);
+  const emptyWithFilters = '<div class="empty"><strong>Nenhum resultado para estes filtros</strong>' +
+    '<p>Altere a pesquisa ou limpe os filtros para ver outras TFs.</p>' +
+    '<button type="button" class="btn soft" data-clear-filters>Limpar filtros</button></div>';
+  const emptyWithoutFilters = '<div class="empty"><strong>Nenhuma TF cadastrada</strong>' +
+    '<p>Cadastre seu primeiro teste ou importe um relatório existente.</p>' +
+    '<button type="button" class="btn primary" data-new-task>Criar primeira TF</button></div>';
   $('#task-list').innerHTML = list.length ? list.map(taskItem).join('') :
-    '<div class="empty"><strong>Nenhuma TF encontrada</strong>Experimente remover algum filtro ou cadastrar seu primeiro teste.<br><button type="button" class="btn soft" data-new-task>Nova TF</button></div>';
+    (hasFilters ? emptyWithFilters : emptyWithoutFilters);
   $('#task-count').textContent = list.length + ' tarefa(s) na lista' + (state.tasks.length >= 1000 ? ' · primeiros 1.000 registros' : '');
 }
 function renderDashboard() {
@@ -450,6 +457,13 @@ document.addEventListener('click',async (event)=>{
   const target=event.target.closest('button');
   if(!target) return;
   if(target.matches('[data-new-task]')) navigateNewTask();
+  if(target.matches('[data-clear-filters]')){
+    $('#task-search').value='';
+    $('#filter-status').value='';
+    $('#filter-type').value='';
+    renderTasks();
+    $('#task-search').focus();
+  }
   const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
   const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram;
   if(editScenario) openScenario(state.scenarios.find(s=>s.id===editScenario));
