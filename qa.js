@@ -255,7 +255,10 @@ window.addEventListener('message', event => {
 function openTool(mode, taskId = '') {
   const info = toolPages[mode];
   if (!info) return;
-  const tf = /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(taskId || '') ? taskId : '';
+  // Preserve the selected TF while switching tools through the sidebar.
+  // A new TF context replaces the prior one; the iframe is never reloaded on a simple tool switch.
+  const tf = taskId && /^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(taskId)
+    ? taskId : (state.toolFrameContext || '');
   state.toolMode = mode;
   $('#tool-view-title').textContent = info.title;
   $('#tool-view-description').textContent = info.description;
