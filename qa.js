@@ -272,6 +272,7 @@ function openNewTask() {
   state.scenarios = []; state.diagrams = [];
   $('#task-form').reset();
   $('#task-form').elements.publica.value='false';
+  $('#task-visibility').dispatchEvent(new Event('change'));
   $('#task-public-link').hidden=true;
   $('#task-form').elements.executado_em.value = dateToday();
   $('#editor-kicker').textContent = 'NOVO REGISTRO';
@@ -293,6 +294,7 @@ async function openTask(id) {
   state.currentId = id;
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
+  $('#task-visibility').dispatchEvent(new Event('change'));
   updatePublicLink(task);
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
   $('#assist-back').hidden=true;
@@ -625,6 +627,12 @@ $('#scenario-form').addEventListener('submit',async event=>{
 $('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
   $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
 }));
+$('#task-visibility').addEventListener('change',()=>{
+  const publicChoice=$('#task-visibility').value==='true';
+  $('#visibility-hint').textContent=publicChoice
+    ? 'Atenção: título, descrição, cenários, diagramas e dados informados nesta TF poderão ser vistos por qualquer pessoa com o link. Revise informações internas antes de publicar.'
+    : 'Somente sua conta e administradores podem consultar esta TF.';
+});
 $('#diagram-generate').addEventListener('click',async()=>{
   if(state.isBusy || !state.currentId)return;
   const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
