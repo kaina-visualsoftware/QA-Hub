@@ -81,6 +81,11 @@ button:disabled{cursor:wait;opacity:.7}
   .form-actions .btn{flex:1 1 auto}
   .tabs{gap:10px}
 }
+@media(max-width:360px){
+  .task-item{grid-template-columns:minmax(0,1fr);row-gap:7px}
+  .task-item>.status{justify-self:start;margin-left:47px}
+  .task-title strong{max-width:none;-webkit-line-clamp:3}
+}
 @media(prefers-reduced-motion:reduce){
   .skip-link{transition:none}
 }
