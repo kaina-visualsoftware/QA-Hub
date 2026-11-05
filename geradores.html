@@ -207,13 +207,45 @@ function toBB(m){const o=[];let ul=false;const b=s=>s.replace(/\*\*(.+?)\*\*/g,"
   else o.push(b(l))}
  if(ul)o.push("[/list]");return o.join("\n")}
 /* histórico */
-function store(k,loc){const c=M[k].tl+"/items";
- if(db&&!fb&&!loc)return{label:"salvo na sua conta",
-  async list(){const s=await db.collection("data/users/"+uid+"/"+c).orderBy("ts","desc").limit(100).get();return s.docs.map(d=>({id:d.id,...d.data()}))},
-  async save(p){return (await db.collection("data/users/"+uid+"/"+c).add(p)).id},async upd(i,x){const r=db.collection("data/users/"+uid+"/"+c).doc(i);const g=await r.get();await r.set({...g.data(),...x})},
-  async del(i){await db.collection("data/users/"+uid+"/"+c).doc(i).delete()}};
- const K=k==="post"?"posts_v1":"h_"+k,rd=()=>{try{return JSON.parse(localStorage.getItem(K)||"[]")}catch(e){return[]}},wr=a=>{try{localStorage.setItem(K,JSON.stringify(a.slice(0,100)))}catch(e){}};
- return{label:"salvo neste navegador",async list(){return rd()},async save(p){const a=rd();a.unshift({id:String(p.ts),...p});wr(a);return String(p.ts)},async upd(i,x){wr(rd().map(y=>y.id===i?{...y,...x}:y))},async del(i){wr(rd().filter(x=>x.id!==i))}}}
+function store(k,loc=false){
+ const useCloud=!loc&&db&&!fb&&(k==="post"||k==="teste");
+ if(useCloud){
+  const table=k==="post"?"qa_generator_posts":"qa_generator_tests";
+  return{
+   label:"salvo na sua conta",
+   async list(){
+    const {data,error}=await db.from(table).select("*").eq("user_id",uid).order("ts",{ascending:false}).limit(100);
+    if(error)throw error;return data||[];
+   },
+   async save(p){
+    const row={user_id:uid,ts:p.ts,titulo:String(p.titulo||""),tarefa:String(p.tarefa||""),
+      requisito:String(p.requisito||""),md:String(p.md||"")};
+    if(k==="teste")row.exec=p.exec||{};
+    const {data,error}=await db.from(table).insert(row).select("id").single();
+    if(error)throw error;return data.id;
+   },
+   async upd(id,x){
+    const {error}=await db.from(table).update(x).eq("id",id).eq("user_id",uid);
+    if(error)throw error;
+   },
+   async del(id){
+    const {error}=await db.from(table).delete().eq("id",id).eq("user_id",uid);
+    if(error)throw error;
+   }
+  };
+ }
+ // Guardados: local only; never send passwords, codes or XML to Supabase.
+ const K=k==="post"?"posts_v1":"h_"+k;
+ const rd=()=>{try{return JSON.parse(localStorage.getItem(K)||"[]")}catch{return[]}};
+ const wr=rows=>localStorage.setItem(K,JSON.stringify(rows.slice(0,100)));
+ return{
+   label:"salvo neste navegador",
+   async list(){return rd()},
+   async save(p){const rows=rd();const id=String(p.ts);rows.unshift({id,...p});wr(rows);return id},
+   async upd(id,x){wr(rd().map(item=>item.id===id?{...item,...x}:item))},
+   async del(id){wr(rd().filter(item=>item.id!==id))}
+ };
+}
 async function renderHist(){const st=store(mode),lc=store(mode,true);$("hk").textContent="("+(db&&!fb?"conta + este navegador":"este navegador")+")";
  let L=[];try{L=(await st.list()).map(p=>({...p,_s:st}))}catch(e){$("hk").textContent="(erro ao ler: "+(e&&(e.message||e.code)||e)+")"}
  if(db&&!fb){try{L=L.concat((await lc.list()).map(p=>({...p,_s:lc})))}catch(e){}}L.sort((a,b)=>b.ts-a.ts);{const q=($("hq").value||"").trim().toLowerCase();if(q)L=L.filter(p=>[p.titulo,p.tarefa,p.requisito].join(" ").toLowerCase().includes(q))}const box=$("hl");box.innerHTML="";
