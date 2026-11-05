@@ -876,6 +876,10 @@ $('#assist-back').addEventListener('click',()=>{
 $('#assist-text').addEventListener('input',()=>{
   setFormDirty('assist-text');
   state.assistDraft=null;
+  // Cases extracted from an older version of the report must not be saved
+  // if the pasted text is changed and the user proceeds manually.
+  state.pendingScenarios=[];
+  renderPendingScenarios();
   $('#assist-error').hidden=true;
   $('#assist-error').textContent='';
 });
