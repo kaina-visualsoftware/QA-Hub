@@ -140,6 +140,16 @@ try {
     await page.locator('#view-editor').waitFor({state:'visible'});
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
+    if(!(await page.locator('#save-status').isVisible())){
+      const details=await page.evaluate(()=>{
+        const n=document.querySelector('#save-status');
+        return {node:n?.outerHTML,display:n?getComputedStyle(n).display:null,
+          parent:n?.parentElement?.outerHTML.slice(0,450),
+          title:document.querySelector('#task-form input[name="titulo"]').value,
+          hash:location.hash};
+      });
+      console.log('SAVE STATUS DIAGNOSTIC',width,JSON.stringify(details),'BROWSER ERRORS',errors);
+    }
     assert.equal(await page.locator('#save-status').isVisible(),true);
     const firstTab=page.locator('#tab-btn-resumo');
     await firstTab.focus();
