@@ -47,3 +47,20 @@ test('single QA UI has no legacy-home navigation', () => {
   assert.match(config, /authRedirectUrl:\s*'https:\/\/kaina-visualsoftware\.github\.io\/Tarefas\/qa\.html'/);
   assert.equal(existsSync(new URL('../184728/page.html', import.meta.url)), false);
 });
+
+
+test('both entrypoints provide the QA Hub favicon', () => {
+  const svg = readFileSync(new URL('../favicon.svg', import.meta.url), 'utf8');
+  for(const html of [root,qa]){
+    assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg">/);
+  }
+  assert.match(svg, /<svg\b[^>]*viewBox="0 0 64 64"/);
+  assert.match(svg, /<rect\b[^>]*fill="#112d39"/);
+  assert.match(svg, /#1eb8a3/);
+});
+
+test('mobile menu uses an accessible SVG instead of a faint text glyph', () => {
+  assert.match(qa, /<button class="menu-button"[^>]*aria-label="Abrir menu"[^>]*aria-expanded="false"/);
+  assert.match(qa, /<svg class="menu-icon"[^>]*stroke="currentColor"/);
+  assert.doesNotMatch(qa, /type="button">☰<\/button>/);
+});
