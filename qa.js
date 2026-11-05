@@ -698,7 +698,12 @@ $('#task-form').addEventListener('submit',async (event)=>{
 });
 $('#delete-task').addEventListener('click',async()=>{
   const id=state.currentId;if(!id) return;
-  if(!confirm('Excluir esta TF e TODOS os seus cenários e diagramas? Esta ação não pode ser desfeita.'))return;
+  if(state.isBusy)return;
+  const confirmed=await askRecordConfirmation({
+    title:'Excluir esta TF?',
+    description:'A TF e todos os seus cenários e diagramas serão excluídos permanentemente. Esta ação não pode ser desfeita.'
+  });
+  if(!confirmed||state.currentId!==id)return;
   const {error}=await db.from('qa_tarefas').delete().eq('id',id);
   if(error)return toast(errMessage(error),true);
   clearFormDirty();
