@@ -169,11 +169,11 @@ try {
     assert.equal(await page.locator('#save-status').isVisible(),false);
     await page.locator('#sidebar .navigation a[data-route="tarefas"]').evaluate(el=>el.click());
     await page.locator('#view-tarefas').waitFor({state:'visible'});
-    assert.equal(await page.locator('.task-item').count(),1);
+    assert.equal(await page.locator('#task-list .task-item').count(),1);
     await page.locator('#task-search').fill('inexistente-'+width);
     assert.equal(await page.locator('[data-clear-filters]').count(),1);
     await page.locator('[data-clear-filters]').click();
-    assert.equal(await page.locator('.task-item').count(),1);
+    assert.equal(await page.locator('#task-list .task-item').count(),1);
 
     const contrastRatio=await page.evaluate(()=>{
       const el=document.querySelector('.task-title small');
