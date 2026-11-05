@@ -89,16 +89,24 @@
 
         <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
           <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p><p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
-          <details id="assist-panel" class="panel assist-panel" open>
-            <summary class="assist-heading"><span class="assist-icon" aria-hidden="true">✦</span><span><strong>Preenchimento rápido</strong><small>Cole o texto da TF e evite preencher tudo manualmente</small></span></summary>
+          <section id="assist-panel" class="panel assist-panel" aria-labelledby="assist-title">
+            <div class="wizard-step-bar"><span class="wizard-stage current">1 <span>Colar relatório</span></span><span class="wizard-line"></span><span class="wizard-stage">2 <span>Revisar TF</span></span></div>
+            <div class="assist-heading"><span class="assist-icon" aria-hidden="true">✦</span><span><strong id="assist-title">Como deseja criar sua TF?</strong><small>Cole qualquer relatório ou descrição. A IA organiza os dados no formato esperado.</small></span></div>
             <div class="assist-body">
               <label for="assist-text">Descrição, relatório ou análise da tarefa</label>
               <textarea id="assist-text" rows="7" maxlength="30000" placeholder="Ex.: TF 67866 — promoção por tabela de preço. Versão 12.08.08.0000. O problema acontece ao incluir kits..."></textarea>
-              <p class="assist-help">O texto é analisado neste dispositivo. A IA usa um modelo aberto executado localmente por WebGPU ou WebAssembly, sem token ou cadastro. Na primeira utilização, é preciso baixar o modelo (cerca de 500 MB); em aparelhos com pouca memória pode não funcionar. O texto não é enviado para um serviço de IA. Revise os campos antes de salvar.</p>
+              <p class="assist-help">O texto é analisado neste dispositivo. Escolha a IA online, a extração sem IA ou o modelo local. O texto só é enviado à NVIDIA se você autorizar e clicar em gerar. Nenhum dado será salvo até confirmar a TF. Confira os resultados antes de salvar.</p>
+              <label class="assist-checkbox assist-consent"><input type="checkbox" id="assist-consent"> Autorizo enviar o texto colado à NVIDIA Build para esta extração.</label>
               <div class="assist-actions">
-                <button id="assist-local" class="btn primary" type="button">Extrair campos do texto</button>
-                <button id="assist-ai" class="btn soft" type="button">Usar IA gratuita · sem token</button>
+                <button id="assist-ai" class="btn primary" type="button">Gerar com IA NVIDIA</button>
+                <button id="assist-local" class="btn soft" type="button">Extrair sem IA</button>
+                <button id="assist-device" class="btn soft" type="button">Usar IA no dispositivo</button>
               </div>
+              <div id="assist-loading" class="assist-loading" role="status" aria-live="polite" hidden>
+                <span class="assist-spinner" aria-hidden="true"></span>
+                <div><strong id="assist-loading-title">Analisando o relatório…</strong><p id="assist-loading-description">Aguarde a resposta. Não é necessário preencher campos manualmente.</p></div>
+              </div>
+              <div class="assist-manual-choice"><span>Prefere informar os dados por conta própria?</span><button id="assist-manual" class="btn soft" type="button">Seguir manualmente</button></div>
               <p id="assist-capability" class="muted fine" aria-live="polite"></p>
               <p id="assist-status" class="assist-status" role="status" aria-live="polite"></p>
               <div id="assist-result" class="assist-result" hidden>
@@ -113,8 +121,13 @@
                 <p class="muted fine">Os cenários identificados serão adicionados ao salvar a TF como <strong>não executados</strong>. Nenhum resultado é aprovado automaticamente.</p>
               </div>
             </div>
-          </details>
+          </section>
 
+          <div id="editor-fields" class="editor-fields" hidden>
+          <div class="wizard-review-heading">
+            <div><p class="eyebrow">ETAPA 2 DE 2</p><h2>Revise as informações da TF</h2><p class="muted">Confira os campos gerados ou preencha manualmente. A TF só é gravada ao salvar.</p></div>
+            <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
+          </div>
           <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
@@ -160,6 +173,7 @@
             <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
             <div id="diagrams-list" class="stack gap-md"></div>
             <form id="diagram-form" class="panel form-panel" hidden><h3 id="diagram-form-title">Novo diagrama</h3><input name="id" type="hidden"><label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo de carregamento da promoção"></label><label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;A[Selecionar tabela] --> B{Confirmou?}&#10;B -->|Sim| C[Incluir produtos]"></textarea></label><div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Visualizar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div><div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A visualização aparece aqui.</div></form>
+          </div>
           </div>
         </section>
       </main>
