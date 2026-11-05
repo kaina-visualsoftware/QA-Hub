@@ -34,7 +34,7 @@
           <label>Senha <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Sua senha"></label>
           <button id="auth-submit" class="btn primary full" type="submit">Entrar</button>
         </form>
-        <button id="auth-toggle" class="text-button" type="button">Criar uma conta</button>
+        <button id="auth-toggle" class="text-button" type="button">Criar uma conta</button><p class="public-entry"><a href="./public.html">Consultar TFs públicas sem entrar</a></p>
         <p class="muted fine">O cadastro pode exigir confirmação por email, conforme as regras do projeto Supabase.</p>
         <p id="auth-warning" class="notice" hidden></p>
         <button id="resend-confirmation" class="text-button" type="button" hidden>Reenviar email de confirmação</button>
@@ -48,10 +48,10 @@
       <p class="nav-label">ESPAÇO DE TRABALHO</p>
       <nav aria-label="Navegação principal" class="navigation">
         <a href="#/dashboard" data-route="dashboard"><span class="nav-symbol">◫</span> Visão geral</a>
-        <a href="#/tarefas" data-route="tarefas"><span class="nav-symbol">☷</span> Tarefas de teste</a>
+        <a href="#/tarefas" data-route="tarefas"><span class="nav-symbol">☷</span> Tarefas de teste</a><a href="./public.html"><span class="nav-symbol" aria-hidden="true">◈</span> TFs públicas</a>
       </nav>
       <div class="sidebar-bottom">
-        <div class="sidebar-note"><span class="signal"></span><span>Registros privados<br><small>Supabase Auth + RLS</small></span></div>
+        <div class="sidebar-note"><span class="signal"></span><span>Visibilidade por TF<br><small>Controle de acesso</small></span></div>
         <div class="user-summary"><span class="avatar">QA</span><span class="user-identity"><span id="user-email" class="ellipsis"></span><small id="user-role" class="user-role">Usuário</small></span></div>
       </div>
     </aside>
@@ -153,7 +153,7 @@
                   <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
                   <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
                   <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
-                  <label class="field-span">Sistema / módulo <input name="sistema" placeholder="Ex.: Vendas · Descontos"></label>
+                  <label class="field-span">Sistema / módulo <input name="sistema" placeholder="Ex.: Vendas · Descontos"></label><label class="field-span visibility-field">Quem pode ver esta TF? <select name="publica" id="task-visibility"><option value="false">Privada — somente minha conta e administradores</option><option value="true">Pública — qualquer pessoa com o link</option></select><small id="visibility-hint">Privada por padrão. A publicação também libera os cenários e diagramas desta TF para leitura.</small></label>
                 </div>
                 <details id="task-extra-details" class="optional-details">
                   <summary>Mais informações <span>Ambiente, base, empresa e responsável</span></summary>
@@ -198,7 +198,7 @@
               </section>
               <div class="task-form-footer">
                 <button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button>
-                <div class="task-footer-actions">
+                <div class="task-footer-actions"><a id="task-public-link" class="btn soft" href="./public.html" target="_blank" rel="noopener noreferrer" hidden>Ver página pública</a>
                   <a href="#/tarefas" class="btn soft task-cancel-link">Cancelar</a>
                   <button id="save-task" class="btn primary" type="submit">Salvar TF</button>
                 </div>
@@ -221,7 +221,24 @@
           <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
             <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
             <div id="diagrams-list" class="stack gap-md"></div>
-            <form id="diagram-form" class="panel form-panel" hidden><h3 id="diagram-form-title">Novo diagrama</h3><input name="id" type="hidden"><label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo de carregamento da promoção"></label><label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;A[Selecionar tabela] --> B{Confirmou?}&#10;B -->|Sim| C[Incluir produtos]"></textarea></label><div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Visualizar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div><div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A visualização aparece aqui.</div></form>
+            <form id="diagram-form" class="panel form-panel" hidden>
+              <h3 id="diagram-form-title">Novo diagrama</h3>
+              <input name="id" type="hidden">
+              <label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo do pedido"></label>
+              <section class="diagram-ai-box" aria-labelledby="diagram-ai-heading">
+                <div class="diagram-ai-head"><h4 id="diagram-ai-heading">Criar com IA</h4><p>Gere um fluxo claro e depois ajuste o código, se necessário.</p></div>
+                <div class="diagram-source-options" role="group" aria-label="Origem do diagrama">
+                  <label><input type="radio" name="diagram-ai-origin" value="task" checked> Usar dados da TF</label>
+                  <label><input type="radio" name="diagram-ai-origin" value="text"> Escrever ou colar texto</label>
+                </div>
+                <label id="diagram-ai-text-wrap" hidden>Descreva o fluxo <textarea id="diagram-ai-text" rows="5" maxlength="12000" placeholder="Ex.: O usuário abre o pedido, escolhe os produtos, confirma e o sistema valida o estoque."></textarea></label>
+                <div class="diagram-ai-actions"><button id="diagram-generate" type="button" class="btn primary">Gerar diagrama com IA</button><span id="diagram-ai-progress" role="status" aria-live="polite" hidden>Gerando diagrama…</span></div>
+                <p id="diagram-ai-error" class="diagram-ai-error" role="alert" hidden></p>
+              </section>
+              <label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart TD&#10;  A[Início] --> B[Executar]"></textarea></label>
+              <div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Prévia</button><button type="button" class="btn soft" id="zoom-diagram-preview">Ampliar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div>
+              <div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A prévia aparece aqui.</div>
+            </form>
           </div>
           </div>
         </section>
@@ -230,5 +247,22 @@
   </div>
 
   <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+<dialog id="diagram-viewer" class="diagram-viewer" aria-labelledby="diagram-viewer-title">
+    <header class="diagram-viewer-toolbar">
+      <h2 id="diagram-viewer-title">Diagrama</h2>
+      <div class="diagram-viewer-controls">
+        <button type="button" data-viewer="minus" aria-label="Reduzir zoom">−</button>
+        <span id="diagram-zoom-label" aria-live="polite">100%</span>
+        <button type="button" data-viewer="plus" aria-label="Aumentar zoom">+</button>
+        <button type="button" data-viewer="actual">100%</button>
+        <button type="button" data-viewer="fit">Ajustar</button>
+        <button type="button" data-viewer="close" aria-label="Fechar visualização">Fechar</button>
+      </div>
+    </header>
+    <div id="diagram-viewer-viewport" class="diagram-viewer-viewport" tabindex="0" aria-label="Diagrama ampliado. Arraste para mover e use a roda do mouse para aplicar zoom.">
+      <div id="diagram-viewer-art" class="diagram-viewer-art"></div>
+    </div>
+    <p class="diagram-viewer-hint">Arraste para mover · Roda do mouse ou botões para ampliar</p>
+  </dialog>
 </body>
 </html>
