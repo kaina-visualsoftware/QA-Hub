@@ -429,13 +429,13 @@ $('#task-search').addEventListener('input',renderTasks);
 $('#filter-status').addEventListener('change',renderTasks);
 $('#filter-type').addEventListener('change',renderTasks);
 window.addEventListener('hashchange',()=>route().catch(e=>toast(errMessage(e),true)));
-$('[data-tab]').forEach(button=>{
+$$('[data-tab]').forEach(button=>{
   button.addEventListener('click',()=>selectTab(button.dataset.tab));
   button.addEventListener('keydown',event=>{
     const keys=['ArrowLeft','ArrowRight','Home','End'];
     if(!keys.includes(event.key)) return;
     event.preventDefault();
-    const tabs=$('[data-tab]');
+    const tabs=$$('[data-tab]');
     const position=tabs.indexOf(button);
     const next=event.key==='Home' ? 0 : event.key==='End' ? tabs.length-1 :
       (position + (event.key==='ArrowRight'?1:-1) + tabs.length) % tabs.length;
