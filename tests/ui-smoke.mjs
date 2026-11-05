@@ -279,13 +279,6 @@ CENÁRIO 1 - Incluir produto
       console.log('SAVE STATUS DIAGNOSTIC',width,JSON.stringify(details),'BROWSER ERRORS',errors);
     }
     assert.equal(await page.locator('#save-status').isVisible(),true);
-    const firstTab=page.locator('#tab-btn-resumo');
-    await firstTab.focus();
-    await firstTab.press('ArrowRight');
-    assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
-    assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
-    await page.locator('#tab-btn-resumo').click();
-
     page.once('dialog',dialog=>dialog.dismiss());
     await page.evaluate(()=>{location.hash='#/tarefas'});
     await page.waitForFunction(()=>location.hash==='#/nova');
@@ -296,6 +289,12 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
     await page.waitForFunction((expected)=>document.querySelector('#scenarios-number').textContent===String(expected),width===320?0:1);
     assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
+    const firstTab=page.locator('#tab-btn-resumo');
+    await firstTab.focus();
+    await firstTab.press('ArrowRight');
+    assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+    assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
+    await page.locator('#tab-btn-resumo').click();
     assert.equal(await page.locator('#assist-back').isVisible(),false);
     assert.equal(await page.locator('#save-status').isVisible(),false);
     if(width===1366||width===390){
