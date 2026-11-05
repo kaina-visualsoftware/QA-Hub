@@ -283,7 +283,7 @@ CENÁRIO 1 - Incluir produto
     if(width===1366||width===390){
       assert.equal(await page.locator('#task-visibility').inputValue(),'true');
       assert.equal(await page.locator('#task-public-link').isVisible(),true);
-      assert.match(await page.locator('#task-public-link').getAttribute('href'),/public\\.html\\?tf=/);
+      assert.match(await page.locator('#task-public-link').getAttribute('href'),/public\.html\?tf=/);
     }else{
       assert.equal(await page.locator('#task-public-link').isVisible(),false);
     }
