@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TFs públicas · QA Hub</title>
+  <meta name="description" content="Consulte tarefas de teste e diagramas publicados pelos autores no QA Hub.">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./qa.css">
+  <script type="module" src="./public.js"></script>
+</head>
+<body class="public-site">
+  <a class="skip-link" href="#public-main">Pular para o conteúdo</a>
+  <header class="public-header">
+    <a href="./public.html" class="public-brand"><span class="mark">Q<span>.</span></span><span><strong>QA Hub</strong><small>Biblioteca pública</small></span></a>
+    <a class="btn soft" href="./qa.html">Entrar no QA Hub</a>
+  </header>
+  <main id="public-main" class="public-main">
+    <section id="public-browse">
+      <div class="public-heading"><h1>TFs públicas</h1><p>Consulte tarefas, cenários e diagramas compartilhados pelos autores.</p></div>
+      <label class="public-search">Pesquisar por título, código ou sistema <input id="public-search" type="search" placeholder="Buscar tarefas públicas…"></label>
+      <p id="public-list-count" class="muted" role="status"></p>
+      <div id="public-list" class="public-list"><p>Carregando tarefas…</p></div>
+    </section>
+    <section id="public-detail" hidden aria-labelledby="public-task-title">
+      <a class="back-link" href="./public.html">← Todas as TFs públicas</a>
+      <div class="public-detail-header">
+        <div><p class="public-shared">TF pública · somente leitura</p><h1 id="public-task-title"></h1><p id="public-task-meta" class="muted"></p></div>
+      </div>
+      <section class="panel public-panel" id="public-summary"><h2>Resumo</h2><div id="public-summary-fields" class="public-facts"></div></section>
+      <section class="panel public-panel" id="public-scenarios"><h2>Cenários de teste</h2><div id="public-scenario-list"></div></section>
+      <section class="panel public-panel" id="public-diagrams"><h2>Diagramas</h2><div id="public-diagram-list" class="stack gap-md"></div></section>
+    </section>
+    <p id="public-error" class="public-error" role="alert" hidden></p>
+  </main>
+  <dialog id="diagram-viewer" class="diagram-viewer" aria-labelledby="diagram-viewer-title">
+    <header class="diagram-viewer-toolbar">
+      <h2 id="diagram-viewer-title">Diagrama</h2>
+      <div class="diagram-viewer-controls">
+        <button type="button" data-viewer="minus" aria-label="Reduzir zoom">−</button>
+        <span id="diagram-zoom-label" aria-live="polite">100%</span>
+        <button type="button" data-viewer="plus" aria-label="Aumentar zoom">+</button>
+        <button type="button" data-viewer="actual">100%</button>
+        <button type="button" data-viewer="fit">Ajustar</button>
+        <button type="button" data-viewer="close" aria-label="Fechar visualização">Fechar</button>
+      </div>
+    </header>
+    <div id="diagram-viewer-viewport" class="diagram-viewer-viewport" tabindex="0" aria-label="Diagrama ampliado; arraste para mover e use roda do mouse ou botões para dar zoom.">
+      <div id="diagram-viewer-art" class="diagram-viewer-art"></div>
+    </div>
+    <p class="diagram-viewer-hint">Arraste para mover · Use a roda do mouse para ampliar</p>
+  </dialog>
+</body>
+</html>
