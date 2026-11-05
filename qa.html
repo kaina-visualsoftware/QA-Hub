@@ -208,19 +208,35 @@
           <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
             <div class="section-top"><div><h2>Cenários de teste</h2><p class="muted">Cada cenário possui passos e resultado próprios.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
             <div id="scenarios-list" class="stack gap-md"></div>
-            <form id="scenario-form" class="panel form-panel" hidden>
+            
+          </div>
+
+          <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
+            <div id="diagrams-list" class="stack gap-md"></div>
+            
+          </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+<dialog id="scenario-dialog" class="qa-editor-dialog qa-scenario-dialog" aria-labelledby="scenario-form-title" aria-modal="true">
+    <div class="qa-dialog-shell">
+      <form id="scenario-form" class="qa-modal-form" hidden>
               <h3 id="scenario-form-title">Novo cenário</h3>
               <input type="hidden" name="id">
               <div class="field-grid"><label>Título <input name="titulo" required maxlength="240" minlength="3" placeholder="Ex.: Inclusão automática com tabela válida"></label><label>Situação <select name="status"><option value="nao_executado">Não executado</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label>Ordem <input name="ordem" type="number" min="0" value="1"></label></div>
               <div class="stack top-gap"><label>Passos executados <textarea name="passos" rows="7" placeholder="- Acessado o menu...&#10;- Clicado em adicionar..."></textarea></label><label>Resultado esperado <textarea name="esperado" rows="3"></textarea></label><label>Resultado observado <textarea name="obtido" rows="3"></textarea></label><label>Observações <textarea name="observacoes" rows="2"></textarea></label></div>
               <div class="form-actions"><button id="cancel-scenario" type="button" class="btn soft">Cancelar</button><button type="submit" class="btn primary">Salvar cenário</button></div>
             </form>
-          </div>
-
-          <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
-            <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
-            <div id="diagrams-list" class="stack gap-md"></div>
-            <form id="diagram-form" class="panel form-panel" hidden>
+    </div>
+  </dialog>
+<dialog id="diagram-dialog" class="qa-editor-dialog qa-diagram-dialog" aria-labelledby="diagram-form-title" aria-modal="true">
+    <div class="qa-dialog-shell">
+      <form id="diagram-form" class="qa-modal-form" hidden>
               <h3 id="diagram-form-title">Novo diagrama</h3>
               <input name="id" type="hidden">
               <label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo do pedido"></label>
@@ -238,14 +254,19 @@
               <div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Prévia</button><button type="button" class="btn soft" id="zoom-diagram-preview">Ampliar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div>
               <div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A prévia aparece aqui.</div>
             </form>
-          </div>
-          </div>
-        </section>
-      </main>
     </div>
-  </div>
-
-  <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+  </dialog>
+<dialog id="record-confirm-dialog" class="qa-confirm-dialog" aria-labelledby="record-confirm-title" aria-describedby="record-confirm-description" aria-modal="true">
+    <div class="qa-confirm-body">
+      <div class="qa-confirm-symbol" aria-hidden="true">!</div>
+      <h2 id="record-confirm-title">Confirmar exclusão</h2>
+      <p id="record-confirm-description">Esta ação não pode ser desfeita.</p>
+      <div class="qa-confirm-actions">
+        <button id="record-confirm-cancel" class="btn soft" type="button">Cancelar</button>
+        <button id="record-confirm-accept" class="btn danger" type="button">Excluir</button>
+      </div>
+    </div>
+  </dialog>
 <dialog id="ai-loading-modal" class="ai-loading-modal" aria-labelledby="assist-loading-title" aria-describedby="assist-loading-description" aria-modal="true">
     <div class="ai-loading-content" role="status" aria-live="polite">
       <span class="ai-loading-spinner" aria-hidden="true"></span>

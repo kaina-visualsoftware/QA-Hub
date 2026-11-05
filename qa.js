@@ -363,7 +363,9 @@ function openScenario(s=null) {
   if(s) setForm(form,scenarioFields,s);
   else form.elements.ordem.value=(Math.max(0,...state.scenarios.map(item=>item.ordem))+1).toString();
   $('#scenario-form-title').textContent=s?'Editar cenário':'Novo cenário';
-  form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
+  form.hidden=false;
+  const dialog=$('#scenario-dialog');
+  if(!dialog.open)dialog.showModal();
   form.elements.titulo.focus();
 }
 function openDiagram(d=null) {
@@ -382,7 +384,9 @@ function openDiagram(d=null) {
   $('#diagram-ai-text-wrap').hidden=true;
   $('#diagram-ai-progress').hidden=true;
   $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
-  form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
+  form.hidden=false;
+  const dialog=$('#diagram-dialog');
+  if(!dialog.open)dialog.showModal();
   form.elements.titulo.focus();
 }
 async function previewMermaid(text, target) {
@@ -400,6 +404,81 @@ async function previewMermaid(text, target) {
     return svg;
   } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); return null; }
 }
+// Record CRUD refreshes its own list. Do not reopen the TF: openTask resets
+// the active tab to Resumo and takes keyboard/scroll focus away from the user.
+async function refreshRecordList(kind,taskId){
+  const scenario=kind==='scenario';
+  const table=scenario?'qa_cenarios':'qa_diagramas';
+  const sort=scenario?'ordem':'created_at';
+  const {data,error}=await db.from(table).select('*').eq('tarefa_id',taskId)
+    .order(sort,{ascending:true});
+  if(error)throw error;
+  if(state.currentId!==taskId)return;
+  if(scenario){
+    state.scenarios=data||[];
+    renderScenarios();
+    // Keep dashboard/list counters up to date without re-opening the editor.
+    await loadData();
+  }else{
+    state.diagrams=data||[];
+    renderDiagrams();
+  }
+}
+
+// One consistent, accessible confirmation for record deletion and discarding
+// changes. Modal focus and Escape are handled by native <dialog>.
+function askRecordConfirmation({title,description,confirmText='Excluir',danger=true}){
+  return new Promise(resolve=>{
+    const dialog=$('#record-confirm-dialog');
+    if(dialog.open){resolve(false);return;}
+    $('#record-confirm-title').textContent=title;
+    $('#record-confirm-description').textContent=description;
+    const accept=$('#record-confirm-accept');
+    const cancel=$('#record-confirm-cancel');
+    accept.textContent=confirmText;
+    accept.className='btn '+(danger?'danger':'primary');
+    const finish=answer=>{
+      cancel.removeEventListener('click',onCancel);
+      accept.removeEventListener('click',onAccept);
+      dialog.removeEventListener('cancel',onEscape);
+      if(dialog.open)dialog.close();
+      resolve(answer);
+    };
+    const onCancel=()=>finish(false);
+    const onAccept=()=>finish(true);
+    const onEscape=event=>{event.preventDefault();finish(false);};
+    cancel.addEventListener('click',onCancel);
+    accept.addEventListener('click',onAccept);
+    dialog.addEventListener('cancel',onEscape);
+    dialog.showModal();
+    cancel.focus();
+  });
+}
+async function closeRecordEditor(kind){
+  if(state.isBusy)return;
+  const scenario=kind==='scenario';
+  const formId=scenario?'scenario-form':'diagram-form';
+  const dialog=$('#'+(scenario?'scenario-dialog':'diagram-dialog'));
+  if(!dialog.open)return;
+  if(state.dirtyForms.has(formId)){
+    const allowed=await askRecordConfirmation({
+      title:'Descartar alterações?',
+      description:'As alterações neste '+(scenario?'cenário':'diagrama')+' não foram salvas.',
+      confirmText:'Descartar'
+    });
+    if(!allowed)return;
+  }
+  setFormDirty(formId,false);
+  if(dialog.open)dialog.close();
+  $('#'+formId).hidden=true;
+}
+for(const kind of ['scenario','diagram']){
+  $('#'+kind+'-dialog').addEventListener('cancel',event=>{
+    event.preventDefault();
+    void closeRecordEditor(kind);
+  });
+}
+
 async function refreshAfterSave(id) {
   await loadData();
   if(id) await openTask(id);
@@ -548,13 +627,29 @@ document.addEventListener('click',async (event)=>{
       if(svg && zoomDiagram)diagramViewer.open(svg,item.titulo);
     }
   }
-  if(deleteScenario && confirm('Excluir este cenário?')) {
-    const {error}=await db.from('qa_cenarios').delete().eq('id',deleteScenario).eq('tarefa_id',state.currentId);
-    if(error)toast(errMessage(error),true);else{toast('Cenário excluído.');await refreshAfterSave(state.currentId);}
-  }
-  if(deleteDiagram && confirm('Excluir este diagrama?')) {
-    const {error}=await db.from('qa_diagramas').delete().eq('id',deleteDiagram).eq('tarefa_id',state.currentId);
-    if(error)toast(errMessage(error),true);else{toast('Diagrama excluído.');await refreshAfterSave(state.currentId);}
+  if(deleteScenario||deleteDiagram){
+    if(state.isBusy)return;
+    const scenario=Boolean(deleteScenario);
+    const taskId=state.currentId;
+    const id=deleteScenario||deleteDiagram;
+    const current=scenario?state.scenarios:state.diagrams;
+    const item=current.find(record=>record.id===id);
+    if(!item||!taskId)return;
+    const type=scenario?'cenário':'diagrama';
+    const confirmed=await askRecordConfirmation({
+      title:'Excluir '+type+'?',
+      description:'“'+item.titulo+'” será excluído permanentemente. Esta ação não pode ser desfeita.'
+    });
+    if(!confirmed||state.currentId!==taskId)return;
+    busy(null,true);
+    try{
+      const table=scenario?'qa_cenarios':'qa_diagramas';
+      const {error}=await db.from(table).delete().eq('id',id).eq('tarefa_id',taskId);
+      if(error)throw error;
+      await refreshRecordList(scenario?'scenario':'diagram',taskId);
+      toast(scenario?'Cenário excluído.':'Diagrama excluído.');
+    }catch(error){toast(errMessage(error),true)}
+    finally{busy(null,false)}
   }
 });
 $('#task-form').addEventListener('submit',async (event)=>{
@@ -603,7 +698,12 @@ $('#task-form').addEventListener('submit',async (event)=>{
 });
 $('#delete-task').addEventListener('click',async()=>{
   const id=state.currentId;if(!id) return;
-  if(!confirm('Excluir esta TF e TODOS os seus cenários e diagramas? Esta ação não pode ser desfeita.'))return;
+  if(state.isBusy)return;
+  const confirmed=await askRecordConfirmation({
+    title:'Excluir esta TF?',
+    description:'A TF e todos os seus cenários e diagramas serão excluídos permanentemente. Esta ação não pode ser desfeita.'
+  });
+  if(!confirmed||state.currentId!==id)return;
   const {error}=await db.from('qa_tarefas').delete().eq('id',id);
   if(error)return toast(errMessage(error),true);
   clearFormDirty();
@@ -611,11 +711,7 @@ $('#delete-task').addEventListener('click',async()=>{
   location.hash='#/tarefas';toast('Tarefa excluída.');
 });
 $('#add-scenario').addEventListener('click',()=>openScenario());
-$('#cancel-scenario').addEventListener('click',()=>{
-  if(!confirmDetailDiscard('scenario-form')) return;
-  setFormDirty('scenario-form',false);
-  $('#scenario-form').hidden=true;
-});
+$('#cancel-scenario').addEventListener('click',()=>void closeRecordEditor('scenario'));
 $('#scenario-form').addEventListener('submit',async event=>{
   event.preventDefault();if(state.isBusy)return;
   const form=event.currentTarget;
@@ -630,8 +726,10 @@ $('#scenario-form').addEventListener('submit',async event=>{
       await db.from('qa_cenarios').insert({...values,tarefa_id:state.currentId,user_id:state.user.id});
     if(result.error)throw result.error;
     setFormDirty('scenario-form',false);
-    await refreshAfterSave(state.currentId);
-    selectTab('cenarios');toast('Cenário salvo.');
+    $('#scenario-dialog').close();
+    form.hidden=true;
+    await refreshRecordList('scenario',state.currentId);
+    toast(id?'Cenário atualizado.':'Cenário criado.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
 $$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
@@ -686,11 +784,7 @@ $('#diagram-generate').addEventListener('click',async()=>{
   }finally{progress.hidden=true;busy(button,false);}
 });
 $('#add-diagram').addEventListener('click',()=>openDiagram());
-$('#cancel-diagram').addEventListener('click',()=>{
-  if(!confirmDetailDiscard('diagram-form')) return;
-  setFormDirty('diagram-form',false);
-  $('#diagram-form').hidden=true;
-});
+$('#cancel-diagram').addEventListener('click',()=>void closeRecordEditor('diagram'));
 $('#preview-diagram').addEventListener('click',()=>previewMermaid($('#diagram-source').value,$('#diagram-preview')));
 $('#zoom-diagram-preview').addEventListener('click',async()=>{
   const code=$('#diagram-source').value;
@@ -709,8 +803,10 @@ $('#diagram-form').addEventListener('submit',async event=>{
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
     if(result.error)throw result.error;
     setFormDirty('diagram-form',false);
-    await refreshAfterSave(state.currentId);
-    selectTab('diagramas');toast('Diagrama salvo.');
+    $('#diagram-dialog').close();
+    form.hidden=true;
+    await refreshRecordList('diagram',state.currentId);
+    toast(id?'Diagrama atualizado.':'Diagrama criado.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
 

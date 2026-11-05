@@ -305,9 +305,63 @@ CENÁRIO 1 - Incluir produto
       assert.equal(await page.locator('#task-public-link').isVisible(),false);
     }
     if(width===390||width===1366){
+      // Scenario actions open dialogs without resetting the active tab or
+      // scrolling down to forms appended after the TF.
+      await page.locator('#tab-btn-cenarios').click();
+      const selectedBefore=await page.locator('#tab-btn-cenarios').getAttribute('aria-selected');
+      assert.equal(selectedBefore,'true');
+      await page.locator('[data-edit-scenario]').first().click();
+      await page.locator('#scenario-dialog').waitFor({state:'visible'});
+      assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+      assert.equal(await page.locator('#scenario-dialog').evaluate(el=>el.open),true);
+      assert.equal(await page.locator('#scenario-form').isVisible(),true);
+      await page.locator('#scenario-form input[name="titulo"]').fill('Cenário alterado e revisado');
+      await page.locator('#cancel-scenario').click();
+      await page.locator('#record-confirm-dialog').waitFor({state:'visible'});
+      assert.match(await page.locator('#record-confirm-title').innerText(),/Descartar/);
+      await page.locator('#record-confirm-cancel').click();
+      assert.equal(await page.locator('#scenario-dialog').evaluate(el=>el.open),true);
+      await page.locator('#cancel-scenario').click();
+      await page.locator('#record-confirm-accept').click();
+      await page.locator('#scenario-dialog').waitFor({state:'hidden'});
+      assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+
+      await page.locator('[data-edit-scenario]').first().click();
+      await page.locator('#scenario-form input[name="titulo"]').fill('Cenário editado por modal');
+      await page.locator('#scenario-form button[type="submit"]').click();
+      await page.locator('#scenario-dialog').waitFor({state:'hidden'});
+      assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+      assert.match(await page.locator('#scenarios-list').innerText(),/Cenário editado por modal/);
+
+      await page.locator('[data-delete-scenario]').first().click();
+      await page.locator('#record-confirm-dialog').waitFor({state:'visible'});
+      assert.match(await page.locator('#record-confirm-title').innerText(),/Excluir cenário/);
+      await page.locator('#record-confirm-cancel').click();
+      assert.equal(await page.locator('#scenarios-number').innerText(),'1');
+      await page.locator('[data-delete-scenario]').first().click();
+      await page.locator('#record-confirm-accept').click();
+      await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='0');
+      assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+      assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
+      assert.equal(await page.locator('#tab-resumo').isVisible(),false);
+
+      await page.locator('#add-scenario').click();
+      await page.locator('#scenario-dialog').waitFor({state:'visible'});
+      await page.locator('#scenario-form input[name="titulo"]').fill('Cenário novo no modal');
+      await page.locator('#scenario-form textarea[name="passos"]').fill('1. Abrir tela de vendas');
+      await page.locator('#scenario-form button[type="submit"]').click();
+      await page.locator('#scenario-dialog').waitFor({state:'hidden'});
+      await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='1');
+      assert.match(await page.locator('#scenarios-list').innerText(),/Cenário novo no modal/);
+      assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
+      await page.screenshot({path:'artifacts/ui/scenario-modal-workflow-'+width+'.png',fullPage:true});
+    }
+    if(width===390||width===1366){
       await page.locator('#tab-btn-diagramas').click();
       await page.locator('#add-diagram').click();
       await page.locator('#diagram-form').waitFor({state:'visible'});
+      await page.locator('#diagram-dialog').waitFor({state:'visible'});
+      assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
       assert.equal(await page.locator('#diagram-ai-text-wrap').isVisible(),false);
       if(width===390){
         await page.locator('input[name="diagram-ai-origin"][value="text"]').check();
@@ -326,10 +380,25 @@ CENÁRIO 1 - Incluir produto
       await page.locator('[data-viewer="fit"]').click();
       await page.locator('[data-viewer="close"]').click();
       await page.locator('#diagram-form button[type="submit"]').click();
+      await page.locator('#diagram-dialog').waitFor({state:'hidden'});
       await page.waitForFunction(()=>document.querySelector('#diagrams-number').textContent==='1');
+      assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
       await page.locator('[data-zoom-diagram]').click();
       await page.locator('#diagram-viewer').waitFor({state:'visible'});
       await page.locator('[data-viewer="close"]').click();
+
+      await page.locator('[data-edit-diagram]').click();
+      await page.locator('#diagram-dialog').waitFor({state:'visible'});
+      await page.locator('#diagram-form input[name="titulo"]').fill('Fluxo atualizado no modal');
+      await page.locator('#diagram-form button[type="submit"]').click();
+      await page.locator('#diagram-dialog').waitFor({state:'hidden'});
+      assert.match(await page.locator('#diagrams-list').innerText(),/Fluxo atualizado no modal/);
+      assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
+      await page.locator('[data-delete-diagram]').click();
+      await page.locator('#record-confirm-dialog').waitFor({state:'visible'});
+      await page.locator('#record-confirm-accept').click();
+      await page.waitForFunction(()=>document.querySelector('#diagrams-number').textContent==='0');
+      assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
     }
     await page.locator('#sidebar .navigation a[data-route="tarefas"]').evaluate(el=>el.click());
     await page.locator('#view-tarefas').waitFor({state:'visible'});
