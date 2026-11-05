@@ -68,14 +68,17 @@ function escapeDownload(data, name) {
 }
 
 async function loadData() {
-  const [tasksResult, scenariosResult] = await Promise.all([
+  const [tasksResult, scenariosResult, adminResult] = await Promise.all([
     db.from('qa_tarefas').select('*').order('executado_em', { ascending:false }).limit(1000),
-    db.from('qa_cenarios').select('id,tarefa_id,status').limit(3000)
+    db.from('qa_cenarios').select('id,tarefa_id,status').limit(3000),
+    db.from('qa_admins').select('user_id').eq('user_id',state.user.id).maybeSingle()
   ]);
   if (tasksResult.error) throw tasksResult.error;
   if (scenariosResult.error) throw scenariosResult.error;
   state.tasks = tasksResult.data || [];
   state.scenarioStats = scenariosResult.data || [];
+  state.isAdmin = !adminResult.error && Boolean(adminResult.data);
+  $('#user-role').textContent = state.isAdmin ? 'Administrador' : 'Testador';
   renderDashboard();
   renderTasks();
 }
