@@ -76,7 +76,8 @@ test('limita tamanho e número de cenários', () => {
   assert.throws(() => parseReport('a'.repeat(200001)), /200.000/);
   const many = 'O QUE FOI TESTADO:\nVALIDAÇÃO\nCENÁRIOS TESTADOS:\n' +
     Array.from({length:120},(_,i) => 'CENÁRIO ' + (i+1) + ' - CASO ' + (i+1) + '\n- PASSO\n').join('');
-  assert.equal(parseReport(many).cenarios.length,100);
+  // A confirmação pré-salvamento usa o mesmo limite de 50 itens do assistente.
+  assert.equal(parseReport(many).cenarios.length,50);
 });
 
 test('não transforma o texto narrativo da TF Repetir na Venda em cenários',()=>{
