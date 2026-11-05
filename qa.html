@@ -185,6 +185,14 @@
                   <label class="top-gap">Observações adicionais <textarea name="observacoes" rows="3" placeholder="Ressalvas e comportamentos conhecidos"></textarea></label>
                 </details>
               </section>
+              <section id="draft-scenario-review" class="panel draft-scenario-review" hidden aria-labelledby="draft-scenario-title">
+                <div class="draft-scenario-header">
+                  <h2 id="draft-scenario-title">Casos de teste encontrados</h2>
+                  <p>Marque somente os que foram realmente testados. Itens desmarcados não serão gravados.</p>
+                </div>
+                <div id="draft-scenario-list" class="draft-scenario-list" role="group" aria-label="Confirmar casos de teste"></div>
+                <p id="draft-scenario-count" class="muted fine" aria-live="polite"></p>
+              </section>
               <div class="task-form-footer">
                 <button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button>
                 <div class="task-footer-actions">
