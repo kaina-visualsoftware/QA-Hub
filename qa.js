@@ -9,7 +9,7 @@ const callbackErrorCode = location.hash.startsWith('#error=')
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
-const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false };
+const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
@@ -27,13 +27,33 @@ function toast(message, error = false) {
   const node = $('#toast');
   node.textContent = message;
   node.classList.toggle('error', error);
+  node.setAttribute('role', error ? 'alert' : 'status');
+  node.setAttribute('aria-live', error ? 'assertive' : 'polite');
   node.hidden = false;
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => { node.hidden = true; }, 6500);
 }
 function busy(button, active) {
   state.isBusy = active;
-  if (button) button.disabled = active;
+  if (button) {
+    button.disabled = active;
+    button.setAttribute('aria-busy', String(active));
+  }
+}
+function setFormDirty(formId, dirty = true) {
+  if (dirty) state.dirtyForms.add(formId);
+  else state.dirtyForms.delete(formId);
+  $('#save-status').hidden = state.dirtyForms.size === 0;
+}
+function clearFormDirty() {
+  state.dirtyForms.clear();
+  $('#save-status').hidden = true;
+}
+function confirmDiscard(message = 'Você possui alterações não salvas. Deseja descartá-las?') {
+  return state.dirtyForms.size === 0 || window.confirm(message);
+}
+function confirmDetailDiscard(formId) {
+  return !state.dirtyForms.has(formId) || window.confirm('Há alterações não salvas neste formulário. Deseja descartá-las?');
 }
 function showAuth() {
   $('#shell').hidden = true;
@@ -132,8 +152,15 @@ function renderTasks() {
     (!query || [t.titulo,t.codigo,t.sistema,t.versao,t.descricao].some(v => String(v ?? '').toLocaleLowerCase('pt-BR').includes(query))) &&
     (!status || t.status === status) && (!type || t.tipo_teste === type)
   );
+  const hasFilters = Boolean(query || status || type);
+  const emptyWithFilters = '<div class="empty"><strong>Nenhum resultado para estes filtros</strong>' +
+    '<p>Altere a pesquisa ou limpe os filtros para ver outras TFs.</p>' +
+    '<button type="button" class="btn soft" data-clear-filters>Limpar filtros</button></div>';
+  const emptyWithoutFilters = '<div class="empty"><strong>Nenhuma TF cadastrada</strong>' +
+    '<p>Cadastre seu primeiro teste ou importe um relatório existente.</p>' +
+    '<button type="button" class="btn primary" data-new-task>Criar primeira TF</button></div>';
   $('#task-list').innerHTML = list.length ? list.map(taskItem).join('') :
-    '<div class="empty"><strong>Nenhuma TF encontrada</strong>Experimente remover algum filtro ou cadastrar seu primeiro teste.<br><button type="button" class="btn soft" data-new-task>Nova TF</button></div>';
+    (hasFilters ? emptyWithFilters : emptyWithoutFilters);
   $('#task-count').textContent = list.length + ' tarefa(s) na lista' + (state.tasks.length >= 1000 ? ' · primeiros 1.000 registros' : '');
 }
 function renderDashboard() {
@@ -168,7 +195,7 @@ function setView(name) {
   $$('.navigation a[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route===name));
   const crumbs = {dashboard:'Visão geral',tarefas:'Tarefas de teste',editor:'Detalhes da TF'};
   $('#breadcrumb').textContent = crumbs[name] || 'QA Hub';
-  $('#sidebar').classList.remove('open');
+  setSidebar(false);
 }
 function selectTab(name) {
   for (const tab of ['resumo','cenarios','diagramas']) {
@@ -177,11 +204,18 @@ function selectTab(name) {
     const button = $('[data-tab="'+tab+'"]');
     button.classList.toggle('active',selected);
     button.setAttribute('aria-selected',String(selected));
+    button.tabIndex = selected ? 0 : -1;
   }
 }
 async function route() {
   if (!state.user) return;
   const hash = decodeURIComponent(location.hash || '#/dashboard');
+  if (hash !== state.activeHash && !confirmDiscard()) {
+    history.replaceState(null, '', location.pathname + location.search + (state.activeHash || '#/dashboard'));
+    return;
+  }
+  if (hash !== state.activeHash) clearFormDirty();
+  state.activeHash = hash;
   if (hash === '#/tarefas') { setView('tarefas'); return; }
   if (hash === '#/nova') { openNewTask(); return; }
   if (hash.startsWith('#/tarefa/')) {
@@ -194,6 +228,7 @@ async function route() {
   setView('dashboard');
 }
 function openNewTask() {
+  clearFormDirty();
   state.currentId = null;
   state.scenarios = []; state.diagrams = [];
   $('#task-form').reset();
@@ -212,6 +247,7 @@ function openNewTask() {
 async function openTask(id) {
   const task = state.tasks.find(t=>t.id === id);
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
+  clearFormDirty();
   state.currentId = id;
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
@@ -254,6 +290,8 @@ function renderDiagrams() {
 }
 function openScenario(s=null) {
   if (!state.currentId) return toast('Salve a TF primeiro.',true);
+  if(!confirmDetailDiscard('scenario-form')) return;
+  setFormDirty('scenario-form', false);
   const form=$('#scenario-form');
   form.reset();
   form.elements.id.value=s?.id||'';
@@ -265,6 +303,8 @@ function openScenario(s=null) {
 }
 function openDiagram(d=null) {
   if (!state.currentId) return toast('Salve a TF primeiro.',true);
+  if(!confirmDetailDiscard('diagram-form')) return;
+  setFormDirty('diagram-form', false);
   const form=$('#diagram-form');
   form.reset();
   form.elements.id.value=d?.id||'';
@@ -344,18 +384,86 @@ $('#resend-confirmation').addEventListener('click', async () => {
   } catch(e) { toast(errMessage(e),true); }
   finally { busy(button,false); }
 });
-$('#logout').addEventListener('click',async()=>{const {error}=await db.auth.signOut(); if(error)toast(errMessage(error),true);else location.hash='#/dashboard';});
-$('#menu-button').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
-$('#new-task').addEventListener('click',()=>{location.hash='#/nova'; openNewTask();});
+$('#logout').addEventListener('click',async()=>{
+  if (!confirmDiscard('Existem alterações não salvas. Deseja sair mesmo assim?')) return;
+  clearFormDirty();
+  const {error}=await db.auth.signOut();
+  if(error)toast(errMessage(error),true);else location.hash='#/dashboard';
+});
+const mobileMenu = window.matchMedia('(max-width: 800px)');
+function setSidebar(open) {
+  const expanded = mobileMenu.matches && open;
+  $('#sidebar').classList.toggle('open', expanded);
+  $('#sidebar').inert = mobileMenu.matches && !expanded;
+  $('#sidebar-backdrop').hidden = !expanded;
+  $('#menu-button').setAttribute('aria-expanded', String(expanded));
+  $('#menu-button').setAttribute('aria-label', expanded ? 'Fechar menu' : 'Abrir menu');
+  document.body.classList.toggle('mobile-nav-open', expanded);
+}
+$('#menu-button').addEventListener('click',()=>{
+  const open = $('#menu-button').getAttribute('aria-expanded') !== 'true';
+  setSidebar(open);
+  if(open) $('#sidebar .navigation a').focus();
+});
+$('#sidebar-backdrop').addEventListener('click',()=>{
+  setSidebar(false);
+  $('#menu-button').focus();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key === 'Escape' && $('#menu-button').getAttribute('aria-expanded') === 'true'){
+    setSidebar(false);
+    $('#menu-button').focus();
+  }
+});
+mobileMenu.addEventListener('change',()=>setSidebar(false));
+setSidebar(false);
+function navigateNewTask() {
+  if(location.hash === '#/nova') {
+    if(!confirmDiscard()) return;
+    clearFormDirty();
+    openNewTask();
+  } else location.hash = '#/nova';
+}
+$('#new-task').addEventListener('click',navigateNewTask);
 $('#task-search').addEventListener('input',renderTasks);
 $('#filter-status').addEventListener('change',renderTasks);
 $('#filter-type').addEventListener('change',renderTasks);
 window.addEventListener('hashchange',()=>route().catch(e=>toast(errMessage(e),true)));
-$$('[data-tab]').forEach(button=>button.addEventListener('click',()=>selectTab(button.dataset.tab)));
+$$('[data-tab]').forEach(button=>{
+  button.addEventListener('click',()=>selectTab(button.dataset.tab));
+  button.addEventListener('keydown',event=>{
+    const keys=['ArrowLeft','ArrowRight','Home','End'];
+    if(!keys.includes(event.key)) return;
+    event.preventDefault();
+    const tabs=$$('[data-tab]');
+    const position=tabs.indexOf(button);
+    const next=event.key==='Home' ? 0 : event.key==='End' ? tabs.length-1 :
+      (position + (event.key==='ArrowRight'?1:-1) + tabs.length) % tabs.length;
+    selectTab(tabs[next].dataset.tab);
+    tabs[next].focus();
+  });
+});
+for(const id of ['task-form','scenario-form','diagram-form']){
+  const form=$('#'+id);
+  form.addEventListener('input',()=>setFormDirty(id));
+  form.addEventListener('change',()=>setFormDirty(id));
+}
+window.addEventListener('beforeunload',event=>{
+  if(state.dirtyForms.size===0) return;
+  event.preventDefault();
+  event.returnValue='';
+});
 document.addEventListener('click',async (event)=>{
   const target=event.target.closest('button');
   if(!target) return;
-  if(target.matches('[data-new-task]')) {location.hash='#/nova';openNewTask();}
+  if(target.matches('[data-new-task]')) navigateNewTask();
+  if(target.matches('[data-clear-filters]')){
+    $('#task-search').value='';
+    $('#filter-status').value='';
+    $('#filter-type').value='';
+    renderTasks();
+    $('#task-search').focus();
+  }
   const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
   const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram;
   if(editScenario) openScenario(state.scenarios.find(s=>s.id===editScenario));
@@ -393,6 +501,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
     }
     if(result.error) throw result.error;
     const id=result.data.id;
+    setFormDirty('task-form',false);
     await refreshAfterSave(id);
     location.hash='#/tarefa/'+id;
     toast('Tarefa salva com sucesso.');
@@ -403,11 +512,16 @@ $('#delete-task').addEventListener('click',async()=>{
   if(!confirm('Excluir esta TF e TODOS os seus cenários e diagramas? Esta ação não pode ser desfeita.'))return;
   const {error}=await db.from('qa_tarefas').delete().eq('id',id);
   if(error)return toast(errMessage(error),true);
+  clearFormDirty();
   state.currentId=null;await refreshAfterSave(null);
   location.hash='#/tarefas';toast('Tarefa excluída.');
 });
 $('#add-scenario').addEventListener('click',()=>openScenario());
-$('#cancel-scenario').addEventListener('click',()=>$('#scenario-form').hidden=true);
+$('#cancel-scenario').addEventListener('click',()=>{
+  if(!confirmDetailDiscard('scenario-form')) return;
+  setFormDirty('scenario-form',false);
+  $('#scenario-form').hidden=true;
+});
 $('#scenario-form').addEventListener('submit',async event=>{
   event.preventDefault();if(state.isBusy)return;
   const form=event.currentTarget;
@@ -421,12 +535,17 @@ $('#scenario-form').addEventListener('submit',async event=>{
     const result=id?await db.from('qa_cenarios').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_cenarios').insert({...values,tarefa_id:state.currentId,user_id:state.user.id});
     if(result.error)throw result.error;
+    setFormDirty('scenario-form',false);
     await refreshAfterSave(state.currentId);
     selectTab('cenarios');toast('Cenário salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
 $('#add-diagram').addEventListener('click',()=>openDiagram());
-$('#cancel-diagram').addEventListener('click',()=>$('#diagram-form').hidden=true);
+$('#cancel-diagram').addEventListener('click',()=>{
+  if(!confirmDetailDiscard('diagram-form')) return;
+  setFormDirty('diagram-form',false);
+  $('#diagram-form').hidden=true;
+});
 $('#preview-diagram').addEventListener('click',()=>previewMermaid($('#diagram-source').value,$('#diagram-preview')));
 $('#diagram-form').addEventListener('submit',async event=>{
   event.preventDefault();if(state.isBusy)return;
@@ -439,6 +558,7 @@ $('#diagram-form').addEventListener('submit',async event=>{
     const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
     if(result.error)throw result.error;
+    setFormDirty('diagram-form',false);
     await refreshAfterSave(state.currentId);
     selectTab('diagramas');toast('Diagrama salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
