@@ -1,0 +1,467 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
+import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
+import { QA_CONFIG } from './qa-config.js';
+
+const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false };
+const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
+const taskFields = ['codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
+const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
+const dateToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+const formatDate = (v) => v ? new Date(v + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+const statusBadge = (v) => '<span class="status ' + esc(v) + '">' + esc(statuses[v] || v) + '</span>';
+const errMessage = (err) => {
+  if (!err) return 'Erro não identificado';
+  if (err.code === '42P01' || err.code === 'PGRST205') return 'As tabelas do QA Hub ainda não foram criadas neste projeto Supabase. Execute supabase/schema.sql.';
+  return err.message || String(err);
+};
+let toastTimeout;
+function toast(message, error = false) {
+  const node = $('#toast');
+  node.textContent = message;
+  node.classList.toggle('error', error);
+  node.hidden = false;
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { node.hidden = true; }, 6500);
+}
+function busy(button, active) {
+  state.isBusy = active;
+  if (button) button.disabled = active;
+}
+function showAuth() {
+  $('#shell').hidden = true;
+  $('#auth-screen').hidden = false;
+}
+function showApp() {
+  $('#auth-screen').hidden = true;
+  $('#shell').hidden = false;
+  $('#user-email').textContent = state.user?.email || 'Usuário';
+}
+function inputValues(form, fields) {
+  const data = Object.fromEntries(new FormData(form));
+  const values = {};
+  for (const key of fields) {
+    values[key] = typeof data[key] === 'string' ? data[key].trim() : '';
+  }
+  return values;
+}
+function setForm(form, fields, values) {
+  for (const key of fields) {
+    if (!form.elements.namedItem(key)) continue;
+    let value = values[key] ?? '';
+    if (value === true) value = 'true';
+    if (value === false) value = 'false';
+    form.elements.namedItem(key).value = String(value);
+  }
+}
+function nullableBool(v) { return v === 'true' ? true : v === 'false' ? false : null; }
+function escapeDownload(data, name) {
+  const blob = new Blob([data], { type:'application/json;charset=utf-8' });
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = href; anchor.download = name; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(href), 500);
+}
+
+async function loadData() {
+  const [tasksResult, scenariosResult] = await Promise.all([
+    db.from('qa_tarefas').select('*').order('executado_em', { ascending:false }).limit(1000),
+    db.from('qa_cenarios').select('id,tarefa_id,status').limit(3000)
+  ]);
+  if (tasksResult.error) throw tasksResult.error;
+  if (scenariosResult.error) throw scenariosResult.error;
+  state.tasks = tasksResult.data || [];
+  state.scenarioStats = scenariosResult.data || [];
+  renderDashboard();
+  renderTasks();
+}
+async function start() {
+  try {
+    const { data, error } = await db.auth.getSession();
+    if (error) throw error;
+    state.user = data.session?.user || null;
+    if (!state.user) { showAuth(); return; }
+    showApp();
+    await loadData();
+    await route();
+  } catch(e) {
+    console.error('QA Hub:', e);
+    if (state.user) { showApp(); await route(); }
+    else showAuth();
+    toast(errMessage(e), true);
+  }
+}
+db.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') { state.user = null; state.tasks = []; state.scenarioStats = []; showAuth(); }
+});
+
+function taskItem(task) {
+  const scenarios = state.scenarioStats.filter(s => s.tarefa_id === task.id);
+  const prefix = task.codigo ? task.codigo.slice(0,5) : 'TF';
+  return '<div class="task-item"><a href="#/tarefa/' + encodeURIComponent(task.id) + '">' +
+    '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
+    '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
+    scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
+    '</small></span></a>' + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
+}
+function renderTasks() {
+  const query = $('#task-search').value.toLocaleLowerCase('pt-BR').trim();
+  const status = $('#filter-status').value;
+  const type = $('#filter-type').value;
+  const list = state.tasks.filter(t =>
+    (!query || [t.titulo,t.codigo,t.sistema,t.versao,t.descricao].some(v => String(v ?? '').toLocaleLowerCase('pt-BR').includes(query))) &&
+    (!status || t.status === status) && (!type || t.tipo_teste === type)
+  );
+  $('#task-list').innerHTML = list.length ? list.map(taskItem).join('') :
+    '<div class="empty"><strong>Nenhuma TF encontrada</strong>Experimente remover algum filtro ou cadastrar seu primeiro teste.<br><button type="button" class="btn soft" data-new-task>Nova TF</button></div>';
+  $('#task-count').textContent = list.length + ' tarefa(s) na lista' + (state.tasks.length >= 1000 ? ' · primeiros 1.000 registros' : '');
+}
+function renderDashboard() {
+  const tasks = state.tasks, scenarios = state.scenarioStats;
+  $('#stat-tasks').textContent = tasks.length;
+  $('#stat-scenarios').textContent = scenarios.length;
+  $('#stat-approved').textContent = tasks.filter(t => t.status === 'aprovado').length;
+  $('#stat-failed').textContent = tasks.filter(t => t.status === 'reprovado' || t.status === 'bloqueado').length;
+  $('#dashboard-date').textContent = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  $('#recent-list').innerHTML = tasks.length ? tasks.slice(0,5).map(taskItem).join('') :
+    '<div class="empty"><strong>Ainda não há tarefas registradas</strong>Cadastre uma TF ou importe um relatório para começar.<br><button type="button" class="btn soft" data-new-task>Cadastrar primeira TF</button></div>';
+
+  const keys = ['aprovado','em_teste','rascunho','reprovado','bloqueado'];
+  const values = keys.map(key => tasks.filter(t => t.status === key).length);
+  const colors = ['#159879','#4488ba','#aab4bb','#d25b67','#d7a14c'];
+  if (state.chart) state.chart.destroy();
+  const ctx = $('#status-chart').getContext('2d');
+  state.chart = new Chart(ctx,{type:'doughnut',
+    data:{ labels:keys.map(k=>statuses[k]), datasets:[{data:values,backgroundColor:colors,borderWidth:4,borderColor:'#fff',hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{position:'right',labels:{boxWidth:10,boxHeight:10,padding:16,font:{size:12}}}}}
+  });
+  const passed = state.scenarioStats.filter(s=>s.status==='aprovado').length;
+  const failed = state.scenarioStats.filter(s=>s.status==='reprovado').length;
+  $('#chart-summary').textContent = scenarios.length + ' cenários registrados · ' + passed + ' aprovados · ' + failed + ' reprovados.';
+  const types = {BUILD:tasks.filter(t=>t.tipo_teste==='BUILD').length,RELEASE:tasks.filter(t=>t.tipo_teste==='RELEASE').length};
+  $('#types-chart').innerHTML = Object.entries(types).map(([key,n]) =>
+    '<div class="type-row"><div class="type-label"><span>'+key+'</span><span>'+n+' TF(s)</span></div><div class="type-track"><span style="width:'+
+    (tasks.length ? Math.round(n/tasks.length*100) : 0)+'%"></span></div></div>').join('');
+}
+function setView(name) {
+  $$('.view').forEach(node => { node.hidden = node.id !== 'view-'+name; });
+  $$('.navigation a[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route===name));
+  const crumbs = {dashboard:'Visão geral',tarefas:'Tarefas de teste',editor:'Detalhes da TF'};
+  $('#breadcrumb').textContent = crumbs[name] || 'QA Hub';
+  $('#sidebar').classList.remove('open');
+}
+function selectTab(name) {
+  for (const tab of ['resumo','cenarios','diagramas']) {
+    const selected = name === tab;
+    $('#tab-'+tab).hidden = !selected;
+    const button = $('[data-tab="'+tab+'"]');
+    button.classList.toggle('active',selected);
+    button.setAttribute('aria-selected',String(selected));
+  }
+}
+async function route() {
+  if (!state.user) return;
+  const hash = decodeURIComponent(location.hash || '#/dashboard');
+  if (hash === '#/tarefas') { setView('tarefas'); return; }
+  if (hash === '#/nova') { openNewTask(); return; }
+  if (hash.startsWith('#/tarefa/')) {
+    const id = hash.slice('#/tarefa/'.length);
+    if (id !== state.currentId || !state.tasks.some(t=>t.id===id)) {
+      await openTask(id);
+    } else setView('editor');
+    return;
+  }
+  setView('dashboard');
+}
+function openNewTask() {
+  state.currentId = null;
+  state.scenarios = []; state.diagrams = [];
+  $('#task-form').reset();
+  $('#task-form').elements.executado_em.value = dateToday();
+  $('#editor-kicker').textContent = 'NOVO REGISTRO';
+  $('#editor-title').textContent = 'Nova tarefa de teste';
+  $('#editor-caption').textContent = 'Salve a TF para habilitar o cadastro de cenários e diagramas.';
+  $('#delete-task').hidden = true;
+  $('#scenario-form').hidden = true;
+  $('#diagram-form').hidden = true;
+  $('#scenarios-list').innerHTML = '<div class="empty">Salve a TF antes de cadastrar cenários.</div>';
+  $('#diagrams-list').innerHTML = '<div class="empty">Salve a TF antes de cadastrar diagramas.</div>';
+  $('#scenarios-number').textContent = '0'; $('#diagrams-number').textContent = '0';
+  selectTab('resumo'); setView('editor');
+}
+async function openTask(id) {
+  const task = state.tasks.find(t=>t.id === id);
+  if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
+  state.currentId = id;
+  $('#task-form').reset();
+  setForm($('#task-form'),taskFields,task);
+  $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
+  $('#editor-title').textContent = task.titulo;
+  $('#editor-caption').textContent = (task.tipo_teste||'') + ' · ' + (task.versao||'Sem versão') + ' · Atualizada ' + formatDate(task.executado_em);
+  $('#delete-task').hidden = false;
+  $('#scenario-form').hidden = true; $('#diagram-form').hidden = true;
+  selectTab('resumo'); setView('editor');
+  try {
+    const [s,d] = await Promise.all([
+      db.from('qa_cenarios').select('*').eq('tarefa_id',id).order('ordem',{ascending:true}),
+      db.from('qa_diagramas').select('*').eq('tarefa_id',id).order('created_at',{ascending:true})
+    ]);
+    if(s.error) throw s.error;
+    if(d.error) throw d.error;
+    if (state.currentId !== id) return;
+    state.scenarios=s.data||[]; state.diagrams=d.data||[];
+    renderScenarios(); renderDiagrams();
+  } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
+}
+function renderScenarios() {
+  $('#scenarios-number').textContent = state.scenarios.length;
+  $('#scenarios-list').innerHTML = state.scenarios.length ? state.scenarios.map((s,i)=>
+    '<article class="scenario-card"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
+    esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+'" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button></div></header>'+
+    '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
+    (s.passos?'<p class="field-label">Passos executados</p><p class="scenario-content">'+esc(s.passos)+'</p>':'')+
+    (s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'')+
+    (s.obtido?'<p class="field-label">Resultado obtido</p><p class="scenario-content">'+esc(s.obtido)+'</p>':'')+
+    (s.observacoes?'<p class="field-label">Observações</p><p class="scenario-content">'+esc(s.observacoes)+'</p>':'')+
+    '</article>').join('') :
+    '<div class="empty"><strong>Sem cenários cadastrados</strong>Adicione seus passos e resultados individualmente.</div>';
+}
+function renderDiagrams() {
+  $('#diagrams-number').textContent = state.diagrams.length;
+  $('#diagrams-list').innerHTML = state.diagrams.length ? state.diagrams.map(d=>
+    '<article class="diagram-card"><header><h3>'+esc(d.titulo)+'</h3><div class="card-actions"><button type="button" data-show-diagram="'+esc(d.id)+'">Visualizar</button><button type="button" data-edit-diagram="'+esc(d.id)+'">Editar</button><button type="button" data-delete-diagram="'+esc(d.id)+'">Excluir</button></div></header><pre>'+esc(d.conteudo)+'</pre><div class="diagram-render" data-diagram-target="'+esc(d.id)+'"></div></article>').join('') :
+    '<div class="empty"><strong>Nenhum diagrama por enquanto</strong>Use Mermaid para explicar processos, fluxos ou decisões.</div>';
+}
+function openScenario(s=null) {
+  if (!state.currentId) return toast('Salve a TF primeiro.',true);
+  const form=$('#scenario-form');
+  form.reset();
+  form.elements.id.value=s?.id||'';
+  if(s) setForm(form,scenarioFields,s);
+  else form.elements.ordem.value=(Math.max(0,...state.scenarios.map(item=>item.ordem))+1).toString();
+  $('#scenario-form-title').textContent=s?'Editar cenário':'Novo cenário';
+  form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
+  form.elements.titulo.focus();
+}
+function openDiagram(d=null) {
+  if (!state.currentId) return toast('Salve a TF primeiro.',true);
+  const form=$('#diagram-form');
+  form.reset();
+  form.elements.id.value=d?.id||'';
+  form.elements.titulo.value=d?.titulo||'';
+  form.elements.conteudo.value=d?.conteudo||'flowchart TD\n  A[Início] --> B{Condição}\n  B -->|Sim| C[Resultado]\n  B -->|Não| D[Alternativa]';
+  $('#diagram-form-title').textContent=d?'Editar diagrama':'Novo diagrama';
+  $('#diagram-preview').textContent='Clique em Visualizar para gerar o diagrama.';
+  form.hidden=false; form.scrollIntoView({behavior:'smooth',block:'start'});
+  form.elements.titulo.focus();
+}
+async function previewMermaid(text, target) {
+  target.replaceChildren();
+  if(!text.trim()){target.textContent='Informe o código do diagrama.';return;}
+  if(text.length>16000){target.textContent='O diagrama excede 16.000 caracteres.';return;}
+  try {
+    const {default:mermaid} = await import('https://esm.sh/mermaid@12.3.0');
+    mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'neutral',maxTextSize:16000});
+    const id='qa-diagram-'+crypto.randomUUID().replaceAll('-','');
+    const {svg} = await mermaid.render(id,text);
+    // Mermaid renderiza e sanitiza o SVG quando securityLevel = strict.
+    target.innerHTML = svg;
+  } catch(e) { target.textContent='Erro no diagrama: '+errMessage(e); }
+}
+async function refreshAfterSave(id) {
+  await loadData();
+  if(id) await openTask(id);
+  else renderTasks();
+}
+
+$('#auth-toggle').addEventListener('click',()=>{
+  state.signingUp=!state.signingUp;
+  $('#auth-title').textContent=state.signingUp?'Criar uma conta':'Entrar na plataforma';
+  $('#auth-submit').textContent=state.signingUp?'Criar conta':'Entrar';
+  $('#auth-toggle').textContent=state.signingUp?'Já tenho uma conta':'Criar uma conta';
+  $('#auth-warning').hidden=true;
+});
+$('#auth-form').addEventListener('submit',async (event)=>{
+  event.preventDefault();
+  const button=$('#auth-submit'); busy(button,true);
+  try {
+    const email=$('#auth-email').value.trim(), password=$('#auth-password').value;
+    const result=state.signingUp ? await db.auth.signUp({email,password}) : await db.auth.signInWithPassword({email,password});
+    if(result.error) throw result.error;
+    if(state.signingUp && !result.data.session) {
+      const warning=$('#auth-warning');warning.hidden=false;warning.textContent='Conta criada. Confira o email para confirmar seu cadastro antes de entrar.';
+      return;
+    }
+    state.user=result.data.user;
+    $('#auth-password').value='';
+    showApp();
+    await loadData(); location.hash='#/dashboard'; await route();
+    toast('Acesso realizado.');
+  }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+});
+$('#logout').addEventListener('click',async()=>{const {error}=await db.auth.signOut(); if(error)toast(errMessage(error),true);else location.hash='#/dashboard';});
+$('#menu-button').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
+$('#new-task').addEventListener('click',()=>{location.hash='#/nova'; openNewTask();});
+$('#task-search').addEventListener('input',renderTasks);
+$('#filter-status').addEventListener('change',renderTasks);
+$('#filter-type').addEventListener('change',renderTasks);
+window.addEventListener('hashchange',()=>route().catch(e=>toast(errMessage(e),true)));
+$$('[data-tab]').forEach(button=>button.addEventListener('click',()=>selectTab(button.dataset.tab)));
+document.addEventListener('click',async (event)=>{
+  const target=event.target.closest('button');
+  if(!target) return;
+  if(target.matches('[data-new-task]')) {location.hash='#/nova';openNewTask();}
+  const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
+  const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram;
+  if(editScenario) openScenario(state.scenarios.find(s=>s.id===editScenario));
+  if(editDiagram) openDiagram(state.diagrams.find(d=>d.id===editDiagram));
+  if(showDiagram) {
+    const item=state.diagrams.find(d=>d.id===showDiagram);
+    const region=$('[data-diagram-target="'+showDiagram+'"]');
+    if(item && region) await previewMermaid(item.conteudo,region);
+  }
+  if(deleteScenario && confirm('Excluir este cenário?')) {
+    const {error}=await db.from('qa_cenarios').delete().eq('id',deleteScenario).eq('tarefa_id',state.currentId);
+    if(error)toast(errMessage(error),true);else{toast('Cenário excluído.');await refreshAfterSave(state.currentId);}
+  }
+  if(deleteDiagram && confirm('Excluir este diagrama?')) {
+    const {error}=await db.from('qa_diagramas').delete().eq('id',deleteDiagram).eq('tarefa_id',state.currentId);
+    if(error)toast(errMessage(error),true);else{toast('Diagrama excluído.');await refreshAfterSave(state.currentId);}
+  }
+});
+$('#task-form').addEventListener('submit',async (event)=>{
+  event.preventDefault(); if(state.isBusy || !state.user) return;
+  const button=$('#save-task'),form=event.currentTarget;
+  if(!form.reportValidity()) return;
+  busy(button,true);
+  try {
+    const data=inputValues(form,taskFields);
+    data.erro_reproduzido=nullableBool(data.erro_reproduzido);
+    data.funcionando=nullableBool(data.funcionando);
+    data.executado_em ||= dateToday();
+    data.updated_at=new Date().toISOString();
+    let result;
+    if(state.currentId){
+      result=await db.from('qa_tarefas').update(data).eq('id',state.currentId).select().single();
+    }else{
+      result=await db.from('qa_tarefas').insert({...data,user_id:state.user.id}).select().single();
+    }
+    if(result.error) throw result.error;
+    const id=result.data.id;
+    await refreshAfterSave(id);
+    location.hash='#/tarefa/'+id;
+    toast('Tarefa salva com sucesso.');
+  }catch(e){toast('Falha ao salvar TF: '+errMessage(e),true)}finally{busy(button,false)}
+});
+$('#delete-task').addEventListener('click',async()=>{
+  const id=state.currentId;if(!id) return;
+  if(!confirm('Excluir esta TF e TODOS os seus cenários e diagramas? Esta ação não pode ser desfeita.'))return;
+  const {error}=await db.from('qa_tarefas').delete().eq('id',id);
+  if(error)return toast(errMessage(error),true);
+  state.currentId=null;await refreshAfterSave(null);
+  location.hash='#/tarefas';toast('Tarefa excluída.');
+});
+$('#add-scenario').addEventListener('click',()=>openScenario());
+$('#cancel-scenario').addEventListener('click',()=>$('#scenario-form').hidden=true);
+$('#scenario-form').addEventListener('submit',async event=>{
+  event.preventDefault();if(state.isBusy)return;
+  const form=event.currentTarget;
+  if(!form.reportValidity())return;
+  const button=form.querySelector('[type=submit]');busy(button,true);
+  try{
+    const values=inputValues(form,scenarioFields);
+    values.ordem=Math.max(0,Number(values.ordem)||0);
+    values.updated_at=new Date().toISOString();
+    const id=form.elements.id.value;
+    const result=id?await db.from('qa_cenarios').update(values).eq('id',id).eq('tarefa_id',state.currentId):
+      await db.from('qa_cenarios').insert({...values,tarefa_id:state.currentId,user_id:state.user.id});
+    if(result.error)throw result.error;
+    await refreshAfterSave(state.currentId);
+    selectTab('cenarios');toast('Cenário salvo.');
+  }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+});
+$('#add-diagram').addEventListener('click',()=>openDiagram());
+$('#cancel-diagram').addEventListener('click',()=>$('#diagram-form').hidden=true);
+$('#preview-diagram').addEventListener('click',()=>previewMermaid($('#diagram-source').value,$('#diagram-preview')));
+$('#diagram-form').addEventListener('submit',async event=>{
+  event.preventDefault();if(state.isBusy)return;
+  const form=event.currentTarget, button=form.querySelector('[type=submit]');
+  if(!form.reportValidity())return;
+  busy(button,true);
+  try{
+    const values={titulo:form.elements.titulo.value.trim(),conteudo:form.elements.conteudo.value.trim(),updated_at:new Date().toISOString()};
+    const id=form.elements.id.value;
+    const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
+      await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
+    if(result.error)throw result.error;
+    await refreshAfterSave(state.currentId);
+    selectTab('diagramas');toast('Diagrama salvo.');
+  }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+});
+
+// Importador: análise local e conservadora; resultados dos cenários não são inferidos do texto.
+function parseReport(raw) {
+  if(raw.length > 200000) throw Error('O relatório deve ter até 200.000 caracteres.');
+  const text=raw.replace(/\r\n?/g,'\n').replace(/\\\n/g,'\n');
+  const lines=text.split('\n');
+  const result={descricao:'',conclusao:'',observacoes:'',tipo_teste:/\[\s*[xX]\s*\]\s*RELEASE/i.test(text)?'RELEASE':'BUILD',cenarios:[],funcionando:null,erro_reproduzido:null};
+  let mode='';
+  const sections={descricao:[],conclusao:[],observacoes:[]};
+  let current=null;
+  for(const original of lines){
+    const line=original.trim();
+    if(/^[-—–]{3,}$/.test(line)||!line) {if(current)current.passos.push('');continue;}
+    if(/^TIPO DE TESTE\s*:/i.test(line)){mode='';continue;}
+    if(/^O QUE FOI TESTADO\s*:/i.test(line)){mode='descricao';const rest=line.split(/:/).slice(1).join(':').trim();if(rest)sections.descricao.push(rest);continue;}
+    if(/^CEN[ÁA]RIOS TESTADOS\s*:/i.test(line)){mode='cenarios';continue;}
+    const match=line.match(/^CEN[ÁA]RIO\s+(\d+)\s*[-–—:]\s*(.*)$/i);
+    if(match){mode='cenarios';current={ordem:Number(match[1]),titulo:match[2]||'Cenário '+match[1],passos:[]};result.cenarios.push(current);continue;}
+    if(/^VALIDA[CÇ][ÃA]O FINAL\s*:/i.test(line)){mode='validacao';current=null;continue;}
+    if(/^CONCLUS[ÃA]O\s*:/i.test(line)){mode='conclusao';current=null;const rest=line.split(/:/).slice(1).join(':').trim();if(rest)sections.conclusao.push(rest);continue;}
+    if(/^OBS(?:ERVA[CÇ][ÕO]ES)?\s*ADD\s*:/i.test(line)){mode='observacoes';current=null;const rest=line.split(/:/).slice(1).join(':').trim();if(rest)sections.observacoes.push(rest);continue;}
+    if(mode==='cenarios'&&current){current.passos.push(line.replace(/^\\-\s*/,'- '));continue;}
+    if(sections[mode])sections[mode].push(line);
+  }
+  for(const key of Object.keys(sections))result[key]=sections[key].join('\n').trim();
+  const validation=text.match(/VALIDA[CÇ][ÃA]O FINAL\s*:\s*([\s\S]*?)(?:CONCLUS[ÃA]O\s*:|$)/i)?.[1]||'';
+  const flag=(label)=>{
+    const segment=validation.match(new RegExp(label+'\\s*\\?\\s*([^\\n]+)','i'))?.[1]||'';
+    return /\[\s*x\s*\]\s*SIM/i.test(segment)?true:/\[\s*x\s*\]\s*N[ÃA]O/i.test(segment)?false:null;
+  };
+  result.funcionando=flag('FUNCIONANDO CORRETAMENTE');
+  result.erro_reproduzido=flag('ERRO REPRODUZIDO');
+  result.cenarios=result.cenarios.slice(0,100).map(s=>({...s,passos:s.passos.join('\n').trim(),status:'nao_executado'}));
+  if(!result.descricao&&!result.cenarios.length)throw Error('Nenhum cenário ou descrição identificados. Confira os títulos das seções.');
+  const firstTitle=result.descricao.replace(/\s+/g,' ').slice(0,95) || 'Relatório de teste importado';
+  result.titulo=firstTitle.length<3?'Relatório importado':firstTitle;
+  return result;
+}
+$('#import-open').addEventListener('click',()=>$('#import-dialog').showModal());
+$('#import-cancel').addEventListener('click',()=>$('#import-dialog').close());
+$('#import-confirm').addEventListener('click',async()=>{
+  if(state.isBusy)return;
+  const button=$('#import-confirm');busy(button,true);
+  try {
+    const parsed=parseReport($('#import-text').value);
+    const taskData={titulo:parsed.titulo,tipo_teste:parsed.tipo_teste,status:'rascunho',descricao:parsed.descricao,
+      conclusao:parsed.conclusao,observacoes:parsed.observacoes,funcionando:parsed.funcionando,erro_reproduzido:parsed.erro_reproduzido,
+      user_id:state.user.id,executado_em:dateToday()};
+    const {data,error}=await db.from('qa_tarefas').insert(taskData).select().single();
+    if(error)throw error;
+    if(parsed.cenarios.length){
+      const input=parsed.cenarios.map(s=>({user_id:state.user.id,tarefa_id:data.id,ordem:s.ordem,titulo:s.titulo,passos:s.passos,status:'nao_executado'}));
+      const {error:scenariosError}=await db.from('qa_cenarios').insert(input);
+      if(scenariosError){
+        toast('A TF foi criada, mas a importação dos cenários falhou: '+errMessage(scenariosError),true);
+        await refreshAfterSave(data.id);location.hash='#/tarefa/'+data.id;return;
+      }
+    }
+    $('#import-dialog').close();$('#import-text').value='';
+    await refreshAfterSave(data.id);location.hash='#/tarefa/'+data.id;
+    toast('Relatório importado. Revise os '+parsed.cenarios.length+' cenários antes de concluir a TF.');
+  }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
+});
+start();
