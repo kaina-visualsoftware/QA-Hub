@@ -89,6 +89,31 @@
 
         <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
           <div class="page-heading editor-heading"><div><a class="back-link" href="#/tarefas">← Voltar às tarefas</a><p class="eyebrow" id="editor-kicker">NOVO REGISTRO</p><h1 id="editor-title">Nova tarefa de teste</h1><p class="muted" id="editor-caption">Registre os detalhes para habilitar cenários e diagramas.</p><p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p></div><div class="heading-actions"><button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button><button id="save-task" class="btn primary" type="submit" form="task-form">Salvar TF</button></div></div>
+          <details id="assist-panel" class="panel assist-panel" open>
+            <summary class="assist-heading"><span class="assist-icon" aria-hidden="true">✦</span><span><strong>Preenchimento rápido</strong><small>Cole o texto da TF e evite preencher tudo manualmente</small></span></summary>
+            <div class="assist-body">
+              <label for="assist-text">Descrição, relatório ou análise da tarefa</label>
+              <textarea id="assist-text" rows="7" maxlength="30000" placeholder="Ex.: TF 67866 — promoção por tabela de preço. Versão 12.08.08.0000. O problema acontece ao incluir kits..."></textarea>
+              <p class="assist-help">O texto é analisado neste dispositivo. A IA gratuita usa o modelo integrado do Chrome quando disponível; nenhuma informação é enviada a serviços de IA externos. Revise todos os campos antes de salvar.</p>
+              <div class="assist-actions">
+                <button id="assist-local" class="btn primary" type="button">Extrair campos do texto</button>
+                <button id="assist-ai" class="btn soft" type="button">Usar IA gratuita do Chrome</button>
+              </div>
+              <p id="assist-capability" class="muted fine" aria-live="polite"></p>
+              <p id="assist-status" class="assist-status" role="status" aria-live="polite"></p>
+              <div id="assist-result" class="assist-result" hidden>
+                <strong>Prévia da extração</strong>
+                <p id="assist-summary"></p>
+                <label class="assist-checkbox"><input type="checkbox" id="assist-overwrite"> Substituir campos já preenchidos</label>
+                <div class="assist-actions">
+                  <button id="assist-apply" class="btn primary" type="button">Aplicar no formulário</button>
+                  <button id="assist-dismiss" class="btn soft" type="button">Descartar prévia</button>
+                </div>
+                <p class="muted fine">Os cenários identificados serão adicionados ao salvar a TF como <strong>não executados</strong>. Nenhum resultado é aprovado automaticamente.</p>
+              </div>
+            </div>
+          </details>
+
           <div class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
