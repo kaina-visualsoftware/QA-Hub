@@ -13,7 +13,7 @@ const callbackErrorCode = location.hash.startsWith('#error=')
   ? new URLSearchParams(location.hash.slice(1)).get('error_code') : null;
 const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
-const $ = (selector) => [...document.querySelectorAll(selector)];
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
 const state = { user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [] };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
@@ -624,7 +624,7 @@ $('#scenario-form').addEventListener('submit',async event=>{
     selectTab('cenarios');toast('Cenário salvo.');
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
-$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
+$$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
   $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
 }));
 $('#task-visibility').addEventListener('change',()=>{
