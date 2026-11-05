@@ -110,18 +110,9 @@ for(const width of [390,1366]){
   await page.locator('#lr').fill('Licença de teste');
   await page.locator('#lc').fill('CÓDIGO EXEMPLO');
   await page.locator('#ls').click();
-  await page.waitForFunction(()=>document.querySelector('#ll').textContent.includes('Licença de teste'),null,{timeout:6500})
-    .catch(async error=>{
-      const diagnosis=await page.evaluate(()=>({
-        message:document.querySelector('#lm')?.textContent,
-        list:document.querySelector('#ll')?.textContent?.slice(0,500),
-        title:document.querySelector('#lr')?.value,
-        code:document.querySelector('#lc')?.value,
-        store:localStorage.getItem('h_lib')?.slice(0,400)
-      }));
-      console.error('GUARDADOS DIAGNOSTIC',JSON.stringify(diagnosis),allErrors);
-      throw error;
-    });
+  // The title is shown inside an editable input, not as textContent.
+  await page.waitForFunction(()=>[...document.querySelectorAll('#ll input')].some(e=>e.value==='Licença de teste'));
+  assert.match(await page.evaluate(()=>localStorage.getItem('h_lib')||''),/Licença de teste/);
   assert.deepEqual(aiCalls,['post','teste'],'local tools must never contact AI');
   await page.screenshot({path:'artifacts/ui/geradores-'+width+'.png',fullPage:true});
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
