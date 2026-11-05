@@ -4,6 +4,7 @@ import { QA_CONFIG } from './qa-config.js';
 import { parseReport } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
+import { extractWithNvidia } from './qa-nvidia.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -229,12 +230,21 @@ async function route() {
   }
   setView('dashboard');
 }
+function setTaskStep(step, focus=false) {
+  const entering=step==='entry';
+  $('#assist-panel').hidden=!entering;
+  $('#editor-fields').hidden=entering;
+  $('#save-task').hidden=entering;
+  if(focus){
+    const target=entering?$('#assist-text'):$('#task-form input[name="titulo"]');
+    target.focus();
+  }
+}
 function openNewTask() {
   clearFormDirty();
   state.assistDraft=null;
   state.pendingScenarios=[];
-  $('#assist-panel').hidden=false;
-  $('#assist-panel').open=true;
+  setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-result').hidden=true;
   $('#assist-status').textContent='';
@@ -257,7 +267,7 @@ function openNewTask() {
   selectTab('resumo'); setView('editor');
 }
 async function openTask(id) {
-  $('#assist-panel').hidden=true;
+  setTaskStep('review');
   const task = state.tasks.find(t=>t.id === id);
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
   clearFormDirty();
@@ -599,12 +609,12 @@ const assistLabels={
   conclusao:'Conclusão',observacoes:'Observações'
 };
 function checkLocalAiAvailability(){
-  const button=$('#assist-ai'),capability=$('#assist-capability');
+  const button=$('#assist-device'),capability=$('#assist-capability');
   const supported=typeof Worker!=='undefined'&&typeof WebAssembly!=='undefined';
   button.disabled=!supported;
   capability.textContent=supported
-    ? 'IA aberta (Qwen2.5) no navegador: sem login nem token. Primeiro uso baixa cerca de 500 MB; celulares e computadores com pouca memória podem não conseguir executá-la.'
-    : 'Este navegador não suporta o processamento local da IA. Use a extração sem IA, disponível em todos os navegadores modernos.';
+    ? 'IA NVIDIA: exige configuração segura no Supabase e permite uso de modelos do catálogo gratuito, sujeitos a cotas. IA no dispositivo: gratuita, mas o primeiro download é grande e pode exigir bastante memória.'
+    : 'A IA do dispositivo não é compatível neste navegador. A NVIDIA e a extração sem IA continuam disponíveis.';
 }
 
 function showAssistDraft(draft,method){
@@ -631,42 +641,13 @@ function showAssistDraft(draft,method){
   $('#assist-status').classList.remove('error');
   $('#assist-status').textContent=method+' concluída. Revise a prévia e clique em Aplicar.';
 }
-async function runAssistExtraction(useAi){
-  const raw=$('#assist-text').value;
-  const button=$('#assist-'+(useAi?'ai':'local'));
-  if(!raw.trim())return toast('Cole o texto da TF antes de preencher.',true);
-  if(state.isBusy)return;
-  busy(button,true);
-  $('#assist-result').hidden=true;
-  state.assistDraft=null;
-  const feedback=$('#assist-status');
-  feedback.classList.remove('error');
-  feedback.textContent=useAi?'Preparando modelo aberto, sem chave de API…':'Analisando texto no navegador…';
-  try{
-    const draft=useAi
-      ?await extractWithOpenModel(raw,text=>{feedback.textContent=text;})
-      :extractLocalDraft(raw);
-    showAssistDraft(draft,useAi?'Análise com modelo aberto':'Extração local');
-  }catch(error){
-    feedback.classList.add('error');
-    feedback.textContent=error?.message||'Falha ao extrair os campos. Tente a extração local.';
-  }finally{busy(button,false);}
-}
-$('#assist-local').addEventListener('click',()=>runAssistExtraction(false));
-$('#assist-ai').addEventListener('click',()=>runAssistExtraction(true));
-$('#assist-dismiss').addEventListener('click',()=>{
-  state.assistDraft=null;
-  $('#assist-result').hidden=true;
-  $('#assist-status').textContent='Prévia descartada. O texto colado permanece disponível.';
-});
-$('#assist-apply').addEventListener('click',()=>{
+function applyAssistDraft(){
   const draft=state.assistDraft;
-  if(!draft)return;
-  const form=$('#task-form'), overwrite=$('#assist-overwrite').checked;
+  if(!draft) return;
+  const form=$('#task-form'),overwrite=$('#assist-overwrite').checked;
   const total=Object.entries(draft.fields).reduce((count,[key,value])=>{
     const field=form.elements.namedItem(key);
     if(!field||!value)return count;
-    // BUILD is only the initial select default; an explicit RELEASE must be used.
     const defaultType=key==='tipo_teste'&&field.value==='BUILD';
     if(overwrite||!String(field.value||'').trim()||defaultType){
       field.value=value;
@@ -674,16 +655,111 @@ $('#assist-apply').addEventListener('click',()=>{
     }
     return count;
   },0);
-  // Application only stages scenarios; no database mutation until the user saves the TF.
-  state.pendingScenarios=draft.cenarios.map(s=>({...s,status:'nao_executado'}));
+  state.pendingScenarios=draft.cenarios.map(item=>({...item,status:'nao_executado'}));
   form.elements.namedItem('status').value='rascunho';
   if(total||state.pendingScenarios.length)setFormDirty('task-form');
-  $('#assist-panel').open=false;
-  $('#assist-status').textContent=total+' campo(s) aplicado(s). '+
-    state.pendingScenarios.length+' cenário(s) aguardando salvamento.';
-  $('#task-form input[name="titulo"]').focus();
-  toast('Campos preenchidos. Revise e salve a TF para registrar os dados.');
+  setTaskStep('review',true);
+  $('#editor-caption').textContent=total+' campos preenchidos e '+
+    state.pendingScenarios.length+' cenários pendentes. Revise as informações antes de salvar.';
+  toast(total+' campo(s) preenchido(s). Revise e salve a TF quando estiver pronta.');
+}
+async function runAssistExtraction(method){
+  if(state.isBusy)return;
+  const raw=$('#assist-text').value;
+  if(!raw.trim()){
+    $('#assist-text').focus();
+    toast('Cole um relatório ou descrição antes de extrair os campos.',true);
+    return;
+  }
+  if(method==='nvidia' && !$('#assist-consent').checked){
+    $('#assist-consent').focus();
+    toast('Autorize o envio do texto à NVIDIA ou use a extração sem IA.',true);
+    return;
+  }
+  const button=$('#assist-'+(method==='nvidia'?'ai':method==='device'?'device':'local'));
+  const buttons=['assist-ai','assist-device','assist-local','assist-manual'].map(id=>$('#'+id));
+  busy(button,true);
+  buttons.forEach(b=>{b.disabled=true;});
+  const title=$('#assist-loading-title'),details=$('#assist-loading-description'),feedback=$('#assist-status');
+  const names={nvidia:'NVIDIA Build',device:'IA local do dispositivo',local:'Extração de texto'};
+  title.textContent='Preparando '+names[method]+'…';
+  details.textContent=method==='nvidia'?
+    'Enviando o texto autorizado. A resposta pode levar alguns instantes.':
+    method==='device'?'Preparando modelo local. O primeiro uso pode baixar arquivos grandes.':
+    'Lendo e organizando os campos…';
+  $('#assist-loading').hidden=false;
+  $('#assist-panel').setAttribute('aria-busy','true');
+  $('#assist-result').hidden=true;
+  state.assistDraft=null;
+  feedback.classList.remove('error');
+  feedback.textContent='Iniciando análise…';
+  let elapsed=0;
+  const progressTimer=setInterval(()=>{
+    elapsed+=4;
+    if(method==='nvidia')details.textContent=
+      'Aguardando o resultado da NVIDIA ('+elapsed+' s). O texto será revisável antes de salvar.';
+  },4000);
+  try{
+    let draft,source=names[method];
+    if(method==='nvidia'){
+      const result=await extractWithNvidia(raw,db,text=>{
+        feedback.textContent=text;
+        title.textContent='Gerando campos com IA NVIDIA…';
+      });
+      draft=result.draft;
+      source=result.model;
+    }else if(method==='device'){
+      draft=await extractWithOpenModel(raw,text=>{
+        feedback.textContent=text;
+        details.textContent=text;
+      });
+    }else{
+      draft=extractLocalDraft(raw);
+    }
+    showAssistDraft(draft,source);
+    applyAssistDraft();
+  }catch(error){
+    const message=error?.name==='TimeoutError'?
+      'A requisição demorou demais. Tente novamente ou use a extração sem IA.':
+      error?.message||'Não foi possível gerar a TF. Tente a extração sem IA.';
+    feedback.classList.add('error');
+    feedback.textContent=message;
+    toast(message,true);
+  }finally{
+    clearInterval(progressTimer);
+    $('#assist-loading').hidden=true;
+    $('#assist-panel').setAttribute('aria-busy','false');
+    busy(button,false);
+    buttons.forEach(b=>{b.disabled=false;});
+    checkLocalAiAvailability();
+  }
+}
+$('#assist-local').addEventListener('click',()=>runAssistExtraction('local'));
+$('#assist-ai').addEventListener('click',()=>runAssistExtraction('nvidia'));
+$('#assist-device').addEventListener('click',()=>runAssistExtraction('device'));
+$('#assist-manual').addEventListener('click',()=>{
+  if(state.isBusy)return;
+  setTaskStep('review',true);
+  $('#editor-caption').textContent='Modo manual. Preencha os campos necessários e salve a TF.';
+  toast('Modo manual aberto. Preencha o formulário e salve ao concluir.');
 });
+$('#assist-back').addEventListener('click',()=>{
+  if(state.isBusy)return;
+  setTaskStep('entry',true);
+  $('#editor-caption').textContent='Cole seu texto ou siga manualmente.';
+});
+$('#assist-text').addEventListener('input',()=>{
+  setFormDirty('assist-text');
+  state.assistDraft=null;
+  $('#assist-result').hidden=true;
+  $('#assist-status').textContent='';
+});
+$('#assist-dismiss').addEventListener('click',()=>{
+  state.assistDraft=null;
+  $('#assist-result').hidden=true;
+  $('#assist-status').textContent='Prévia descartada. Seu texto continua disponível.';
+});
+$('#assist-apply').addEventListener('click',applyAssistDraft);
 
 // O importador analisa o texto localmente, sem inferir aprovação de cenários.
 $('#import-open').addEventListener('click',()=>$('#import-dialog').showModal());
