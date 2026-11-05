@@ -278,6 +278,7 @@ function openNewTask() {
   $('#task-form').elements.publica.value='false';
   $('#task-visibility').dispatchEvent(new Event('change'));
   $('#task-public-link').hidden=true;
+  $('#task-generator-links').hidden=true;
   $('#task-form').elements.executado_em.value = dateToday();
   $('#editor-kicker').textContent = 'NOVO REGISTRO';
   $('#editor-title').textContent = 'Nova tarefa de teste';
@@ -302,6 +303,10 @@ async function openTask(id) {
   setForm($('#task-form'),taskFields,task);
   $('#task-visibility').dispatchEvent(new Event('change'));
   updatePublicLink(task);
+  const generatorLinks=$('#task-generator-links');
+  generatorLinks.hidden=false;
+  $('#task-post-link').href='./geradores.html?tf='+encodeURIComponent(task.id)+'#post';
+  $('#task-testplan-link').href='./geradores.html?tf='+encodeURIComponent(task.id)+'#teste';
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
   $('#assist-back').hidden=true;
   revealTaskDetails(task);
