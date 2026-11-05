@@ -188,7 +188,9 @@ try {
     assert.equal(await page.locator('#editor-fields').isVisible(),false);
     assert.equal(await page.locator('#assist-panel').isVisible(),true);
     assert.equal(await page.locator('#save-task').isVisible(),false);
-    assert.equal(await page.locator('#assist-loading').isVisible(),false);
+    assert.equal(await page.locator('#ai-loading-modal').isVisible(),false);
+    assert.equal(await page.locator('#assist-loading').count(),0);
+    assert.equal(await page.locator('#task-detail-tabs').isVisible(),false);
     assert.equal(await page.locator('#assist-status').count(),0);
     assert.equal(await page.locator('#assist-result').count(),0);
     assert.equal(await page.locator('#assist-error').isVisible(),false);
@@ -200,6 +202,8 @@ try {
     if(width===768){
       await page.locator('#assist-manual').click();
       assert.equal(await page.locator('#editor-fields').isVisible(),true);
+      assert.equal(await page.locator('#task-detail-tabs').isVisible(),false);
+      assert.equal(await page.locator('#assist-back').isVisible(),true);
       await page.locator('#assist-back').click();
       assert.equal(await page.locator('#assist-panel').isVisible(),true);
       assert.equal(await page.locator('#editor-fields').isVisible(),false);
@@ -215,11 +219,12 @@ CENÁRIO 1 - Incluir produto
     if(width===390){
       assert.equal(await page.locator('#assist-consent').count(),0);
       await page.locator('#assist-ai').click();
-      await page.locator('#assist-loading').waitFor({state:'visible'});
+      await page.locator('#ai-loading-modal').waitFor({state:'visible'});
+      assert.equal(await page.locator('#ai-loading-modal .ai-loading-spinner').count(),1);
       assert.equal(await page.locator('#editor-fields').isVisible(),false);
       assert.equal(await page.locator('#assist-ai').isDisabled(),true);
       assert.equal(await page.locator('#assist-panel').getAttribute('aria-busy'),'true');
-      assert.equal(await page.locator('#assist-loading .assist-spinner').count(),1);
+      assert.equal(await page.locator('#assist-loading').count(),0);
       assert.equal(await page.locator('#assist-status').count(),0);
       assert.equal(await page.locator('#toast').isVisible(),false);
       await page.screenshot({path:'artifacts/ui/qa-loading-390.png',fullPage:true});
@@ -228,7 +233,18 @@ CENÁRIO 1 - Incluir produto
     }
     await page.locator('#editor-fields').waitFor({state:'visible'});
     assert.equal(await page.locator('#assist-panel').isVisible(),false);
+    assert.equal(await page.locator('#ai-loading-modal').isVisible(),false);
+    assert.equal(await page.locator('#task-detail-tabs').isVisible(),false);
     assert.equal(await page.locator('#save-task').isVisible(),true);
+    assert.equal(await page.locator('.wizard-review-heading').count(),0);
+    assert.equal(await page.locator('#task-form #assist-back').count(),1);
+    assert.equal(await page.locator('#draft-scenario-review').isVisible(),true);
+    assert.equal(await page.locator('#draft-scenario-list input[type="checkbox"]').count(),1);
+    assert.match(await page.locator('#draft-scenario-list').innerText(),/Incluir produto/);
+    if(width===320){
+      await page.locator('#draft-scenario-list input[type="checkbox"]').uncheck();
+      assert.match(await page.locator('#draft-scenario-count').innerText(),/0 de 1/);
+    }
     assert.match(await page.locator('#editor-caption').innerText(),/1 cenário/);
     assert.equal(await page.locator('#task-extra-details').evaluate(el=>el.open),false);
     assert.equal(await page.locator('#task-analysis-details').evaluate(el=>el.open),false);
@@ -278,7 +294,9 @@ CENÁRIO 1 - Incluir produto
 
     await page.locator('#save-task').click();
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
-    await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='1');
+    await page.waitForFunction((expected)=>document.querySelector('#scenarios-number').textContent===String(expected),width===320?0:1);
+    assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
+    assert.equal(await page.locator('#assist-back').isVisible(),false);
     assert.equal(await page.locator('#save-status').isVisible(),false);
     if(width===1366||width===390){
       assert.equal(await page.locator('#task-visibility').inputValue(),'true');
