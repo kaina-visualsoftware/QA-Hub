@@ -1,3 +1,66 @@
+/**
+ * Returns only clearly delimited, explicitly described test cases.
+ * We do not infer scenarios from a narrative, a title, or LLM-generated lists.
+ */
+export function extractExplicitScenarios(raw){
+  if(typeof raw!=='string'||raw.length>200000)return [];
+  const lines=raw.replace(/\r\n?/g,'\n').replace(/\\n/g,'\n').split('\n');
+  const scenarioHeader=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIO|CASO DE TESTE)\s*(?:N[º°.]?\s*)?(\d{1,3})\s*(?:[-–—:]|\.\s+)\s*(.+?)(?:\*\*)?\s*$/i;
+  const stopper=/^(?:#{1,6}\s*)?(?:\*\*)?(?:O QUE FOI TESTADO|VALIDA[CÇ][ÃA]O FINAL|CONCLUS[ÃA]O|OBSERVA[CÇ][ÕO]ES(?:\s+ADICIONAIS)?|OBS\s+ADD|QUAL [ÉE] O PROBLEMA|PROBLEMA IDENTIFICADO|CAUSA RAIZ|AN[ÁA]LISE DE VIABILIDADE|O QUE (?:O DESENVOLVEDOR )?ALTEROU|CORRE[CÇ][ÃA]O APLICADA|RESULTADO FINAL|OBJETIVO(?: DO TESTE)?|EXPLICA[CÇ][ÃA]O|COMO FUNCIONA|TIPO DE TESTE|DADOS DA TF|RESUMO)\b/i;
+  const section=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIOS? TESTADOS|CEN[ÁA]RIOS? EXECUTADOS|CASOS DE TESTE EXECUTADOS)\s*:?\s*(?:\*\*)?$/i;
+  let current=null, mode='steps', active=false;
+  const result=[];
+  function commit(){
+    if(current && current.evidence && current.passos.length && current.titulo.length>2){
+      result.push({
+        ordem:result.length+1,
+        titulo:current.titulo.slice(0,240),
+        passos:current.passos.join('\n').trim().slice(0,30000),
+        esperado:current.esperado.join('\n').trim().slice(0,30000),
+        obtido:current.obtido.join('\n').trim().slice(0,30000),
+        observacoes:'',
+        status:'nao_executado'
+      });
+    }
+    current=null;mode='steps';
+  }
+  for(const original of lines){
+    const line=original.trim();
+    const normalized=line.replace(/^\*{2}/,'').replace(/\*{2}$/,'').trim();
+    if(section.test(normalized)){commit();active=true;continue;}
+    if(stopper.test(normalized)){
+      commit();active=false;continue;
+    }
+    const heading=normalized.match(scenarioHeader);
+    if(heading){
+      commit();
+      current={titulo:heading[2].trim(),passos:[],esperado:[],obtido:[],evidence:false};
+      active=true;mode='steps';continue;
+    }
+    if(/^#{1,6}\s+/.test(line) && current){commit();active=false;continue;}
+    if(!current || !active)continue;
+    if(!line || /^[-—–]{3,}$/.test(line))continue;
+    const label=normalized.match(/^(?:PASSOS(?: EXECUTADOS)?|ETAPAS|RESULTADO ESPERADO|ESPERADO|RESULTADO OBTIDO|RESULTADO OBSERVADO|OBTIDO)\s*[:：]\s*(.*)$/i);
+    if(label){
+      const tag=label[0].toUpperCase();
+      mode=/(?:ESPERADO)/.test(tag)?'esperado':/(?:OBTIDO|OBSERVADO)/.test(tag)?'obtido':'steps';
+      if(label[1]){
+        if(mode==='steps'){current.passos.push(label[1]);current.evidence=true;}
+        else current[mode].push(label[1]);
+      }
+      continue;
+    }
+    if(mode!=='steps'){current[mode].push(line);continue;}
+    // Only genuine step lines count, not free-form explanatory paragraphs.
+    if(/^(?:[-*•]\s+|\d{1,2}[.)]\s+|\[\s*[xX ]\s*\]\s+)/.test(line)){
+      current.passos.push(line.replace(/^[-*•]\s+/, '- ').slice(0,2500));
+      current.evidence=true;
+    }
+  }
+  commit();
+  return result.slice(0,50);
+}
+
 // Parser puro e testável. Nenhum conteúdo é enviado à rede durante a interpretação.
 export function parseReport(raw) {
   if(raw.length > 200000) throw Error('O relatório deve ter até 200.000 caracteres.');
@@ -29,7 +92,7 @@ export function parseReport(raw) {
   };
   result.funcionando=flag('FUNCIONANDO CORRETAMENTE');
   result.erro_reproduzido=flag('ERRO REPRODUZIDO');
-  result.cenarios=result.cenarios.slice(0,100).map(s=>({...s,passos:s.passos.join('\n').trim(),status:'nao_executado'}));
+  result.cenarios=extractExplicitScenarios(raw).slice(0,100);
   if(!result.descricao&&!result.cenarios.length)throw Error('Nenhum cenário ou descrição identificados. Confira os títulos das seções.');
   const firstTitle=result.descricao.replace(/\s+/g,' ').slice(0,95) || 'Relatório de teste importado';
   result.titulo=firstTitle.length<3?'Relatório importado':firstTitle;
