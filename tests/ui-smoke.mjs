@@ -60,6 +60,10 @@ export function createClient(){
       async invoke(name,{body}){
         if(name!=='qa-ai')return {data:null,error:new Error('Unknown function')};
         await new Promise(resolve=>setTimeout(resolve,400));
+        if(body.mode==='diagram'){
+          return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',
+            mermaid:'flowchart TD\\n  A["Início"] --> B["Validar pedido"]\\n  B --> C["Concluir"]'},error:null};
+        }
         return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',draft:{
           codigo:'67866',titulo:'Inclusão de produto',tipo_teste:'BUILD',
           descricao:body.text,cenarios:[{titulo:'Incluir produto',passos:'Abrir catálogo e incluir produto',
@@ -218,6 +222,10 @@ CENÁRIO 1 - Incluir produto
     }
     assert.equal(await page.locator('#task-form input[name="codigo"]').inputValue(),'67866');
     assert.equal(await page.locator('#task-form select[name="status"]').inputValue(),'rascunho');
+    assert.equal(await page.locator('#task-visibility').inputValue(),'false');
+    if(width===1366||width===390){
+      await page.locator('#task-visibility').selectOption('true');
+    }
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
     if(!(await page.locator('#save-status').isVisible())){
@@ -248,6 +256,40 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
     await page.waitForFunction(()=>document.querySelector('#scenarios-number').textContent==='1');
     assert.equal(await page.locator('#save-status').isVisible(),false);
+    if(width===1366||width===390){
+      assert.equal(await page.locator('#task-visibility').inputValue(),'true');
+      assert.equal(await page.locator('#task-public-link').isVisible(),true);
+      assert.match(await page.locator('#task-public-link').getAttribute('href'),/public\\.html\\?tf=/);
+    }else{
+      assert.equal(await page.locator('#task-public-link').isVisible(),false);
+    }
+    if(width===390||width===1366){
+      await page.locator('#tab-btn-diagramas').click();
+      await page.locator('#add-diagram').click();
+      await page.locator('#diagram-form').waitFor({state:'visible'});
+      assert.equal(await page.locator('#diagram-ai-text-wrap').isVisible(),false);
+      if(width===390){
+        await page.locator('input[name="diagram-ai-origin"][value="text"]').check();
+        await page.locator('#diagram-ai-text').fill('Abrir pedido, verificar estoque e concluir pedido.');
+      }
+      await page.locator('#diagram-generate').click();
+      await page.locator('#diagram-ai-progress').waitFor({state:'visible'});
+      await page.waitForFunction(()=>document.querySelector('#diagram-source').value.includes('flowchart TD'));
+      await page.waitForFunction(()=>document.querySelector('#diagram-ai-progress').hidden===true);
+      await page.locator('#zoom-diagram-preview').click();
+      await page.locator('#diagram-viewer').waitFor({state:'visible'});
+      const initialZoom=await page.locator('#diagram-zoom-label').innerText();
+      await page.locator('[data-viewer="plus"]').click();
+      const higherZoom=await page.locator('#diagram-zoom-label').innerText();
+      assert.notEqual(higherZoom,initialZoom,'Zoom should update');
+      await page.locator('[data-viewer="fit"]').click();
+      await page.locator('[data-viewer="close"]').click();
+      await page.locator('#diagram-form button[type="submit"]').click();
+      await page.waitForFunction(()=>document.querySelector('#diagrams-number').textContent==='1');
+      await page.locator('[data-zoom-diagram]').click();
+      await page.locator('#diagram-viewer').waitFor({state:'visible'});
+      await page.locator('[data-viewer="close"]').click();
+    }
     await page.locator('#sidebar .navigation a[data-route="tarefas"]').evaluate(el=>el.click());
     await page.locator('#view-tarefas').waitFor({state:'visible'});
     assert.equal(await page.locator('#task-list .task-item').count(),1);
