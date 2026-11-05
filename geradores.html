@@ -2,6 +2,25 @@
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QA Hub — Geradores</title>
+<script>
+// The legacy standalone URL remains a bookmark-compatible entry point.
+// Only embedded mode renders inside the authenticated QA Hub shell.
+(() => {
+  const query = new URLSearchParams(location.search);
+  if (query.get('embedded') === '1') {
+    document.documentElement.dataset.embedded = 'true';
+    return;
+  }
+  const requested = (query.get('mode') || location.hash.slice(1) || 'post').toLowerCase();
+  const allowed = new Set(['post','teste','release','lib','diff','xml']);
+  const mode = allowed.has(requested) ? requested : 'post';
+  const tf = query.get('tf');
+  const destination = new URL('./qa.html', location.href);
+  destination.hash = '/ferramentas/' + mode + (tf ? '?tf=' + encodeURIComponent(tf) : '');
+  location.replace(destination.href);
+})();
+</script>
+
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mut:#667085;--bd:#d8dce3;--ac:#1f5fbf;--acx:#fff;--sel:#e6eefb}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d222a;--tx:#e8ebf0;--mut:#98a2b3;--bd:#323946;--ac:#5b9bff;--acx:#0b1220;--sel:#243350}}
@@ -80,7 +99,28 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 #exec .xd{min-width:0}
 #exec button{max-width:100%}
 @media(max-width:800px){.qa-generator-session{align-items:flex-start;flex-direction:column}.qa-generator-session>div:last-child{flex-wrap:wrap}}
-</style></head><body><div class="app">
+</style>
+<style id="qa-embedded-generator-style">
+:root[data-embedded="true"]{color-scheme:light;--bg:#f5f7f7;--card:#fff;--tx:#202b38;--mut:#5b6e79;--bd:#d8e2e5;--ac:#0d786d;--acx:#fff;--sel:#e5f4f0}
+:root[data-embedded="true"] body{min-height:0;background:transparent;color:var(--tx);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root[data-embedded="true"] .app{display:block;min-height:0}
+:root[data-embedded="true"] nav{display:none!important}
+:root[data-embedded="true"] main{width:100%;max-width:none;padding:0!important;margin:0;overflow:visible}
+:root[data-embedded="true"] h2.t{display:none}
+:root[data-embedded="true"] .qa-generator-session{padding:10px 12px;margin:0 0 15px;background:#fff;border:1px solid var(--bd)}
+:root[data-embedded="true"] .qa-generator-session>div:first-child,
+:root[data-embedded="true"] .qa-return-mobile{display:none}
+:root[data-embedded="true"] .card,:root[data-embedded="true"] .hc{background:#fff}
+:root[data-embedded="true"] .tl{background:#f8fbfa}
+:root[data-embedded="true"] .tl:hover{background:var(--sel)}
+:root[data-embedded="true"] button.p{background:#0d786d;color:#fff}
+:root[data-embedded="true"] button.s{border-color:#cbdcda;color:#0d786d;background:#fff}
+:root[data-embedded="true"] button.s:hover:not(:disabled){background:var(--sel)}
+:root[data-embedded="true"] .it{background:#fff}
+:root[data-embedded="true"] [hidden]{display:none!important}
+:root[data-embedded="true"] #prev{overflow-wrap:anywhere}
+</style>
+</head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
 <main>
 <div class="qa-generator-session"><div><strong>Ferramentas de QA</strong><small id="session-label">As ferramentas locais não precisam de login.</small></div><div><button id="import-task" class="s" type="button" hidden>Usar dados da TF</button><a href="./qa.html" class="qa-return-mobile">Voltar às TFs</a></div></div>
@@ -634,6 +674,10 @@ for(const k in M){
  $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
 }
 const linkedTf=new URLSearchParams(location.search).get("tf");
+if(document.documentElement.dataset.embedded==="true"){
+  // In embedded mode, show this bar only when a TF may be imported.
+  document.querySelector(".qa-generator-session").hidden=!linkedTf;
+}
 if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
  $("import-task").hidden=false;
  $("import-task").onclick=async()=>{
@@ -669,4 +713,23 @@ if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
  await recover();
  if(mode==="home"&&HR)HR();
 })();
+if(document.documentElement.dataset.embedded==="true"){
+ const reportHeight=()=>{
+  const main=document.querySelector("main");
+  if(main)parent.postMessage({type:"qa-hub:tool-height",height:Math.ceil(main.getBoundingClientRect().height)+4},location.origin);
+ };
+ window.addEventListener("message",event=>{
+  if(event.origin!==location.origin||event.source!==parent)return;
+  if(event.data?.type!=="qa-hub:navigate-tool")return;
+  const next=event.data.mode;
+  if(Object.hasOwn(M,next)&&next!=="home"){
+   if(mode!==next){sw(next);reflectMode()}
+   requestAnimationFrame(reportHeight);
+  }
+ });
+ if(window.ResizeObserver)new ResizeObserver(reportHeight).observe(document.querySelector("main"));
+ window.addEventListener("resize",reportHeight);
+ window.addEventListener("load",reportHeight);
+ requestAnimationFrame(reportHeight);
+}
 </script></body></html>
