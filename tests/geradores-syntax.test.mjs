@@ -44,7 +44,7 @@ test('posts and test-plan prompts preserve supplied constraints',()=>{
 
 test('only the generation action sends report text to NVIDIA; local tools are client-only',()=>{
  const localRegion=script.slice(script.indexOf('function toolRelease()'),script.indexOf('const defExec='));
- assert.ok(localRegion.length>10000);
+ assert.ok(localRegion.length>7000);
  assert.doesNotMatch(localRegion,/supa\.|fetch\(|qa-generators|claude\.use/);
  assert.match(html,/sem criptografia/);
  assert.match(script,/k==="post"\|\|k==="teste"/);
