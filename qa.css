@@ -178,3 +178,85 @@ button:disabled{cursor:wait;opacity:.7}
   .wizard-review-heading .btn{width:100%}
 }
 @media(prefers-reduced-motion:reduce){.assist-spinner,.assist-actions button[aria-busy="true"]::before{animation:none;border-style:dashed}}
+
+/* QA task flow — one decision, one loading state, one final save action. */
+#view-editor .editor-heading,
+#view-editor #editor-fields{max-width:1020px;margin-left:auto;margin-right:auto}
+#view-editor .editor-heading{margin-bottom:22px;align-items:flex-start}
+#view-editor .editor-heading h1{font-size:clamp(1.55rem,2.2vw,1.95rem);letter-spacing:-.035em}
+#view-editor .editor-heading .back-link{margin:0 0 10px}
+#view-editor .editor-heading .eyebrow{display:none}
+#view-editor .editor-heading .muted{max-width:74ch;margin:8px 0 0}
+#view-editor .tabs{gap:24px;margin-top:0;margin-bottom:20px}
+#view-editor .assist-panel{max-width:780px;margin:0 auto;padding:0;background:#fff;border:1px solid #dbe6e5;border-radius:14px}
+#view-editor .assist-heading{padding:18px 25px 0;cursor:default;display:block}
+#view-editor .assist-heading::after{display:none}
+#view-editor .assist-heading h2{font-size:1.22rem;letter-spacing:-.02em;color:#223a45;margin:0 0 6px}
+#view-editor .assist-heading p{font-size:.87rem;color:#5b6e79;line-height:1.55;margin:0}
+#view-editor .assist-body{padding:18px 25px 24px}
+#view-editor #assist-text{min-height:220px;max-height:50vh;line-height:1.6;font-size:.92rem;resize:vertical;border-color:#c7d8d7}
+#view-editor .assist-help{margin:9px 0 18px;font-size:.76rem;color:#637781}
+#view-editor .assist-actions{gap:10px}
+#view-editor .assist-actions .btn{min-height:46px}
+#view-editor .assist-actions .btn.primary{padding-left:22px;padding-right:22px}
+#view-editor .assist-more{margin-top:16px}
+#view-editor .assist-more summary{cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:#58747b;font-weight:650;padding:6px 0}
+#view-editor .assist-more summary:hover{color:#0b7669}
+#view-editor .assist-more summary:focus-visible{outline:3px solid #2b8578;outline-offset:3px;border-radius:4px}
+#view-editor .assist-more-content{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:8px 0}
+#view-editor .assist-more-content .muted{margin:0}
+#view-editor .assist-manual-choice{margin:19px 0 0;padding:12px 0 0;border-top:1px solid #e9eeee;justify-content:flex-start}
+#view-editor .assist-manual-choice .text-button{padding:8px 0;color:#476d76;font-size:.84rem}
+#view-editor .assist-manual-choice .text-button:hover{text-decoration:underline;text-underline-offset:3px}
+#view-editor .assist-loading{margin-top:16px;padding:15px 17px;gap:12px;background:#edf7f4;border-color:#c8e0d8}
+#view-editor .assist-loading .assist-spinner{width:24px;height:24px;border-width:3px}
+#view-editor .assist-loading strong{font-size:.88rem}
+#view-editor .assist-loading p{font-size:.78rem;margin:3px 0 0}
+#view-editor .assist-actions button[aria-busy="true"]::before{display:none!important}
+#view-editor .assist-error{color:#9a293c;background:#fff0f1;border:1px solid #f3c7ce;padding:12px 14px;margin:16px 0 0;border-radius:9px;font-size:.85rem;line-height:1.5}
+#view-editor .wizard-step-bar{padding:18px 24px 0;gap:12px;justify-content:flex-start}
+#view-editor .wizard-stage{font-size:.76rem;color:#667985}
+#view-editor .wizard-stage.current{color:#0c7267}
+#view-editor .wizard-line{height:1px;width:34px}
+#view-editor .wizard-review-heading{margin-bottom:17px;padding-top:4px}
+#view-editor .wizard-review-heading h2{font-size:1.2rem;letter-spacing:-.02em;margin:0 0 4px}
+#view-editor .wizard-review-heading p{font-size:.83rem}
+#view-editor .form-panel{padding:23px 26px;margin-bottom:14px}
+#view-editor .section-heading{margin-bottom:19px;padding-bottom:13px;border-bottom:1px solid #eaf0ef}
+#view-editor .section-heading h2{font-size:1rem;font-weight:750;letter-spacing:-.015em}
+#view-editor .field-grid{gap:14px 16px}
+#view-editor .field-span{grid-column:1 / -1}
+#view-editor .field-grid label,#view-editor .stack label{font-size:.79rem}
+#view-editor .field-grid input,#view-editor .field-grid select,#view-editor .stack textarea{margin-top:7px}
+#view-editor .optional-details{border-top:1px solid #e9eeee;margin-top:20px;padding-top:14px}
+#view-editor .optional-details summary{cursor:pointer;color:#275d5c;font-size:.83rem;font-weight:700;line-height:1.5;padding:5px 2px;list-style-position:inside}
+#view-editor .optional-details summary span{font-weight:450;color:#697d87;margin-left:6px}
+#view-editor .optional-details summary:hover{color:#0d786d}
+#view-editor .optional-details summary:focus-visible{outline:3px solid #2b8578;outline-offset:3px;border-radius:5px}
+#view-editor .optional-details>div{margin-top:16px}
+#view-editor .optional-details>label{display:block;margin-top:16px}
+#view-editor .task-form-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0 30px}
+#view-editor .task-footer-actions{display:flex;align-items:center;gap:10px;margin-left:auto}
+#view-editor .task-form-footer .btn{min-height:46px;display:inline-flex;align-items:center;justify-content:center}
+#view-editor #save-task{min-width:164px;font-size:.88rem}
+#view-editor #delete-task{margin-right:auto}
+#view-editor .save-status{font-size:.78rem}
+@media(max-width:600px){
+  #view-editor .editor-heading{margin-bottom:16px}
+  #view-editor .assist-heading{padding:16px 17px 0}
+  #view-editor .assist-body{padding:14px 17px 20px}
+  #view-editor .wizard-step-bar{padding:15px 17px 0}
+  #view-editor #assist-text{min-height:205px;max-height:50vh}
+  #view-editor .assist-actions{flex-direction:column;align-items:stretch}
+  #view-editor .assist-actions .btn{width:100%;flex:0 0 auto}
+  #view-editor .wizard-review-heading{gap:10px}
+  #view-editor .wizard-review-heading .btn{width:auto;min-height:44px}
+  #view-editor .form-panel{padding:17px;margin-bottom:12px}
+  #view-editor .field-grid,#view-editor .two-fields{grid-template-columns:1fr}
+  #view-editor .optional-details summary span{display:block;margin-left:18px;font-size:.74rem}
+  #view-editor .task-form-footer{align-items:stretch;flex-direction:column-reverse;padding-top:4px}
+  #view-editor .task-footer-actions{width:100%;margin-left:0}
+  #view-editor .task-footer-actions .btn{flex:1 1 0}
+  #view-editor #save-task{min-width:0}
+  #view-editor #delete-task{width:100%;margin:0}
+}

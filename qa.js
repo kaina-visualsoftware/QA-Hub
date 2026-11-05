@@ -46,7 +46,7 @@ function busy(button, active) {
 function setFormDirty(formId, dirty = true) {
   if (dirty) state.dirtyForms.add(formId);
   else state.dirtyForms.delete(formId);
-  $('#save-status').hidden = state.dirtyForms.size === 0;
+  $('#save-status').hidden = state.dirtyForms.size === 0 || $('#editor-fields').hidden;
 }
 function clearFormDirty() {
   state.dirtyForms.clear();
@@ -235,10 +235,17 @@ function setTaskStep(step, focus=false) {
   $('#assist-panel').hidden=!entering;
   $('#editor-fields').hidden=entering;
   $('#save-task').hidden=entering;
+  $('#editor-caption').hidden=entering;
+  $('#save-status').hidden=entering || state.dirtyForms.size===0;
   if(focus){
     const target=entering?$('#assist-text'):$('#task-form input[name="titulo"]');
     target.focus();
   }
+}
+function revealTaskDetails(task) {
+  $('#task-extra-details').open=Boolean(task.ambiente||task.base_teste||task.empresa||task.testador);
+  $('#task-analysis-details').open=Boolean(task.explicacao||task.causa||task.correcao);
+  $('#task-validation-details').open=Boolean(task.observacoes||task.erro_reproduzido!==null&&task.erro_reproduzido!==undefined||task.funcionando!==null&&task.funcionando!==undefined);
 }
 function openNewTask() {
   clearFormDirty();
@@ -246,10 +253,13 @@ function openNewTask() {
   state.pendingScenarios=[];
   setTaskStep('entry');
   $('#assist-text').value='';
-  $('#assist-result').hidden=true;
-  $('#assist-status').textContent='';
-  $('#assist-capability').textContent='';
-  $('#assist-overwrite').checked=false;
+  $('#assist-error').hidden=true;
+  $('#assist-error').textContent='';
+  $('#assist-loading').hidden=true;
+  $('#task-extra-details').open=false;
+  $('#task-analysis-details').open=false;
+  $('#task-validation-details').open=false;
+  $('#assist-back').hidden=false;
   checkLocalAiAvailability();
   state.currentId = null;
   state.scenarios = []; state.diagrams = [];
@@ -275,6 +285,8 @@ async function openTask(id) {
   $('#task-form').reset();
   setForm($('#task-form'),taskFields,task);
   $('#editor-kicker').textContent = task.codigo ? 'TF · '+task.codigo : 'REGISTRO DE TESTE';
+  $('#assist-back').hidden=true;
+  revealTaskDetails(task);
   $('#editor-title').textContent = task.titulo;
   $('#editor-caption').textContent = (task.tipo_teste||'') + ' · ' + (task.versao||'Sem versão') + ' · Atualizada ' + formatDate(task.executado_em);
   $('#delete-task').hidden = false;
@@ -383,7 +395,6 @@ $('#auth-form').addEventListener('submit',async (event)=>{
     $('#auth-password').value='';
     showApp();
     await loadData(); location.hash='#/dashboard'; await route();
-    toast('Acesso realizado.');
   }catch(e){
     if (e?.code === 'email_not_confirmed') $('#resend-confirmation').hidden = false;
     toast(errMessage(e),true);
@@ -525,6 +536,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
     if(result.error) throw result.error;
     const id=result.data.id;
     setFormDirty('task-form',false);
+    setFormDirty('assist-text',false);
     let scenarioWarning='';
     if(state.pendingScenarios.length){
       const payload=state.pendingScenarios.map((scenario,index)=>({
@@ -601,136 +613,103 @@ $('#diagram-form').addEventListener('submit',async event=>{
 });
 
 
-const assistLabels={
-  codigo:'Código da TF',titulo:'Título',tipo_teste:'Tipo',sistema:'Sistema',
-  versao:'Versão',ambiente:'Ambiente',base_teste:'Base de teste',empresa:'Empresa',
-  testador:'Testador',descricao:'O que foi testado',explicacao:'Como funciona',
-  causa:'Problema e causa',correcao:'O que foi alterado',
-  conclusao:'Conclusão',observacoes:'Observações'
-};
 function checkLocalAiAvailability(){
-  const button=$('#assist-device'),capability=$('#assist-capability');
-  const supported=typeof Worker!=='undefined'&&typeof WebAssembly!=='undefined';
-  button.disabled=!supported;
-  capability.textContent=supported ? '' : 'IA local indisponível neste navegador.';
+  const supported=typeof Worker!=='undefined' && typeof WebAssembly!=='undefined';
+  $('#assist-device').disabled=!supported;
+  $('#assist-capability').hidden=supported;
+  $('#assist-capability').textContent=supported?'':'IA no dispositivo indisponível neste navegador.';
 }
 
-function showAssistDraft(draft,method){
+function showAssistDraft(draft){
   state.assistDraft=draft;
-  const names=Object.keys(draft.fields);
-  const scenarios=draft.cenarios.length;
-  $('#assist-summary').textContent=names.length+' campo(s) extraído(s), '+scenarios+
-    ' cenário(s) identificado(s). Confira os dados antes de aplicar.';
-  const list=$('#assist-preview-list');
-  list.replaceChildren();
-  for(const key of names){
-    const li=document.createElement('li');
-    const value=draft.fields[key].replace(/\s+/g,' ');
-    li.textContent=(assistLabels[key]||key)+': '+value.slice(0,150)+(value.length>150?'…':'');
-    list.append(li);
-  }
-  if(scenarios){
-    const li=document.createElement('li');
-    li.textContent='Cenários: '+draft.cenarios.map(s=>s.titulo).slice(0,4).join(' · ')+
-      (scenarios>4?' (e outros '+(scenarios-4)+')':'');
-    list.append(li);
-  }
-  $('#assist-result').hidden=false;
-  $('#assist-status').classList.remove('error');
-  $('#assist-status').textContent=method+' concluída. Revise a prévia e clique em Aplicar.';
 }
+
 function applyAssistDraft(){
   const draft=state.assistDraft;
-  if(!draft) return;
-  const form=$('#task-form'),overwrite=$('#assist-overwrite').checked;
-  const total=Object.entries(draft.fields).reduce((count,[key,value])=>{
+  if(!draft)return;
+  const form=$('#task-form');
+  // This workflow creates a new TF, so regenerating explicitly updates draft fields.
+  let total=0;
+  for(const [key,value] of Object.entries(draft.fields)){
     const field=form.elements.namedItem(key);
-    if(!field||!value)return count;
-    const defaultType=key==='tipo_teste'&&field.value==='BUILD';
-    if(overwrite||!String(field.value||'').trim()||defaultType){
-      field.value=value;
-      return count+1;
-    }
-    return count;
-  },0);
+    if(!field || !value)continue;
+    field.value=value;
+    total++;
+  }
   state.pendingScenarios=draft.cenarios.map(item=>({...item,status:'nao_executado'}));
   form.elements.namedItem('status').value='rascunho';
-  if(total||state.pendingScenarios.length)setFormDirty('task-form');
+  if(total || state.pendingScenarios.length)setFormDirty('task-form');
+  setFormDirty('assist-text',false);
+  revealTaskDetails(draft.fields);
   setTaskStep('review',true);
-  $('#editor-caption').textContent=total+' campos preenchidos e '+
-    state.pendingScenarios.length+' cenários pendentes. Revise as informações antes de salvar.';
-  toast(total+' campo(s) preenchido(s). Revise e salve a TF quando estiver pronta.');
+  const count=state.pendingScenarios.length;
+  $('#editor-caption').textContent=count
+    ? count+' cenário(s) identificado(s). Eles serão adicionados ao salvar.'
+    : 'Confira os campos antes de salvar.';
 }
+
+function showAssistError(message){
+  const feedback=$('#assist-error');
+  feedback.textContent=message;
+  feedback.hidden=false;
+}
+
 async function runAssistExtraction(method){
   if(state.isBusy)return;
   const raw=$('#assist-text').value;
-  const startHash=location.hash;
-  const startUser=state.user?.id;
   if(!raw.trim()){
+    showAssistError('Cole o texto da tarefa para continuar.');
     $('#assist-text').focus();
-    toast('Cole um relatório ou descrição antes de extrair os campos.',true);
     return;
   }
-  const button=$('#assist-'+(method==='nvidia'?'ai':method==='device'?'device':'local'));
+  const startHash=location.hash;
+  const startUser=state.user?.id;
   const buttons=['assist-ai','assist-device','assist-local','assist-manual'].map(id=>$('#'+id));
-  busy(button,true);
-  buttons.forEach(b=>{b.disabled=true;});
-  const title=$('#assist-loading-title'),details=$('#assist-loading-description'),feedback=$('#assist-status');
-  const names={nvidia:'NVIDIA Build',device:'IA local do dispositivo',local:'Extração de texto'};
-  title.textContent='Preparando '+names[method]+'…';
-  details.textContent=method==='nvidia'?
-    'Processando o relatório…':
-    method==='device'?'Carregando o modelo no dispositivo…':
-    'Lendo e organizando os campos…';
+  const title=$('#assist-loading-title');
+  const detail=$('#assist-loading-description');
+  const names={nvidia:'IA NVIDIA',device:'IA no dispositivo',local:'Extração'};
+  title.textContent=method==='local'?'Organizando os campos…':'Gerando com '+names[method]+'…';
+  detail.textContent='Analisando o relatório.';
+  $('#assist-error').hidden=true;
+  $('#assist-error').textContent='';
   $('#assist-loading').hidden=false;
   $('#assist-panel').setAttribute('aria-busy','true');
-  $('#assist-result').hidden=true;
+  busy(null,true); // The loading panel is the only spinner.
+  buttons.forEach(button=>{button.disabled=true;});
   state.assistDraft=null;
-  feedback.classList.remove('error');
-  feedback.textContent='Iniciando análise…';
-  let elapsed=0;
-  const progressTimer=setInterval(()=>{
-    elapsed+=4;
-    if(method==='nvidia')details.textContent=
-      'Aguardando o resultado da NVIDIA ('+elapsed+' s). O texto será revisável antes de salvar.';
-  },4000);
   try{
-    let draft,source=names[method],usedFallback=false;
+    let draft,usedFallback=false;
     if(method==='nvidia'){
-      const result=await extractWithNvidia(raw,db,text=>{
-        feedback.textContent=text;
-        title.textContent='Gerando campos com IA NVIDIA…';
+      const result=await extractWithNvidia(raw,db,progress=>{
+        detail.textContent=progress||'Analisando o relatório.';
       });
       draft=result.draft;
-      source=result.model;
       usedFallback=Boolean(result.fallback);
     }else if(method==='device'){
-      draft=await extractWithOpenModel(raw,text=>{
-        feedback.textContent=text;
-        details.textContent=text;
+      draft=await extractWithOpenModel(raw,progress=>{
+        detail.textContent=progress||'Analisando o relatório.';
       });
     }else{
       draft=extractLocalDraft(raw);
     }
-    // Ignore a late AI response if the user navigated away while processing.
     if(location.hash!==startHash || state.user?.id!==startUser || state.currentId!==null)return;
-    showAssistDraft(draft,source);
+    showAssistDraft(draft);
     applyAssistDraft();
-    if(usedFallback)toast('A NVIDIA não retornou campos válidos. Organizei o texto localmente; revise antes de salvar.');
+    if(usedFallback){
+      // The single caption in the review step conveys the fallback,
+      // without another toast on top of the generated form.
+      $('#editor-caption').textContent='A resposta da IA foi complementada pela extração local. Revise os campos.';
+    }
   }catch(error){
     if(location.hash!==startHash || state.user?.id!==startUser)return;
-    const message=error?.name==='TimeoutError'?
-      'A requisição demorou demais. Tente novamente ou use a extração sem IA.':
-      error?.message||'Não foi possível gerar a TF. Tente a extração sem IA.';
-    feedback.classList.add('error');
-    feedback.textContent=message;
-    toast(message,true);
+    showAssistError(error?.name==='TimeoutError'
+      ?'A IA demorou demais. Tente novamente ou use Extrair sem IA.'
+      :error?.message||'Não foi possível gerar. Tente Extrair sem IA.');
   }finally{
-    clearInterval(progressTimer);
     $('#assist-loading').hidden=true;
     $('#assist-panel').setAttribute('aria-busy','false');
-    busy(button,false);
-    buttons.forEach(b=>{b.disabled=false;});
+    busy(null,false);
+    buttons.forEach(button=>{button.disabled=false;});
     checkLocalAiAvailability();
   }
 }
@@ -740,26 +719,18 @@ $('#assist-device').addEventListener('click',()=>runAssistExtraction('device'));
 $('#assist-manual').addEventListener('click',()=>{
   if(state.isBusy)return;
   setTaskStep('review',true);
-  $('#editor-caption').textContent='Modo manual. Preencha os campos necessários e salve a TF.';
-  toast('Modo manual aberto. Preencha o formulário e salve ao concluir.');
+  $('#editor-caption').textContent='';
 });
 $('#assist-back').addEventListener('click',()=>{
   if(state.isBusy)return;
   setTaskStep('entry',true);
-  $('#editor-caption').textContent='Cole seu texto ou siga manualmente.';
 });
 $('#assist-text').addEventListener('input',()=>{
   setFormDirty('assist-text');
   state.assistDraft=null;
-  $('#assist-result').hidden=true;
-  $('#assist-status').textContent='';
+  $('#assist-error').hidden=true;
+  $('#assist-error').textContent='';
 });
-$('#assist-dismiss').addEventListener('click',()=>{
-  state.assistDraft=null;
-  $('#assist-result').hidden=true;
-  $('#assist-status').textContent='Prévia descartada. Seu texto continua disponível.';
-});
-$('#assist-apply').addEventListener('click',applyAssistDraft);
 
 // O importador analisa o texto localmente, sem inferir aprovação de cenários.
 $('#import-open').addEventListener('click',()=>$('#import-dialog').showModal());

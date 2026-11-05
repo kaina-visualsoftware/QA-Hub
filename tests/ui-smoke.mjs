@@ -160,6 +160,15 @@ try {
     assert.equal(await page.locator('#editor-fields').isVisible(),false);
     assert.equal(await page.locator('#assist-panel').isVisible(),true);
     assert.equal(await page.locator('#save-task').isVisible(),false);
+    assert.equal(await page.locator('#assist-loading').isVisible(),false);
+    assert.equal(await page.locator('#assist-status').count(),0);
+    assert.equal(await page.locator('#assist-result').count(),0);
+    assert.equal(await page.locator('#assist-error').isVisible(),false);
+    assert.equal(await page.locator('#task-form #save-task').count(),1);
+    assert.equal(await page.locator('#assist-device').isVisible(),false);
+    if(width===320||width===1366){
+      await page.screenshot({path:'artifacts/ui/qa-entry-'+width+'.png',fullPage:true});
+    }
     if(width===768){
       await page.locator('#assist-manual').click();
       assert.equal(await page.locator('#editor-fields').isVisible(),true);
@@ -174,19 +183,39 @@ CENÁRIOS TESTADOS:
 CENÁRIO 1 - Incluir produto
 - Abrir catálogo
 - Incluir produto`);
+    assert.equal(await page.locator('#save-status').isVisible(),false);
     if(width===390){
       assert.equal(await page.locator('#assist-consent').count(),0);
       await page.locator('#assist-ai').click();
       await page.locator('#assist-loading').waitFor({state:'visible'});
       assert.equal(await page.locator('#editor-fields').isVisible(),false);
       assert.equal(await page.locator('#assist-ai').isDisabled(),true);
+      assert.equal(await page.locator('#assist-panel').getAttribute('aria-busy'),'true');
+      assert.equal(await page.locator('#assist-loading .assist-spinner').count(),1);
+      assert.equal(await page.locator('#assist-status').count(),0);
+      assert.equal(await page.locator('#toast').isVisible(),false);
+      await page.screenshot({path:'artifacts/ui/qa-loading-390.png',fullPage:true});
     }else{
       await page.locator('#assist-local').click();
     }
     await page.locator('#editor-fields').waitFor({state:'visible'});
     assert.equal(await page.locator('#assist-panel').isVisible(),false);
     assert.equal(await page.locator('#save-task').isVisible(),true);
-    assert.match(await page.locator('#assist-summary').innerText(),/1 cenário/);
+    assert.match(await page.locator('#editor-caption').innerText(),/1 cenário/);
+    assert.equal(await page.locator('#task-extra-details').evaluate(el=>el.open),false);
+    assert.equal(await page.locator('#task-analysis-details').evaluate(el=>el.open),false);
+    const saveIsAtBottom=await page.evaluate(()=>{
+      const form=document.querySelector('#task-form');
+      const save=form.querySelector('#save-task');
+      const conclusion=form.querySelector('[name="conclusao"]');
+      return save!==null &&
+        save.getBoundingClientRect().top>conclusion.getBoundingClientRect().bottom &&
+        !document.querySelector('.editor-heading #save-task');
+    });
+    assert.equal(saveIsAtBottom,true,'Save TF must remain below the form content');
+    if(width===320||width===1366){
+      await page.screenshot({path:'artifacts/ui/qa-review-'+width+'.png',fullPage:true});
+    }
     assert.equal(await page.locator('#task-form input[name="codigo"]').inputValue(),'67866');
     assert.equal(await page.locator('#task-form select[name="status"]').inputValue(),'rascunho');
     const title=page.locator('#task-form input[name="titulo"]');
