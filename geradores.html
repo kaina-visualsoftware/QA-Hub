@@ -167,7 +167,8 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
-import {taskToGeneratorText,parseGeneratedCases,markScenarioDuplicates,scenarioIdentity,attachReviewedCases,TASK_UUID} from './qa-workspace.mjs';
+import {TASK_UUID} from './qa-workspace.mjs';
+import {createGeneratorReview} from './qa-generator-review.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
 const POST=`Você escreve posts de melhoria para o fórum de uma software house (ERP MyCommerce), em português do Brasil, a partir da TAREFA e, se houver, do REQUISITO colados pelo usuário.
@@ -697,29 +698,8 @@ function reflectMode(){
 for(const k in M){
  $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
 }
-const linkedTf=new URLSearchParams(location.search).get("tf");
-if(document.documentElement.dataset.embedded==="true"){
-  // In embedded mode, show this bar only when a TF may be imported.
-  document.querySelector(".qa-generator-session").hidden=!linkedTf;
-}
-if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
- $("import-task").hidden=false;
- $("import-task").onclick=async()=>{
-  if(!uid){$("session-label").textContent="Entre no QA Hub para importar uma TF.";return}
-  const {data,error}=await supa.from("qa_tarefas").select("*").eq("id",linkedTf).maybeSingle();
-  if(error||!data){$("session-label").textContent="TF indisponível ou sem permissão.";return}
-  const fields=[
-   ["Código",data.codigo],["Título",data.titulo],["Sistema",data.sistema],
-   ["O que foi testado",data.descricao],["Como funciona",data.explicacao],
-   ["Problema e causa",data.causa],["O que foi alterado",data.correcao],
-   ["Conclusão",data.conclusao],["Observações",data.observacoes]
-  ];
-  const text=fields.filter(([,v])=>String(v||"").trim()).map(([k,v])=>k+": "+v).join("\n\n");
-  if(mode!=="post"&&mode!=="teste")sw("teste");
-  S[mode].t=text;$("t").value=text;
-  $("session-label").textContent="Dados da TF carregados. Confira antes de gerar.";
- };
-}
+const reviewController=createGeneratorReview({client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,embedded:document.documentElement.dataset.embedded==="true"});
+function renderAttachReview(){return reviewController.render()}
 (async()=>{
  load();reflectMode();
  addEventListener("beforeunload",e=>{
@@ -735,6 +715,8 @@ if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
   $("session-label").textContent="Sem conexão: ferramentas locais disponíveis.";
  }
  await recover();
+ await reviewController.loadTask().catch(error=>{$("session-label").textContent=error.message||String(error)});
+ await renderAttachReview();
  if(mode==="home"&&HR)HR();
 })();
 if(document.documentElement.dataset.embedded==="true"){
