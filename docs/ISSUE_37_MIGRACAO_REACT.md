@@ -325,3 +325,31 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   e testes em dispositivos reais. Axe não comprova conformidade
   WCAG completa nem permissões RLS reais.
 - Nenhum deploy, merge ou alteração em banco: PR continua draft.
+
+## Gestão de foco e orçamento de performance — incremento adicional
+
+- `frontend/src/lib/useModalFocus.ts` centraliza foco inicial,
+  Tab e Shift+Tab circulares, Escape, bloqueio do foco externo
+  e restauração do foco ao acionador após fechar.
+- Integrado ao diálogo de falha/bloqueio de cenário e à ampliação
+  de diagrama público; o `autoFocus` nativo foi removido
+  do campo de resultado porque impedia capturar o acionador.
+- Diagramas públicos também mostram o texto Mermaid por meio de
+  um `details` acessível; o iframe está isolado em sandbox.
+- O Chromium testa ciclo de foco, Escape, retorno ao acionador,
+  ausência de gravação automática e reflow a 320/390/1366 px.
+- O roteiro `docs/HOMOLOGACAO_ASSISTIVA_REACT.md` documenta
+  14 critérios humanos, em status **pendente** (não homologado).
+- `vite.config.ts` ativa manifest do build; o script
+  `scripts/check-bundle-budget.mjs` considera apenas entradas
+  e imports estáticos para calcular gzip do caminho inicial.
+  O teto CI é 350 KiB gzip, e pacotes pesados de IA/PDF/Mermaid
+  não podem ser estaticamente exigidos pela primeira navegação.
+- Baseline no run
+  https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42314510274:
+  **286.560 bytes gzip**, versus limite de **358.400 bytes**.
+  Este limite não mede latência real, memórias do dispositivo
+  nem os pesos do modelo de IA.
+- **Pendente:** CI do último commit com E2E de foco/reflow,
+  homologação humana com leitor de tela e zoom, benchmark real
+  de velocidade/memória e RLS/Storage com contas reais.

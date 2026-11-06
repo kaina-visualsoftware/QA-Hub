@@ -180,3 +180,27 @@ as 14 combinações passaram sem violações automáticas nos critérios
 verificados. Este resultado **não equivale à homologação completa
 WCAG**, que ainda exige testes manuais com leitor de tela, teclado,
 zoom até 400%, alto contraste, navegadores e aparelhos reais.
+
+## Controle de foco, reflow e orçamento do carregamento
+
+As caixas de diálogo para registrar falha/bloqueio e ampliar diagramas
+compartilham o hook `useModalFocus`: direciona o foco inicial, prende
+Tab/Shift+Tab dentro do diálogo, permite Escape e devolve o foco
+ao botão de origem. Diagrama Mermaid ampliado também expõe o
+texto-fonte em um `details` acessível, além da visualização sandbox.
+
+O E2E de teclado roda junto da auditoria axe-core. Ele exercita
+a abertura e o fechamento de ambos os diálogos e confirma que
+nenhum resultado de QA é gravado apenas por cancelar a caixa.
+A suíte de reflow também verifica 320px CSS (~400% de zoom
+sobre um viewport de 1280px), além de 390 e 1366px. O checklist
+de homologação humana está em `docs/HOMOLOGACAO_ASSISTIVA_REACT.md`.
+
+O build Vite gera `dist/.vite/manifest.json`. O script
+`frontend/scripts/check-bundle-budget.mjs` calcula o gzip
+dos assets da primeira navegação (HTML, JS/CSS e imports estáticos)
+e falha acima de **350 KiB** ou se módulos pesados de IA, PDF
+e Mermaid forem incluídos no caminho inicial. O baseline
+medido em CI foi **286.560 bytes gzip**; isto não representa
+tempo real de carregamento, Core Web Vitals nem tamanho dos
+pesos do modelo baixados sob demanda.
