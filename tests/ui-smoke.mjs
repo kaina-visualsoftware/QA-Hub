@@ -37,6 +37,7 @@ export function createClient(){
   window.__qaR1Rows=tables;
   let user=null;
   let nextId=0;
+  const storageObjects=new Map();
   function from(table){
     let kind='read',payload=null,conditions={};
     function rows(){return (tables[table]||[]).filter(row=>
@@ -93,7 +94,80 @@ export function createClient(){
   }
   return {
     from,
+    storage:{
+      from(bucket){
+        return {
+          async upload(path,file,options){
+            if(bucket!=='qa-requisitos'||!user||!path.startsWith(user.id+'/')||
+                storageObjects.has(path))
+              return {data:null,error:{message:'Upload não autorizado'}};
+            storageObjects.set(path,{file,size:file.size,mime:options.contentType});
+            return {data:{path},error:null};
+          },
+          async download(path){
+            const object=storageObjects.get(path);
+            if(bucket!=='qa-requisitos'||!user||!path.startsWith(user.id+'/')||!object)
+              return {data:null,error:{message:'Download não autorizado'}};
+            return {data:object.file,error:null};
+          },
+          async remove(paths){
+            for(const path of paths){
+              if(!path.startsWith(user.id+'/')||
+                tables.qa_requisito_fontes.some(x=>x.storage_path===path))
+                return {data:null,error:{message:'Somente uploads órfãos podem ser removidos'}};
+              storageObjects.delete(path);
+            }
+            return {data:paths,error:null};
+          }
+        };
+      }
+    },
     async rpc(name,args){
+      if(name==='qa_register_requirement_file'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        const object=storageObjects.get(args.p_path);
+        if(!user||!task||task.user_id!==user.id||!object||
+            !args.p_path.startsWith(user.id+'/'+task.id+'/'))
+          return {data:null,error:{message:'TF ou arquivo sem permissão'}};
+        if(object.size!==args.p_tamanho||object.mime!==args.p_mime)
+          return {data:null,error:{message:'Metadados inválidos'}};
+        if(tables.qa_requisito_fontes.some(x=>x.tarefa_id===task.id&&
+          x.tipo_fonte==='arquivo'&&x.hash===args.p_sha256))
+          return {data:null,error:{message:'Este arquivo já foi anexado à TF'}};
+        const versions=tables.qa_requisito_fontes.filter(x=>x.tarefa_id===task.id&&
+          x.tipo_fonte==='arquivo'&&x.nome_arquivo.toLowerCase()===args.p_nome.toLowerCase());
+        const version=Math.max(0,...versions.map(x=>x.versao||0))+1;
+        const source={
+          id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+          tarefa_id:task.id,user_id:user.id,tipo_fonte:'arquivo',
+          nome_arquivo:args.p_nome,storage_path:args.p_path,mime:args.p_mime,
+          tamanho_arquivo:args.p_tamanho,hash:args.p_sha256,
+          texto_extraido:args.p_texto_extraido||'',versao:version,
+          created_at:new Date().toISOString()
+        };
+        tables.qa_requisito_fontes.push(source);
+        return {data:{id:source.id,tarefa_id:task.id,versao:version},error:null};
+      }
+      if(name==='qa_import_requisitos_da_fonte'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        const source=tables.qa_requisito_fontes.find(x=>x.id===args.p_fonte_id&&
+          x.tarefa_id===args.p_tarefa_id&&x.user_id===user?.id);
+        if(!task||!source||task.user_id!==user?.id)
+          return {data:null,error:{message:'TF ou fonte sem permissão'}};
+        let inserted=0,skipped=0;
+        for(const row of args.p_itens){
+          if(tables.qa_requisitos.some(x=>x.tarefa_id===task.id&&x.codigo===row.codigo)){
+            skipped++;continue;
+          }
+          tables.qa_requisitos.push({
+            ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+            tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
+            created_at:new Date().toISOString()
+          });
+          inserted++;
+        }
+        return {data:{tarefa_id:task.id,fonte_id:source.id,inserted,skipped},error:null};
+      }
       if(name==='qa_import_requisitos'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         if(!task||task.user_id!==user?.id)
