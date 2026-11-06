@@ -12,7 +12,7 @@ const rows={qa_generator_posts:[],qa_generator_tests:[],
     versao:'12.08.08.0000',sistema:'Vendas',descricao:'Verificar desconto',
     causa:'Rateio do kit',correcao:'Cálculo corrigido',status:'rascunho',
     observacoes:'Não deve ser alterado'}],
-  qa_cenarios:[]};
+  qa_cenarios:[],qa_documentos:[]};
 if(typeof window!=='undefined')window.__qaIntegrationRows=rows;
 let seq=0;
 export function createClient(){
@@ -22,6 +22,18 @@ export function createClient(){
       async getSession(){return {data:{session:{access_token:'test-token'}},error:null}}
     },
     async rpc(name,args){
+      if(name==='qa_save_document'){
+        if(args.p_tarefa_id!==tfId)return {data:null,error:{message:'TF inválida'}};
+        const previous=rows.qa_documentos.filter(x=>x.tipo===args.p_tipo)
+          .sort((a,b)=>b.versao-a.versao)[0];
+        if(previous&&previous.titulo===args.p_titulo&&previous.conteudo===args.p_conteudo)
+          return {data:previous,error:null};
+        const doc={id:'doc-'+(++seq),tarefa_id:tfId,
+          user_id:rows.qa_tarefas[0].user_id,tipo:args.p_tipo,titulo:args.p_titulo,
+          conteudo:args.p_conteudo,origem:args.p_origem,versao:(previous?.versao||0)+1};
+        rows.qa_documentos.push(doc);
+        return {data:doc,error:null};
+      }
       if(name!=='qa_attach_generated_cases')return {data:null,error:{message:'RPC desconhecida'}};
       if(args.p_tarefa_id!==tfId)return {data:null,error:{message:'TF não encontrada'}};
       let inserted=0,skipped=0;
@@ -153,7 +165,7 @@ for(const width of [390,1366]){
  await page.route('https://esm.sh/**',async route=>route.fulfill({status:200,
    contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:stub}));
  await page.route('https://pqadmlhcsimlcclpkyov.supabase.co/functions/v1/qa-generators',async route=>{
-   const body=['event: chunk','data: '+JSON.stringify({text:plan}),'','event: done',
+   const body=['event: chunk','data: '+JSON.stringify({text:route.request().postDataJSON().mode==='post'?post:plan}),'','event: done',
      'data: '+JSON.stringify({model:'test',truncated:false}),'',''].join('\n');
    await route.fulfill({status:200,contentType:'text/event-stream',
      headers:{'access-control-allow-origin':'*'},body});
@@ -165,6 +177,8 @@ for(const width of [390,1366]){
  await page.locator('#go').click();
  await page.waitForFunction(()=>document.querySelector('#qa-case-list') || document.querySelector('#qa-attach-list .qa-case'));
  await page.waitForFunction(()=>document.querySelectorAll('#qa-attach-list .qa-case').length===2);
+ assert.match(await page.locator('#exec').innerText(),/execução e os resultados reais são registrados na TF/);
+ assert.equal(await page.locator('#xl').count(),0,'Linked execution must not use independent Markdown status controls');
  await page.waitForFunction(()=>!document.querySelector('#qa-attach-save').disabled);
  await page.locator('#qa-attach-list .qa-case input[type=checkbox]').last().uncheck();
  await page.locator('#qa-attach-save').click();
@@ -189,6 +203,24 @@ for(const width of [390,1366]){
  await page.reload();
  await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
  await page.screenshot({path:'artifacts/ui/qa-cases-integration.png',fullPage:true});
+ // The post stays editable and saving it creates versions under the same TF.
+ await page.goto(site+'geradores.html?embedded=1&mode=post&tf=33333333-3333-4333-8333-333333333333');
+ await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
+ await page.locator('#go').click();
+ await page.waitForFunction(()=>!document.querySelector('#qa-post-document').hidden);
+ await page.waitForFunction(()=>!document.querySelector('#qa-post-save').disabled);
+ assert.match(await page.locator('#qa-post-content').inputValue(),/MELHORIA NO PEDIDO/);
+ await page.locator('#qa-post-content').fill(post+'\n\nTexto revisado.');
+ await page.locator('#qa-post-save').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-post-status').textContent.includes('versão 1'));
+ await page.locator('#qa-post-content').fill(post+'\n\nSegunda versão.');
+ await page.locator('#qa-post-save').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-post-status').textContent.includes('versão 2'));
+ const docs=await page.evaluate(()=>window.__qaIntegrationRows.qa_documentos);
+ assert.equal(docs.length,2);
+ assert.deepEqual(docs.map(d=>d.versao),[1,2]);
+ assert.ok(docs.every(d=>d.tarefa_id==='33333333-3333-4333-8333-333333333333'));
+ await page.screenshot({path:'artifacts/ui/qa-post-versioned.png',fullPage:true});
  await context.close();
  console.log('PASS linked TF: preview, selective import, preservation, reload');
 }

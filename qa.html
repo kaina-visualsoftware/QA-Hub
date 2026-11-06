@@ -140,7 +140,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -225,10 +225,37 @@
             
           </div>
 
+          <div id="tab-execucao" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-execucao" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Execução dos cenários</h2><p class="muted">Registre o resultado real de cada caso. Gerar um roteiro não executa nem aprova testes.</p></div></div>
+            <p class="qa-execution-summary" id="execution-summary" aria-live="polite">Nenhum cenário carregado.</p>
+            <div id="execution-list" class="qa-execution-list"></div>
+          </div>
           <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
             <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
             <div id="diagrams-list" class="stack gap-md"></div>
-            
+          </div>
+          <div id="tab-documentos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-documentos" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Documentos da TF</h2><p class="muted">Posts e relatórios privados, com histórico de versões.</p></div><button class="btn primary" id="document-generate-report" type="button">Gerar relatório da execução</button></div>
+            <section class="panel qa-document-editor" aria-label="Editor de documento">
+              <p class="muted fine">A geração usa somente cenários salvos. Revise antes de gravar uma nova versão. Documentos não aparecem na galeria pública.</p>
+              <div class="field-grid">
+                <label>Tipo <select id="document-type"><option value="post">Post técnico</option><option value="relatorio">Relatório de execução</option></select></label>
+                <label>Título <input id="document-title" maxlength="240" placeholder="Ex.: Relatório — TF 67866"></label>
+              </div>
+              <label>Conteúdo em Markdown <textarea id="document-content" rows="13" maxlength="80000" placeholder="Gere o relatório ou redija um post e revise o texto."></textarea></label>
+              <div class="qa-document-actions">
+                <button class="btn primary" type="button" id="document-save">Salvar versão</button>
+                <button class="btn soft" type="button" id="document-copy">Copiar</button>
+                <button class="btn soft" type="button" id="document-download">Exportar .md</button>
+                <span id="document-status" role="status" aria-live="polite"></span>
+              </div>
+            </section>
+            <div class="section-top"><div><h2>Últimas versões</h2><p class="muted">Abra a versão desejada para leitura ou edição.</p></div></div>
+            <div id="documents-list" class="qa-documents-list"></div>
+          </div>
+          <div id="tab-historico" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-historico" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Histórico documental</h2><p class="muted">Todas as versões salvas de posts e relatórios. Não é uma auditoria completa de alterações da TF.</p></div></div>
+            <div id="documents-history" class="qa-documents-list"></div>
           </div>
           </div>
         </section>
@@ -271,7 +298,8 @@
                   <label><input type="radio" name="diagram-ai-origin" value="task" checked> Usar dados da TF</label>
                   <label><input type="radio" name="diagram-ai-origin" value="text"> Escrever ou colar texto</label>
                 </div>
-                <label id="diagram-ai-text-wrap" hidden>Descreva o fluxo <textarea id="diagram-ai-text" rows="5" maxlength="12000" placeholder="Ex.: O usuário abre o pedido, escolhe os produtos, confirma e o sistema valida o estoque."></textarea></label>
+                <fieldset id="diagram-scenario-wrap" class="qa-diagram-scenarios"><legend>Cenários usados no diagrama</legend><div id="diagram-scenario-list" class="qa-diagram-scenario-list"></div><p class="muted fine">Os cenários selecionados e os dados da TF serão enviados à IA somente ao gerar. Revise informações confidenciais.</p></fieldset>
+                 <label id="diagram-ai-text-wrap" hidden>Descreva o fluxo <textarea id="diagram-ai-text" rows="5" maxlength="12000" placeholder="Ex.: O usuário abre o pedido, escolhe os produtos, confirma e o sistema valida o estoque."></textarea></label>
                 <div class="diagram-ai-actions"><button id="diagram-generate" type="button" class="btn primary">Gerar diagrama com IA</button><span id="diagram-ai-progress" role="status" aria-live="polite" hidden>Gerando diagrama…</span></div>
                 <p id="diagram-ai-error" class="diagram-ai-error" role="alert" hidden></p>
               </section>

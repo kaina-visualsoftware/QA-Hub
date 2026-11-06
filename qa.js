@@ -7,6 +7,8 @@ import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
 import { collectTaskContext, cleanMermaid, horizontalFlowchart, requestAiDiagram } from './qa-mermaid-ai.mjs';
 import { createDiagramViewer } from './qa-diagram-viewer.mjs';
+import { createPhase2Ui } from './qa-phase2-ui.mjs';
+import { selectedScenarioContext } from './qa-phase2.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -15,13 +17,23 @@ const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
-const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], toolMode: null, toolFrameContext: null };
+const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], diagramGenerationContext: null, toolMode: null, toolFrameContext: null };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
 const dateToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const formatDate = (v) => v ? new Date(v + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+const phase2 = createPhase2Ui({
+  db,
+  getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getScenarios:()=>state.scenarios,
+  getTaskId:()=>state.currentId,
+  refreshScenarios:id=>refreshRecordList('scenario',id),
+  onOpenDocuments:()=>selectTab('documentos'),
+  markDirty:setFormDirty,
+  toast
+});
 const statusBadge = (v) => '<span class="status ' + esc(v) + '">' + esc(statuses[v] || v) + '</span>';
 const errMessage = (err) => {
   if (!err) return 'Erro não identificado';
@@ -146,6 +158,9 @@ db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     try { sessionStorage.removeItem('qa-focus:'+state.user?.id); } catch {}
     state.selectedTaskId=null; state.draftFromGenerator=null;
+    state.currentId=null; state.scenarios=[]; state.diagrams=[];
+    state.dirtyForms.clear();
+    phase2.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
     frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
@@ -268,7 +283,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
-  for (const tab of ['resumo','cenarios','diagramas']) {
+  for (const tab of ['resumo','cenarios','execucao','diagramas','documentos','historico']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -276,6 +291,7 @@ function selectTab(name) {
     button.setAttribute('aria-selected',String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
+  if(name==='execucao')phase2.renderExecution();
 }
 const toolFrame = $('#tool-frame');
 toolFrame.addEventListener('load', () => {
@@ -295,6 +311,25 @@ window.addEventListener('message', event => {
     state.draftFromGenerator={title:String(event.data.title||'').slice(0,240),description:String(event.data.description||'').slice(0,4000),
       cases:Array.isArray(event.data.cases)?event.data.cases.slice(0,100):[]};
     location.hash='#/nova';
+    return;
+  }
+  if (event.data?.type === 'qa-hub:document-saved') {
+    if (!state.tasks.some(t=>t.id===event.data.taskId)) return;
+    if(state.currentId===event.data.taskId)
+      phase2.loadDocuments(event.data.taskId).catch(error=>toast(errMessage(error),true));
+    toast('Post registrado como documento da TF · versão '+String(event.data.version||'1')+'.');
+    return;
+  }
+  if (event.data?.type === 'qa-hub:open-execution') {
+    const id=event.data.taskId;
+    if(state.tasks.some(task=>task.id===id))
+      location.hash='#/tarefa/'+encodeURIComponent(id)+'?tab=execucao';
+    return;
+  }
+  if (event.data?.type === 'qa-hub:open-documents') {
+    const id=event.data.taskId;
+    if (state.tasks.some(task=>task.id===id))
+      location.hash='#/tarefa/'+encodeURIComponent(id)+'?tab=documentos';
     return;
   }
   if (event.data?.type === 'qa-hub:open-task') {
@@ -357,7 +392,9 @@ async function route() {
     if (id !== state.currentId || !state.tasks.some(t=>t.id===id)) {
       await openTask(id);
     } else setView('editor');
-    if (new URLSearchParams(query).get('tab')==='cenarios' && state.currentId===id) selectTab('cenarios');
+    const requestedTab=new URLSearchParams(query).get('tab');
+    if (state.currentId===id && ['cenarios','execucao','diagramas','documentos','historico'].includes(requestedTab))
+      selectTab(requestedTab);
     return;
   }
   setView('dashboard');
@@ -385,6 +422,7 @@ function openNewTask() {
   state.assistDraft=null;
   state.pendingScenarios=[];
   state.currentId=null;
+  phase2.reset();
   setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-error').hidden=true;
@@ -463,6 +501,7 @@ async function openTask(id) {
     if (state.currentId !== id) return;
     state.scenarios=s.data||[]; state.diagrams=d.data||[];
     renderScenarios(); renderDiagrams();
+    await phase2.loadDocuments(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
@@ -525,6 +564,23 @@ function openDiagram(d=null) {
   $('#diagram-ai-text').value='';
   form.querySelector('[name="diagram-ai-origin"][value="task"]').checked=true;
   $('#diagram-ai-text-wrap').hidden=true;
+  $('#diagram-scenario-wrap').hidden=false;
+  const selected=new Set(Array.isArray(d?.origem_cenarios)&&d.origem_cenarios.length
+    ? d.origem_cenarios : state.scenarios.map(item=>item.id));
+  const group=$('#diagram-scenario-list');group.replaceChildren();
+  if(!state.scenarios.length){
+    const hint=document.createElement('p');hint.className='muted fine';
+    hint.textContent='Nenhum cenário cadastrado nesta TF.';group.append(hint);
+  }
+  for(const scenario of state.scenarios){
+    const label=document.createElement('label'),check=document.createElement('input');
+    check.type='checkbox';check.name='diagram-scenario';check.value=scenario.id;
+    check.checked=selected.has(scenario.id);
+    label.append(check,document.createTextNode(scenario.titulo));group.append(label);
+  }
+  state.diagramGenerationContext=d?{
+    kind:d.origem_tipo||'manual',ids:Array.isArray(d.origem_cenarios)?d.origem_cenarios:[]
+  }:null;
   $('#diagram-ai-progress').hidden=true;
   $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
   form.hidden=false;
@@ -561,6 +617,7 @@ async function refreshRecordList(kind,taskId){
   if(scenario){
     state.scenarios=data||[];
     renderScenarios();
+    phase2.renderExecution();
     // Keep dashboard/list counters up to date without re-opening the editor.
     await loadData();
   }else{
@@ -878,7 +935,9 @@ $('#scenario-form').addEventListener('submit',async event=>{
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
 $$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
-  $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
+  const custom=$('input[name="diagram-ai-origin"]:checked').value==='text';
+  $('#diagram-ai-text-wrap').hidden=!custom;
+  $('#diagram-scenario-wrap').hidden=custom;
 }));
 $('#task-visibility').addEventListener('change',()=>{
   const publicChoice=$('#task-visibility').value==='true';
@@ -890,8 +949,10 @@ $('#diagram-generate').addEventListener('click',async()=>{
   if(state.isBusy || !state.currentId)return;
   const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
   const currentTask=state.tasks.find(t=>t.id===state.currentId);
+  const picked=[...document.querySelectorAll('input[name="diagram-scenario"]:checked')].map(input=>input.value);
+  const chosen=selectedScenarioContext(currentTask||{},state.scenarios,picked);
   const source=custom ? $('#diagram-ai-text').value.trim() :
-    collectTaskContext(currentTask||{},state.scenarios);
+    collectTaskContext(currentTask||{},chosen.selected);
   const error=$('#diagram-ai-error'),progress=$('#diagram-ai-progress');
   error.hidden=true;error.textContent='';
   if(!source.trim()){
@@ -909,6 +970,7 @@ $('#diagram-generate').addEventListener('click',async()=>{
       onProgress:message=>{progress.textContent=message;}
     });
     const code=cleanMermaid(result.code);
+    state.diagramGenerationContext={kind:custom?'texto':'tf',ids:custom?[]:chosen.ids};
     $('#diagram-source').value=code;
     setFormDirty('diagram-form');
     if(!$('#diagram-form').elements.titulo.value.trim()){
@@ -942,7 +1004,9 @@ $('#diagram-form').addEventListener('submit',async event=>{
   if(!form.reportValidity())return;
   busy(button,true);
   try{
-    const values={titulo:form.elements.titulo.value.trim(),conteudo:horizontalFlowchart(form.elements.conteudo.value.trim()),updated_at:new Date().toISOString()};
+    const values={titulo:form.elements.titulo.value.trim(),conteudo:horizontalFlowchart(form.elements.conteudo.value.trim()),updated_at:new Date().toISOString(),
+      origem_tipo:state.diagramGenerationContext?.kind||'manual',
+      origem_cenarios:state.diagramGenerationContext?.ids||[]};
     const id=form.elements.id.value;
     const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});

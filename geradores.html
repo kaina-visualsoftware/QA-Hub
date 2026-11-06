@@ -134,6 +134,20 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 .qa-attach-status{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 .qa-attach-link{font-size:13px;font-weight:700;color:#0d786d}
 @media(max-width:600px){.qa-attach{padding:12px}.qa-case-fields{grid-template-columns:1fr}.qa-case-fields .full{grid-column:auto}}
+/* Save reviewed posts as versioned documents of the active TF. */
+.qa-post-document{margin-top:18px;padding:18px;border:1px solid #cbdeda;background:#fff;border-radius:12px}
+.qa-post-document h3{font-size:17px;margin:0 0 7px}
+.qa-post-document p{font-size:13px;line-height:1.55;color:var(--mut)}
+.qa-post-document label{display:block;margin:12px 0;font-size:13px;font-weight:650;color:#34565a}
+.qa-post-document input,.qa-post-document textarea{display:block;width:100%;min-width:0;box-sizing:border-box;margin-top:6px;border-radius:9px;border:1px solid #cbd9db;background:#fff;color:#1b3439;padding:11px;line-height:1.5}
+.qa-post-document textarea{resize:vertical;font-size:13px;min-height:155px}
+.qa-post-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#qa-post-open{color:#0d786d;font-size:13px;font-weight:700}
+#qa-post-status{font-size:13px;color:#386960;overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:600px){.qa-post-document{padding:12px}.qa-post-actions button{width:100%}}
+.qa-linked-execution-note{margin:12px 0 8px;font-size:13px;line-height:1.55;color:#536d74}
+.qa-linked-execution-link{display:inline-flex;padding:9px 12px;border:1px solid #b7d6ce;background:#ebf6f2;border-radius:8px;font-size:13px;font-weight:700;color:#096f64;text-decoration:none}
+.qa-linked-execution-link:hover{background:#dff1eb}
 </style>
 </head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
@@ -156,6 +170,13 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
   <div class="qa-case-list" id="qa-attach-list" role="group" aria-label="Casos gerados revisáveis"></div>
   <div class="qa-attach-toolbar"><button class="p" id="qa-attach-save" type="button">Adicionar selecionados à TF</button><span class="qa-attach-status" id="qa-attach-status" role="status" aria-live="polite"></span></div>
 </section>
+<section id="qa-post-document" class="qa-post-document" hidden aria-labelledby="qa-post-heading">
+  <h3 id="qa-post-heading">Post vinculado à TF</h3>
+  <p id="qa-post-target">Confira o post antes de salvar uma versão na TF.</p>
+  <label>Título <input id="qa-post-title" maxlength="240" placeholder="Ex.: Melhoria no processo de pedidos"></label>
+  <label>Post revisável (Markdown) <textarea id="qa-post-content" rows="10" maxlength="80000" spellcheck="true"></textarea></label>
+  <div class="qa-post-actions"><button class="p" id="qa-post-save" type="button">Salvar versão na TF</button><a id="qa-post-open" href="./qa.html" hidden>Abrir documentos da TF</a><span id="qa-post-status" role="status" aria-live="polite"></span></div>
+</section>
 <details id="bbd"><summary>BBCode (para colar no editor em modo código)</summary><textarea id="bb" readonly></textarea></details>
 </div>
 <div id="hist"><h3>Histórico <span id="hk" style="color:var(--mut);font-weight:400;font-size:12px"></span></h3>
@@ -169,6 +190,7 @@ import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
 import {TASK_UUID} from './qa-workspace.mjs';
 import {createGeneratorReview} from './qa-generator-review.mjs';
+import {createPostDocumentUi} from './qa-post-doc.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
 const POST=`Você escreve posts de melhoria para o fórum de uma software house (ERP MyCommerce), em português do Brasil, a partir da TAREFA e, se houver, do REQUISITO colados pelo usuário.
@@ -518,6 +540,25 @@ function toolXml(){
 const defExec=()=>({});
 let CN=null;
 function renderExec(){CN=null;const b=$("exec");b.innerHTML="";const T=S.teste;
+ const taskId=new URLSearchParams(location.search).get('tf');
+ if(mode==='teste'&&taskId&&TASK_UUID.test(taskId)){
+  const note=document.createElement('p');
+  note.className='qa-linked-execution-note';
+  note.textContent='Este roteiro é um rascunho. A execução e os resultados reais são registrados na TF, não no histórico local do gerador.';
+  const link=document.createElement('a');
+  link.className='qa-linked-execution-link';
+  link.href='./qa.html#/tarefa/'+encodeURIComponent(taskId)+'?tab=execucao';
+  link.textContent='Abrir execução dos cenários da TF';
+  link.onclick=event=>{
+   if(window.parent!==window){
+    event.preventDefault();
+    parent.postMessage({type:'qa-hub:open-execution',taskId},location.origin);
+   }
+  };
+  b.append(note,link);
+  $('prev').style.display='';
+  return;
+ }
  const CH=(mode==="teste"&&T.md)?T.md.split(/^(?=## )/m):[],SI=CH.map((c,k)=>/^## Cen[aá]rio/.test(c)?k:-1).filter(k=>k>=0),P=SI.map(k=>CH[k]);
  if(!P.length){$("prev").style.display="";return}
  const sc=P.map(p=>({t:p.match(/^## (.*)/)[1].trim(),body:p.replace(/^## .*\n?/,"").replace(/\n-{3,}\s*$/,"")}));
@@ -589,7 +630,7 @@ function load(){const s=S[mode],c=M[mode];
  $("cb").style.display=$("bbd").style.display=c.bb?"":"none";
  if(s.md){$("prev").innerHTML=toHTML(s.md);$("bb").value=toBB(s.md);$("out").style.display="block"}else $("out").style.display="none";
  for(const k in M)$(M[k].nav).classList.toggle("on",k===mode);
- renderExec();renderAttachReview();if(!c.tool)renderHist()}
+ renderExec();renderAttachReview();postDocumentUi.render();if(!c.tool)renderHist()}
 function sw(k){if(k===mode)return;S[mode].t=$("t").value;S[mode].r=$("r").value;if(M[mode].tool){TV[mode]={};document.querySelectorAll("#tool textarea,#tool select").forEach(e=>TV[mode][e.id]=e.value);document.querySelectorAll("#tool input[type=checkbox]").forEach(e=>TV[mode][e.id]=e.checked)}mode=k;load()}
 for(const k in M)$(M[k].nav).onclick=()=>sw(k);
 async function copy(txt,html){try{
@@ -699,6 +740,11 @@ for(const k in M){
  $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
 }
 const reviewController=createGeneratorReview({client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,embedded:document.documentElement.dataset.embedded==="true"});
+const postDocumentUi=createPostDocumentUi({
+  client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,
+  getTask:()=>reviewController.getTask(),
+  embedded:document.documentElement.dataset.embedded==="true"
+});
 function renderAttachReview(){return reviewController.render()}
 (async()=>{
  load();reflectMode();
@@ -717,6 +763,7 @@ function renderAttachReview(){return reviewController.render()}
  await recover();
  await reviewController.loadTask().catch(error=>{$("session-label").textContent=error.message||String(error)});
  await renderAttachReview();
+ postDocumentUi.render();
  if(mode==="home"&&HR)HR();
 })();
 if(document.documentElement.dataset.embedded==="true"){
