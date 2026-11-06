@@ -23,7 +23,7 @@ export function createClient(){
       {id:'diagram-private',tarefa_id:priv,titulo:'Fluxo secreto',conteudo:'flowchart TD\\n A --> B'}
     ],
     qa_admins:[],
-    qa_documentos:[]
+    qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[]
   };
   let user=null;
   let nextId=0;
@@ -73,6 +73,15 @@ export function createClient(){
   return {
     from,
     async rpc(name,args){
+      if(name==='qa_link_release'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
+        let release=tables.qa_releases.find(x=>x.user_id===user.id&&x.versao===args.p_versao);
+        if(!release){release={id:'44444444-4444-4444-8444-444444444444',user_id:user.id,versao:args.p_versao,created_at:new Date().toISOString()};tables.qa_releases.push(release)}
+        if(!tables.qa_release_tarefas.some(x=>x.tarefa_id===task.id&&x.release_id===release.id))
+          tables.qa_release_tarefas.push({tarefa_id:task.id,release_id:release.id,user_id:user.id});
+        return {data:release.id,error:null};
+      }
       if(name!=='qa_save_document')return {data:null,error:{message:'RPC desconhecida'}};
       const parent=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
       if(!parent || parent.user_id!==user?.id)
@@ -434,6 +443,22 @@ CENÁRIO 1 - Incluir produto
       assert.equal(await page.locator('#tab-btn-documentos').getAttribute('aria-selected'),'true');
       assert.doesNotMatch(await page.locator('#document-content').inputValue(),/Nota de revisão adicional/);
       await page.screenshot({path:'artifacts/ui/qa-phase2-documents-'+width+'.png',fullPage:true});
+       // Phase 3: release and reusable references are persisted under the TF.
+       await page.locator('#tab-btn-vinculos').click();
+       assert.equal(await page.locator('#tab-vinculos').isVisible(),true);
+       await page.locator('#links-release-version').fill('12.10.06.0000');
+       page.once('dialog',dialog=>dialog.accept());
+       await page.locator('#links-release-save').click();
+       await page.waitForFunction(()=>document.querySelector('#links-release-list').textContent.includes('12.10.06.0000'));
+       await page.locator('#links-reference-title').fill('Checklist para pedido');
+       await page.locator('#links-reference-content').fill('Validar mensagens e regras de desconto.');
+       await page.locator('#links-reference-safe').check();
+       await page.locator('#links-reference-save').click();
+       await page.waitForFunction(()=>document.querySelector('#links-reference-list').textContent.includes('Checklist para pedido'));
+       await page.locator('#links-reference-list .qa-phase3-actions button').nth(1).click();
+       assert.equal(await page.locator('#tab-btn-documentos').getAttribute('aria-selected'),'true');
+       assert.match(await page.locator('#document-content').inputValue(),/Validar mensagens e regras de desconto/);
+       await page.screenshot({path:'artifacts/ui/qa-phase3-links-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){
       await page.locator('#tab-btn-diagramas').click();
