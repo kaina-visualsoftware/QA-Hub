@@ -148,7 +148,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-requisitos" type="button" data-tab="requisitos" role="tab" aria-controls="tab-requisitos" aria-selected="false" tabindex="-1">Requisitos <span id="requirements-number">0</span></button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-requisitos" type="button" data-tab="requisitos" role="tab" aria-controls="tab-requisitos" aria-selected="false" tabindex="-1">Requisitos <span id="requirements-number">0</span></button><button class="tab" id="tab-btn-cobertura" type="button" data-tab="cobertura" role="tab" aria-controls="tab-cobertura" aria-selected="false" tabindex="-1">Cobertura <span id="coverage-count">0</span></button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -321,6 +321,37 @@ Critérios de aceite:
             </section>
           </div>
 
+          <div id="tab-cobertura" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cobertura" tabindex="0" hidden>
+            <div class="section-top">
+              <div><h2>Matriz de cobertura de requisitos</h2><p class="muted">Associe requisitos aprovados a cenários reais. Cobertura estrutural não significa teste aprovado.</p></div>
+            </div>
+            <section class="panel qa-r4-panel" aria-labelledby="coverage-title">
+              <div class="section-heading"><h3 id="coverage-title">Cobertura da TF</h3></div>
+              <div id="coverage-summary" class="qa-r4-summary" aria-label="Indicadores de cobertura"></div>
+              <p id="coverage-status" class="muted fine" role="status" aria-live="polite">Salve a TF para consultar sua cobertura.</p>
+              <p id="coverage-focus" class="qa-r4-focus" aria-live="polite"></p>
+              <div class="qa-r4-toolbar">
+                <label>Buscar requisito ou cenário
+                  <input id="coverage-search" type="search" placeholder="Ex.: RF-001, orçamento, desconto">
+                </label>
+                <label>Situação
+                  <select id="coverage-filter">
+                    <option value="all">Todos</option>
+                    <option value="unlinked">Sem cobertura</option>
+                    <option value="pending">Execução pendente</option>
+                    <option value="failed">Com falha</option>
+                    <option value="blocked">Bloqueados</option>
+                    <option value="validated">Validados</option>
+                  </select>
+                </label>
+                <div class="qa-r4-toolbar-actions">
+                  <button id="coverage-refresh" class="btn soft" type="button" disabled>Atualizar</button>
+                  <button id="coverage-export" class="btn soft" type="button" disabled>Exportar CSV</button>
+                </div>
+              </div>
+              <div id="coverage-list" class="qa-r4-list"></div>
+            </section>
+          </div>
           <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
             <div class="section-top"><div><h2>Cenários de teste</h2><p class="muted">Cada cenário possui passos e resultado próprios.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
             <div id="scenarios-list" class="stack gap-md"></div>

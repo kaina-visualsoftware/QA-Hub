@@ -25,7 +25,7 @@ export function createClient(){
     qa_admins:[],
     qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
     qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
-    qa_requisito_fontes:[],qa_requisitos:[],qa_geracao_contextos:[],
+    qa_requisito_fontes:[],qa_requisitos:[],qa_geracao_contextos:[],qa_requisito_cenarios:[],qa_requisito_revisoes:[],
     qa_generator_tests:[{
       id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       user_id:'55555555-5555-4555-8555-555555555555',
@@ -38,6 +38,15 @@ export function createClient(){
   let user=null;
   let nextId=0;
   const storageObjects=new Map();
+  function snapshot(row){
+    tables.qa_requisito_revisoes.push({
+      id:'history-'+(++nextId),requisito_id:row.id,
+      tarefa_id:row.tarefa_id,user_id:row.user_id,versao:row.versao||1,
+      codigo:row.codigo,tipo:row.tipo,titulo:row.titulo,
+      descricao:row.descricao,criterios_aceite:row.criterios_aceite,
+      estado:row.estado,created_at:new Date().toISOString()
+    });
+  }
   function from(table){
     let kind='read',payload=null,conditions={};
     function rows(){return (tables[table]||[]).filter(row=>
@@ -49,6 +58,7 @@ export function createClient(){
           created_at: new Date().toISOString()
         }));
         tables[table].push(...added);
+        if(table==='qa_requisitos')added.forEach(row=>{row.versao=1;snapshot(row)});
         if(['qa_evidencias','qa_cenarios'].includes(table)){
           for(const row of added){
             tables.qa_eventos.push({
@@ -63,7 +73,14 @@ export function createClient(){
       }
       if(kind==='update'){
         const found=rows();
-        found.forEach(row=>Object.assign(row,payload));
+        found.forEach(row=>{
+          if(table==='qa_requisitos'){
+            const changed=['codigo','tipo','titulo','descricao','criterios_aceite','estado','origem_trecho','ordem']
+              .some(field=>payload[field]!==undefined&&payload[field]!==row[field]);
+            Object.assign(row,payload);
+            if(changed){row.versao=(row.versao||1)+1;snapshot(row)}
+          }else Object.assign(row,payload);
+        });
         return {data:found,error:null};
       }
       if(kind==='delete'){
@@ -148,6 +165,32 @@ export function createClient(){
         tables.qa_requisito_fontes.push(source);
         return {data:{id:source.id,tarefa_id:task.id,versao:version},error:null};
       }
+      if(name==='qa_set_requirement_scenarios'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id&&t.user_id===user?.id);
+        const req=tables.qa_requisitos.find(r=>r.id===args.p_requisito_id&&
+          r.tarefa_id===args.p_tarefa_id&&r.user_id===user?.id&&r.estado==='aprovado');
+        const chosen=args.p_cenario_ids||[];
+        if(!task||!req||!Array.isArray(chosen)||chosen.length>200||
+          new Set(chosen).size!==chosen.length||
+          chosen.some(id=>!tables.qa_cenarios.some(s=>s.id===id&&
+            s.tarefa_id===task.id&&s.user_id===user.id)))
+          return {data:null,error:{message:'TF, requisito ou cenário não autorizado'}};
+        const prior=tables.qa_requisito_cenarios.filter(x=>x.requisito_id===req.id);
+        const removed=prior.filter(x=>!chosen.includes(x.cenario_id)).length;
+        tables.qa_requisito_cenarios=tables.qa_requisito_cenarios.filter(x=>
+          x.requisito_id!==req.id||chosen.includes(x.cenario_id));
+        let inserted=0;
+        for(const id of chosen){
+          if(!tables.qa_requisito_cenarios.some(x=>x.requisito_id===req.id&&x.cenario_id===id)){
+            tables.qa_requisito_cenarios.push({
+              id:'link-'+(++nextId),tarefa_id:task.id,user_id:user.id,
+              requisito_id:req.id,cenario_id:id
+            });
+            inserted++;
+          }
+        }
+        return {data:{tarefa_id:task.id,requisito_id:req.id,linked:chosen.length,inserted,removed},error:null};
+      }
       if(name==='qa_import_requisitos_da_fonte'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         const source=tables.qa_requisito_fontes.find(x=>x.id===args.p_fonte_id&&
@@ -159,11 +202,12 @@ export function createClient(){
           if(tables.qa_requisitos.some(x=>x.tarefa_id===task.id&&x.codigo===row.codigo)){
             skipped++;continue;
           }
-          tables.qa_requisitos.push({
+          const created={
             ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
             tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
-            created_at:new Date().toISOString()
-          });
+            versao:1,created_at:new Date().toISOString()
+          };
+          tables.qa_requisitos.push(created);snapshot(created);
           inserted++;
         }
         return {data:{tarefa_id:task.id,fonte_id:source.id,inserted,skipped},error:null};
@@ -183,11 +227,12 @@ export function createClient(){
           if(tables.qa_requisitos.some(q=>q.tarefa_id===task.id&&q.codigo===row.codigo)){
             skipped++;continue;
           }
-          tables.qa_requisitos.push({
+          const created={
             ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
             tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
-            created_at:new Date().toISOString()
-          });
+            versao:1,created_at:new Date().toISOString()
+          };
+          tables.qa_requisitos.push(created);snapshot(created);
           inserted++;
         }
         if(!inserted)tables.qa_requisito_fontes.pop();
@@ -656,6 +701,8 @@ CENÁRIO 1 - Incluir produto
     await firstTab.press('ArrowRight');
     assert.equal(await page.locator('#tab-btn-requisitos').getAttribute('aria-selected'),'true');
     await page.locator('#tab-btn-requisitos').press('ArrowRight');
+    assert.equal(await page.locator('#tab-btn-cobertura').getAttribute('aria-selected'),'true');
+    await page.locator('#tab-btn-cobertura').press('ArrowRight');
     assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
     assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
     await page.locator('#tab-btn-resumo').click();
@@ -719,6 +766,31 @@ CENÁRIO 1 - Incluir produto
       assert.match(await page.locator('#scenarios-list').innerText(),/Cenário novo no modal/);
       assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
       await page.screenshot({path:'artifacts/ui/scenario-modal-workflow-'+width+'.png',fullPage:true});
+      // R4: a saved scenario can be associated with an approved requirement
+      // without modifying its execution state or creating another TF.
+      await page.locator('[data-scenario-coverage]').first().click();
+      await page.waitForFunction(()=>document.querySelector('#coverage-count').textContent==='5');
+      assert.equal(await page.locator('#tab-btn-cobertura').getAttribute('aria-selected'),'true');
+      assert.equal(await page.locator('#coverage-list .qa-r4-card').count(),5);
+      assert.match(await page.locator('#coverage-summary').innerText(),/Sem cobertura/);
+      await page.locator('#coverage-list .qa-r4-card').first()
+        .locator('.qa-r4-actions button').first().click();
+      assert.equal(await page.locator('.qa-r4-editor .qa-r4-option input:checked').count(),1,
+        'Opening coverage from a scenario preselects it for review');
+      await page.locator('.qa-r4-editor .qa-r4-actions .btn.primary').click();
+      await page.waitForFunction(()=>window.__qaR1Rows.qa_requisito_cenarios.length===1);
+      await page.waitForFunction(()=>document.querySelector('#coverage-status').textContent.includes('1 cenário(s) vinculado(s)'));
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_cenarios.find(s=>s.titulo==='Cenário novo no modal').status),
+        'nao_executado','A link must never mark a scenario as executed');
+      assert.match(await page.locator('#coverage-summary').innerText(),/20%/);
+      await page.locator('#coverage-filter').selectOption('unlinked');
+      assert.equal(await page.locator('#coverage-list .qa-r4-card').count(),4);
+      await page.locator('#coverage-filter').selectOption('all');
+      await page.locator('#coverage-list .qa-r4-card').first()
+        .locator('.qa-r4-revision-area button').click();
+      await page.waitForFunction(()=>document.querySelectorAll('.qa-r4-revision').length>=1);
+      assert.match(await page.locator('.qa-r4-revision').first().innerText(),/Versão 1/);
+      await page.screenshot({path:'artifacts/ui/qa-r4-coverage-'+width+'.png',fullPage:true});
       // Phase 2: results are persisted on the original scenario, never inferred.
       await page.locator('#tab-btn-execucao').click();
       await page.locator('#execution-list .qa-execution-case').waitFor({state:'visible'});
@@ -730,6 +802,10 @@ CENÁRIO 1 - Incluir produto
       await page.waitForFunction(()=>document.querySelector('#coverage-percent').textContent==='100%');
       assert.match(await page.locator('#coverage-detail').innerText(),/1 de 1 cenários/);
       assert.match(await page.locator('#scenarios-list').innerText(),/Pedido abriu com o resultado esperado/);
+      await page.locator('#tab-btn-cobertura').click();
+      await page.waitForFunction(()=>document.querySelector('#coverage-list .qa-r4-card')?.textContent.includes('Validado'));
+      assert.match(await page.locator('#coverage-summary').innerText(),/Validados[\s\S]*1 · 20%/);
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_tarefas.filter(t=>t.user_id==='55555555-5555-4555-8555-555555555555').length),1);
       await page.locator('#tab-btn-documentos').click();
       await page.locator('#document-generate-report').click();
       assert.match(await page.locator('#document-content').inputValue(),/Aprovados: 1/);

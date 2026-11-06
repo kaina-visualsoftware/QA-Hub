@@ -17,6 +17,7 @@ import { createPhase4Ui } from './qa-phase4-ui.mjs';
 import { createRequirementsUi } from './qa-requirements-ui.mjs';
 import { createRequirementPicker } from './qa-requirements-picker.mjs';
 import { createRequirementUsageUi } from './qa-requirements-usage-ui.mjs';
+import { createCoverageUi } from './qa-requirements-coverage-ui.mjs';
 import { combineDiagramContext,recordRequirementUsage } from './qa-requirements-context.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
@@ -67,6 +68,11 @@ const requirements=createRequirementsUi({
   onDirty:value=>setFormDirty('requirements-source',value)
 });
 const requirementUsage=createRequirementUsageUi({db,getTaskId:()=>state.currentId});
+const coverageUi=createCoverageUi({
+  db,getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getTaskId:()=>state.currentId,getUserId:()=>state.user?.id,
+  getScenarios:()=>state.scenarios,toast
+});
 const nativeTools=createNativeTools({
   root:$('#native-tools'),db,
   getTask:()=>state.tasks.find(t=>t.id===state.selectedTaskId),
@@ -209,6 +215,7 @@ db.auth.onAuthStateChange((event) => {
     phase4.reset();
     requirements.reset();
     requirementUsage.reset();
+    coverageUi.reset();
     diagramRequirementPicker.reset();
     nativeTools.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
@@ -352,7 +359,7 @@ function setView(name) {
 }
 function selectTab(name) {
   if($('#tab-btn-'+name)?.disabled)return;
-  for (const tab of ['resumo','requisitos','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
+  for (const tab of ['resumo','requisitos','cobertura','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -361,6 +368,7 @@ function selectTab(name) {
     button.tabIndex = selected ? 0 : -1;
   }
   if(name==='execucao')phase2.renderExecution();
+  if(name==='cobertura'&&state.currentId)coverageUi.load(state.currentId,{keepFocus:true}).catch(e=>toast(errMessage(e),true));
   // Keep the active tab visible in the horizontally scrollable mobile tab bar,
   // without scrolling the entire document away from the current form.
   requestAnimationFrame(()=>{
@@ -384,7 +392,9 @@ window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== toolFrame.contentWindow) return;
   if (event.data?.type === 'qa-hub:cases-attached') {
     if (!state.tasks.some(task=>task.id===event.data.taskId)) return;
-    loadData().catch(error=>toast(errMessage(error),true));
+    if(state.currentId===event.data.taskId)
+      refreshRecordList('scenario',event.data.taskId).catch(error=>toast(errMessage(error),true));
+    else loadData().catch(error=>toast(errMessage(error),true));
     toast((Number(event.data.inserted)||0)+' cenário(s) adicionados à TF.');
     return;
   }
@@ -494,7 +504,7 @@ async function route() {
       await openTask(id);
     } else setView('editor');
     const requestedTab=new URLSearchParams(query).get('tab');
-    if (state.currentId===id && ['requisitos','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'].includes(requestedTab))
+    if (state.currentId===id && ['requisitos','cobertura','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'].includes(requestedTab))
       selectTab(requestedTab);
     return;
   }
@@ -508,7 +518,7 @@ function setTaskStep(step, focus=false) {
   $('#task-detail-tabs').hidden=entering;
   // New TFs can prepare an in-memory requirements preview; other dependent
   // tabs remain disabled until the task is saved.
-  for(const tab of ['cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'])
+  for(const tab of ['cobertura','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'])
     $('#tab-btn-'+tab).disabled=!state.currentId;
   $('#editor-caption').hidden=entering;
   $('#save-status').hidden=entering || state.dirtyForms.size===0;
@@ -530,6 +540,7 @@ function openNewTask() {
   phase2.reset();
   phase4.reset();
   requirementUsage.reset();
+  coverageUi.reset();
   diagramRequirementPicker.reset();
   requirements.startNew();
   setTaskStep('entry');
@@ -615,6 +626,7 @@ async function openTask(id) {
     await phase4.load(id);
     await requirements.load(id);
     await requirementUsage.load(id);
+    await coverageUi.load(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
@@ -626,7 +638,7 @@ function renderScenarios() {
   $('#scenarios-number').textContent = state.scenarios.length;
   $('#scenarios-list').innerHTML = state.scenarios.length ? state.scenarios.map((s,i)=>
     '<article class="scenario-card"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
-    esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+'" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button></div></header>'+
+    esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+'" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button><button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
     '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
     (s.passos?'<p class="field-label">Passos executados</p><p class="scenario-content">'+esc(s.passos)+'</p>':'')+
     (s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'')+
@@ -736,6 +748,7 @@ async function refreshRecordList(kind,taskId){
     state.scenarios=data||[];
     renderScenarios();
     phase2.renderExecution();
+    await coverageUi.load(taskId,{keepFocus:true});
     // Keep dashboard/list counters up to date without re-opening the editor.
     await loadData();
   }else{
@@ -934,6 +947,12 @@ document.addEventListener('click',async (event)=>{
     $('#filter-type').value='';
     renderTasks();
     $('#task-search').focus();
+  }
+  const focusCoverage=target.dataset.scenarioCoverage;
+  if(focusCoverage&&state.scenarios.some(s=>s.id===focusCoverage)){
+    selectTab('cobertura');
+    await coverageUi.load(state.currentId,{keepFocus:true});
+    coverageUi.focusScenario(focusCoverage);
   }
   const editScenario=target.dataset.editScenario, deleteScenario=target.dataset.deleteScenario;
   const editDiagram=target.dataset.editDiagram, deleteDiagram=target.dataset.deleteDiagram, showDiagram=target.dataset.showDiagram, zoomDiagram=target.dataset.zoomDiagram;
