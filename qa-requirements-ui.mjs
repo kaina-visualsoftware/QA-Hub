@@ -108,6 +108,7 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
     const list=$('requirements-list');list.replaceChildren();
     const approved=saved.filter(x=>x.estado==='aprovado').length,
       draft=saved.filter(x=>x.estado==='rascunho').length;
+    $('requirements-number').textContent=saved.length;
     $('requirements-count').textContent=saved.length
       ?approved+' aprovado(s) · '+draft+' rascunho(s) · '+(saved.length-approved-draft)+' arquivado(s)'
       :'Nenhum requisito cadastrado';
@@ -256,6 +257,7 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
       return data;
     }finally{saving=false;$('requirements-save').disabled=false;}
   }
+  function attachTask(taskId){if(taskId&&!activeTaskId)activeTaskId=taskId;}
   async function onTaskSaved(taskId){
     if(!queued)return {inserted:0,skipped:0};
     // Keep the pending batch if a network/RLS error prevents import. The
@@ -265,5 +267,5 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
   }
   $('requirements-search').addEventListener('input',renderSaved);
   $('requirements-filter').addEventListener('change',renderSaved);
-  return {load,startNew,reset,onTaskSaved,render:renderSaved,get pending(){return Boolean(queued)}};
+  return {load,startNew,reset,attachTask,onTaskSaved,render:renderSaved,get pending(){return Boolean(queued)}};
 }
