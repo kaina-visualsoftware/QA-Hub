@@ -230,12 +230,17 @@ db.auth.onAuthStateChange((event) => {
 
 function taskItem(task) {
   const scenarios = state.scenarioStats.filter(s => s.tarefa_id === task.id);
+  const progress=progressForTask(scenarios);
   const prefix = task.codigo ? task.codigo.slice(0,5) : 'TF';
   return '<div class="task-item"><a href="#/tarefa/' + encodeURIComponent(task.id) + '">' +
     '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
     '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
     scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
-    '</small></span></a>' + (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
+    '</small><small class="qa-task-progress">' + progress.done + '/' + progress.total + ' executados</small></span></a>' +
+    (progress.pending?'<a class="qa-task-continue" href="#/tarefa/' + encodeURIComponent(task.id) +
+      '?tab=cenarios">Continuar testes</a>':'') +
+    (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) +
+    '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
 }
 function renderTasks() {
   const query = $('#task-search').value.toLocaleLowerCase('pt-BR').trim();
