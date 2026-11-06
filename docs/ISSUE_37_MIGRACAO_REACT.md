@@ -184,3 +184,19 @@ RLS em duas contas antes da migração de produção.
   exibidos nem persistidos textos/arquivos originais nesse painel.
 - Pendências: ferramenta de comparação local, XML seguro, testes com contas
   Supabase reais e homologação do fluxo.
+
+## Ferramentas locais da fase 3 — comparação e release
+
+- `qa-release-core.mjs` foi copiado como módulo puro reutilizado pela interface
+  React, mantendo o algoritmo linha-a-linha e a comparação estrutural XML.
+- `ComparisonTool`: texto/XML local; prévia paginada de diferenças,
+  tamanho máximo de entradas, bloqueio de DTD/ENTITY/xml-stylesheet e
+  renderização React como texto (nunca HTML da entrada).
+- `recordComparison` é chamado somente após ação e confirmação do QA;
+  o corpo enviado à tabela `qa_artefatos` contém apenas TF, usuário, tipo
+  e as contagens, sem payload original.
+- `ReleaseOrganizer`: classifica status 11/12, organiza a lista autorizada,
+  revisa comunicado/BBCode e apresenta advertências. Códigos encontrados
+  não implicam vínculo automático; `qa_link_release` permanece separado.
+- Paridade ainda demanda homologação com entradas reais (principalmente
+  XML com namespaces complexos) e auditoria de acessibilidade/performance.

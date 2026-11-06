@@ -73,3 +73,17 @@ regras e notas, com validação contra credenciais) e histórico somente leitura
 contadores de comparação. Para preservar a privacidade, os textos e XML originais
 não são guardados nesses registros. A comparação visual e local ainda depende
 da migração das ferramentas do legado.
+
+## Comparador local de textos/XML e organizador de release
+
+Na TF, abra **Releases e referências → Comparações** para comparar texto linha a linha
+ou XML por hierarquia, namespaces, atributos e valores. A visualização é local,
+com paginação e limite de 150 mil caracteres. DTD, entidades e referências de
+stylesheet em XML são recusadas. Somente após confirmação explícita são gravados
+os contadores `adicionados`, `removidos` e `alterados` na tabela `qa_artefatos`;
+o texto/XML original nunca é enviado à base por este recurso.
+
+Na aba **Releases**, o organizador local classifica a lista por status 11/12,
+verifica comunicados autorizados e fornece versões copiáveis em texto e BBCode.
+Nenhuma liberação ou vínculo de TF é inferido automaticamente da lista;
+continua necessária a associação explícita pelo proprietário.

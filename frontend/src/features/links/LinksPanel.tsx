@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, GitCompareArrows, GitMerge, NotebookPen, Save, X } from "lucide-react";
 import { z } from "zod";
 import ComparisonTool from "./ComparisonTool";
+import ReleaseOrganizer from "./ReleaseOrganizer";
 import { supabase } from "../../lib/supabase";
 import type { Task } from "../../lib/contracts";
 import {
@@ -158,6 +159,7 @@ export default function LinksPanel({
             <Save size={16}/> Vincular release
           </Button></div>
         </form>
+        <ReleaseOrganizer task={task} version={version} />
         <h3 className="font-semibold">Releases vinculadas</h3>
         {releases.isPending && <p role="status">Carregando releases…</p>}
         {releases.isError && <p role="alert" className="notice error">{releases.error.message}</p>}
