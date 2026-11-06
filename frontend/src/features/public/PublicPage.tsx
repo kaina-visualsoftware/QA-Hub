@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck, X } from "lucide-rea
 import { Button } from "@heroui/react";
 import { z } from "zod";
 import { listPublishedTasks, loadPublishedTask } from "./public-data";
+import { useModalFocus } from "../../lib/useModalFocus";
 import type { PublicDiagram, PublicTaskDetail } from "./public-data";
 
 const facts: Array<[keyof PublicTaskDetail, string]> = [
@@ -25,6 +26,7 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const zoomRef = useModalFocus(expanded, () => setExpanded(false), "button");
   async function render() {
     if (svg) { setExpanded(true); return; }
     if (diagram.conteudo.length > 16000) {
@@ -56,8 +58,8 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
       srcDoc={svg} />}
     {error && <p className="notice error mt-3" role="alert">{error}</p>}
     {expanded && svg && <div className="public-react-zoom-backdrop" role="presentation">
-      <section className="public-react-zoom" role="dialog" aria-modal="true"
-        aria-label={"Diagrama ampliado: " + diagram.titulo}>
+      <section ref={zoomRef} className="public-react-zoom" role="dialog" aria-modal="true"
+        aria-label={"Diagrama ampliado: " + diagram.titulo} tabIndex={-1}>
         <div className="section-heading">
           <h2>{diagram.titulo}</h2>
           <Button size="sm" variant="secondary" onPress={() => setExpanded(false)}>

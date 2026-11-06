@@ -17,6 +17,7 @@ import {
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
 import { updatePublication } from "../features/public/public-data";
+import { useModalFocus } from "../lib/useModalFocus";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
@@ -56,6 +57,9 @@ export default function TaskPage() {
   const [importWarning, setImportWarning] = useState("");
   const [pending, setPending] = useState<{ scenario: Scenario; status: ExecutionResult["status"] } | null>(null);
   const [observed, setObserved] = useState("");
+  const observedModalRef = useModalFocus(Boolean(pending), () => {
+    if (!saveResult.isPending) setPending(null);
+  }, "textarea");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
 
@@ -384,7 +388,8 @@ export default function TaskPage() {
     </section>
 
     {pending && <div className="dialog-backdrop" role="presentation">
-      <section className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="observed-heading">
+      <section ref={observedModalRef} className="dialog-card" role="dialog" aria-modal="true"
+        aria-labelledby="observed-heading" tabIndex={-1}>
         <h2 id="observed-heading">{pending.status === "reprovado" ? "Registrar falha" : "Registrar bloqueio"}</h2>
         <p className="text-muted mt-2">{pending.scenario.titulo}. Descreva o resultado observado.</p>
         <form className="stack mt-4" onSubmit={(event) => {
@@ -396,7 +401,8 @@ export default function TaskPage() {
               placeholder="O que ocorreu durante a execução?" />
           </label>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onPress={() => setPending(null)}>Cancelar</Button>
+            <Button type="button" variant="secondary" isDisabled={saveResult.isPending}
+              onPress={() => setPending(null)}>Cancelar</Button>
             <Button type="submit" isDisabled={saveResult.isPending || !observed.trim()}>Salvar resultado</Button>
           </div>
         </form>
