@@ -161,3 +161,15 @@ não utilizados. Não trocar para outra biblioteca apenas por presunção.
 Pendente: homologação real de RPCs, simulação de fluxo R1/R4 em navegador,
 extração local PDF/DOCX, teste robusto de anexo e download/segurança de
 RLS em duas contas antes da migração de produção.
+
+## Evidências e auditoria — extensão da migração React
+
+- `EvidencePanel` permite salvar evidência textual/URL HTTPS opcional, vinculada
+  à TF ou a um cenário. Usa o validador legado `qa-phase4.mjs`, a tabela
+  `qa_evidencias` e o gatilho de auditoria existente (sem migração SQL nova).
+- Histórico de evidências é somente leitura, sem operações UPDATE/DELETE; os
+  eventos `qa_eventos` são apresentados com os rótulos do legado e paginação
+  progressiva. A leitura da auditoria também não permite alterar eventos.
+- Exige a TF própria para cadastrar evidências; referências com características
+  evidentes de credenciais/token na URL são rejeitadas no cliente.
+- Pendência: validar com Supabase real, duas contas/RLS e prova de acessibilidade.

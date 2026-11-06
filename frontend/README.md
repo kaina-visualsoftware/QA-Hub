@@ -56,3 +56,11 @@ gerações de IA. Apenas o proprietário tem acesso aos registros privados.
 PDF/DOCX originais são armazenados, mas a extração de texto automática
 ainda não está disponível nesta interface React. TXT e MD são lidos
 localmente, antes do upload. Nenhum arquivo é transmitido à IA por padrão.
+
+## Evidências e auditoria no React
+
+A TF agora possui **Evidências e auditoria**. Observações e URLs HTTPS podem ser
+registradas e vinculadas a cenários por uma operação explícita; não é permitido
+editar nem apagar evidências já cadastradas. A aba Auditoria mostra eventos
+gerados pelos gatilhos do banco em modo somente leitura. Nenhuma senha, log
+bruto ou captura binária é enviado ou armazenado nesse módulo.
