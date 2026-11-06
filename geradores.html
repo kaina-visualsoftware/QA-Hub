@@ -428,6 +428,7 @@ import {QA_CONFIG} from './qa-config.js';
 import {TASK_UUID} from './qa-workspace.mjs';
 import {createGeneratorReview} from './qa-generator-review.mjs';
 import {createPostDocumentUi} from './qa-post-doc.mjs';
+import {formatGeneratedPost} from './qa-post-format.mjs';
 import {createPhase3GeneratorTools} from './qa-phase3-tools.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
@@ -918,19 +919,20 @@ $("go").onclick=async()=>{
    try{if(Date.now()-lt>1200){lt=Date.now();localStorage.setItem("draft_"+k,JSON.stringify({t,r,md:text,ts:Date.now()}))}}catch{}
    if(k===mode){$("prev").innerHTML=toHTML(text);$("out").style.display="block";$("st").textContent="Gerando em tempo real…"}
   });
-  let md=result.text.trim();
-  if(result.truncated)md+="\n\n**ATENÇÃO:** o resultado pode estar incompleto devido ao limite da IA.";
+  const md=k==='post'
+   ?formatGeneratedPost(result.text,{taskText:t})
+   :result.text.trim();
   S[k]={t,r,md,exec:k==="teste"?defExec(md):{},generationId:crypto.randomUUID()};
   if(k===mode)load();
   const record={ts:Date.now(),titulo:(md.match(/^# (.+)$/m)||[])[1]||"",
    tarefa:t,requisito:r,md,exec:S[k].exec};
   try{
    S[k].id=await store(k).save(record);
-   if(k===mode){await renderHist();renderExec();renderAttachReview();$("st").textContent="Resultado salvo no histórico."}
+   if(k===mode){await renderHist();renderExec();renderAttachReview();$("st").textContent=result.truncated?"Post gerado e salvo no histórico. Atenção: confira a resposta, que pode estar incompleta.":"Resultado salvo no histórico."}
   }catch(error){
    try{
     S[k].id=await store(k,true).save(record);
-    if(k===mode){await renderHist();$("st").textContent="Salvo somente neste navegador (sincronização indisponível)."}
+    if(k===mode){await renderHist();$("st").textContent=result.truncated?"Salvo no navegador; resposta possivelmente incompleta. Revise antes de publicar.":"Salvo somente neste navegador (sincronização indisponível)."}
    }catch{$("st").textContent="Não foi possível salvar o resultado."}
   }
  }catch(error){
@@ -963,7 +965,18 @@ const reviewController=createGeneratorReview({client:supa,getMode:()=>mode,getUs
 const postDocumentUi=createPostDocumentUi({
   client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,
   getTask:()=>reviewController.getTask(),
-  embedded:document.documentElement.dataset.embedded==="true"
+  embedded:document.documentElement.dataset.embedded==="true",
+  onSaved:record=>{
+    // Save was confirmed by Supabase. Keep the TF in focus and the historical
+    // post untouched, but clear every editable field for the next draft.
+    S.post={t:'',r:'',md:''};
+    if(mode==='post'){
+      load();
+      $("st").textContent='Post salvo na TF · versão '+record.versao+
+        '. Campos limpos para um novo post. O histórico permanece disponível.';
+      $("t").focus();
+    }
+  }
 });
 const phase3Tools=createPhase3GeneratorTools({
  client:supa,getTask:()=>reviewController.getTask(),
