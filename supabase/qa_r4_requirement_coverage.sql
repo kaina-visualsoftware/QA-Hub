@@ -196,7 +196,7 @@ create or replace function qa_internal.qa_r4_store_revision()
 returns trigger language plpgsql security definer set search_path=''
 as $$
 begin
-  if new.versao<>old.versao then
+  if tg_op='INSERT' or new.versao<>old.versao then
     insert into public.qa_requisito_revisoes(
       requisito_id,tarefa_id,user_id,versao,codigo,tipo,titulo,
       descricao,criterios_aceite,estado,origem_trecho,ordem
@@ -215,9 +215,8 @@ drop trigger if exists qa_r4_requirement_version on public.qa_requisitos;
 create trigger qa_r4_requirement_version before update on public.qa_requisitos
   for each row execute function qa_internal.qa_r4_requirement_version();
 drop trigger if exists qa_r4_store_revision on public.qa_requisitos;
-create trigger qa_r4_store_revision after update on public.qa_requisitos
-  for each row when(new.versao<>old.versao)
-  execute function qa_internal.qa_r4_store_revision();
+create trigger qa_r4_store_revision after insert or update on public.qa_requisitos
+  for each row execute function qa_internal.qa_r4_store_revision();
 comment on table public.qa_requisito_cenarios is
   'Private approved requirement to TF scenario relations; does not change execution status.';
 comment on table public.qa_requisito_revisoes is
