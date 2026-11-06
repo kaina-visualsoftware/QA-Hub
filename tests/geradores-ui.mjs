@@ -12,7 +12,7 @@ const rows={qa_generator_posts:[],qa_generator_tests:[],
     versao:'12.08.08.0000',sistema:'Vendas',descricao:'Verificar desconto',
     causa:'Rateio do kit',correcao:'Cálculo corrigido',status:'rascunho',
     observacoes:'Não deve ser alterado'}],
-  qa_cenarios:[],qa_documentos:[]};
+  qa_cenarios:[],qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[]};
 if(typeof window!=='undefined')window.__qaIntegrationRows=rows;
 let seq=0;
 export function createClient(){
@@ -22,6 +22,14 @@ export function createClient(){
       async getSession(){return {data:{session:{access_token:'test-token'}},error:null}}
     },
     async rpc(name,args){
+      if(name==='qa_link_release'){
+        if(args.p_tarefa_id!==tfId)return {data:null,error:{message:'TF inválida'}};
+        let release=rows.qa_releases.find(x=>x.versao===args.p_versao);
+        if(!release){release={id:'44444444-4444-4444-8444-444444444444',versao:args.p_versao,user_id:rows.qa_tarefas[0].user_id};rows.qa_releases.push(release)}
+        if(!rows.qa_release_tarefas.some(x=>x.tarefa_id===tfId&&x.release_id===release.id))
+          rows.qa_release_tarefas.push({release_id:release.id,tarefa_id:tfId,user_id:rows.qa_tarefas[0].user_id});
+        return {data:release.id,error:null};
+      }
       if(name==='qa_save_document'){
         if(args.p_tarefa_id!==tfId)return {data:null,error:{message:'TF inválida'}};
         const previous=rows.qa_documentos.filter(x=>x.tipo===args.p_tipo)
@@ -221,6 +229,39 @@ for(const width of [390,1366]){
  assert.deepEqual(docs.map(d=>d.versao),[1,2]);
  assert.ok(docs.every(d=>d.tarefa_id==='33333333-3333-4333-8333-333333333333'));
  await page.screenshot({path:'artifacts/ui/qa-post-versioned.png',fullPage:true});
+ // Phase 3: linking never happens automatically from a copied list.
+ await page.goto(site+'geradores.html?embedded=1&mode=release&tf=33333333-3333-4333-8333-333333333333');
+ await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
+ await page.locator('#rv').fill('12.10.06.0000');
+ await page.locator('#ra').fill('#67866\tBUG\t012 - Teste\tCorreção de pedido');
+ await page.locator('#b1').click();
+ await page.waitForFunction(()=>!document.querySelector('#qa-phase3-tool').hidden);
+ assert.equal(await page.locator('#qa-phase3-tool-action').isDisabled(),false);
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_release_tarefas.length),0);
+ page.once('dialog',dialog=>dialog.accept());
+ await page.locator('#qa-phase3-tool-action').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-phase3-tool-status').textContent.includes('associada'));
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_release_tarefas.length),1);
+ await page.locator('#n-diff').evaluate(el=>el.click());
+ await page.locator('#da').fill('Item confidencial\nValor anterior');
+ await page.locator('#db').fill('Item confidencial\nValor novo');
+ await page.locator('#b1').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-phase3-tool-note').textContent.includes('Somente essas contagens'));
+ page.once('dialog',dialog=>dialog.accept());
+ await page.locator('#qa-phase3-tool-action').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-phase3-tool-status').textContent.includes('salvos'));
+ await page.locator('#n-xml').evaluate(el=>el.click());
+ await page.locator('#xa').fill('<root><item a="private">antes</item></root>');
+ await page.locator('#xb').fill('<root><item a="changed">depois</item></root>');
+ await page.locator('#b1').click();
+ page.once('dialog',dialog=>dialog.accept());
+ await page.locator('#qa-phase3-tool-action').click();
+ await page.waitForFunction(()=>document.querySelector('#qa-phase3-tool-status').textContent.includes('salvos'));
+ const artifacts=await page.evaluate(()=>window.__qaIntegrationRows.qa_artefatos);
+ assert.equal(artifacts.length,2);
+ assert.deepEqual(artifacts.map(x=>x.tipo),['diff_texto','diff_xml']);
+ assert.doesNotMatch(JSON.stringify(artifacts),/Item confidencial|Valor anterior|private|changed|antes|depois|<root>/);
+ await page.screenshot({path:'artifacts/ui/qa-phase3-tools.png',fullPage:true});
  await context.close();
  console.log('PASS linked TF: preview, selective import, preservation, reload');
 }
