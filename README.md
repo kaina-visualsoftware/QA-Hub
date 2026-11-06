@@ -213,3 +213,19 @@ Para uma **TF ainda não salva**, siga: criar TF → prosseguir à revisão → 
 **Fases posteriores:** R2 adicionará anexos PDF/DOCX/TXT/MD; R3 reutilizará os requisitos aprovados nos geradores; R4 acrescentará revisões históricas e a matriz requisito↔cenário. A R1 **não** habilita upload nem inclusão automática de requisitos nos prompts.
 
 **Testes:** \`node --test tests/qa-requirements.test.mjs\` e smoke do Chromium nas resoluções 320/390/768/1366, incluindo criação da TF, prévia, aprovação, salvamento no banco sem TF duplicada e responsividade.
+
+## R2 — Arquivos privados de requisitos e versões
+
+A aba **Requisitos** aceita especificações **PDF com texto selecionável, DOCX, TXT e MD** com até **10 MB**. Selecione a TF salva, anexe o original e revise o texto extraído antes de organizar, editar e aprovar os RF/RNF/RN/CA. A leitura ocorre localmente no navegador; os bytes não são enviados a um serviço de IA. Para PDF e DOCX, bibliotecas de extração de texto com versões fixas são carregadas apenas quando necessárias (PDF.js 4.10.38 e JSZip 3.10.1). O conteúdo original fica no bucket **privado** qa-requisitos, não em URL pública.
+
+**Segurança:** o caminho do objeto é composto por id_usuario/id_tf/uuid.ext; as políticas de storage.objects exigem conta autenticada e proprietária da TF. Só arquivos órfãos de upload malsucedido podem ser removidos. A tabela qa_requisito_fontes guarda SHA-256, tamanho, nome, MIME, texto extraído, versão e caminho privado. A função qa_register_requirement_file confere metadados e objeto existente antes de registrar a versão. As funções usam SECURITY INVOKER; a importação revisada para a fonte existente usa qa_import_requisitos_da_fonte, vinculando itens à mesma TF, sem criar outra.
+
+**Versões e duplicatas:** arquivo com os mesmos bytes (SHA-256) na mesma TF é identificado como duplicado; o mesmo nome com conteúdo diferente gera v2, v3 etc. Versões anteriores permanecem disponíveis para download privado. A interface lista os anexos e permite reabrir o texto extraído usando **Revisar texto**. O usuário pode desvincular uma fonte se quiser salvar um texto digitado como fonte independente.
+
+**Casos especiais:** documentos digitalizados sem texto selecionável não são convertidos automaticamente; o arquivo original pode ser preservado, mas a extração exige transcrição manual (OCR não incluído). Textos extraídos acima de 30.000 caracteres geram um aviso explícito: somente o trecho inicial aparece na prévia, e o original não é modificado. Arquivos com tipo incompatível, conteúdo binário disfarçado ou maiores que 10 MB são rejeitados. O R1 continua funcionando para textos digitados e TFs em rascunho; **uma TF precisa estar salva antes de anexar um arquivo**.
+
+**Implantação:** executar supabase/qa_r2_requirements_files.sql depois da migração R1. O arquivo cria o bucket privado, políticas, índices, metadados e as duas funções da R2. Não executa DROP nem substitui fontes antigas.
+
+**Testes:** tests/qa-requirements-files.test.mjs valida formatos, assinaturas, hash e caminhos; o smoke do Chromium valida associação à mesma TF, extração TXT, duplicação por SHA-256, duas versões, edição de requisitos e rejeição de PDF inválido nos tamanhos 320, 390, 768 e 1366 px.
+
+**Próximo passo:** R3 carrega requisitos aprovados automaticamente em Posts, Roteiros e Diagramas. Ainda não os envia aos geradores.

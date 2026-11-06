@@ -37,6 +37,7 @@ export function createClient(){
   window.__qaR1Rows=tables;
   let user=null;
   let nextId=0;
+  const storageObjects=new Map();
   function from(table){
     let kind='read',payload=null,conditions={};
     function rows(){return (tables[table]||[]).filter(row=>
@@ -93,7 +94,80 @@ export function createClient(){
   }
   return {
     from,
+    storage:{
+      from(bucket){
+        return {
+          async upload(path,file,options){
+            if(bucket!=='qa-requisitos'||!user||!path.startsWith(user.id+'/')||
+                storageObjects.has(path))
+              return {data:null,error:{message:'Upload não autorizado'}};
+            storageObjects.set(path,{file,size:file.size,mime:options.contentType});
+            return {data:{path},error:null};
+          },
+          async download(path){
+            const object=storageObjects.get(path);
+            if(bucket!=='qa-requisitos'||!user||!path.startsWith(user.id+'/')||!object)
+              return {data:null,error:{message:'Download não autorizado'}};
+            return {data:object.file,error:null};
+          },
+          async remove(paths){
+            for(const path of paths){
+              if(!path.startsWith(user.id+'/')||
+                tables.qa_requisito_fontes.some(x=>x.storage_path===path))
+                return {data:null,error:{message:'Somente uploads órfãos podem ser removidos'}};
+              storageObjects.delete(path);
+            }
+            return {data:paths,error:null};
+          }
+        };
+      }
+    },
     async rpc(name,args){
+      if(name==='qa_register_requirement_file'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        const object=storageObjects.get(args.p_path);
+        if(!user||!task||task.user_id!==user.id||!object||
+            !args.p_path.startsWith(user.id+'/'+task.id+'/'))
+          return {data:null,error:{message:'TF ou arquivo sem permissão'}};
+        if(object.size!==args.p_tamanho||object.mime!==args.p_mime)
+          return {data:null,error:{message:'Metadados inválidos'}};
+        if(tables.qa_requisito_fontes.some(x=>x.tarefa_id===task.id&&
+          x.tipo_fonte==='arquivo'&&x.hash===args.p_sha256))
+          return {data:null,error:{message:'Este arquivo já foi anexado à TF'}};
+        const versions=tables.qa_requisito_fontes.filter(x=>x.tarefa_id===task.id&&
+          x.tipo_fonte==='arquivo'&&x.nome_arquivo.toLowerCase()===args.p_nome.toLowerCase());
+        const version=Math.max(0,...versions.map(x=>x.versao||0))+1;
+        const source={
+          id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+          tarefa_id:task.id,user_id:user.id,tipo_fonte:'arquivo',
+          nome_arquivo:args.p_nome,storage_path:args.p_path,mime:args.p_mime,
+          tamanho_arquivo:args.p_tamanho,hash:args.p_sha256,
+          texto_extraido:args.p_texto_extraido||'',versao:version,
+          created_at:new Date().toISOString()
+        };
+        tables.qa_requisito_fontes.push(source);
+        return {data:{id:source.id,tarefa_id:task.id,versao:version},error:null};
+      }
+      if(name==='qa_import_requisitos_da_fonte'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        const source=tables.qa_requisito_fontes.find(x=>x.id===args.p_fonte_id&&
+          x.tarefa_id===args.p_tarefa_id&&x.user_id===user?.id);
+        if(!task||!source||task.user_id!==user?.id)
+          return {data:null,error:{message:'TF ou fonte sem permissão'}};
+        let inserted=0,skipped=0;
+        for(const row of args.p_itens){
+          if(tables.qa_requisitos.some(x=>x.tarefa_id===task.id&&x.codigo===row.codigo)){
+            skipped++;continue;
+          }
+          tables.qa_requisitos.push({
+            ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+            tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
+            created_at:new Date().toISOString()
+          });
+          inserted++;
+        }
+        return {data:{tarefa_id:task.id,fonte_id:source.id,inserted,skipped},error:null};
+      }
       if(name==='qa_import_requisitos'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         if(!task||task.user_id!==user?.id)
@@ -438,6 +512,8 @@ CENÁRIO 1 - Incluir produto
     // remain in memory until the original task is saved.
     await page.locator('#tab-btn-requisitos').click();
     assert.equal(await page.locator('#tab-requisitos').isVisible(),true);
+    assert.equal(await page.locator('#requirements-file').isDisabled(),true,
+      'An unsaved TF must not accept permanent file uploads');
     await page.locator('#requirements-source').fill(
       'RF001: O pedido deve recalcular o total após remover desconto.\n'+
       'Critérios de aceite:\n- O valor atualizado é exibido na tela.\n\n'+
@@ -503,6 +579,71 @@ CENÁRIO 1 - Incluir produto
     assert.equal(await page.locator('#requirements-source').inputValue(),'');
     assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisitos.length),2);
     assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),1);
+    // R2: private file upload, visible version history, local text extraction
+    // and import of reviewed items into the same TF without duplicating it.
+    assert.equal(await page.locator('#requirements-file').isDisabled(),false);
+    const firstFile=Buffer.from(
+      'RF003: O pedido deve registrar data de envio.\n\nRF004: O usuário consulta o histórico de alterações.','utf8');
+    await page.locator('#requirements-file').setInputFiles({
+      name:'requisitos.txt',mimeType:'text/plain',buffer:firstFile
+    });
+    await page.waitForFunction(()=>!document.querySelector('#requirements-file-save').disabled);
+    assert.match(await page.locator('#requirements-file-preview').inputValue(),/RF003/);
+    await page.locator('#requirements-file-save').click();
+    await page.waitForFunction(()=>document.querySelector('#requirements-file-count').textContent.includes('1 arquivo'));
+    assert.match(await page.locator('#requirements-file-list').innerText(),/requisitos.txt · v1/);
+    assert.match(await page.locator('#requirements-source').inputValue(),/RF003/);
+    assert.match(await page.locator('#requirements-active-file').innerText(),/Fonte vinculada/);
+    await page.locator('#requirements-organize').click();
+    assert.equal(await page.locator('#requirements-review .qa-req-preview-card').count(),2);
+    await page.locator('#requirements-approve').click();
+    await page.locator('#requirements-save').click();
+    await page.waitForFunction(()=>document.querySelector('#requirements-number').textContent==='4');
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisitos.length),4);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),2);
+    const linked=await page.evaluate(()=>{
+      const rows=window.__qaR1Rows;
+      const src=rows.qa_requisito_fontes.find(s=>s.tipo_fonte==='arquivo');
+      return {source:src,matched:rows.qa_requisitos.filter(req=>req.fonte_id===src.id).length};
+    });
+    assert.equal(linked.source.versao,1);
+    assert.equal(linked.matched,2,'Imported requirements must reference the file source');
+
+    // Uploading the same bytes twice is rejected before creating a second
+    // permanent object or mutating the TF.
+    await page.locator('#requirements-file').setInputFiles({
+      name:'requisitos.txt',mimeType:'text/plain',buffer:firstFile
+    });
+    await page.waitForFunction(()=>document.querySelector('#requirements-file-feedback').textContent.includes('já está anexado'));
+    assert.equal(await page.locator('#requirements-file-save').isDisabled(),true);
+
+    // A changed document with the same name creates v2 without replacing v1.
+    await page.locator('#requirements-file').setInputFiles({
+      name:'requisitos.txt',mimeType:'text/plain',
+      buffer:Buffer.from('RF005: O pedido permite consultar o comprovante atualizado.','utf8')
+    });
+    await page.waitForFunction(()=>!document.querySelector('#requirements-file-save').disabled);
+    await page.locator('#requirements-file-save').click();
+    await page.waitForFunction(()=>document.querySelector('#requirements-file-count').textContent.includes('2 arquivo'));
+    assert.match(await page.locator('#requirements-file-list').innerText(),/requisitos.txt · v2/);
+    assert.match(await page.locator('#requirements-file-list').innerText(),/requisitos.txt · v1/);
+    await page.locator('#requirements-organize').click();
+    await page.locator('#requirements-approve').click();
+    await page.locator('#requirements-save').click();
+    await page.waitForFunction(()=>document.querySelector('#requirements-number').textContent==='5');
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),3);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_tarefas.filter(t=>t.user_id==='55555555-5555-4555-8555-555555555555').length),1,
+      'R2 cannot create a duplicate TF');
+
+    // A disguised PDF is rejected before any file upload.
+    await page.locator('#requirements-file').setInputFiles({
+      name:'invalido.pdf',mimeType:'application/pdf',
+      buffer:Buffer.from('not a PDF document')
+    });
+    await page.waitForFunction(()=>document.querySelector('#requirements-file-feedback').textContent.includes('PDF válido'));
+    assert.equal(await page.locator('#requirements-file-save').isDisabled(),true);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),3);
+    await page.screenshot({path:'artifacts/ui/qa-r2-files-'+width+'.png',fullPage:true});
     assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_tarefas.filter(t=>t.user_id==='55555555-5555-4555-8555-555555555555').length),1,
       'R1 cannot create an extra TF');
     let reqOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
