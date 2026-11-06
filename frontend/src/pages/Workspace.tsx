@@ -68,6 +68,7 @@ export function Workspace() {
       return;
     }
     const run = ++aiRunRef.current;
+    let activeClient: LocalModelClient | null = null;
     setAiBusy(true); setAiProgress("Preparando o worker local…");
     setLocalReview(null); setExtracted([]);
     try {
@@ -75,6 +76,7 @@ export function Workspace() {
       if (aiRunRef.current !== run) return;
       modelRef.current?.dispose();
       const client = createOpenModelClient();
+      activeClient = client;
       modelRef.current = client;
       const draft = await client.extract(source, (message) => {
         if (aiRunRef.current === run) setAiProgress(message);
@@ -94,8 +96,8 @@ export function Workspace() {
       if (aiRunRef.current === run) {
         setAiBusy(false); setAiProgress("");
       }
-      modelRef.current?.dispose();
-      modelRef.current = null;
+      activeClient?.dispose();
+      if (modelRef.current === activeClient) modelRef.current = null;
     }
   }
 
