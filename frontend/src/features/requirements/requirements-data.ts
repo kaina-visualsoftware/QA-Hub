@@ -75,6 +75,28 @@ export async function importRequirementText(taskId: string, source: string, item
       !Number.isInteger(data.skipped)) throw Error("O banco não confirmou a importação.");
   return { inserted: Number(data.inserted), skipped: Number(data.skipped) };
 }
+export async function importRequirementSource(
+  taskId: string, sourceId: string, sourceText: string,
+  items: DraftRequirement[], sources: RequirementSource[]
+) {
+  uuid.parse(taskId); uuid.parse(sourceId);
+  const chosen = sources.find((item) => item.id === sourceId &&
+    item.tarefa_id === taskId && item.tipo_fonte === "arquivo");
+  if (!chosen || !chosen.texto_extraido || sourceText !== chosen.texto_extraido) {
+    throw Error("A fonte original foi alterada ou está indisponível. Selecione o arquivo novamente.");
+  }
+  const prepared = prepareImport(sourceText, items);
+  const { data, error } = await supabase.rpc("qa_import_requisitos_da_fonte", {
+    p_tarefa_id: taskId, p_fonte_id: sourceId, p_itens: prepared.items
+  });
+  fail(error);
+  if (data?.tarefa_id !== taskId || data?.fonte_id !== sourceId ||
+      !Number.isInteger(data.inserted) || !Number.isInteger(data.skipped)) {
+    throw Error("O banco não confirmou os requisitos vinculados ao arquivo.");
+  }
+  return { inserted: Number(data.inserted), skipped: Number(data.skipped) };
+}
+
 export async function editRequirement(taskId: string, id: string, item: Requirement) {
   uuid.parse(taskId); uuid.parse(id);
   if (item.tarefa_id !== taskId || item.id !== id) throw Error("Requisito não pertence à TF.");

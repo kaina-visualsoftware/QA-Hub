@@ -27,7 +27,7 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
   });
   const sources = useQuery({
     queryKey: ["requirement-sources", userId, task.id],
-    queryFn: () => listRequirementSources(task.id), enabled: owned && view === "sources"
+    queryFn: () => listRequirementSources(task.id), enabled: owned
   });
   const history = useQuery({
     queryKey: ["requirement-usage", userId, task.id],
@@ -71,7 +71,8 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
         {reqs.isPending && <p className="notice" role="status">Carregando requisitos privados…</p>}
         {reqs.isError && <p className="notice error" role="alert">{reqs.error.message}</p>}
         {reqs.isSuccess && view === "catalog" &&
-          <RequirementCatalog task={task} records={reqs.data} onChanged={reload} />}
+          <RequirementCatalog task={task} records={reqs.data} sources={sources.data ?? []}
+            onChanged={reload} />}
         {reqs.isSuccess && view === "coverage" &&
           <CoverageView task={task} requirements={reqs.data}
             scenarios={scenarios} links={links.data ?? []}

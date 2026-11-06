@@ -7,10 +7,10 @@ import {
 } from "../../lib/legacy/qa-requirements.mjs";
 import type { DraftRequirement } from "../../lib/legacy/qa-requirements.mjs";
 import {
-  changeRequirementState, editRequirement, importRequirementText,
+  changeRequirementState, editRequirement, importRequirementSource, importRequirementText,
   listRequirementRevisions
 } from "./requirements-data";
-import type { Requirement } from "./requirements-data";
+import type { Requirement, RequirementSource } from "./requirements-data";
 import { Check, FileUp, Pencil, Save, X } from "lucide-react";
 
 function RevisionHistory({ taskId, requirementId }: { taskId: string; requirementId: string }) {
@@ -34,10 +34,12 @@ function RevisionHistory({ taskId, requirementId }: { taskId: string; requiremen
 }
 
 export default function RequirementCatalog({
-  task, records, onChanged
-}: { task: Task; records: Requirement[]; onChanged: () => Promise<void> }) {
+  task, records, sources, onChanged
+}: { task: Task; records: Requirement[]; sources: RequirementSource[];
+     onChanged: () => Promise<void> }) {
   const [source, setSource] = useState("");
   const [preparedSource, setPreparedSource] = useState("");
+  const [sourceId, setSourceId] = useState("");
   const [preview, setPreview] = useState<DraftRequirement[]>([]);
   const [editItem, setEditItem] = useState<Requirement | null>(null);
   const [revisions, setRevisions] = useState<string | null>(null);
@@ -72,9 +74,11 @@ export default function RequirementCatalog({
     try {
       if (source !== preparedSource) throw Error("O texto mudou. Organize novamente antes de salvar.");
       prepareImport(source, preview);
-      const result = await importRequirementText(task.id, source, preview);
+      const result = sourceId
+        ? await importRequirementSource(task.id, sourceId, source, preview, sources)
+        : await importRequirementText(task.id, source, preview);
       await onChanged();
-      setPreview([]); setPreparedSource(""); setSource("");
+      setPreview([]); setPreparedSource(""); setSource(""); setSourceId("");
       setMessage(result.inserted + " requisito(s) importado(s); " + result.skipped +
         " código(s) já existente(s) ignorado(s).");
     } catch (cause) { setError((cause as Error).message); }
@@ -111,12 +115,35 @@ export default function RequirementCatalog({
     <details className="generator-context" open={records.length === 0}>
       <summary>Importar requisitos de texto (prévia e revisão)</summary>
       <div className="stack mt-4">
+        {sources.some((item) => item.tipo_fonte === "arquivo" && item.texto_extraido.length >= 5) &&
+          <label className="field">Origem de importação
+            <select value={sourceId} onChange={(e) => {
+              const next = e.target.value;
+              const file = sources.find((item) => item.id === next);
+              setSourceId(next);
+              setSource(file?.texto_extraido || "");
+              setPreview([]); setPreparedSource("");
+              setMessage(file ? "Texto do arquivo carregado para revisão." : "");
+            }}>
+              <option value="">Novo texto (fonte independente)</option>
+              {sources.filter((item) => item.tipo_fonte === "arquivo" &&
+                item.texto_extraido.length >= 5).map((item) =>
+                <option key={item.id} value={item.id}>
+                  {item.nome_arquivo} · versão {item.versao}
+                </option>)}
+            </select>
+          </label>}
         <label className="field">Cole a especificação, critérios de aceite ou regras de negócio
-          <textarea rows={7} maxLength={30000} value={source} onChange={(e) => {
+          <textarea rows={7} maxLength={30000} value={source} readOnly={Boolean(sourceId)}
+            onChange={(e) => {
             setSource(e.target.value);
             if (preview.length) setMessage("Texto alterado. Organize novamente antes de importar.");
           }} placeholder="RF-001: O sistema deve..." />
         </label>
+        {sourceId && <p className="text-muted text-sm">
+          O texto desse arquivo é imutável; a importação usará a mesma fonte no banco.
+          Para editar o texto antes de importar, escolha “Novo texto”.
+        </p>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onPress={parseText} isDisabled={busy || source.trim().length < 5}>
             <FileUp size={16} /> Organizar
