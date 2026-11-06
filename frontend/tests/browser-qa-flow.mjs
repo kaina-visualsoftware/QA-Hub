@@ -11,8 +11,8 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   sistema:"Financeiro",versao:"12.00",causa:"Filtro omitia valores negativos",
   correcao:"Critério corrigido",conclusao:"",observacoes:"",publica:false,
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
-const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[];
-let requirementImports=0,coverageSaves=0;
+const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[];
+let requirementImports=0,coverageSaves=0,evidenceSaves=0;
 let aiCalls=0,attachCalls=0,postSaves=0;
 const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -39,7 +39,16 @@ async function mock(route){
   if(p.endsWith("/rest/v1/qa_requisito_revisoes"))return send([]);
   if(p.endsWith("/rest/v1/qa_geracao_contextos"))return send([]);
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
-  if(p.endsWith("/rest/v1/qa_evidencias"))return send([]);
+  if(p.endsWith("/rest/v1/qa_evidencias")){
+    if(m==="POST"){
+      evidenceSaves++;
+      const item=req.postDataJSON();
+      evidenceRows.push({...item,id:"88888888-8888-4888-8888-888888888888",
+        created_at:"2026-11-06T12:30:00.000Z"});
+      return send({id:"88888888-8888-4888-8888-888888888888"},201);
+    }
+    return send(evidenceRows);
+  }
   if(p.endsWith("/rest/v1/qa_eventos"))return send([]);
   if(p.endsWith("/rest/v1/qa_generator_tests"))return send([],201);
   if(p.endsWith("/rest/v1/qa_generator_posts"))return send([],201);
@@ -163,6 +172,17 @@ try{
   assert.equal(requirementLinks[0].cenario_id,scenarios[0].id);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await page.getByRole("button",{name:/Evidências e auditoria/}).click();
+  await page.getByRole("heading",{name:"Evidências e auditoria"}).waitFor();
+  await page.getByLabel(/Resumo do que foi observado/).fill("Desconto removido com o comportamento esperado.");
+  await page.getByRole("button",{name:"Salvar evidência"}).click();
+  await page.getByText(/Evidência registrada/).waitFor();
+  assert.equal(evidenceSaves,1);
+  assert.equal(evidenceRows.length,1);
+  assert.equal(evidenceRows[0].tarefa_id,taskId);
+  assert.equal(evidenceRows[0].tipo,"observacao");
+  await page.getByRole("tab",{name:"Auditoria"}).click();
+  await page.getByText("Nenhum evento encontrado.").waitFor();
   assert.deepEqual(failures,[]);
-  console.log("E2E sintético React: login, IA, casos pendentes, post versionado, importação R1 e cobertura R4.");
+  console.log("E2E sintético React: login, IA, casos pendentes, post versionado, requisitos, cobertura e evidências.");
 }finally{await browser.close()}
