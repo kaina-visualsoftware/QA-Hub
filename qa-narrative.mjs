@@ -22,7 +22,7 @@ function maskTokens(input,terms){
  let text=input;
  for(const expression of PROTECT)text=text.replace(expression,hit=>mask(hit));
  for(const term of terms){
-  const safe=term.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&');
+  const safe=term.replace(/[^\p{L}\p{N}-]/gu,'\\$&');
   text=text.replace(new RegExp('(?<![\\p{L}\\p{N}])'+safe+'(?![\\p{L}\\p{N}])','giu'),hit=>mask(hit));
  }
  return {text,restore(value){
