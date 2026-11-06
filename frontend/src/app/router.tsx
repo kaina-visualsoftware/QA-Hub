@@ -68,8 +68,8 @@ const rootRoute = createRootRoute({ component: AppLayout });
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  validateSearch: (search: Record<string, unknown>) => ({
-    newTask: search.newTask === true || search.newTask === "1"
+  validateSearch: (search: Record<string, unknown>): { newTask?: boolean } => ({
+    newTask: search.newTask === true || search.newTask === "1" ? true : undefined
   }),
   component: Workspace
 });
