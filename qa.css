@@ -563,3 +563,117 @@ button:disabled{cursor:wait;opacity:.7}
 .qa-phase4-check input[type=checkbox]{width:18px;height:18px;margin:0;flex-shrink:0}
 @media(max-width:720px){.qa-native-grid,.qa-phase4-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.qa-native-panel{gap:13px}.qa-native-actions .btn{width:100%}.qa-phase4-panel{padding:14px}.qa-phase4-actions .btn{width:100%}.qa-native-result{padding:12px}}
+
+
+/* QA Hub — revisão visual: ferramentas nativas, formulários e navegação de TF.
+   Mantém a paleta do shell, sem introduzir outro tema. */
+.qa-native-tools{width:100%;min-width:0}
+.qa-native-panel.panel{
+  margin:0;
+  padding:clamp(16px,2.3vw,26px);
+  gap:18px;
+  background:var(--qa-surface,#fff);
+  border-color:var(--qa-border,#d8e2e5);
+  border-radius:13px;
+}
+.qa-native-panel>.muted{max-width:82ch;margin:0;font-size:.88rem}
+.qa-native-panel .qa-native-grid{gap:16px 20px}
+.qa-native-field{min-width:0;color:#38545c;font-weight:650;font-size:.83rem;line-height:1.4}
+.qa-native-field>span{color:#38545c}
+.qa-native-field input,.qa-native-field select,.qa-native-field textarea{
+  min-height:44px;
+  border-color:var(--qa-border,#d8e2e5);
+  border-radius:9px;
+  background:#fff;
+}
+.qa-native-field textarea{max-width:100%;max-height:65vh;resize:vertical}
+.qa-native-field input:focus-visible,.qa-native-field textarea:focus-visible,.qa-native-field select:focus-visible{
+  border-color:var(--qa-accent,#0d786d);
+}
+.qa-native-actions{gap:10px;margin:0}
+.qa-native-actions .btn{min-height:44px;white-space:normal;text-align:center}
+.qa-native-result{
+  max-width:100%;
+  max-height:min(62vh,560px);
+  padding:16px 18px;
+  border-color:#dce7e5;
+  border-radius:10px;
+  line-height:1.65;
+  overflow:auto;
+  overflow-wrap:anywhere;
+}
+.qa-native-output>.qa-native-actions{margin-top:12px}
+/* Release: small configuration fields on the left and SIA list on the right;
+   the comunicado receives the whole width instead of leaving blank rows. */
+.qa-native-release-grid{grid-template-columns:minmax(0,0.86fr) minmax(0,1.14fr);align-items:stretch}
+.qa-native-release-grid>.qa-native-field:nth-child(1){grid-column:1;grid-row:1}
+.qa-native-release-grid>.qa-native-field:nth-child(2){grid-column:2;grid-row:1}
+.qa-native-release-grid>.qa-native-field:nth-child(3){grid-column:1;grid-row:2}
+.qa-native-release-grid>.qa-native-field:nth-child(4){grid-column:2;grid-row:2 / span 3;grid-template-rows:auto minmax(0,1fr)}
+.qa-native-release-grid>.qa-native-field:nth-child(5){grid-column:1 / -1;grid-row:5}
+.qa-native-release-grid>.qa-native-field:nth-child(6){grid-column:1;grid-row:3}
+.qa-native-release-grid>.qa-native-field:nth-child(7){grid-column:1;grid-row:4}
+.qa-native-release-grid>.qa-native-field:nth-child(4) textarea{height:100%;min-height:250px}
+.qa-native-release-grid>.qa-native-field:nth-child(5) textarea{min-height:170px}
+/* All evidence and history panels follow the existing card rhythm. */
+.qa-phase4-panel{
+  border-color:var(--qa-border,#d8e2e5);
+  margin-top:16px;
+  padding:clamp(16px,2vw,23px);
+}
+.qa-phase4-panel h3{color:var(--qa-text,#202b38);line-height:1.35}
+.qa-phase4-panel .qa-phase4-grid{gap:14px 16px}
+.qa-phase4-panel textarea,.qa-phase4-panel select,.qa-phase4-panel input:not([type=checkbox]){
+  min-height:44px;
+  border-color:var(--qa-border,#d8e2e5);
+  max-width:100%;
+}
+.qa-phase4-panel textarea{min-height:100px;max-height:55vh}
+.qa-phase4-actions{align-items:center;min-width:0}
+.qa-phase4-actions .btn{white-space:normal}
+.qa-phase4-actions>span{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+.qa-phase4-list,.qa-phase4-case-list{min-width:0}
+.qa-phase4-entry{min-width:0;overflow-wrap:anywhere;border-color:#dce7e5}
+.qa-phase4-entry p{margin:7px 0}
+.qa-phase4-check{align-items:flex-start;min-width:0;overflow-wrap:anywhere;line-height:1.45;cursor:pointer}
+.qa-phase4-check span{min-width:0;overflow-wrap:anywhere}
+.qa-phase4-check input[type=checkbox]{width:18px;min-width:18px;height:18px;min-height:18px;margin:1px 0 0;padding:0}
+.qa-legacy-import{margin-top:18px}
+.qa-legacy-import #legacy-content{font: .82rem/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.qa-document-row{min-width:0}
+.qa-document-row button{white-space:normal;text-align:center}
+.qa-diagram-scenarios{min-width:0;max-width:100%}
+/* Horizontal tabs stay usable after the new panels were added. */
+#view-editor .tabs{max-width:100%;min-width:0;overscroll-behavior-x:contain}
+#view-editor .tab{min-height:44px;white-space:nowrap}
+.skip-link{max-width:calc(100vw - 20px);overflow-wrap:anywhere}
+/* Narrow devices: avoid 2-column inputs, overlong action rows and cropped cards. */
+@media(max-width:840px){
+ .qa-native-release-grid{grid-template-columns:minmax(0,1fr)}
+ .qa-native-release-grid>.qa-native-field:nth-child(n){
+   grid-column:auto;
+   grid-row:auto;
+ }
+ .qa-native-release-grid>.qa-native-field:nth-child(4) textarea{height:auto;min-height:170px}
+}
+@media(max-width:600px){
+ .qa-native-panel.panel{padding:15px;gap:15px}
+ .qa-native-panel .qa-native-grid{grid-template-columns:minmax(0,1fr);gap:13px}
+ .qa-native-actions{flex-direction:column;align-items:stretch;gap:9px}
+ .qa-native-actions>.btn{width:100%}
+ .qa-native-output>.qa-native-actions>.btn{width:100%}
+ .qa-native-result{padding:12px;font-size:.79rem;max-height:52vh}
+ .qa-phase4-panel{padding:15px}
+ .qa-phase4-panel .qa-phase4-grid{grid-template-columns:minmax(0,1fr);gap:13px}
+ .qa-phase4-actions{flex-direction:column;align-items:stretch}
+ .qa-phase4-actions>.btn{width:100%}
+ .qa-phase4-actions>span{flex:none;width:100%}
+ .qa-phase4-entry{padding:12px 13px}
+ #view-editor .tabs{gap:14px;scrollbar-width:thin;scroll-padding-inline:12px}
+ #view-editor .tab{padding-inline:5px}
+}
+@media(max-width:360px){
+ .qa-native-panel.panel,.qa-phase4-panel{padding:13px}
+ .qa-native-result{padding:10px;font-size:.75rem}
+ .qa-phase4-entry{padding:11px}
+}
