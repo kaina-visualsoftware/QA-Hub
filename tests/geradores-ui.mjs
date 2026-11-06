@@ -7,6 +7,24 @@ const site='http://127.0.0.1:8765/';
 const stub=String.raw`
 const tfId='33333333-3333-4333-8333-333333333333';
 const rows={qa_generator_posts:[],qa_generator_tests:[],
+  qa_geracao_contextos:[],
+  qa_requisitos:[
+    {id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',tarefa_id:tfId,estado:'aprovado',
+     codigo:'RF-001',tipo:'RF',titulo:'Recalcular o pedido',
+     descricao:'Ao remover o desconto o total deve ser recalculado.',
+     criterios_aceite:'Exibir total atualizado.',updated_at:'2026-11-06T13:00:00Z',ordem:1},
+    {id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',tarefa_id:tfId,estado:'aprovado',
+     codigo:'RN-002',tipo:'RN',titulo:'Bloquear percentuais inválidos',
+     descricao:'Não permitir descontos negativos fora da regra.',criterios_aceite:'',
+     updated_at:'2026-11-06T13:01:00Z',ordem:2},
+    {id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',tarefa_id:tfId,estado:'rascunho',
+     codigo:'RF-003',tipo:'RF',titulo:'Não aprovado',descricao:'Não incluir esta regra.',
+     criterios_aceite:'',updated_at:'2026-11-06T13:02:00Z',ordem:3},
+    {id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',tarefa_id:'44444444-4444-4444-8444-444444444444',
+     estado:'aprovado',codigo:'RF-999',tipo:'RF',titulo:'Outra TF',
+     descricao:'Dado que não pode vazar.',criterios_aceite:'',
+     updated_at:'2026-11-06T13:00:00Z',ordem:1}
+  ],
   qa_tarefas:[{id:tfId,user_id:'11111111-1111-4111-8111-111111111111',
     titulo:'Desconto no pedido',codigo:'67866',tipo_teste:'BUILD',
     versao:'12.08.08.0000',sistema:'Vendas',descricao:'Verificar desconto',
@@ -227,10 +245,12 @@ for(const width of [390,1366]){
 {
  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1});
  const page=await context.newPage();
+ const linkedAiCalls=[];
  page.on('pageerror',err=>allErrors.push('TF integration: '+err.message));
  await page.route('https://esm.sh/**',async route=>route.fulfill({status:200,
    contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:stub}));
  await page.route('https://pqadmlhcsimlcclpkyov.supabase.co/functions/v1/qa-generators',async route=>{
+   linkedAiCalls.push(route.request().postDataJSON());
    const body=['event: chunk','data: '+JSON.stringify({text:route.request().postDataJSON().mode==='post'?post:plan}),'','event: done',
      'data: '+JSON.stringify({model:'test',truncated:false}),'',''].join('\n');
    await route.fulfill({status:200,contentType:'text/event-stream',
@@ -240,9 +260,19 @@ for(const width of [390,1366]){
  await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
  assert.match(await page.locator('#t').inputValue(),/Rateio do kit/);
  assert.doesNotMatch(await page.locator('#t').inputValue(),/Não deve ser alterado/);
+ await page.waitForFunction(()=>document.querySelector('#qa-context-requirements .qa-r3-count')?.textContent.includes('2 de 2'));
+ assert.equal(await page.locator('#qa-context-requirements .qa-r3-item').count(),2,'Only approved requirements of this TF may appear');
+ await page.locator('#qa-context-requirements .qa-r3-choice input').last().uncheck();
+ await page.locator('#r').fill('Complemento manual que não altera a TF.');
  await page.locator('#go').click();
  await page.waitForFunction(()=>document.querySelector('#qa-case-list') || document.querySelector('#qa-attach-list .qa-case'));
  await page.waitForFunction(()=>document.querySelectorAll('#qa-attach-list .qa-case').length===2);
+ assert.equal(linkedAiCalls.length,1);
+ assert.match(linkedAiCalls[0].requisito,/RF-001/);
+ assert.doesNotMatch(linkedAiCalls[0].requisito,/RN-002|RF-999|Não aprovado|não pode vazar/);
+ assert.match(linkedAiCalls[0].requisito,/Complemento manual/);
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos.length),1);
+ await page.screenshot({path:'artifacts/ui/qa-r3-test-context.png',fullPage:true});
  assert.match(await page.locator('#exec').innerText(),/execução e os resultados reais são registrados na TF/);
  assert.equal(await page.locator('#xl').count(),0,'Linked execution must not use independent Markdown status controls');
  await page.waitForFunction(()=>!document.querySelector('#qa-attach-save').disabled);
@@ -272,8 +302,18 @@ for(const width of [390,1366]){
  // The post stays editable and saving it creates versions under the same TF.
  await page.goto(site+'geradores.html?embedded=1&mode=post&tf=33333333-3333-4333-8333-333333333333');
  await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
+ await page.waitForFunction(()=>document.querySelector('#qa-context-requirements .qa-r3-count')?.textContent.includes('2 de 2'));
+ const checked=await page.locator('#qa-context-requirements .qa-r3-choice input:checked').count();
+ assert.equal(checked,2,'Approved requirements should be selected by default for posts');
  await page.locator('#go').click();
  await page.waitForFunction(()=>!document.querySelector('#qa-post-document').hidden);
+ assert.match(linkedAiCalls.at(-1).requisito,/RF-001/);
+ assert.match(linkedAiCalls.at(-1).requisito,/RN-002/);
+ assert.doesNotMatch(linkedAiCalls.at(-1).requisito,/RF-999|Não aprovado|não pode vazar/);
+ // The mock Supabase rows reset on page navigation; each linked page must
+ // independently record the context of its own generated artifact.
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos.length),1);
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos[0].quantidade),2);
  await page.waitForFunction(()=>!document.querySelector('#qa-post-save').disabled);
  assert.match(await page.locator('#qa-post-content').inputValue(),/MELHORIA NO PEDIDO/);
  const docCard=await page.locator('#qa-post-document').evaluate(node=>{
@@ -293,6 +333,14 @@ for(const width of [390,1366]){
  assert.equal(await page.locator('#r').inputValue(),'');
  assert.match(await page.locator('#st').innerText(),/Campos limpos/);
  assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_tarefas.length),1);
+ // Over budget must block the request; no requirement is silently truncated.
+ await page.locator('#t').fill('TF 67866 — complemento extenso');
+ await page.locator('#r').fill('x'.repeat(20000));
+ const beforeBudget=linkedAiCalls.length;
+ await page.locator('#go').click();
+ assert.equal(linkedAiCalls.length,beforeBudget);
+ assert.match(await page.locator('#st').innerText(),/limite 20000|limite 20.000/);
+ await page.locator('#r').fill('');
  // TF remains focused, so importing its fields starts another independent post.
  await page.locator('#import-task').click();
  await page.waitForFunction(()=>document.querySelector('#t').value.includes('67866'));

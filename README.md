@@ -229,3 +229,18 @@ A aba **Requisitos** aceita especificações **PDF com texto selecionável, DOCX
 **Testes:** tests/qa-requirements-files.test.mjs valida formatos, assinaturas, hash e caminhos; o smoke do Chromium valida associação à mesma TF, extração TXT, duplicação por SHA-256, duas versões, edição de requisitos e rejeição de PDF inválido nos tamanhos 320, 390, 768 e 1366 px.
 
 **Próximo passo:** R3 carrega requisitos aprovados automaticamente em Posts, Roteiros e Diagramas. Ainda não os envia aos geradores.
+
+## R3 — Requisitos aprovados no contexto das ferramentas
+
+A R3 usa o mesmo módulo `qa-requirements-context.mjs` para **Posts**, **Roteiros de teste** e **Diagramas**. Quando uma TF pertencente à conta está em foco, apenas os registros de `qa_requisitos` com estado **aprovado** são consultados; rascunhos, arquivados, requisitos de outras TFs e arquivos originais ficam fora do prompt.
+
+- Requisitos aprovados são **selecionados por padrão**. O usuário pode visualizar descrição e critérios, marcar/desmarcar, selecionar todos e consultar a **prévia exata** que será enviada à IA. O campo manual continua disponível como **Complemento opcional**, sem alterar os requisitos cadastrados.
+- O contexto de requisitos enviado ao gerador de Posts/Roteiros é limitado a **20.000 caracteres**, somando requisitos selecionados e complemento. Diagramas também verificam o limite de **20.000 caracteres** para o contexto completo com os cenários. **Nenhum texto é truncado ou excluído silenciosamente**: a geração é bloqueada com instrução para ajustar a seleção.
+- Se a consulta de requisitos falhar, a geração contextual é bloqueada; há opção explícita **Continuar sem requisitos**, ou **Atualizar** para tentar novamente. Uma TF sem requisitos aprovados pode ser usada normalmente.
+- O envio de texto à NVIDIA só ocorre **ao clicar em Gerar**. Arquivos PDF, DOCX, TXT e MD continuam armazenados no bucket privado, sem serem anexados automaticamente às requisições.
+- Uma tabela privada de rastreabilidade **qa_geracao_contextos** guarda snapshots das descrições/códigos e `updated_at` efetivamente usados, vinculados à TF e ao resultado gerado. As versões de posts salvas em `qa_documentos` ganham referência própria; os diagramas registram o contexto após o salvamento. A aba **Requisitos** mostra o histórico privado dessas utilizações. A tabela é somente de acréscimo: a interface não permite alterar ou apagar registros.
+- A permissão é restrita ao proprietário da TF por RLS. O seletor descarta estados entre TFs e valida cada ID selecionado contra a lista aprovada da tarefa correta.
+
+**Migrações antes de publicar:** `supabase/qa_r3_requirements_context.sql` (tabela e políticas privadas de rastreabilidade) e `supabase/qa_r3_context_fk_index.sql` (índice para a chave composta da nova tabela), nesta ordem. São aditivas e não modificam registros anteriores. Requer R1 e R2 instaladas. Não há mudança necessária no endpoint existente de IA, que já aceita o texto da TF e o requisito composto.
+
+**Validação:** `tests/qa-requirements-context.test.mjs`, `tests/geradores-ui.mjs` e `tests/ui-smoke.mjs`. Testes incluem seleção parcial, ausência de vazamento entre TFs, rejeição acima do limite, histórico de revisões e diagrama com requisitos aprovados. **R4** acrescentará vínculos requisito↔cenário e matriz formal de cobertura.

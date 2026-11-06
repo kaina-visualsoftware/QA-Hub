@@ -841,3 +841,10 @@ button:disabled{cursor:wait;opacity:.7}
   .qa-req-active-file .btn{width:100%}
   .qa-req-file-preview{padding:12px}
 }
+
+/* R3 — Private revision history in TF Requirements. */
+.qa-r3-usage-detail{margin-top:11px;padding:9px 13px;border:1px solid #d9e7e3;border-radius:9px;background:#f8fbfa}
+.qa-r3-usage-detail>summary{font-weight:650;font-size:.82rem;color:#1f6358;cursor:pointer;line-height:1.5}
+.qa-r3-usage-item{padding:13px 0 0;margin-top:12px;border-top:1px solid #dce9e4;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.qa-r3-usage-item strong{display:block;font-size:.84rem;color:#26464e}
+.qa-r3-usage-item p{margin:7px 0;color:#4c6972;font-size:.78rem;line-height:1.55}
