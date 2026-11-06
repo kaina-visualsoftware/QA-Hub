@@ -20,6 +20,7 @@ function AppLayout() {
   const { user, loading, recovering } = useAuth();
   const taskId = useFocus((s) => s.taskId);
   const publicView = useRouterState({ select: (state) => state.location.pathname === "/publicas" });
+  const recoveryView = useRouterState({ select: (state) => state.location.pathname === "/recuperar" });
   const adminRole = useQuery({
     queryKey: ["role", user?.id ?? ""], queryFn: () => getAdminRole(user!.id),
     enabled: Boolean(user?.id) && !publicView
@@ -27,7 +28,7 @@ function AppLayout() {
   // An intentionally public route must work before authentication resolves.
   if (publicView) return <Outlet />;
   if (loading) return <div className="screen-status" role="status">Carregando sessão…</div>;
-  if (recovering && user) return <RecoveryScreen />;
+  if (user && (recovering || recoveryView)) return <RecoveryScreen />;
   if (!user) return <AuthScreen />;
 
   return <div className="app-shell">
@@ -119,7 +120,14 @@ const adminRoute = createRoute({
     <AdminPage />
   </Suspense>
 });
-const routeTree = rootRoute.addChildren([homeRoute, taskRoute, publicRoute, adminRoute]);
+const recoveryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/recuperar",
+  component: RecoveryScreen
+});
+const routeTree = rootRoute.addChildren([
+  homeRoute, taskRoute, publicRoute, adminRoute, recoveryRoute
+]);
 
 export const router = createRouter({ routeTree, history: createHashHistory() });
 declare module "@tanstack/react-router" {

@@ -1,10 +1,11 @@
 import {
-  createContext, useContext, useEffect, useMemo, useState
+  createContext, useContext, useEffect, useMemo, useRef, useState
 } from "react";
 import type { PropsWithChildren } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@heroui/react";
 import { ShieldCheck } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase, authRedirectUrl } from "../../lib/supabase";
 import { useFocus } from "../../stores/focus";
 
@@ -27,6 +28,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState(false);
   const setFocusUser = useFocus((s) => s.setUser);
+  // Session-sensitive query cache is cleared when account identity changes.
+  const previousUserId = useRef<string | null>(null);
+  const client = useQueryClient();
 
   useEffect(() => {
     let mounted = true;
@@ -47,10 +51,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  useEffect(() => { setFocusUser(user?.id ?? null); }, [user?.id, setFocusUser]);
+  useEffect(() => {
+    const id = user?.id ?? null;
+    if (previousUserId.current && previousUserId.current !== id) {
+      client.clear();
+    }
+    previousUserId.current = id;
+    setFocusUser(id);
+  }, [user?.id, setFocusUser, client]);
 
   const value = useMemo(() => ({
-    user, loading, recovering, endRecovery: () => setRecovering(false)
+    user, loading, recovering, endRecovery: () => {
+      setRecovering(false);
+      if (window.location.hash.startsWith("#/recuperar")) {
+        window.location.hash = "#/";
+      }
+    }
   }), [user, loading, recovering]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
