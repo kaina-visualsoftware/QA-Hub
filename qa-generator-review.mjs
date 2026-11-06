@@ -181,5 +181,5 @@ export function createGeneratorReview({client, getMode, getUserId, state, embedd
     }
   };
   if(embedded)document.querySelector('.qa-generator-session').hidden=!validTf;
-  return {render,loadTask};
+  return {render,loadTask,getTask:()=>task};
 }
