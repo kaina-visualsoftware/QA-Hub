@@ -25,7 +25,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
   let currentMode='',lastContext=null;
   function box(mode){
     if(panels.has(mode))return panels.get(mode);
-    const node=el('section',{class:'qa-native-panel',id:'native-'+mode});
+    const node=el('section',{class:'panel qa-native-panel',id:'native-'+mode});
     node.hidden=true;root.append(node);panels.set(mode,node);
     return node;
   }
@@ -101,7 +101,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
   function makeRelease(){
     const mode='release',node=box(mode);
     node.append(el('p',{class:'muted'},'Organização e conferência de releases diretamente no QA Hub. A associação à TF é sempre confirmada.'));
-    const fields=el('div',{class:'qa-native-grid'});node.append(fields);
+    const fields=el('div',{class:'qa-native-grid qa-native-release-grid'});node.append(fields);
     const [verLabel,version]=field('Versão (12.10.06.0000)','input');
     version.placeholder='12.10.06.0000';version.maxLength=40;
     const [stLabel,st]=field('Status padrão','select');
