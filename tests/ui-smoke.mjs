@@ -596,6 +596,8 @@ CENÁRIO 1 - Incluir produto
     }
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
+    await page.locator('#task-form textarea[name="descricao"]').fill(
+      'GERADO UMA VENDA TAL\nCONSULTA DE CPF VIA API');
     if(!(await page.locator('#save-status').isVisible())){
       const details=await page.evaluate(()=>{
         const n=document.querySelector('#save-status');
@@ -618,6 +620,10 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction((expected)=>document.querySelector('#scenarios-number').textContent===String(expected),width===320?0:1);
     assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
     assert.equal(await page.locator('#tab-btn-cenarios').isDisabled(),false);
+    assert.equal(await page.locator('#qa-next-actions').isVisible(),true);
+    assert.match(await page.locator('#qa-next-test').getAttribute('href'),/#\/ferramentas\/teste\?tf=/);
+    assert.equal(await page.locator('#task-form textarea[name="descricao"]').inputValue(),
+      'Gerado uma venda tal\nConsulta de CPF via API');
     await page.locator('#tab-btn-requisitos').click();
     await page.waitForFunction(()=>document.querySelector('#requirements-number').textContent==='2');
     assert.match(await page.locator('#requirements-count').innerText(),/2 aprovado/);
