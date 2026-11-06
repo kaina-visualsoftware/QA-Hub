@@ -882,7 +882,7 @@ $$('[data-tab]').forEach(button=>{
     const keys=['ArrowLeft','ArrowRight','Home','End'];
     if(!keys.includes(event.key)||button.disabled) return;
     event.preventDefault();
-    const tabs=$('[data-tab]').filter(tab=>!tab.disabled);
+    const tabs=$$('[data-tab]').filter(tab=>!tab.disabled);
     const position=tabs.indexOf(button);
     const next=event.key==='Home' ? 0 : event.key==='End' ? tabs.length-1 :
       (position + (event.key==='ArrowRight'?1:-1) + tabs.length) % tabs.length;
