@@ -444,7 +444,7 @@ CENÁRIO 1 - Incluir produto
       'RN001: O sistema impede percentuais negativos não permitidos.');
     await page.locator('#requirements-organize').click();
     assert.equal(await page.locator('#requirements-review .qa-req-preview-card').count(),2);
-    assert.match(await page.locator('#requirements-review').innerText(),/RF-001/);
+    assert.equal(await page.locator('#requirements-review .qa-req-preview-card input[type=text]').first().inputValue(),'RF-001');
     await page.locator('#requirements-approve').click();
     await page.locator('#requirements-save').click();
     assert.match(await page.locator('#requirements-feedback').innerText(),/Salve a TF/);
