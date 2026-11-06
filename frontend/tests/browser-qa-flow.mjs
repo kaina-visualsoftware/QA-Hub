@@ -11,8 +11,8 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   sistema:"Financeiro",versao:"12.00",causa:"Filtro omitia valores negativos",
   correcao:"Critério corrigido",conclusao:"",observacoes:"",publica:false,
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
-const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],releases=[],releaseLinks=[],referenceRows=[];
-let requirementImports=0,coverageSaves=0,evidenceSaves=0,releaseSaves=0,referenceSaves=0;
+const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],releases=[],releaseLinks=[],referenceRows=[],comparisonRows=[];
+let requirementImports=0,coverageSaves=0,evidenceSaves=0,releaseSaves=0,referenceSaves=0,comparisonSaves=0;
 let aiCalls=0,attachCalls=0,postSaves=0;
 const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -40,7 +40,21 @@ async function mock(route){
   if(p.endsWith("/rest/v1/qa_geracao_contextos"))return send([]);
   if(p.endsWith("/rest/v1/qa_releases"))return send(releases);
   if(p.endsWith("/rest/v1/qa_release_tarefas"))return send(releaseLinks);
-  if(p.endsWith("/rest/v1/qa_artefatos"))return send([]);
+  if(p.endsWith("/rest/v1/qa_artefatos")){
+    if(m==="POST"){
+      comparisonSaves++;
+      const payload=req.postDataJSON();
+      assert.deepEqual(Object.keys(payload).sort(),
+        ["adicionados","alterados","removidos","tarefa_id","tipo","user_id"].sort());
+      assert.equal(payload.tarefa_id,taskId);
+      assert.equal(payload.user_id,userId);
+      comparisonRows.unshift({...payload,id:"bbbbbbbb-bbbb-4bbb-8bbb-"+
+        String(comparisonSaves).padStart(12,"0"),
+        created_at:"2026-11-06T13:00:00.000Z"});
+      return send({id:comparisonRows[0].id},201);
+    }
+    return send(comparisonRows);
+  }
   if(p.endsWith("/rest/v1/qa_referencias")){
     if(m==="POST"){
       referenceSaves++;
@@ -221,8 +235,33 @@ try{
   await linkPanel.getByText("Referência privada salva.").waitFor();
   assert.equal(referenceSaves,1);
   assert.equal(referenceRows.length,1);
+  await linkPanel.getByRole("tab",{name:"Comparações"}).click();
+  await linkPanel.getByLabel("Texto A (original)").fill("Linha um\nValor antigo");
+  await linkPanel.getByLabel("Texto B (novo)").fill("Linha um\nValor novo");
+  await linkPanel.getByRole("button",{name:"Comparar textos"}).click();
+  const recordCounts=linkPanel.getByRole("button",{name:"Salvar somente contagens na TF"});
+  await recordCounts.waitFor();
+  assert.equal(comparisonSaves,0,"Diff local não grava conteúdo nem metadados automaticamente");
+  page.once("dialog",(dialog)=>void dialog.accept());
+  await recordCounts.click();
+  await linkPanel.getByText("Somente os indicadores foram registrados na TF. Os textos permanecem no navegador.").waitFor();
+  assert.equal(comparisonSaves,1);
+  assert.equal(comparisonRows[0].tipo,"diff_texto");
+  assert.equal(comparisonRows[0].adicionados,1);
+  assert.equal(comparisonRows[0].removidos,1);
+  await linkPanel.getByRole("button",{name:"XML por estrutura"}).click();
+  await linkPanel.getByLabel("XML A (original)").fill("<root><valor id='1'>antigo</valor></root>");
+  await linkPanel.getByLabel("XML B (novo)").fill("<root><valor id='1'>novo</valor></root>");
+  await linkPanel.getByRole("button",{name:"Comparar XML"}).click();
+  await linkPanel.getByText(/VALOR.*antigo.*novo/).waitFor();
+  assert.equal(comparisonSaves,1,"Análise XML não deve ser salva automaticamente");
+  await linkPanel.getByLabel("XML A (original)").fill(
+    "<!DOCTYPE root [<!ENTITY sample 'x'>]><root>&sample;</root>");
+  await linkPanel.getByRole("button",{name:"Comparar XML"}).click();
+  await linkPanel.getByText(/XML com DTD, entidades/).waitFor();
+  assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
   assert.deepEqual(failures,[]);
-  console.log("E2E sintético React: QA, IA, requisitos, cobertura, evidências, release e referência.");
+  console.log("E2E sintético React: QA, IA, requisitos, cobertura, evidências, release, referência e diff texto/XML.");
 }finally{await browser.close()}
