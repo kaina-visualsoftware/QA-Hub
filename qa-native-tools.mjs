@@ -111,7 +111,13 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     const [noteLabel,notice]=field('Comunicado para comparação','textarea',10);
     const [compatLabel,compat]=field('Compatibilidades','textarea',3);
     const [signatureLabel,signature]=field('Assinatura','input');
-    fields.append(verLabel,stLabel,teamLabel,taskLabel,noteLabel,compatLabel,signatureLabel);
+    fields.append(verLabel,stLabel,taskLabel,noteLabel);
+    const advanced=el('details',{class:'qa-native-advanced'});
+    advanced.append(el('summary',{},'Opções adicionais · Equipe, compatibilidades e assinatura'));
+    const advancedGrid=el('div',{class:'qa-native-grid qa-native-advanced-grid'});
+    advancedGrid.append(teamLabel,compatLabel,signatureLabel);
+    advanced.append(advancedGrid);
+    node.append(advanced);
     const results=el('div',{class:'qa-native-output'});
     const buttons=actions(node),link=button('Associar TF em foco à release',async()=>{
       const t=getTask();
