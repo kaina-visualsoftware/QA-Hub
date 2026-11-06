@@ -41,7 +41,7 @@ export function createRequirementPicker({root,db,getUserId,limit=REQUIREMENT_CON
   function compose(){
     return composeRequirementContext(rows,[...selected],extraText,{limit,taskId:task?.id});
   }
-  function render(){
+  function render(rebuildList=true){
     root.hidden=!task;
     if(!task)return;
     const included=rows.filter(x=>selected.has(x.id)).length;
@@ -51,7 +51,7 @@ export function createRequirementPicker({root,db,getUserId,limit=REQUIREMENT_CON
     refresh.disabled=busy;
     skip.hidden=!error||bypass;
     skip.disabled=busy;
-    list.replaceChildren();
+    if(rebuildList)list.replaceChildren();
     if(busy){
       status.textContent='Carregando requisitos privados desta TF…';
       preview.textContent='Carregando…';
@@ -64,7 +64,7 @@ export function createRequirementPicker({root,db,getUserId,limit=REQUIREMENT_CON
       preview.textContent='';
       return;
     }
-    for(const row of rows){
+    if(rebuildList)for(const row of rows){
       const item=mk('details','qa-r3-item');
       const heading=mk('summary','qa-r3-item-heading');
       const label=mk('label','qa-r3-choice');
@@ -73,7 +73,7 @@ export function createRequirementPicker({root,db,getUserId,limit=REQUIREMENT_CON
       input.setAttribute('aria-label','Incluir '+row.codigo+' no contexto');
       input.onchange=event=>{
         selected.has(row.id)?selected.delete(row.id):selected.add(row.id);
-        event.stopPropagation();render();
+        event.stopPropagation();render(false);
       };
       const name=mk('span','',row.codigo+' · '+row.titulo);
       label.append(input,name);
@@ -84,7 +84,7 @@ export function createRequirementPicker({root,db,getUserId,limit=REQUIREMENT_CON
       if(row.criterios_aceite)item.append(mk('p','', 'Critérios de aceite: '+row.criterios_aceite));
       list.append(item);
     }
-    if(!rows.length)list.append(mk('p','qa-r3-empty',
+    if(rebuildList&&!rows.length)list.append(mk('p','qa-r3-empty',
       bypass?'Geração sem os requisitos da TF autorizada por você.':
       'Esta TF não possui requisitos aprovados. Você ainda pode gerar com o complemento opcional.'));
     try{
