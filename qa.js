@@ -158,6 +158,8 @@ db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     try { sessionStorage.removeItem('qa-focus:'+state.user?.id); } catch {}
     state.selectedTaskId=null; state.draftFromGenerator=null;
+    state.currentId=null; state.scenarios=[]; state.diagrams=[];
+    state.dirtyForms.clear();
     phase2.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
