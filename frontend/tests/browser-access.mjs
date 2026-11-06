@@ -108,6 +108,35 @@ try{
 
   const normal=await browser.newPage({viewport:{width:1366,height:768}});
   normal.on("pageerror",e=>errors.push("Normal: "+e.message));
+  await normal.addInitScript(() => {
+    // Exercise the real SPA / local-worker client without fetching large model weights.
+    window.__syntheticAIWorkerCount = 0;
+    window.Worker = class SyntheticModelWorker extends EventTarget {
+      constructor() { super(); window.__syntheticAIWorkerCount++; }
+      postMessage(request) {
+        const id = request.id;
+        queueMicrotask(() => {
+          this.dispatchEvent(new MessageEvent("message",{
+            data:{id,type:"progress",message:"Modelo de teste carregado"}
+          }));
+          this.dispatchEvent(new MessageEvent("message",{
+            data:{id,type:"result",output:JSON.stringify({
+              titulo:"Sugestão da IA local",
+              codigo:"999999",
+              versao:"99.99.99",
+              cenarios:[{
+                titulo:"Validar o desconto sugerido",
+                passos:"Abrir o pedido e remover desconto",
+                esperado:"Desconto zerado",
+                status:"aprovado"
+              }]
+            })}
+          }));
+        });
+      }
+      terminate() {}
+    };
+  });
   await normal.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",responder());
   await normal.goto(origin);
   await normal.getByRole("textbox",{name:"Email"}).fill("test@fixture.invalid");
@@ -135,6 +164,25 @@ try{
   assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),
     "Atualização de descontos negativos");
   assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  const aiButton=normal.getByRole("button",{name:"Analisar com IA local"});
+  assert.equal(await aiButton.isDisabled(),true,"Model must require explicit opt-in");
+  await normal.getByLabel("Descrição / problema").fill([
+    "TF #67866",
+    "TÍTULO: Atualização de descontos negativos",
+    "VERSÃO: 12.08.08.0000",
+    "O QUE FOI TESTADO:",
+    "Remover desconto gravado em pedido."
+  ].join("\n"));
+  await normal.getByRole("checkbox",{name:/Autorizo baixar o modelo público/}).check();
+  await aiButton.click();
+  await normal.getByRole("heading",{name:"Conferir campos identificados"}).waitFor();
+  await normal.getByText("Sugestão da IA local").waitFor();
+  assert.equal(await normal.getByRole("checkbox",{name:/Validar o desconto sugerido/}).isChecked(),false,
+    "A IA nunca seleciona casos automaticamente");
+  await normal.getByRole("button",{name:"Aplicar campos revisados"}).click();
+  assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  assert.equal(await normal.getByLabel("Versão").inputValue(),"12.08.08.0000");
+  assert.equal(await normal.evaluate(()=>window.__syntheticAIWorkerCount),1);
   await normal.getByRole("button",{name:"Cancelar",exact:true}).click();
   await normal.goto(origin+"#/admin");
   await normal.getByRole("heading",{name:"Acesso restrito"}).waitFor();
