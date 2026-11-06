@@ -191,3 +191,11 @@ Aplicar, após as migrações das Fases 1–3, o arquivo aditivo `supabase/qa_ph
 **Homologação sugerida:** compare texto/XML, organize release, volte ao gerador IA e confira seu rascunho preservado; importe roteiro antigo marcado OK e verifique que os casos entram como **Não executados**; importe um post como versão privada; acrescente evidência, confira o evento em Auditoria; repita os fluxos em mobile e tente ler evidências/auditoria com uma segunda conta sem acesso.
 
 **Rollback:** a navegação anterior permanece no arquivo `geradores.html` para comparação e reversão do front-end. Reverter o código não requer descartar as novas tabelas; mantenha `qa_evidencias` e `qa_eventos` para preservar trilhas já registradas. Não execute DROP de dados de auditoria em rollback normal.
+
+## Padrão do gerador de posts técnicos
+
+O gerador de **Posts do fórum** segue a sequência obrigatória: **título em destaque → implementação → comparação Anteriormente/Agora → caminho de acesso → marcador(es) de imagem → comportamento detalhado numerado → TAREFA → JUSTIFICATIVA**. Menus não informados ficam como `[Caminho a ser confirmado]`, imagens usam marcadores `[Imagem: descricao.png]` (sem arquivos nem links inventados) e o número ausente fica como `[NÚMERO DA TAREFA A SER INSERIDO]`.
+
+Quando a melhoria menciona permissões, o post descreve os estados ativado e desativado e sinaliza nomes/grupos não informados. Alterações de colunas, largura e ordem de grids são descritas como configurações por usuário. Trechos insuficientemente fundamentados ficam explicitamente marcados para revisão, não apresentados como fatos confirmados.
+
+A geração mantém o resultado na tela para revisão e o salva no histórico. Ao usar **Salvar versão na TF**, a gravação é confirmada no banco; **somente depois** os campos de tarefa/requisitos, a prévia e o editor de post são limpos para o próximo post. O histórico, as versões documentais e a TF em foco permanecem. Em caso de falha no salvamento, os campos não são apagados. O texto do prompt do endpoint `qa-generators` deve ser implantado no Supabase junto à mudança do site.

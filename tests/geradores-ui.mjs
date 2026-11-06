@@ -124,7 +124,10 @@ for(const width of [390,1366]){
   await page.locator('#go').click();
   await page.waitForFunction(()=>document.querySelector('#prev').textContent.includes('MELHORIA NO PEDIDO'));
   await page.waitForFunction(()=>!document.querySelector('#go').disabled);
-  assert.match(await page.locator('#prev').innerText(),/CAMINHO DO MENU/);
+  const postPreview=await page.locator('#prev').innerText();
+  for(const section of ['Anteriormente','Agora','Caminho de acesso','Caminho a ser confirmado',
+    'Imagem: captura-da-funcionalidade.png','Comportamento detalhado','TAREFA:','JUSTIFICATIVA:'])
+    assert.ok(postPreview.includes(section),'Mandatory post section missing: '+section);
   // Posts and test plans must match the native release panel, including
   // outer border, padding, spacing and absence of layout overflow.
   async function checkPanel(selector,mode){
@@ -279,12 +282,28 @@ for(const width of [390,1366]){
  });
  assert.equal(docCard.background,'rgb(255, 255, 255)');
  assert.equal(docCard.ink,'rgb(32, 43, 56)');
- await page.locator('#qa-post-content').fill(post+'\n\nTexto revisado.');
+ // First version is saved explicitly to the TF; only then the screen clears.
+ await page.locator('#qa-post-content').fill((await page.locator('#qa-post-content').inputValue())
+   .replace('**JUSTIFICATIVA:**','Texto revisado.\n\n**JUSTIFICATIVA:**'));
  await page.locator('#qa-post-save').click();
- await page.waitForFunction(()=>document.querySelector('#qa-post-status').textContent.includes('versão 1'));
- await page.locator('#qa-post-content').fill(post+'\n\nSegunda versão.');
+ await page.waitForFunction(()=>document.querySelector('#st').textContent.includes('versão 1'));
+ assert.equal(await page.locator('#qa-post-document').isVisible(),false);
+ assert.equal(await page.locator('#out').isVisible(),false);
+ assert.equal(await page.locator('#t').inputValue(),'');
+ assert.equal(await page.locator('#r').inputValue(),'');
+ assert.match(await page.locator('#st').innerText(),/Campos limpos/);
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_tarefas.length),1);
+ // TF remains focused, so importing its fields starts another independent post.
+ await page.locator('#import-task').click();
+ await page.waitForFunction(()=>document.querySelector('#t').value.includes('67866'));
+ await page.locator('#go').click();
+ await page.waitForFunction(()=>!document.querySelector('#qa-post-document').hidden);
+ await page.locator('#qa-post-content').fill((await page.locator('#qa-post-content').inputValue())
+   .replace('**JUSTIFICATIVA:**','Nova revisão.\n\n**JUSTIFICATIVA:**'));
  await page.locator('#qa-post-save').click();
- await page.waitForFunction(()=>document.querySelector('#qa-post-status').textContent.includes('versão 2'));
+ await page.waitForFunction(()=>document.querySelector('#st').textContent.includes('versão 2'));
+ assert.equal(await page.locator('#out').isVisible(),false);
+ assert.equal(await page.locator('#t').inputValue(),'');
  const docs=await page.evaluate(()=>window.__qaIntegrationRows.qa_documentos);
  assert.equal(docs.length,2);
  assert.deepEqual(docs.map(d=>d.versao),[1,2]);

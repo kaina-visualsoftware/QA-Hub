@@ -38,8 +38,8 @@ test('QA Hub integrates all six productivity modules under one navigation',()=>{
 });
 
 test('posts and test-plan prompts preserve supplied constraints',()=>{
- assert.match(POST_SYSTEM,/\[CAMINHO DO MENU\]/);
- assert.match(POST_SYSTEM,/\[IMAGEM\]/);
+ assert.match(POST_SYSTEM,/\[Caminho a ser confirmado\]/);
+ assert.match(POST_SYSTEM,/\[Imagem: descricao-da-captura\.png\]/);
  assert.match(POST_SYSTEM,/JUSTIFICATIVA/);
  assert.match(TEST_SYSTEM,/Cenário 01/);
  assert.match(TEST_SYSTEM,/Resultado esperado/);
