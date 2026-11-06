@@ -34,7 +34,7 @@ export function createClient(){
     function execute(){
       if(kind==='insert'){
         const added=(Array.isArray(payload)?payload:[payload]).map(row=>({
-          ...row,id:row.id||'test-qa-'+(++nextId),
+          ...row,id:row.id||'33333333-3333-4333-8333-'+String(++nextId).padStart(12,'0'),
           created_at: new Date().toISOString()
         }));
         tables[table].push(...added);
