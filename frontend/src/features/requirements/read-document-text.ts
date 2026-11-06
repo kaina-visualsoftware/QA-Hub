@@ -19,7 +19,7 @@ function bounded(value: string, initialWarning = ""): ExtractedText {
 }
 
 async function pdfText(bytes: Uint8Array): Promise<ExtractedText> {
-  const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+  const pdfjs = await import("pdfjs-dist");
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
   // Send a copy; PDF.js may transfer its ArrayBuffer to a worker.
