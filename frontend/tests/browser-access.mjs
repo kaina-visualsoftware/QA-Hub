@@ -114,6 +114,28 @@ try{
   await normal.getByLabel("Senha").fill("synthetic-password");
   await normal.getByRole("button",{name:"Entrar",exact:true}).click();
   await normal.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
+  await normal.getByRole("button",{name:"Nova TF"}).click();
+  await normal.getByLabel("Descrição / problema").fill([
+    "TF #67866",
+    "TÍTULO: Atualização de descontos negativos",
+    "TIPO DE TESTE: [X] BUILD [ ] RELEASE",
+    "VERSÃO: 12.08.08.0000",
+    "O QUE FOI TESTADO:",
+    "Remover desconto gravado em pedido.",
+    "CENÁRIO 1 — Remover desconto do pedido",
+    "PASSOS:",
+    "- Abrir pedido 67866",
+    "RESULTADO ESPERADO: O desconto deve zerar."
+  ].join("\n"));
+  await normal.getByRole("button",{name:"Analisar texto localmente"}).click();
+  await normal.getByRole("heading",{name:"Conferir campos identificados"}).waitFor();
+  assert.equal(await normal.getByRole("checkbox",{name:/Remover desconto do pedido/}).isChecked(),false,
+    "Extração local não pode anexar cenários por padrão");
+  await normal.getByRole("button",{name:"Aplicar campos revisados"}).click();
+  assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),
+    "Atualização de descontos negativos");
+  assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  await normal.getByRole("button",{name:"Cancelar",exact:true}).click();
   await normal.goto(origin+"#/admin");
   await normal.getByRole("heading",{name:"Acesso restrito"}).waitFor();
   await normal.goto(origin+"#/tarefa/"+ownTaskId);

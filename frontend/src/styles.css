@@ -118,3 +118,9 @@
  .public-react-facts{grid-template-columns:minmax(0,1fr)}
  .public-react-list .task-row,.admin-react-list .task-row{flex-wrap:wrap}
 }
+
+.local-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.local-preview-item{display:flex;flex-direction:column;gap:4px;background:#f3f8f7;border:1px solid #d8e6e6;border-radius:10px;padding:10px;min-width:0}
+.local-preview-item strong{text-transform:capitalize;font-size:.75rem;color:#385f66}
+.local-preview-item span{overflow-wrap:anywhere;white-space:pre-wrap;font-size:.81rem}
+@media(max-width:600px){.local-preview-grid{grid-template-columns:1fr}}

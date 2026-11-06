@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { ArrowRight, CheckCheck, Filter, Plus, Search, X } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
-import { parseReport } from "../lib/legacy-parser.mjs";
+import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
+import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -18,6 +19,7 @@ export function Workspace() {
   const [showForm, setShowForm] = useState(false);
   const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
+  const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -51,7 +53,7 @@ export function Workspace() {
         try { sessionStorage.setItem("qa-react-import-warning:" + task.id,
           "TF salva, mas os cenários extraídos não foram adicionados: " + warning); } catch {}
       }
-      setExtracted([]); setExtractionNotice("");
+      setExtracted([]); setExtractionNotice(""); setLocalReview(null);
       setFocused(task.id);
       await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
       setShowForm(false);
@@ -117,26 +119,80 @@ export function Workspace() {
         </label>
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="secondary" type="button" onPress={() => {
-            const text = form.getValues("descricao");
+            const source = form.getValues("descricao");
             try {
-              const parsed = parseReport(text);
-              form.setValue("titulo", parsed.titulo || "Relatório importado", { shouldValidate: true });
-              form.setValue("tipo_teste", parsed.tipo_teste);
-              form.setValue("descricao", parsed.descricao || text, { shouldValidate: true });
-              setExtracted(parsed.cenarios.map((item) => ({
-                titulo: item.titulo, passos: item.passos, esperado: item.esperado,
-                observacoes: "", selected: true
-              })));
-              setExtractionNotice(parsed.cenarios.length
-                ? parsed.cenarios.length + " cenário(s) explícito(s) identificado(s). Revise antes de salvar."
-                : "Descrição extraída. Não foram identificados cenários explícitos.");
-            } catch (error) { setExtractionNotice(error instanceof Error ? error.message : "Falha ao extrair"); }
-          }}>Extrair sem IA</Button>
-          <span className="text-muted text-sm">Análise local, sem envio do texto para terceiros.</span>
+              const draft = extractLocalDraft(source);
+              setLocalReview({ source, draft });
+              setExtracted(draft.cenarios
+                .filter((item) => item.titulo.trim().length >= 3 &&
+                  item.passos.trim().length > 0 && item.esperado.trim().length > 0)
+                .map((item) => ({
+                  titulo: item.titulo.slice(0,240), passos: item.passos.slice(0,20000),
+                  esperado: item.esperado.slice(0,20000),
+                  observacoes: item.observacoes.slice(0,20000), selected: false
+                })));
+              setExtractionNotice("Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
+            } catch (error) {
+              setLocalReview(null); setExtracted([]);
+              setExtractionNotice(error instanceof Error ? error.message : "Falha na análise local.");
+            }
+          }}>Analisar texto localmente</Button>
+          <span className="text-muted text-sm">Extração determinística no navegador, sem IA e sem envio externo.</span>
         </div>
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
+        {localReview && <section className="generator-context stack"
+          aria-label="Prévia do preenchimento local">
+          <h3 className="font-semibold">Conferir campos identificados</h3>
+          <p className="text-muted text-sm">Nada será aplicado até você confirmar.
+            Campos não identificados permanecem como estão.</p>
+          <div className="local-preview-grid">
+            {Object.entries(localReview.draft.fields)
+              .filter(([key,value]) => key !== "descricao" && Boolean(value))
+              .map(([key,value]) => <div key={key} className="local-preview-item">
+                <strong>{key.replaceAll("_", " ")}</strong>
+                <span>{value.slice(0,320)}</span>
+              </div>)}
+          </div>
+          <p className="text-sm"><strong>{localReview.draft.cenarios.length}</strong> cenário(s)
+            extraído(s), {extracted.length} com passos e resultado esperado suficientes.
+            Os demais exigem preenchimento manual.</p>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="secondary" type="button" onPress={() => {
+              if (form.getValues("descricao") !== localReview.source) {
+                setExtractionNotice("O texto foi alterado. Analise novamente antes de preencher.");
+                setLocalReview(null); setExtracted([]);
+                return;
+              }
+              const textLimits: Record<string,number> = {
+                titulo:240, descricao:30000, codigo:100, sistema:160, versao:100,
+                ambiente:240, base_teste:240, empresa:240, testador:240,
+                explicacao:30000, causa:30000, correcao:30000,
+                conclusao:30000, observacoes:30000
+              };
+              const draft = localReview.draft;
+              for (const [name,value] of Object.entries(draft.fields)) {
+                if (!value || name === "tipo_teste" || !(name in textLimits)) continue;
+                const key = name as Exclude<keyof TaskDraft,"tipo_teste">;
+                form.setValue(key, value.slice(0,textLimits[name]), {
+                  shouldValidate:true, shouldDirty:true
+                });
+              }
+              if (draft.fields.tipo_teste === "BUILD" || draft.fields.tipo_teste === "RELEASE") {
+                form.setValue("tipo_teste", draft.fields.tipo_teste, {
+                  shouldValidate:true, shouldDirty:true
+                });
+              }
+              setLocalReview(null);
+              setExtractionNotice("Campos aplicados. Revise o formulário e selecione explicitamente os casos antes de salvar.");
+            }}>Aplicar campos revisados</Button>
+            <Button type="button" variant="secondary" onPress={() => {
+              setLocalReview(null); setExtracted([]);
+              setExtractionNotice("Análise descartada. O formulário não foi modificado.");
+            }}>Descartar prévia</Button>
+          </div>
+        </section>}
         {extracted.length > 0 && <fieldset className="extracted-cases">
-          <legend className="font-semibold">Cenários identificados — selecione para anexar</legend>
+          <legend className="font-semibold">Cenários identificados — nenhum é anexado sem seleção</legend>
           {extracted.map((item, index) => <label key={index} className="extracted-case">
             <input type="checkbox" checked={item.selected} onChange={(e) =>
               setExtracted((items) => items.map((v, i) => i === index ? {...v, selected: e.target.checked} : v))} />
@@ -145,7 +201,9 @@ export function Workspace() {
         </fieldset>}
         <div className="flex items-center gap-3 justify-end">
           <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
-          <Button type="button" variant="secondary" onPress={() => setShowForm(false)}>Cancelar</Button>
+          <Button type="button" variant="secondary" onPress={() => {
+            setShowForm(false); setLocalReview(null); setExtracted([]);
+          }}>Cancelar</Button>
           <Button type="submit" isDisabled={create.isPending}>Salvar e abrir TF</Button>
         </div>
         {create.isError && <p className="notice error" role="alert">{create.error.message}</p>}
