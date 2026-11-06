@@ -185,7 +185,12 @@ export async function prepareRequirementFile(file: File, suppliedText = ""): Pro
       warning = "Texto interpretado como Windows-1252. Confira os acentos antes de importar.";
     }
   } else {
-    warning = "PDF/DOCX: o arquivo original será salvo. Nesta interface, cole manualmente o texto a indexar; extração automática ainda está pendente.";
+    const { extractDocumentText } = await import("./read-document-text");
+    const extracted = await extractDocumentText(bytes, info.extension as "pdf" | "docx");
+    text = suppliedText.trim() || extracted.text;
+    warning = suppliedText.trim()
+      ? "O texto fornecido manualmente substituirá a prévia extraída. Confira o conteúdo antes de anexar."
+      : extracted.warning;
   }
   if (text.length > 30000) {
     if (info.extension === "txt" || info.extension === "md") {

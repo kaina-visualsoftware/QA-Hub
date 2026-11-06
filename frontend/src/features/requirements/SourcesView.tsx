@@ -61,6 +61,11 @@ export default function SourcesView({
   }
   return <div className="stack">
     <p className="text-muted text-sm">
+      PDF/DOCX são lidos localmente com carregamento sob demanda dos parsers.
+      PDFs digitalizados não possuem OCR; nesses casos use o texto manual.
+      Revise sempre a prévia antes de confirmar o upload.
+    </p>
+    <p className="text-muted text-sm">
       O arquivo original é armazenado no bucket privado da TF. Versões registradas não podem
       ser substituídas ou excluídas. Nenhum arquivo é enviado automaticamente à IA.
     </p>
@@ -72,10 +77,10 @@ export default function SourcesView({
             setPending(null); setFailure(""); setMessage(""); }} />
       </label>
       <label className="field mt-3">
-        Texto extraído manualmente de PDF/DOCX (opcional; máximo 30 mil caracteres)
+        Substituir extração automática por texto manual (opcional; até 30 mil caracteres)
         <textarea rows={4} maxLength={30000} value={manualText}
           onChange={(e) => { setManualText(e.target.value); setPending(null); }}
-          placeholder="Caso o documento seja PDF/DOCX, cole os requisitos relevantes. Arquivos TXT/MD são lidos localmente." />
+          placeholder="O navegador extrai texto de PDF/DOCX/TXT/MD localmente. Cole aqui apenas se precisar corrigir a extração." />
       </label>
       <div className="flex flex-wrap gap-2 mt-4">
         <Button variant="secondary" isDisabled={!file || busy} onPress={() => void prepare()}>
