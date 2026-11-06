@@ -7,7 +7,7 @@ export function createPhase2Ui({
   db,getTask,getScenarios,getTaskId,refreshScenarios,onOpenDocuments,markDirty,toast
 }){
   const $=id=>document.getElementById(id);
-  let taskId=null,documents=[],working=false,reportBaseline=null;
+  let taskId=null,documents=[],working=false,reportBaseline=null,draftDirty=false;
   const create=(name,cls='',value='')=>{
     const node=document.createElement(name);
     if(cls)node.className=cls;
@@ -15,7 +15,7 @@ export function createPhase2Ui({
     return node;
   };
   const docStatus=message=>{$('document-status').textContent=message};
-  const setDirty=dirty=>markDirty('document-form',dirty);
+  const setDirty=dirty=>{draftDirty=dirty;markDirty('document-form',dirty)};
 
   function renderExecution(){
     const list=$('execution-list'),scenarios=getScenarios(),counts=executionSummary(scenarios);
@@ -161,7 +161,7 @@ export function createPhase2Ui({
   function openVersion(id){
     const entry=documents.find(doc=>doc.id===id);
     if(!entry||getTaskId()!==entry.tarefa_id)return;
-    if($('document-content').value.trim() && $('document-content').value!==entry.conteudo &&
+    if(draftDirty && $('document-content').value.trim() && $('document-content').value!==entry.conteudo &&
        !confirm('Substituir o rascunho atual por esta versão?'))return;
     $('document-type').value=entry.tipo;
     $('document-title').value=entry.titulo;
