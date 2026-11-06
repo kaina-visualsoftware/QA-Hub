@@ -100,3 +100,38 @@ O lockfile npm v3 foi gerado em GitHub Actions com Node.js 22, contém 400
 entradas de pacote e está versionado na branch. As verificações de frontend
 executam `npm ci` antes de tipagem, lint, testes e build. Não foram adicionadas
 chaves privadas nem dependências de runtime para este procedimento.
+
+## Validação recente — 06/11/2026
+
+Head validado: `86a154e9f0ebafdf91d266faea063b132e265c6d`.
+
+- `QA Hub React foundation`: **aprovado** com `npm ci`, TS strict,
+  ESLint, Vitest e Vite production build.
+- `QA Hub React browser smoke`: **aprovado** no Chromium. O login,
+  a mudança de modo, 390/768/1366 px e o E2E autenticado sintético
+  foram exercitados. Não se usaram contas ou dados reais.
+- E2E sintético exercitado: login → selecionar TF → conferir consentimento
+  de IA → gerar roteiro → revisar → anexar caso (ainda não executado) →
+  gerar post → salvar versão privada. Verifica que a IA não grava resultados
+  nem altera o status geral da TF.
+- `QA Hub checks` e `QA Hub browser smoke` legados: **aprovados**,
+  confirmando que o HTML/JS existente não foi quebrado pelo novo frontend.
+- Ainda pendente: Supabase real em duas contas com RLS, leitor de tela,
+  cobertura visual autenticada e testes com a Edge Function NVIDIA real.
+
+### Primeira medição de bundle, sem inferir performance real
+
+Extraída do `vite build` no GitHub Actions; valores são tamanhos dos
+artefatos, **não** bytes efetivamente transferidos ou indicadores Core Web Vitals.
+
+| Chunk | Minificado | gzip | Observação |
+| --- | ---: | ---: | --- |
+| Entrada `index` | 780,66 KB | 233,57 KB | Otimização necessária |
+| `TaskPage` | 18,59 KB | 5,40 KB | Importado sob demanda |
+| `GeneratorPanel` | 30,95 KB | 11,71 KB | Importado sob demanda |
+| `DiagramPanel` | 6,61 KB | 2,82 KB | Importado sob demanda |
+| Subchunk Mermaid ELK | 1.498,94 KB | 465,89 KB | Diagramas pesados; avaliar redução sob demanda |
+
+Antes da publicação definitiva, comparar com a rede do legado, medir LCP/INP,
+interações, uso de memória, latência das queries e possíveis chunks de vendor
+não utilizados. Não trocar para outra biblioteca apenas por presunção.
