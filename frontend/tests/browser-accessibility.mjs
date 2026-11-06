@@ -17,6 +17,18 @@ const task = {
   executado_em: "2026-11-06", updated_at: "2026-11-06T12:00:00Z",
   observacoes: "", explicacao: "", causa: "", correcao: "", conclusao: ""
 };
+const scenario = {
+  id: "55555555-5555-4555-8555-555555555555",
+  tarefa_id: TASK, user_id: USER, titulo: "Aplicar desconto na venda",
+  ordem: 1, passos: "Abrir pedido e remover desconto",
+  esperado: "Desconto zerado", obtido: "", observacoes: "",
+  status: "nao_executado"
+};
+const diagram = {
+  id: "66666666-6666-4666-8666-666666666666",
+  titulo: "Fluxo da operação",
+  conteudo: "flowchart LR\n A[Pedido] --> B[Desconto]"
+};
 const violations = [];
 const exceptions = [];
 const loadedAssets = [];
@@ -50,8 +62,8 @@ function respond(route) {
     }
     return send([task]);
   }
-  if (path.endsWith("/rest/v1/qa_cenarios")) return send([]);
-  if (path.endsWith("/rest/v1/qa_diagramas")) return send([]);
+  if (path.endsWith("/rest/v1/qa_cenarios")) return send([scenario]);
+  if (path.endsWith("/rest/v1/qa_diagramas")) return send([diagram]);
   exceptions.push("Unexpected request: " + method + " " + path);
   return send({ message: "Unsupported synthetic endpoint" }, 500);
 }
@@ -116,6 +128,32 @@ try {
     await page.getByText("Revisão de desconto").click();
     await page.getByRole("heading", { name: "Cenários de teste" }).waitFor();
     await axeAudit(page, "TF pública detalhada", width);
+    const diagramArea = page.getByRole("article").filter({ hasText: "Fluxo da operação" });
+    const view = diagramArea.getByRole("button", { name: "Visualizar" });
+    await view.click();
+    await diagramArea.getByTitle("Prévia pública: Fluxo da operação").waitFor({ timeout: 30000 });
+    const expand = diagramArea.getByRole("button", { name: "Ampliar" });
+    await expand.focus();
+    await expand.press("Enter");
+    const zoom = page.getByRole("dialog", { name: "Diagrama ampliado: Fluxo da operação" });
+    await zoom.waitFor();
+    const close = zoom.getByRole("button", { name: "Fechar" });
+    await close.focus();
+    await close.press("Tab");
+    assert.equal(await zoom.getByText("Consultar texto do diagrama").evaluate(
+      (el) => el === document.activeElement
+    ), true, "Tab must stay in Mermaid zoom");
+    await page.keyboard.press("Tab");
+    assert.equal(await close.evaluate((el) => el === document.activeElement), true,
+      "Tab must cycle back to zoom close button");
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await zoom.getByText("Consultar texto do diagrama").evaluate(
+      (el) => el === document.activeElement
+    ), true, "Shift+Tab must cycle to the last modal control");
+    await page.keyboard.press("Escape");
+    await zoom.waitFor({ state: "hidden" });
+    assert.equal(await expand.evaluate((el) => el === document.activeElement), true,
+      "Escape must return focus to the diagram's Ampliar button");
 
     await page.goto(BASE);
     await page.getByRole("textbox", { name: "Email" }).fill("a11y@example.invalid");
@@ -127,6 +165,34 @@ try {
     await page.getByRole("button", { name: "Nova TF" }).click();
     await page.getByRole("heading", { name: "Nova TF" }).waitFor();
     await axeAudit(page, "formulário Nova TF", width);
+    await page.goto(BASE + "#/tarefa/" + TASK);
+    await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
+    const scenarioActions = page.getByRole("group", { name: "Resultado de Aplicar desconto na venda" });
+    const failButton = scenarioActions.getByRole("button", { name: "Não funcionou" });
+    await failButton.focus();
+    await failButton.press("Enter");
+    const failureDialog = page.getByRole("dialog", { name: "Registrar falha" });
+    await failureDialog.waitFor();
+    const description = failureDialog.getByRole("textbox", { name: "Comportamento observado" });
+    assert.equal(await description.evaluate((el) => el === document.activeElement), true,
+      "Opening a result dialog must focus the observed text field");
+    await description.fill("O desconto permaneceu visível.");
+    await description.press("Tab");
+    const cancel = failureDialog.getByRole("button", { name: "Cancelar" });
+    assert.equal(await cancel.evaluate((el) => el === document.activeElement), true);
+    await page.keyboard.press("Tab");
+    const save = failureDialog.getByRole("button", { name: "Salvar resultado" });
+    assert.equal(await save.evaluate((el) => el === document.activeElement), true);
+    await page.keyboard.press("Tab");
+    assert.equal(await description.evaluate((el) => el === document.activeElement), true,
+      "Tab after last control must cycle to first control");
+    await page.keyboard.press("Shift+Tab");
+    assert.equal(await save.evaluate((el) => el === document.activeElement), true,
+      "Shift+Tab must cycle from first control to last");
+    await page.keyboard.press("Escape");
+    await failureDialog.waitFor({ state: "hidden" });
+    assert.equal(await failButton.evaluate((el) => el === document.activeElement), true,
+      "Closing the result dialog must restore focus to the status action");
     await page.close();
   }
   assert.equal(loadedAssets.length, 0,
@@ -136,7 +202,7 @@ try {
     console.error("Falhas WCAG detectadas:", JSON.stringify(violations, null, 2));
     throw Error(violations.length + " conjuntos de violações WCAG no React.");
   }
-  console.log("WCAG 2.0/2.1/2.2 A/AA: 14 telas em 390/1366 px sem violações automáticas; IA permanece lazy.");
+  console.log("WCAG AA: 14 estados em 390/1366 px, modal Tab/Escape/focus restaurado e IA lazy.");
 } finally {
   await browser.close();
 }
