@@ -16,6 +16,7 @@ import { createNativeTools } from './qa-native-tools.mjs';
 import { createPhase4Ui } from './qa-phase4-ui.mjs';
 import { createRequirementsUi } from './qa-requirements-ui.mjs';
 import { createRequirementPicker } from './qa-requirements-picker.mjs';
+import { createRequirementUsageUi } from './qa-requirements-usage-ui.mjs';
 import { combineDiagramContext,recordRequirementUsage } from './qa-requirements-context.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
@@ -65,6 +66,7 @@ const requirements=createRequirementsUi({
   getTaskId:()=>state.currentId,getUserId:()=>state.user?.id,toast,
   onDirty:value=>setFormDirty('requirements-source',value)
 });
+const requirementUsage=createRequirementUsageUi({db,getTaskId:()=>state.currentId});
 const nativeTools=createNativeTools({
   root:$('#native-tools'),db,
   getTask:()=>state.tasks.find(t=>t.id===state.selectedTaskId),
@@ -205,6 +207,9 @@ db.auth.onAuthStateChange((event) => {
     phase2.reset();
     phase3.reset();
     phase4.reset();
+    requirements.reset();
+    requirementUsage.reset();
+    diagramRequirementPicker.reset();
     nativeTools.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
@@ -395,6 +400,12 @@ window.addEventListener('message', event => {
       phase3.load(id).catch(error=>toast(errMessage(error),true));
     return;
   }
+  if (event.data?.type === 'qa-hub:requirements-used') {
+    const id=event.data.taskId;
+    if(state.currentId===id && state.tasks.some(task=>task.id===id))
+      requirementUsage.load(id).catch(error=>toast(errMessage(error),true));
+    return;
+  }
   if (event.data?.type === 'qa-hub:document-saved') {
     if (!state.tasks.some(t=>t.id===event.data.taskId)) return;
     if(state.currentId===event.data.taskId)
@@ -518,6 +529,8 @@ function openNewTask() {
   state.currentId=null;
   phase2.reset();
   phase4.reset();
+  requirementUsage.reset();
+  diagramRequirementPicker.reset();
   requirements.startNew();
   setTaskStep('entry');
   $('#assist-text').value='';
@@ -601,6 +614,7 @@ async function openTask(id) {
     await phase3.load(id);
     await phase4.load(id);
     await requirements.load(id);
+    await requirementUsage.load(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
