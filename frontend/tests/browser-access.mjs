@@ -89,6 +89,14 @@ try{
   await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",responder());
   await guest.goto(origin+"#/publicas");
   await guest.getByRole("heading",{name:"TFs públicas"}).waitFor({timeout:20000});
+  const skip=guest.getByRole("button",{name:"Pular para o conteúdo"});
+  await skip.focus();
+  await skip.press("Enter");
+  assert.equal(await guest.evaluate(()=>document.activeElement?.id),"public-content");
+  assert.match(guest.url(),/#\/publicas$/,"Skip link cannot corrupt the hash route");
+  const mobileOverflow=await guest.evaluate(()=>
+    document.documentElement.scrollWidth-document.documentElement.clientWidth);
+  assert.ok(mobileOverflow<=1,"Public library must not overflow at 390px");
   await guest.getByText("TF de outra conta").waitFor();
   assert.equal(await guest.getByText("Revisão de pagamentos").count(),0);
   await guest.getByText("TF de outra conta").click();

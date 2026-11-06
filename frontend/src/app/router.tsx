@@ -31,7 +31,8 @@ function AppLayout() {
   if (!user) return <AuthScreen />;
 
   return <div className="app-shell">
-    <a className="skip-link" href="#main">Pular para o conteúdo</a>
+    <button type="button" className="skip-link"
+      onClick={() => document.getElementById("main")?.focus()}>Pular para o conteúdo</button>
     <aside className="sidebar">
       <Link to="/" className="brand"><span className="brand-icon">Q.</span><span>
         <strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></Link>

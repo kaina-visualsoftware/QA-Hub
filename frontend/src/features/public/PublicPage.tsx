@@ -89,7 +89,10 @@ export default function PublicPage() {
   });
 
   return <div className="public-react-shell">
-    <a href="#public-content" className="skip-link">Pular para o conteúdo</a>
+    <button type="button" className="skip-link"
+      onClick={() => document.getElementById("public-content")?.focus()}>
+      Pular para o conteúdo
+    </button>
     <header className="public-react-header">
       <Link to="/publicas" search={{}} className="brand">
         <span className="brand-icon">Q.</span>
@@ -97,7 +100,7 @@ export default function PublicPage() {
       </Link>
       <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>
     </header>
-    <main id="public-content" className="public-react-main">
+    <main id="public-content" tabIndex={-1} className="public-react-main">
       {!tf && <>
         <div className="page-heading">
           <div><p className="eyebrow">ACESSO SEM LOGIN</p>
