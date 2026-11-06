@@ -544,6 +544,8 @@ function openNewTask() {
   state.assistDraft=null;
   state.pendingScenarios=[];
   state.currentId=null;
+  $('#qa-next-actions').hidden=true;
+  $('#qa-scenario-filter').value='all';
   phase2.reset();
   phase4.reset();
   requirementUsage.reset();
@@ -598,6 +600,7 @@ async function openTask(id) {
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
   clearFormDirty();
   state.currentId = id;
+  state.scenarios=[];state.diagrams=[];
   focusTask(id);
   setTaskStep('review');
   $('#draft-scenario-review').hidden=true;
@@ -1109,6 +1112,22 @@ document.addEventListener('click',async (event)=>{
   const target=event.target.closest('button');
   if(!target) return;
   if(target.matches('[data-new-task]')) navigateNewTask();
+  const quickId=target.dataset.quickId,quickStatus=target.dataset.quickStatus;
+  if(quickId&&quickStatus){
+    const scenario=state.scenarios.find(s=>s.id===quickId);
+    if(!scenario)return;
+    if(quickStatus==='reprovado'||quickStatus==='bloqueado')
+      showQuickResultDialog(scenario,quickStatus);
+    else await commitQuickResult(scenario,quickStatus);
+    return;
+  }
+  const quickEvidence=target.dataset.quickEvidence;
+  if(quickEvidence&&state.scenarios.some(s=>s.id===quickEvidence)){
+    selectTab('auditoria');
+    $('#evidence-scenario').value=quickEvidence;
+    $('#evidence-summary').focus();
+    return;
+  }
   if(target.matches('[data-clear-filters]')){
     $('#task-search').value='';
     $('#filter-status').value='';
