@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 export const COVERAGE_STATES: Record<string,string>;
 export interface CoverageScenario {id:string;tarefa_id:string;titulo:string;status:"nao_executado"|"aprovado"|"reprovado"|"bloqueado"}
-export interface CoverageRequirement {id:string;tarefa_id:string;codigo:string;tipo:string;titulo:string;estado:string;ordem:number}
+export interface CoverageRequirement {id:string;tarefa_id:string;codigo:string;tipo:string;titulo:string;descricao:string;estado:string;ordem:number}
 export interface CoverageLink {id:string;tarefa_id:string;requisito_id:string;cenario_id:string}
 export interface CoverageRow extends CoverageRequirement {
   cases:CoverageScenario[];linkedCount:number;executedCount:number;
