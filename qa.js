@@ -292,7 +292,8 @@ window.addEventListener('message', event => {
     return;
   }
   if (event.data?.type === 'qa-hub:create-draft') {
-    state.draftFromGenerator={title:String(event.data.title||'').slice(0,240),description:String(event.data.description||'').slice(0,4000)};
+    state.draftFromGenerator={title:String(event.data.title||'').slice(0,240),description:String(event.data.description||'').slice(0,4000),
+      cases:Array.isArray(event.data.cases)?event.data.cases.slice(0,100):[]};
     location.hash='#/nova';
     return;
   }
@@ -407,7 +408,12 @@ function openNewTask() {
   if (state.draftFromGenerator) {
     $('#task-form').elements.titulo.value=state.draftFromGenerator.title||'Nova tarefa de teste';
     $('#task-form').elements.descricao.value=state.draftFromGenerator.description||'';
+    state.pendingScenarios=state.draftFromGenerator.cases
+      .filter(item=>item&&typeof item.titulo==='string'&&item.titulo.trim().length>=3)
+      .map(item=>({titulo:item.titulo.slice(0,240),passos:String(item.passos||''),
+        esperado:String(item.esperado||''),obtido:'',observacoes:String(item.observacoes||''),selected:true}));
     state.draftFromGenerator=null;
+    renderPendingScenarios();
     setTaskStep('review');
     setFormDirty('task-form');
   }
