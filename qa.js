@@ -7,6 +7,8 @@ import { extractWithOpenModel } from './qa-ai-open.mjs';
 import { extractWithNvidia } from './qa-nvidia.mjs';
 import { collectTaskContext, cleanMermaid, horizontalFlowchart, requestAiDiagram } from './qa-mermaid-ai.mjs';
 import { createDiagramViewer } from './qa-diagram-viewer.mjs';
+import { createPhase2Ui } from './qa-phase2-ui.mjs';
+import { selectedScenarioContext } from './qa-phase2.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -15,13 +17,23 @@ const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
-const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], toolMode: null, toolFrameContext: null };
+const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], diagramGenerationContext: null, toolMode: null, toolFrameContext: null };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
 const dateToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const formatDate = (v) => v ? new Date(v + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+const phase2 = createPhase2Ui({
+  db,
+  getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getScenarios:()=>state.scenarios,
+  getTaskId:()=>state.currentId,
+  refreshScenarios:id=>refreshRecordList('scenario',id),
+  onOpenDocuments:()=>selectTab('documentos'),
+  markDirty:setFormDirty,
+  toast
+});
 const statusBadge = (v) => '<span class="status ' + esc(v) + '">' + esc(statuses[v] || v) + '</span>';
 const errMessage = (err) => {
   if (!err) return 'Erro não identificado';
@@ -146,6 +158,7 @@ db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     try { sessionStorage.removeItem('qa-focus:'+state.user?.id); } catch {}
     state.selectedTaskId=null; state.draftFromGenerator=null;
+    phase2.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
     frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
@@ -268,7 +281,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
-  for (const tab of ['resumo','cenarios','diagramas']) {
+  for (const tab of ['resumo','cenarios','execucao','diagramas','documentos','historico']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -276,6 +289,7 @@ function selectTab(name) {
     button.setAttribute('aria-selected',String(selected));
     button.tabIndex = selected ? 0 : -1;
   }
+  if(name==='execucao')phase2.renderExecution();
 }
 const toolFrame = $('#tool-frame');
 toolFrame.addEventListener('load', () => {
@@ -295,6 +309,13 @@ window.addEventListener('message', event => {
     state.draftFromGenerator={title:String(event.data.title||'').slice(0,240),description:String(event.data.description||'').slice(0,4000),
       cases:Array.isArray(event.data.cases)?event.data.cases.slice(0,100):[]};
     location.hash='#/nova';
+    return;
+  }
+  if (event.data?.type === 'qa-hub:document-saved') {
+    if (!state.tasks.some(t=>t.id===event.data.taskId)) return;
+    if(state.currentId===event.data.taskId)
+      phase2.loadDocuments(event.data.taskId).catch(error=>toast(errMessage(error),true));
+    toast('Post registrado como documento da TF · versão '+String(event.data.version||'1')+'.');
     return;
   }
   if (event.data?.type === 'qa-hub:open-task') {
@@ -357,7 +378,9 @@ async function route() {
     if (id !== state.currentId || !state.tasks.some(t=>t.id===id)) {
       await openTask(id);
     } else setView('editor');
-    if (new URLSearchParams(query).get('tab')==='cenarios' && state.currentId===id) selectTab('cenarios');
+    const requestedTab=new URLSearchParams(query).get('tab');
+    if (state.currentId===id && ['cenarios','execucao','diagramas','documentos','historico'].includes(requestedTab))
+      selectTab(requestedTab);
     return;
   }
   setView('dashboard');
@@ -385,6 +408,7 @@ function openNewTask() {
   state.assistDraft=null;
   state.pendingScenarios=[];
   state.currentId=null;
+  phase2.reset();
   setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-error').hidden=true;
@@ -463,6 +487,7 @@ async function openTask(id) {
     if (state.currentId !== id) return;
     state.scenarios=s.data||[]; state.diagrams=d.data||[];
     renderScenarios(); renderDiagrams();
+    await phase2.loadDocuments(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
@@ -561,6 +586,7 @@ async function refreshRecordList(kind,taskId){
   if(scenario){
     state.scenarios=data||[];
     renderScenarios();
+    phase2.renderExecution();
     // Keep dashboard/list counters up to date without re-opening the editor.
     await loadData();
   }else{
