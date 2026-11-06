@@ -1,0 +1,29 @@
+/* Shared QA Hub R3 requirement picker: native and embedded generators. */
+.qa-r3-context{display:grid;gap:11px;margin:16px 0;padding:clamp(14px,2vw,19px);min-width:0;max-width:100%;border:1px solid #d8e2e5;border-radius:11px;background:#f8fbfa;color:#28454e}
+.qa-r3-context[hidden]{display:none!important}
+.qa-r3-heading{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.qa-r3-heading strong{font-size:.9rem;color:#203940}
+.qa-r3-count{font-size:.78rem;font-weight:600;color:#27695d}
+.qa-r3-help{font-size:.81rem;color:#58727b;line-height:1.55;margin:0}
+.qa-r3-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.qa-r3-actions button{background:#fff;border:1px solid #d3e2dc;color:#255d54;border-radius:8px;cursor:pointer;padding:8px 11px;min-height:39px;font:600 .8rem/1.35 inherit;max-width:100%;white-space:normal}
+.qa-r3-actions button:hover{background:#eaf5f1}
+.qa-r3-actions button:disabled{opacity:.55;cursor:default}
+.qa-r3-status{margin:2px 0;font-size:.79rem;line-height:1.5;color:#406c61;overflow-wrap:anywhere}
+.qa-r3-status[data-level=error]{color:#a93e3e}
+.qa-r3-list{display:grid;gap:7px;max-height:250px;overflow:auto;min-width:0}
+.qa-r3-item{background:#fff;border:1px solid #dce8e5;border-radius:9px;padding:9px 12px;min-width:0;overflow-wrap:anywhere}
+.qa-r3-item summary{display:list-item;cursor:pointer;line-height:1.5;color:#294950}
+.qa-r3-item-heading .qa-r3-choice{display:inline-flex;align-items:flex-start;gap:8px;min-width:0;font-size:.82rem;font-weight:650;cursor:pointer;vertical-align:middle}
+.qa-r3-choice span{min-width:0;overflow-wrap:anywhere}
+.qa-r3-choice input[type=checkbox]{appearance:auto;width:18px;height:18px;min-width:18px;min-height:18px;flex:0 0 18px;accent-color:#0d786d;margin:1px 0 0;padding:0}
+.qa-r3-item p{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0;font-size:.8rem;line-height:1.55;color:#4b6870}
+.qa-r3-preview{border-top:1px solid #d8e2e5;padding-top:10px;min-width:0}
+.qa-r3-preview summary{cursor:pointer;font-size:.79rem;font-weight:700;color:#28675b;line-height:1.45}
+.qa-r3-preview-text{background:#fff;border:1px solid #dce8e5;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto;padding:12px;font:.76rem/1.65 ui-monospace,Consolas,monospace;color:#29464e;min-width:0}
+.qa-r3-empty{font-size:.8rem;color:#5b737d;margin:0;padding:9px 0}
+@media(max-width:600px){
+  .qa-r3-context{padding:13px}
+  .qa-r3-actions button{flex:1 1 115px}
+  .qa-r3-list{max-height:220px}
+}
