@@ -100,7 +100,7 @@
           <div class="page-heading"><div><p class="eyebrow">BASE DE CONHECIMENTO</p><h1 id="list-title">Tarefas de teste</h1><p class="muted">Pesquise por código, título, sistema e versão.</p></div><button id="import-open" class="btn soft" type="button">Importar relatório</button></div>
           <div class="panel">
             <div class="filters"><label class="search-field"><span>Pesquisar</span><input id="task-search" placeholder="Ex.: promoção, 67866, versão 12..." type="search"></label><label><span>Situação</span><select id="filter-status"><option value="">Todas</option><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label><span>Tipo</span><select id="filter-type"><option value="">Todos</option><option>BUILD</option><option>RELEASE</option></select></label></div>
-            <div id="task-list" class="task-list"></div><p id="task-count" class="muted count-footer"></p>
+            <div id="task-list" class="task-list"></div><div class="qa-load-more"><button class="btn soft" id="tasks-load-more" type="button" hidden>Carregar mais tarefas</button></div><p id="task-count" class="muted count-footer"></p>
           </div>
         </section>
 
@@ -147,7 +147,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -293,6 +293,37 @@
           <div id="tab-historico" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-historico" tabindex="0" hidden>
             <div class="section-top"><div><h2>Histórico documental</h2><p class="muted">Todas as versões salvas de posts e relatórios. Não é uma auditoria completa de alterações da TF.</p></div></div>
             <div id="documents-history" class="qa-documents-list"></div>
+            <section class="panel qa-phase4-panel qa-legacy-import" aria-labelledby="legacy-title">
+              <h3 id="legacy-title">Importar histórico antigo</h3>
+              <p class="muted fine">Selecione um post ou roteiro da sua conta ou deste navegador. Nada é transferido automaticamente. Execuções antigas marcadas como OK não serão importadas como resultados reais.</p>
+              <div class="qa-phase4-grid">
+                <label>Origem <select id="legacy-kind"><option value="teste">Roteiros de teste</option><option value="post">Posts</option></select></label>
+                <label>Registro <select id="legacy-record"><option value="">Selecione um histórico</option></select></label>
+              </div>
+              <label>Conteúdo para revisão <textarea id="legacy-content" rows="9" maxlength="80000" placeholder="Escolha um histórico acima."></textarea></label>
+              <div id="legacy-case-list" class="qa-phase4-case-list"></div>
+              <div class="qa-phase4-actions"><button class="btn primary" type="button" id="legacy-import-save">Importar para esta TF</button><span id="legacy-status" role="status"></span></div>
+            </section>
+          </div>
+          <div id="tab-auditoria" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-auditoria" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Auditoria e evidências</h2><p class="muted">Acompanhe eventos de execução e associe evidências com rastreabilidade, sem alterar resultados anteriores.</p></div></div>
+            <section class="panel qa-phase4-panel" aria-label="Adicionar evidência">
+              <h3>Registrar evidência</h3>
+              <div class="qa-phase4-grid">
+                <label>Tipo <select id="evidence-type"><option value="observacao">Observação</option><option value="log">Log (descrição)</option><option value="captura">Captura (link)</option><option value="referencia">Referência externa</option></select></label>
+                <label>Cenário relacionado <select id="evidence-scenario"><option value="">Toda a TF</option></select></label>
+              </div>
+              <label>Resumo <textarea id="evidence-summary" rows="3" maxlength="2000" placeholder="Descreva a evidência sem incluir credenciais ou dados pessoais."></textarea></label>
+              <label>Link HTTPS (opcional) <input id="evidence-url" type="url" maxlength="1500" placeholder="https://..."></label>
+              <div class="qa-phase4-actions"><button class="btn primary" id="evidence-save" type="button">Salvar evidência</button><span id="evidence-status" role="status"></span></div>
+              <div id="evidence-list" class="qa-phase4-list"></div>
+            </section>
+            <section class="panel qa-phase4-panel" aria-label="Eventos auditados">
+              <h3>Trilha de auditoria</h3>
+              <p class="muted fine">Os eventos são gerados pelo banco para alterações de situação, novos cenários, documentos, releases e evidências. O histórico não contém o texto completo de resultados, logs ou XML.</p>
+              <div id="audit-list" class="qa-phase4-list"></div>
+              <button class="btn soft" id="audit-more" type="button" hidden>Carregar mais eventos</button>
+            </section>
           </div>
           </div>
         </section>
@@ -305,6 +336,7 @@
               <p class="muted" id="tool-view-description">Trabalhe sem sair da plataforma.</p>
             </div>
           </div>
+          <div id="native-tools" class="qa-native-tools" hidden aria-label="Ferramentas nativas"></div>
           <iframe id="tool-frame" class="qa-tool-frame" title="Ferramentas do QA Hub" src="about:blank"></iframe>
         </section>
       </main>

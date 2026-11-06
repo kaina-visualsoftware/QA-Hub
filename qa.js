@@ -11,6 +11,9 @@ import { createPhase2Ui } from './qa-phase2-ui.mjs';
 import { selectedScenarioContext } from './qa-phase2.mjs';
 import { coverageMetrics } from './qa-phase3.mjs';
 import { createPhase3Ui } from './qa-phase3-ui.mjs';
+import { slicePage } from './qa-phase4.mjs';
+import { createNativeTools } from './qa-native-tools.mjs';
+import { createPhase4Ui } from './qa-phase4-ui.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -19,7 +22,7 @@ const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
-const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], diagramGenerationContext: null, toolMode: null, toolFrameContext: null };
+const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], diagramGenerationContext: null, toolMode: null, toolFrameContext: null, taskListPage:0 };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
 const scenarioFields = ['titulo','status','ordem','passos','esperado','obtido','observacoes'];
@@ -41,6 +44,26 @@ const phase3 = createPhase3Ui({
   getTaskId:()=>state.currentId,getUserId:()=>state.user?.id,
   onDocuments:()=>selectTab('documentos'),
   markDirty:setFormDirty,toast
+});
+const phase4=createPhase4Ui({
+  db,getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getUserId:()=>state.user?.id,getScenarios:()=>state.scenarios,toast,
+  onImported:async(kind,id)=>{
+    if(kind==='teste')await refreshRecordList('scenario',id);
+    else await phase2.loadDocuments(id);
+    await loadData();
+  }
+});
+const nativeTools=createNativeTools({
+  root:$('#native-tools'),db,
+  getTask:()=>state.tasks.find(t=>t.id===state.selectedTaskId),
+  getUserId:()=>state.user?.id,toast,
+  onSaved:id=>{
+    if(state.currentId===id){
+      phase3.load(id).catch(e=>toast(errMessage(e),true));
+      phase4.refreshAudit().catch(e=>toast(errMessage(e),true));
+    }
+  }
 });
 const statusBadge = (v) => '<span class="status ' + esc(v) + '">' + esc(statuses[v] || v) + '</span>';
 const errMessage = (err) => {
@@ -170,6 +193,8 @@ db.auth.onAuthStateChange((event) => {
     state.dirtyForms.clear();
     phase2.reset();
     phase3.reset();
+    phase4.reset();
+    nativeTools.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
     frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
@@ -202,9 +227,12 @@ function renderTasks() {
   const emptyWithoutFilters = '<div class="empty"><strong>Nenhuma TF cadastrada</strong>' +
     '<p>Cadastre seu primeiro teste ou importe um relatório existente.</p>' +
     '<button type="button" class="btn primary" data-new-task>Criar primeira TF</button></div>';
-  $('#task-list').innerHTML = list.length ? list.map(taskItem).join('') :
+  const page=slicePage(list,state.taskListPage);
+  $('#task-list').innerHTML = list.length ? page.rows.map(taskItem).join('') :
     (hasFilters ? emptyWithFilters : emptyWithoutFilters);
-  $('#task-count').textContent = list.length + ' tarefa(s) na lista' + (state.tasks.length >= 1000 ? ' · primeiros 1.000 registros' : '');
+  $('#tasks-load-more').hidden=!page.hasMore;
+  $('#task-count').textContent = page.visible+' de '+page.total+' tarefa(s) nesta consulta'+
+    (state.tasks.length >= 1000 ? ' · limite de carregamento: 1.000 TFs' : '');
 }
 function renderDashboard() {
   const tasks = state.tasks, scenarios = state.scenarioStats;
@@ -273,6 +301,7 @@ function focusTask(taskId) {
     else sessionStorage.removeItem('qa-focus:'+state.user.id);
   } catch {}
   restoreTaskFocus();
+  nativeTools.refresh();
   return true;
 }
 $('#context-task-select').addEventListener('change',event=>{
@@ -306,7 +335,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
-  for (const tab of ['resumo','cenarios','execucao','diagramas','vinculos','documentos','historico']) {
+  for (const tab of ['resumo','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -318,7 +347,7 @@ function selectTab(name) {
 }
 const toolFrame = $('#tool-frame');
 toolFrame.addEventListener('load', () => {
-  if (toolFrame.dataset.initialized === 'true' && state.toolMode) {
+  if (toolFrame.dataset.initialized === 'true' && state.toolMode && !['release','diff','xml'].includes(state.toolMode)) {
     toolFrame.contentWindow?.postMessage({ type:'qa-hub:navigate-tool', mode:state.toolMode }, location.origin);
   }
 });
@@ -383,6 +412,14 @@ function openTool(mode, taskId = '') {
   state.toolMode = mode;
   $('#tool-view-title').textContent = info.title;
   $('#tool-view-description').textContent = info.description;
+  if(['release','diff','xml'].includes(mode)){
+    toolFrame.hidden=true;
+    nativeTools.open(mode);
+    setView('ferramentas');
+    return;
+  }
+  nativeTools.hide();
+  toolFrame.hidden=false;
   toolFrame.title = info.title + ' · QA Hub';
   if (toolFrame.dataset.initialized !== 'true' || state.toolFrameContext !== tf) {
     state.toolFrameContext = tf;
@@ -422,7 +459,7 @@ async function route() {
       await openTask(id);
     } else setView('editor');
     const requestedTab=new URLSearchParams(query).get('tab');
-    if (state.currentId===id && ['cenarios','execucao','diagramas','vinculos','documentos','historico'].includes(requestedTab))
+    if (state.currentId===id && ['cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'].includes(requestedTab))
       selectTab(requestedTab);
     return;
   }
@@ -452,6 +489,7 @@ function openNewTask() {
   state.pendingScenarios=[];
   state.currentId=null;
   phase2.reset();
+  phase4.reset();
   setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-error').hidden=true;
@@ -532,6 +570,7 @@ async function openTask(id) {
     renderScenarios(); renderDiagrams();
     await phase2.loadDocuments(id);
     await phase3.load(id);
+    await phase4.load(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
@@ -806,9 +845,11 @@ function navigateNewTask() {
   } else location.hash = '#/nova';
 }
 $('#new-task').addEventListener('click',navigateNewTask);
-$('#task-search').addEventListener('input',renderTasks);
-$('#filter-status').addEventListener('change',renderTasks);
-$('#filter-type').addEventListener('change',renderTasks);
+function resetTaskListPage(){state.taskListPage=0;renderTasks();}
+$('#task-search').addEventListener('input',resetTaskListPage);
+$('#filter-status').addEventListener('change',resetTaskListPage);
+$('#filter-type').addEventListener('change',resetTaskListPage);
+$('#tasks-load-more').addEventListener('click',()=>{state.taskListPage++;renderTasks();});
 window.addEventListener('hashchange',()=>route().catch(e=>toast(errMessage(e),true)));
 $$('[data-tab]').forEach(button=>{
   button.addEventListener('click',()=>selectTab(button.dataset.tab));

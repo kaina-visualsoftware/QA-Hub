@@ -23,7 +23,15 @@ export function createClient(){
       {id:'diagram-private',tarefa_id:priv,titulo:'Fluxo secreto',conteudo:'flowchart TD\\n A --> B'}
     ],
     qa_admins:[],
-    qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[]
+    qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
+    qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
+    qa_generator_tests:[{
+      id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      user_id:'55555555-5555-4555-8555-555555555555',
+      ts:1750000000000,titulo:'Roteiro legado',
+      md:'## Cenário 01 — Importação histórica\\n### Passos\\n1. Abrir pedido\\n### Resultado esperado\\n- Pedido listado',
+      exec:{'Cenário 01 — Importação histórica':{s:'OK',o:'FUNCIONANDO:'}}
+    }]
   };
   let user=null;
   let nextId=0;
@@ -38,6 +46,16 @@ export function createClient(){
           created_at: new Date().toISOString()
         }));
         tables[table].push(...added);
+        if(['qa_evidencias','qa_cenarios'].includes(table)){
+          for(const row of added){
+            tables.qa_eventos.push({
+              id:'audit-'+(++nextId),tarefa_id:row.tarefa_id,
+              acao:table==='qa_evidencias'?'evidencia.criada':'cenario.criado',
+              detalhes:table==='qa_evidencias'?{tipo:row.tipo}:{status:row.status},
+              created_at:new Date().toISOString()
+            });
+          }
+        }
         return {data:added,error:null};
       }
       if(kind==='update'){
@@ -56,6 +74,7 @@ export function createClient(){
       select(){return q},
       order(){return q},
       limit(){return Promise.resolve(execute())},
+      range(start,end){const result=execute();return Promise.resolve({data:result.data.slice(start,end+1),error:null})},
       eq(key,value){conditions[key]=value;return q},
       maybeSingle(){const result=execute();return Promise.resolve({
         data:result.data[0]??null,error:null
@@ -73,6 +92,25 @@ export function createClient(){
   return {
     from,
     async rpc(name,args){
+      if(name==='qa_attach_generated_cases'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
+        let inserted=0,skipped=0;
+        for(const row of args.p_itens){
+          const same=tables.qa_cenarios.some(s=>s.tarefa_id===task.id&&
+            (s.origem_geracao===args.p_geracao_id&&s.origem_item===row.source_index));
+          if(same){skipped++;continue}
+          const item={...row,id:'33333333-3333-4333-8333-'+String(++nextId).padStart(12,'0'),
+            tarefa_id:task.id,user_id:user.id,ordem:1,status:'nao_executado',
+            obtido:'',origem_geracao:args.p_geracao_id,origem_item:row.source_index};
+          tables.qa_cenarios.push(item);
+          tables.qa_eventos.push({id:'audit-'+(++nextId),tarefa_id:task.id,
+            acao:'cenario.criado',detalhes:{status:'nao_executado'},
+            created_at:new Date().toISOString()});
+          inserted++;
+        }
+        return {data:{inserted,skipped,tarefa_id:task.id},error:null};
+      }
       if(name==='qa_link_release'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
@@ -224,8 +262,24 @@ try {
     const source=await page.locator('#tool-frame').getAttribute('src');
     await tool.locator('#t').fill('QA Hub mantém o conteúdo ao alternar ferramentas');
     await page.locator('#sidebar .navigation a[data-route="ferramentas/diff"]').evaluate(el=>el.click());
-    await page.waitForFunction(()=>document.querySelector('#tool-view-title').textContent==='Comparar textos');
-    await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Comparar textos');
+    await page.locator('#native-diff').waitFor({state:'visible'});
+    assert.equal(await page.locator('#tool-frame').isVisible(),false,'Native text tool should not use an iframe');
+    await page.locator('#native-diff textarea').first().fill('Pedido\nAntes');
+    await page.locator('#native-diff textarea').last().fill('Pedido\nDepois');
+    await page.locator('#native-diff .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-diff .qa-native-output').innerText(),/1 adicionada/);
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/xml"]').evaluate(el=>el.click());
+    await page.locator('#native-xml').waitFor({state:'visible'});
+    await page.locator('#native-xml textarea').first().fill('<root><item a="1"/></root>');
+    await page.locator('#native-xml textarea').last().fill('<root><item a="2"/></root>');
+    await page.locator('#native-xml .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-xml .qa-native-output').innerText(),/ATRIBUTO/);
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/release"]').evaluate(el=>el.click());
+    await page.locator('#native-release').waitFor({state:'visible'});
+    await page.locator('#native-release input').first().fill('12.10.06.0000');
+    await page.locator('#native-release textarea').nth(1).fill('Status 12\n#67866 — BUG — Correção de pedido');
+    await page.locator('#native-release .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-release .qa-native-output').innerText(),/Tarefas da Release/);
     await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
     await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
     assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
@@ -465,6 +519,24 @@ CENÁRIO 1 - Incluir produto
        await page.locator('#document-save').click();
        await page.waitForFunction(()=>document.querySelector('#document-status').textContent.includes('versão 3'));
        await page.screenshot({path:'artifacts/ui/qa-phase3-links-'+width+'.png',fullPage:true});
+       // Phase 4: imported legacy cases remain unexecuted, evidence is audited.
+       await page.locator('#tab-btn-historico').click();
+       await page.waitForFunction(()=>document.querySelector('#legacy-record').options.length>1);
+       await page.locator('#legacy-record').selectOption('conta:teste:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+       await page.waitForFunction(()=>document.querySelectorAll('#legacy-case-list .qa-phase4-check').length===1);
+       assert.match(await page.locator('#legacy-case-list').innerText(),/não executados/);
+       page.once('dialog',dialog=>dialog.accept());
+       await page.locator('#legacy-import-save').click();
+       await page.waitForFunction(()=>document.querySelector('#legacy-status').textContent.includes('1 cenário(s)'));
+       await page.locator('#tab-btn-cenarios').click();
+       assert.match(await page.locator('#scenarios-list').innerText(),/Importação histórica/);
+       await page.locator('#tab-btn-auditoria').click();
+       await page.locator('#evidence-summary').fill('Conferido o fluxo de pedido nesta versão.');
+       page.once('dialog',dialog=>dialog.accept());
+       await page.locator('#evidence-save').click();
+       await page.waitForFunction(()=>document.querySelector('#evidence-list').textContent.includes('Conferido o fluxo'));
+       assert.match(await page.locator('#audit-list').innerText(),/Evidência adicionada/);
+       await page.screenshot({path:'artifacts/ui/qa-phase4-audit-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){
       await page.locator('#tab-btn-diagramas').click();
