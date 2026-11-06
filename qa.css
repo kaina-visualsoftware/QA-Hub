@@ -947,3 +947,4 @@ button:disabled{cursor:wait;opacity:.7}
   .qa-next-buttons .btn{flex:1 1 100%}
   .qa-quick-dialog-actions .btn{flex:1 1 110px}
 }
+.qa-quick-inline-result{font-size:.8rem;line-height:1.6;color:#315b61;background:#f4f9f7;border-left:3px solid #6cae9d;border-radius:5px;margin:8px 0;padding:9px 11px;overflow-wrap:anywhere;white-space:pre-wrap}
