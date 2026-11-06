@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, FileText, GitBranchPlus, GitMerge, Plus, X, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, Plus, Share2, X, WandSparkles } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -16,6 +16,7 @@ import {
 } from "../lib/contracts";
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
+import { updatePublication } from "../features/public/public-data";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
@@ -121,6 +122,17 @@ export default function TaskPage() {
     mutationFn: (status: (typeof taskStatuses)[number]) => setTaskStatus(taskId, status),
     onSuccess: async () => { setSaved("Situação da TF alterada manualmente."); await invalidate(); }
   });
+  const publication = useMutation({
+    mutationFn: (publish: boolean) => updatePublication(taskId, userId, publish),
+    onSuccess: async (published) => {
+      setSaved(published ? "TF publicada por sua confirmação." : "Publicação desativada.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["public-tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["public-task", taskId] })
+      ]);
+    }
+  });
   const deleteTaskMutation = useMutation({
     mutationFn: () => removeTask(taskId),
     onSuccess: async () => {
@@ -184,6 +196,39 @@ export default function TaskPage() {
         <p role="alert" className="notice error mt-3">
           {updateStatus.error?.message || deleteTaskMutation.error?.message}
         </p>}
+    </section>
+    <section className="panel mt-4" aria-label="Compartilhamento público">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">PRIVACIDADE E VISIBILIDADE</p>
+          <h2>Compartilhamento da TF</h2>
+          <p className="text-muted text-sm mt-2">
+            {task.publica ? "Publicada — qualquer visitante pode consultar o resumo, os cenários, os resultados observados e os diagramas."
+              : "Privada — esta TF ainda não foi compartilhada publicamente."}
+          </p>
+        </div>
+        <span className={"status-chip " + (task.publica ? "aprovado" : "rascunho")}>
+          {task.publica ? "Pública" : "Privada"}
+        </span>
+      </div>
+      {task.user_id === userId ? <div className="flex flex-wrap gap-3 items-center mt-4">
+        <Button variant="secondary" isDisabled={publication.isPending}
+          onPress={() => {
+            const next = !task.publica;
+            const label = next
+              ? "Publicar esta TF? Título, descrição, análise técnica, cenários, resultados observados e diagramas ficarão acessíveis sem login. Revise dados internos antes de confirmar."
+              : "Retirar esta TF da biblioteca pública? Links compartilhados deixarão de funcionar após a alteração.";
+            if (window.confirm(label)) void publication.mutateAsync(next);
+          }}>
+          <Share2 size={16}/> {task.publica ? "Retirar publicação" : "Publicar TF"}
+        </Button>
+        {task.publica && <Link to="/publicas" search={{ tf: task.id }} className="secondary-link">
+          <ExternalLink size={16}/> Abrir visão pública
+        </Link>}
+      </div> : <p className="text-muted text-sm mt-3">
+        A publicação só pode ser alterada pelo autor da TF, inclusive em consulta administrativa.
+      </p>}
+      {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
     </section>
     <section className="progress-panel mt-4" aria-label="Progresso da execução">
       <div><strong>{progress.executed}/{progress.total}</strong><span>cenários executados</span></div>

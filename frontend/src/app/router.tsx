@@ -1,20 +1,31 @@
 import { lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   createHashHistory, createRootRoute, createRoute, createRouter,
-  Link, Outlet
+  Link, Outlet, useRouterState
 } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
-import { ArrowLeft, ExternalLink, LayoutList, LogOut, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpen, ExternalLink, LayoutList, LogOut, Plus, ShieldCheck } from "lucide-react";
 import { useAuth, AuthScreen, RecoveryScreen } from "../features/auth/AuthProvider";
 import { useFocus } from "../stores/focus";
 import { supabase } from "../lib/supabase";
 import { Workspace } from "../pages/Workspace";
+import { getAdminRole } from "../lib/data";
 
 const TaskPage = lazy(() => import("../pages/TaskPage"));
+const AdminPage = lazy(() => import("../pages/AdminPage"));
+const PublicPage = lazy(() => import("../features/public/PublicPage"));
 
 function AppLayout() {
   const { user, loading, recovering } = useAuth();
   const taskId = useFocus((s) => s.taskId);
+  const publicView = useRouterState({ select: (state) => state.location.pathname === "/publicas" });
+  const adminRole = useQuery({
+    queryKey: ["role", user?.id ?? ""], queryFn: () => getAdminRole(user!.id),
+    enabled: Boolean(user?.id) && !publicView
+  });
+  // An intentionally public route must work before authentication resolves.
+  if (publicView) return <Outlet />;
   if (loading) return <div className="screen-status" role="status">Carregando sessão…</div>;
   if (recovering && user) return <RecoveryScreen />;
   if (!user) return <AuthScreen />;
@@ -32,6 +43,16 @@ function AppLayout() {
         <Link to="/" search={{ newTask: true }} className="nav-link">
           <Plus size={18} /> Nova TF
         </Link>
+      </nav>
+      <div className="sidebar-section mt-8">CONSULTAS</div>
+      <nav aria-label="Biblioteca e administração">
+        <Link to="/publicas" search={{}} className="nav-link">
+          <BookOpen size={18} /> TFs públicas
+        </Link>
+        {adminRole.data === true &&
+          <Link to="/admin" className="nav-link">
+            <ShieldCheck size={18} /> Administração
+          </Link>}
       </nav>
       <div className="sidebar-section mt-8">RECURSOS EXISTENTES</div>
       <nav aria-label="Ferramentas na versão atual">
@@ -80,7 +101,24 @@ const taskRoute = createRoute({
   path: "/tarefa/$taskId",
   component: () => <Suspense fallback={<p role="status">Abrindo TF…</p>}><TaskPage /></Suspense>
 });
-const routeTree = rootRoute.addChildren([homeRoute, taskRoute]);
+const publicRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/publicas",
+  validateSearch: (search: Record<string, unknown>): { tf?: string } => ({
+    tf: typeof search.tf === "string" ? search.tf : undefined
+  }),
+  component: () => <Suspense fallback={<p role="status" className="screen-status">Carregando biblioteca…</p>}>
+    <PublicPage />
+  </Suspense>
+});
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: () => <Suspense fallback={<p role="status" className="notice">Carregando administração…</p>}>
+    <AdminPage />
+  </Suspense>
+});
+const routeTree = rootRoute.addChildren([homeRoute, taskRoute, publicRoute, adminRoute]);
 
 export const router = createRouter({ routeTree, history: createHashHistory() });
 declare module "@tanstack/react-router" {

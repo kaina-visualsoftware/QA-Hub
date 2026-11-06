@@ -161,7 +161,7 @@ export function AuthScreen() {
           {mode === "reset" ? "Voltar ao login" : "Esqueci a senha"}
         </button>
       </div>
-      <a className="subtle-link mt-6 inline-block" href="https://kaina-visualsoftware.github.io/QA-Hub/public.html">
+      <a className="subtle-link mt-6 inline-block" href="#/publicas">
         Consultar TFs públicas
       </a>
     </section>

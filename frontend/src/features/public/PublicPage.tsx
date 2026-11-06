@@ -1,0 +1,185 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useSearch } from "@tanstack/react-router";
+import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck, X } from "lucide-react";
+import { Button } from "@heroui/react";
+import { z } from "zod";
+import { listPublishedTasks, loadPublishedTask } from "./public-data";
+import type { PublicDiagram, PublicTaskDetail } from "./public-data";
+
+const facts: Array<[keyof PublicTaskDetail, string]> = [
+  ["codigo", "Código"], ["tipo_teste", "Tipo"], ["status", "Situação"],
+  ["sistema", "Sistema"], ["versao", "Versão"],
+  ["descricao", "O que foi testado"], ["explicacao", "Como funciona"],
+  ["causa", "Problema e causa"], ["correcao", "O que foi alterado"],
+  ["conclusao", "Conclusão"], ["observacoes", "Observações"]
+];
+const fields = (values: Array<[string, string]>) => values
+  .filter(([, value]) => value.trim())
+  .map(([label, value]) => <div key={label} className="public-react-fact">
+    <strong>{label}</strong><p>{value}</p>
+  </div>);
+
+function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
+  const [svg, setSvg] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  async function render() {
+    if (svg) { setExpanded(true); return; }
+    if (diagram.conteudo.length > 16000) {
+      setError("Diagrama excede o tamanho permitido."); return;
+    }
+    setBusy(true); setError("");
+    try {
+      const { default: mermaid } = await import("mermaid");
+      mermaid.initialize({
+        startOnLoad: false, securityLevel: "strict", theme: "neutral", maxTextSize: 16000
+      });
+      await mermaid.parse(diagram.conteudo);
+      const result = await mermaid.render("qa-public-" +
+        crypto.randomUUID().replaceAll("-", ""), diagram.conteudo);
+      setSvg(result.svg);
+    } catch {
+      setError("O diagrama publicado não pôde ser renderizado.");
+    } finally { setBusy(false); }
+  }
+  return <article className="requirement-row">
+    <div className="section-heading">
+      <strong>{diagram.titulo}</strong>
+      <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => void render()}>
+        <Eye size={15} /> {busy ? "Renderizando…" : svg ? "Ampliar" : "Visualizar"}
+      </Button>
+    </div>
+    {svg && <iframe title={"Prévia pública: " + diagram.titulo}
+      className="diagram-preview mt-3" sandbox="" referrerPolicy="no-referrer"
+      srcDoc={svg} />}
+    {error && <p className="notice error mt-3" role="alert">{error}</p>}
+    {expanded && svg && <div className="public-react-zoom-backdrop" role="presentation">
+      <section className="public-react-zoom" role="dialog" aria-modal="true"
+        aria-label={"Diagrama ampliado: " + diagram.titulo}>
+        <div className="section-heading">
+          <h2>{diagram.titulo}</h2>
+          <Button size="sm" variant="secondary" onPress={() => setExpanded(false)}>
+            <X size={16} /> Fechar
+          </Button>
+        </div>
+        <iframe title={"Diagrama ampliado: " + diagram.titulo} className="public-react-zoom-frame"
+          sandbox="" referrerPolicy="no-referrer" srcDoc={svg} />
+      </section>
+    </div>}
+  </article>;
+}
+
+export default function PublicPage() {
+  const { tf } = useSearch({ from: "/publicas" });
+  const [search, setSearch] = useState("");
+  const chosen = tf && z.uuid().safeParse(tf).success ? tf : null;
+  const list = useQuery({
+    queryKey: ["public-tasks"], queryFn: listPublishedTasks, enabled: !tf
+  });
+  const detail = useQuery({
+    queryKey: ["public-task", chosen], queryFn: () => loadPublishedTask(chosen!),
+    enabled: Boolean(chosen)
+  });
+  const results = (list.data ?? []).filter((task) => {
+    const needle = search.trim().toLocaleLowerCase("pt-BR");
+    return !needle || [task.titulo, task.codigo, task.sistema, task.versao]
+      .some((value) => (value ?? "").toLocaleLowerCase("pt-BR").includes(needle));
+  });
+
+  return <div className="public-react-shell">
+    <a href="#public-content" className="skip-link">Pular para o conteúdo</a>
+    <header className="public-react-header">
+      <Link to="/publicas" search={{}} className="brand">
+        <span className="brand-icon">Q.</span>
+        <span><strong>QA Hub</strong><small>BIBLIOTECA PÚBLICA</small></span>
+      </Link>
+      <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>
+    </header>
+    <main id="public-content" className="public-react-main">
+      {!tf && <>
+        <div className="page-heading">
+          <div><p className="eyebrow">ACESSO SEM LOGIN</p>
+            <h1>TFs públicas</h1>
+            <p className="text-muted">Somente tarefas que os autores escolheram publicar.</p>
+          </div>
+          <span className="public-react-readonly"><ShieldCheck size={16} /> Somente leitura</span>
+        </div>
+        <label className="field">Pesquisar por código, título, sistema ou versão
+          <span className="public-react-search">
+            <Search size={18}/><input type="search" value={search}
+              placeholder="Buscar tarefas públicas…" onChange={(e) => setSearch(e.target.value)} />
+          </span>
+        </label>
+        {list.isPending && <p role="status" className="notice mt-4">Carregando biblioteca pública…</p>}
+        {list.isError && <p role="alert" className="notice error mt-4">{list.error.message}</p>}
+        {list.isSuccess && <p role="status" className="text-muted mt-4">{results.length} TF(s) públicas</p>}
+        {list.isSuccess && !results.length &&
+          <p className="panel mt-4">Nenhuma TF pública encontrada.</p>}
+        <div className="public-react-list mt-4">
+          {results.map((task) => <Link key={task.id} to="/publicas"
+            search={{ tf: task.id }} className="task-row">
+            <span className="task-initial">{(task.codigo || "TF").slice(0,3).toUpperCase()}</span>
+            <span className="task-text"><strong>{task.titulo}</strong>
+              <small>{task.codigo || "Sem código"} · {task.sistema || "Módulo não informado"} · {task.tipo_teste}</small>
+            </span><span className="public-react-readonly">Pública</span>
+          </Link>)}
+        </div>
+      </>}
+      {tf && <>
+        <Link to="/publicas" search={{}} className="back-link">
+          <ArrowLeft size={16} /> Todas as TFs públicas
+        </Link>
+        {!chosen && <p role="alert" className="notice error mt-4">Link de TF inválido.</p>}
+        {chosen && detail.isPending && <p role="status" className="notice mt-4">Carregando TF pública…</p>}
+        {chosen && detail.isError && <p role="alert" className="notice error mt-4">{detail.error.message}</p>}
+        {chosen && detail.isSuccess && !detail.data &&
+          <p role="alert" className="notice error mt-4">Esta TF não é pública ou não existe.</p>}
+        {detail.data && <div className="stack mt-4">
+          <div className="page-heading">
+            <div><p className="eyebrow">TF PÚBLICA · SOMENTE LEITURA</p>
+              <h1>{detail.data.task.titulo}</h1>
+              <p className="text-muted">
+                {detail.data.task.codigo || "TF"} · {detail.data.task.sistema || "Sem módulo"}
+              </p>
+            </div>
+          </div>
+          <section className="panel" aria-labelledby="public-summary">
+            <h2 id="public-summary" className="font-semibold">Resumo</h2>
+            <div className="public-react-facts mt-4">
+              {fields(facts.map(([key, label]) => [label, String(detail.data!.task[key] ?? "")]))}
+            </div>
+          </section>
+          <section className="panel" aria-labelledby="public-scenarios">
+            <h2 id="public-scenarios" className="font-semibold">Cenários de teste</h2>
+            {detail.data.scenarios.length === 0 &&
+              <p className="text-muted mt-3">Nenhum cenário publicado.</p>}
+            <div className="stack mt-4">
+              {detail.data.scenarios.map((scenario, index) => <article className="requirement-row" key={scenario.id}>
+                <h3 className="font-semibold">{index+1}. {scenario.titulo}</h3>
+                <div className="public-react-facts mt-3">
+                  {fields([
+                    ["Passos", scenario.passos ?? ""],
+                    ["Resultado esperado", scenario.esperado ?? ""],
+                    ["Resultado observado", scenario.obtido ?? ""],
+                    ["Observações", scenario.observacoes ?? ""]
+                  ])}
+                </div>
+              </article>)}
+            </div>
+          </section>
+          <section className="panel" aria-labelledby="public-diagrams">
+            <h2 id="public-diagrams" className="font-semibold">Diagramas</h2>
+            {detail.data.diagrams.length === 0 &&
+              <p className="text-muted mt-3">Nenhum diagrama publicado.</p>}
+            <div className="stack mt-4">
+              {detail.data.diagrams.map((diagram) => <MermaidPublicPreview
+                diagram={diagram} key={diagram.id}/>)}
+            </div>
+          </section>
+        </div>}
+      </>}
+    </main>
+  </div>;
+}

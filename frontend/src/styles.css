@@ -87,3 +87,34 @@
 .compare-prefix{font-weight:800;user-select:none}
 .compare-value{white-space:pre-wrap;word-break:break-word}
 @media(max-width:760px){.compare-grid{grid-template-columns:1fr}}
+
+
+/* Public read-only library and administrative overview. */
+.public-react-shell{min-height:100vh;background:#f3f6f6}
+.public-react-header{background:#102f3b;color:#e5f2f2;min-height:72px;
+ display:flex;align-items:center;justify-content:space-between;padding:12px clamp(18px,4vw,60px);gap:18px}
+.public-react-header .brand{padding:0}
+.public-react-header .secondary-link{color:#daf4eb}
+.public-react-main{max-width:1100px;padding:clamp(18px,4vw,46px);margin:0 auto}
+.public-react-list,.admin-react-list{display:flex;flex-direction:column;gap:8px}
+.public-react-readonly{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;
+ border:1px solid #b9d9d2;border-radius:100px;padding:7px 12px;
+ background:#eaf5f0;color:#276154;white-space:nowrap;font-weight:700}
+.public-react-search{display:flex;align-items:center;gap:10px;background:white;
+ border:1px solid #bfcfd4;border-radius:10px;padding:0 13px}
+.public-react-search input{border:0;outline:0;flex:1;padding:10px 0;min-width:0}
+.public-react-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.public-react-fact{min-width:0;padding:12px;border:1px solid #e1e9ec;border-radius:10px}
+.public-react-fact strong{font-size:.77rem;color:#4d6570}
+.public-react-fact p{margin-top:7px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.87rem}
+.public-react-zoom-backdrop{position:fixed;inset:0;z-index:50;
+ background:#101e2ac9;display:grid;place-items:center;padding:20px}
+.public-react-zoom{background:white;border-radius:15px;padding:20px;width:min(1100px,98vw);
+ height:min(760px,92vh);display:flex;flex-direction:column;gap:12px}
+.public-react-zoom-frame{border:1px solid #cddfe2;flex:1;width:100%;min-height:0}
+@media(max-width:650px){
+ .public-react-header{flex-wrap:wrap}
+ .public-react-header .brand{padding-bottom:0}
+ .public-react-facts{grid-template-columns:minmax(0,1fr)}
+ .public-react-list .task-row,.admin-react-list .task-row{flex-wrap:wrap}
+}
