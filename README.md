@@ -133,6 +133,25 @@ Os módulos de post, roteiro de testes, lista de release, informações importan
 
 Para preservar o isolamento do CSS e do JavaScript legado dos geradores, a área central usa um iframe interno **da mesma origem**, em modo `geradores.html?embedded=1&mode={modo}`, com atualização de altura e troca de ferramenta por mensagens validadas pela origem. O iframe é uma implementação interna da área de ferramentas, não uma segunda navegação. Os links externos antigos `geradores.html#post` e equivalentes redirecionam para as rotas do QA Hub.
 
-O fluxo de TF mantém contexto: ao selecionar “Gerar post com IA” ou “Gerar roteiro com IA” em uma TF, a rota inclui `?tf=<uuid>`, e o módulo oferece “Usar dados da TF”. Na troca entre módulos, os rascunhos atuais continuam em memória; ao trocar de TF, o contexto é recarregado. O logout desmonta o módulo para não manter dados de sessões anteriores.
+O fluxo de TF mantém contexto: o seletor **TF em foco** permite escolher uma tarefa, e os geradores de post/roteiro importam seus dados automaticamente quando a rota inclui `?tf=<uuid>`. Os casos gerados são revisados antes de anexar à própria TF por meio da RPC `qa_attach_generated_cases`; novos cenários são registrados como **não executados**. Ao trocar de TF, o contexto é recarregado. O logout desmonta o módulo e limpa o contexto da sessão.
 
 Verificar em homologação: login, links diretos antigos, navegação do menu no desktop/mobile, entrada contextual pela TF, edição sem perda ao alternar módulos, histórico e cópia/exportação, redimensionamento com resultados longos, e limpeza de sessão no logout.
+
+## Fase 2 — execução, posts, relatórios e histórico documental
+
+A Fase 2 acrescenta as abas **Execução**, **Documentos** e **Histórico** à TF. Os registros permanecem vinculados à mesma `tarefa_id`:
+
+1. **Execução:** abre a TF e registra o status real de cada cenário (`nao_executado`, `aprovado`, `reprovado` ou `bloqueado`), resultado obtido e observações. Aprovação/reprovação exigem descrever o que aconteceu; bloqueios exigem justificativa. O status geral da TF não é alterado automaticamente.
+2. **Relatório:** na aba Documentos, **Gerar relatório da execução** monta uma prévia com base nos cenários persistidos. Revise e clique **Salvar versão**; copie ou exporte em Markdown quando necessário. A geração não equivale a execução de testes.
+3. **Post vinculado:** abra **Posts do fórum** a partir da TF, gere ou recupere um post, edite o texto e use **Salvar versão na TF**. A aba Documentos permite abrir a versão e criar outra sem sobrescrever a anterior.
+4. **Histórico:** lista revisões de posts e relatórios com título, tipo, versão e data. Este histórico é documental, não uma auditoria completa de edição das TFs.
+5. **Diagramas:** no gerador de diagramas da TF, escolha quais cenários devem compor o contexto. O Supabase guarda a origem (`tf`, `texto` ou `manual`) e os IDs dos cenários selecionados.
+6. **Roteiro vinculado:** o antigo editor de execução baseado em Markdown continua disponível apenas para roteiros locais sem TF. Quando a TF está vinculada, o botão **Abrir execução dos cenários da TF** leva ao registro persistido.
+
+### Banco e permissões
+
+A migration versionada `supabase/qa_phase2_documents.sql` cria `qa_documentos` com RLS, versões imutáveis de `post` e `relatorio`, e a função `qa_save_document` usando `SECURITY INVOKER`. A função serializa novas versões por TF, evita salvar a mesma revisão sem alterações e respeita o acesso ao registro pai. Documentos **continuam privados mesmo quando uma TF é pública** na galeria. A migração acrescenta também metadados opcionais à tabela existente `qa_diagramas`. Nenhuma tabela legada é removida ou reescrita.
+
+Antes de publicar uma instalação nova, aplique **na ordem** `supabase/schema.sql`, as demais migrations anteriores e `supabase/qa_phase2_documents.sql` no projeto Supabase correspondente. No ambiente principal do QA Hub, a migration da Fase 2 foi aplicada em 06/11/2026.
+
+**Validação recomendada:** abra uma TF existente, execute um cenário e confira que o status da TF não mudou; gere um relatório, salve duas revisões, recarregue e abra o histórico; gere um post, vincule-o à TF; gere diagrama selecionando cenários distintos; repita as verificações com um segundo usuário e confirme que ele não acessa os documentos privados.
