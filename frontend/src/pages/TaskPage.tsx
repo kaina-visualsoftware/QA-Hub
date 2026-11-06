@@ -397,7 +397,7 @@ export default function TaskPage() {
           void saveResult.mutateAsync({ scenario: pending.scenario, status: pending.status, obtido: observed });
         }}>
           <label className="field">Comportamento observado
-            <textarea required autoFocus rows={5} value={observed} onChange={(e) => setObserved(e.target.value)}
+            <textarea required rows={5} value={observed} onChange={(e) => setObserved(e.target.value)}
               placeholder="O que ocorreu durante a execução?" />
           </label>
           <div className="flex justify-end gap-2">
