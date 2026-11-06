@@ -1,7 +1,7 @@
 # QA Hub React — issue #37 (incremento inicial)
 
 A pasta frontend/ contém a nova SPA e NÃO substitui o site público durante a
-migração. O legado qa.html permanece ativo para IA, diagramas e relatórios.
+migração. O legado qa.html permanece ativo como fallback até a homologação.
 
 ## Desenvolvimento
 
@@ -15,8 +15,8 @@ O incremento traz Auth, listagem/busca de TFs, criação rápida, edição bási
 cenários, execução manual, edição/exclusão de registros e diagramas Mermaid nativos (lazy). Estados remotos usam TanStack Query; foco local,
 Zustand; validação, Zod/React Hook Form. Nenhuma aprovação automática via IA.
 
-Pendências: paridade de IA, histórico, documentos, geração de diagramas por IA,
-requisitos, callbacks de produção, testes RLS com contas reais,
+Pendências: IA local e geração de diagramas por IA, funções administrativas e
+páginas públicas, callbacks de produção, testes RLS com contas reais,
 acessibilidade e desempenho. O lockfile versionado permite reproduzir a instalação com `npm ci`.
 
 ## Testes do primeiro incremento
@@ -53,9 +53,11 @@ especificações, revisar/aprovar/arquivar, relacionar cenários, exportar
 cobertura CSV, anexar documentos privados e consultar snapshots das
 gerações de IA. Apenas o proprietário tem acesso aos registros privados.
 
-PDF/DOCX originais são armazenados, mas a extração de texto automática
-ainda não está disponível nesta interface React. TXT e MD são lidos
-localmente, antes do upload. Nenhum arquivo é transmitido à IA por padrão.
+PDF e DOCX têm extração local com PDF.js e JSZip carregados sob demanda; TXT
+e MD também são lidos localmente. Documentos digitalizados sem texto extraível
+necessitam transcrição manual (não há OCR). A prévia tem limite de 30 mil
+caracteres, com original completo preservado após confirmação do upload.
+Nenhum arquivo é transmitido à IA por padrão.
 
 ## Evidências e auditoria no React
 
@@ -71,8 +73,8 @@ A TF agora oferece **Releases e referências** em React, com associação explí
 versões no formato `12.10.06.0000`, referências privadas da conta (checklists,
 regras e notas, com validação contra credenciais) e histórico somente leitura dos
 contadores de comparação. Para preservar a privacidade, os textos e XML originais
-não são guardados nesses registros. A comparação visual e local ainda depende
-da migração das ferramentas do legado.
+não são guardados nesses registros. A comparação visual e local está
+disponível na aba Comparações.
 
 ## Comparador local de textos/XML e organizador de release
 
@@ -87,3 +89,7 @@ Na aba **Releases**, o organizador local classifica a lista por status 11/12,
 verifica comunicados autorizados e fornece versões copiáveis em texto e BBCode.
 Nenhuma liberação ou vínculo de TF é inferido automaticamente da lista;
 continua necessária a associação explícita pelo proprietário.
+
+A extração local de PDF/DOCX foi exercitada no smoke Chromium com arquivos
+sintéticos. A proteção de RLS, upload e download de originais com contas reais
+ainda requer homologação antes do corte de produção.
