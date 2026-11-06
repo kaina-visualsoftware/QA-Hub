@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { z } from "zod";
 import {
   scenarioSchema, taskSchema, resultSchema, taskDraftSchema, scenarioDraftSchema
 } from "./contracts";
@@ -123,4 +124,46 @@ export async function removeScenario(taskId: string, scenarioId: string): Promis
     .eq("id", scenarioId).eq("tarefa_id", taskId).select("id").maybeSingle();
   fail(error);
   if (!data) throw Error("Sem permissão para excluir o cenário.");
+}
+
+export const diagramSchema = z.object({
+  id: z.uuid(), tarefa_id: z.uuid(), user_id: z.uuid(),
+  titulo: z.string(), conteudo: z.string()
+});
+export type Diagram = z.infer<typeof diagramSchema>;
+
+export const diagramDraftSchema = z.object({
+  titulo: z.string().trim().min(1, "Informe o título.").max(160),
+  conteudo: z.string().trim().min(4, "Informe o código Mermaid.").max(16000)
+});
+export type DiagramDraft = z.infer<typeof diagramDraftSchema>;
+
+export async function listDiagrams(taskId: string): Promise<Diagram[]> {
+  const { data, error } = await supabase.from("qa_diagramas").select("id,tarefa_id,user_id,titulo,conteudo")
+    .eq("tarefa_id", taskId).order("created_at", { ascending: true });
+  fail(error);
+  return (data || []).map((item) => diagramSchema.parse(item));
+}
+
+export async function saveDiagram(taskId: string, userId: string, draft: DiagramDraft, id?: string): Promise<void> {
+  const fields = diagramDraftSchema.parse(draft);
+  if (id) {
+    const { data, error } = await supabase.from("qa_diagramas").update({
+      ...fields, updated_at: new Date().toISOString()
+    }).eq("id", id).eq("tarefa_id", taskId).select("id").maybeSingle();
+    fail(error);
+    if (!data) throw Error("Diagrama indisponível ou sem permissão.");
+    return;
+  }
+  const { error } = await supabase.from("qa_diagramas").insert({
+    ...fields, tarefa_id: taskId, user_id: userId
+  });
+  fail(error);
+}
+
+export async function removeDiagram(taskId: string, id: string): Promise<void> {
+  const { data, error } = await supabase.from("qa_diagramas").delete()
+    .eq("id", id).eq("tarefa_id", taskId).select("id").maybeSingle();
+  fail(error);
+  if (!data) throw Error("Diagrama indisponível ou sem permissão.");
 }

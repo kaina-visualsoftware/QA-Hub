@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -15,6 +15,8 @@ import {
 } from "../lib/contracts";
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
+
+const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 
 function legacyLink(taskId: string, tab: string) {
   return "https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/tarefa/" +
@@ -41,6 +43,7 @@ export default function TaskPage() {
   });
   const [editing, setEditing] = useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
+  const [showDiagrams, setShowDiagrams] = useState(false);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
   const [importWarning, setImportWarning] = useState("");
@@ -200,10 +203,13 @@ export default function TaskPage() {
     <section className="action-rail mt-5" aria-label="Próximas ações">
       <div><p className="eyebrow">CONTINUE POR AQUI</p><h2>Execução e documentação</h2></div>
       <Button onPress={() => { setEditingScenario(null); scenarioForm.reset(); setShowScenarioForm(true); }}><Plus size={16} /> Adicionar cenário</Button>
-      <a href={legacyLink(taskId, "diagramas")} className="secondary-link"><GitBranchPlus size={16} /> Diagramas <ExternalLink size={13} /></a>
+      <button type="button" onClick={() => setShowDiagrams((value) => !value)} className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
       <a href={legacyLink(taskId, "documentos")} className="secondary-link"><FileText size={16} /> Posts / documentos <ExternalLink size={13} /></a>
     </section>
 
+    {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
+      <DiagramPanel taskId={taskId} userId={userId} />
+    </Suspense>}
     {showScenarioForm && <section className="panel mt-5" aria-label="Novo cenário">
       <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>{editingScenario ? "Editar cenário" : "Cadastrar cenário"}</h2></div>
         <button onClick={() => setShowScenarioForm(false)} aria-label="Fechar"><X size={18} /></button></div>
