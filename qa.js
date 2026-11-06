@@ -689,6 +689,7 @@ function renderScenarios() {
       '" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button>'+
       '<button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
       '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
+      (s.obtido?'<p class="qa-quick-inline-result">Resultado registrado: '+esc(s.obtido)+'</p>':'')+
       '<div class="qa-quick-results" role="group" aria-label="Resultado de '+esc(s.titulo)+'">'+
       quick('aprovado','Funcionou','qa-quick-success')+
       quick('reprovado','Não funcionou','qa-quick-fail')+
