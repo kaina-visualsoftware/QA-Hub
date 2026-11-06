@@ -899,3 +899,51 @@ button:disabled{cursor:wait;opacity:.7}
   .qa-r4-actions button{flex:1 1 140px}
   .qa-r4-case-selector{grid-template-columns:1fr}
 }
+
+/* Issues #30/#31/#33 · one-TF QA execution workspace. */
+.qa-task-progress{display:block;margin-top:3px;color:#236d60;font-weight:700}
+.task-item .qa-task-continue{display:inline-flex;align-items:center;justify-content:center;min-height:38px;border-radius:8px;background:#eef6f3;border:1px solid #cce6de;color:#1d6b5e;font-size:.75rem;font-weight:700;padding:8px 10px;text-align:center;white-space:normal}
+.task-item .qa-task-continue:hover{background:#e1f0e9}
+.qa-next-actions{padding:clamp(14px,2vw,22px);margin-bottom:18px;border:1px solid #d7e8e1;background:#f7faf9;min-width:0}
+.qa-next-head{display:flex;justify-content:space-between;align-items:start;gap:13px;flex-wrap:wrap}
+.qa-next-head h2{font-size:1rem;line-height:1.4;margin:0 0 5px;color:#24444b}
+.qa-next-head p{margin:0;max-width:58ch}
+.qa-next-progress{display:inline-block;background:#e9f6f1;border:1px solid #cde7de;color:#1b695b;border-radius:30px;font-size:.78rem;font-weight:800;padding:7px 12px;line-height:1.45}
+.qa-next-buttons{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0;align-items:center}
+.qa-next-buttons .btn{min-height:42px;white-space:normal;text-align:center}
+.qa-next-more{border-top:1px solid #dce9e4;padding-top:11px;margin-top:10px}
+.qa-next-more>summary{font-size:.8rem;color:#306b5e;font-weight:750;cursor:pointer;line-height:1.5}
+.qa-next-more .qa-next-buttons{margin-bottom:0}
+.qa-scenarios-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 15px;padding:12px 15px;border:1px solid #dbe9e5;border-radius:11px;background:#f8fbfa;min-width:0}
+.qa-scenarios-toolbar>label{display:flex;align-items:center;gap:7px;color:#426269;font-weight:650;font-size:.8rem;flex:1 1 140px;min-width:0}
+.qa-scenarios-toolbar select{background:#fff;color:#2c4b53;border:1px solid #d2e3de;border-radius:8px;min-height:41px;padding:8px;min-width:0;flex:1}
+.qa-scenarios-toolbar>.btn{min-height:41px;white-space:normal}
+.qa-fast-card{min-width:0}
+.qa-quick-results{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0 8px;padding-top:12px;border-top:1px solid #e3ebe9}
+.qa-quick-results .btn{padding:8px 12px;min-height:40px;font-size:.77rem;font-weight:700;white-space:normal}
+.qa-quick-results .qa-quick-success{background:#eaf6ef;color:#196e52;border-color:#c8e4d4}
+.qa-quick-results .qa-quick-fail{background:#fff3f1;color:#9c4545;border-color:#f0d7d4}
+.qa-quick-details{background:#f7faf9;border:1px solid #e0ebe7;border-radius:9px;padding:10px 13px;margin-top:11px}
+.qa-quick-details>summary{font-size:.8rem;line-height:1.6;font-weight:700;color:#315e5a;cursor:pointer}
+.qa-quick-details>p{overflow-wrap:anywhere;white-space:pre-wrap}
+.qa-quick-dialog{border:1px solid #d4e3df;border-radius:15px;background:#fff;box-shadow:0 24px 70px #0d2d3440;width:min(500px,calc(100% - 24px));max-width:calc(100vw - 24px);max-height:90vh;color:#26444b;padding:clamp(15px,2.4vw,24px)}
+.qa-quick-dialog::backdrop{background:#0b22289e}
+.qa-quick-dialog form{display:grid;gap:13px;margin:0}
+.qa-quick-dialog h2{margin:0;font-size:1.14rem;color:#223c44}
+.qa-quick-dialog label{display:grid;gap:7px;font-weight:650;font-size:.83rem;min-width:0}
+.qa-quick-dialog textarea{width:100%;min-width:0;resize:vertical;min-height:100px;max-height:45vh;background:#fff;border:1px solid #cbdcda;border-radius:9px;padding:11px;color:#27464c}
+.qa-quick-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px}
+.qa-quick-dialog-actions .btn{min-height:43px}
+.qa-next-actions .btn:disabled,.qa-scenarios-toolbar .btn:disabled,.qa-quick-results .btn:disabled{opacity:.53;cursor:default}
+@media(max-width:720px){
+  .qa-next-buttons .btn{flex:1 1 160px}
+  .qa-scenarios-toolbar>.btn,.qa-scenarios-toolbar>a{flex:1 1 130px}
+  .qa-quick-results .btn{flex:1 1 135px}
+}
+@media(max-width:440px){
+  .qa-scenarios-toolbar{padding:12px;gap:9px}
+  .qa-scenarios-toolbar .qa-next-progress{width:100%;text-align:center}
+  .qa-scenarios-toolbar>label{flex:1 1 100%}
+  .qa-next-buttons .btn{flex:1 1 100%}
+  .qa-quick-dialog-actions .btn{flex:1 1 110px}
+}
