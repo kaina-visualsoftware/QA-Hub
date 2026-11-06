@@ -38,7 +38,18 @@ export function parseGeneratedCases(markdown) {
     const expected = fields.get('resultado esperado') || fields.get('resultados esperados') || '';
     const objective = fields.get('cenario') || fields.get('objetivo') || '';
     const prerequisites = fields.get('pre-requisitos') || fields.get('precondicoes') || '';
-    const observations = [objective,prerequisites].filter(Boolean).join('\n\n');
+    const additional=[
+      ['Objetivo',objective],
+      ['Tipo de teste',fields.get('tipo de teste')||''],
+      ['Prioridade',fields.get('prioridade')||''],
+      ['Pré-condições',prerequisites],
+      ['Massa de dados',fields.get('massa de dados')||fields.get('dados de teste')||''],
+      ['Requisito/regra coberto',fields.get('requisito coberto')||fields.get('requisitos cobertos')||''],
+      ['Origem na TF',fields.get('origem na tf')||fields.get('referencia na tf')||''],
+      ['A confirmar',fields.get('pendencias a confirmar')||fields.get('pendencias')||'']
+    ];
+    const observations=additional.filter(([,v])=>v).map(([label,content])=>
+      label+':\n'+content).join('\n\n');
     result.push({
       source_index:index+1, titulo:title, passos:steps, esperado:expected,
       observacoes:observations, selected:true
@@ -64,8 +75,10 @@ export function validateReviewedCases(items) {
     if (titulo.length<3||titulo.length>240) throw new Error('O título do caso '+(index+1)+' deve ter 3 a 240 caracteres.');
     if (!passos||!esperado) throw new Error('Informe passos e resultado esperado no caso '+(index+1)+'.');
     if (passos.length>20000||esperado.length>20000) throw new Error('O caso '+(index+1)+' ultrapassa o limite de texto.');
+    const notes=clean(item.observacoes);
+    if(notes.length>20000)throw new Error('Observações do caso '+(index+1)+' acima do limite, revise antes de salvar.');
     return {source_index:String(item.source_index||index+1),titulo,passos,esperado,
-      observacoes:clean(item.observacoes).slice(0,20000)};
+      observacoes:notes};
   });
 }
 
