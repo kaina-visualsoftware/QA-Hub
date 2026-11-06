@@ -23,13 +23,13 @@ export function formatGeneratedPost(markdown,{taskText=''}={}) {
   title=title.replace(/\*\*/g,'').replace(/^T[IÍ]TULO\s*:\s*/i,'').trim();
   if(titleMatch)body=body.replace(titleMatch[0],'');
 
-  const taskMetadata=body.match(/^\s*\*{0,2}TAREFA\*{0,2}:\s*(.+)$/im);
-  const justificationMetadata=body.match(/^\s*\*{0,2}JUSTIFICATIVA\*{0,2}:\s*(.+)$/im);
+  const taskMetadata=body.match(/^\s*\*{0,2}TAREFA:\*{0,2}\s*(.+)$/im);
+  const justificationMetadata=body.match(/^\s*\*{0,2}JUSTIFICATIVA:\*{0,2}\s*(.+)$/im);
   const task=taskNumberFromText(taskText) ||
     (taskMetadata?.[1]?.trim().match(/^\d{4,7}$/)?.[0]||'') ||
     taskFallback;
   const justification=justificationMetadata?.[1]?.trim()||justificationFallback;
-  body=body.replace(/^\s*\*{0,2}(?:TAREFA|JUSTIFICATIVA)\*{0,2}:[^\n]*$/gim,'').trim();
+  body=body.replace(/^\s*\*{0,2}(?:TAREFA|JUSTIFICATIVA):\*{0,2}[^\n]*$/gim,'').trim();
 
   const detailHeading=/^\s*(?:(?:#{1,4})\s*)?(?:\*\*)?Comportamento detalhado(?:\*\*)?\s*:?\s*$/im;
   const detailMatch=detailHeading.exec(body);
