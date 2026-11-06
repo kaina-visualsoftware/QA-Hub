@@ -225,3 +225,25 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
 - **Pendente:** teste com arquivos PDF/DOCX reais e malformados, RLS com
   duas contas, upload/download real de Storage, acessibilidade e performance.
   PDF digitalizado continua exigindo OCR externo/transcrição.
+
+## Paridade das áreas pública e administrativa — incremento de 06/11/2026
+
+- Rota `#/publicas` acessível sem login com AuthProvider ainda inicializando;
+  lista e detalhe consultam somente TFs com `publica=true`, com seleção de
+  colunas em whitelist. Dados não publicados não entram na consulta.
+- Fluxo do autor na TF: publicar/retirar após confirmação explícita e
+  verificação `id + user_id` na mutação. Nenhum gerente/administrador
+  pode publicar uma TF de terceiro por essa UI.
+- Visualização pública preserva resumo, cenários e diagramas com Mermaid
+  lazy e iframe `sandbox=""`, sem edição.
+- Painel administrativo: usa exclusivamente a autorização `qa_admins`,
+  com consulta de lista autorizada apenas após confirmação pelo banco,
+  sem derivar papel de `user_metadata`. Oferece filtro por autor,
+  situação e busca, além de navegação às TFs.
+- Há testes Vitest das projeções públicas e novo E2E Chromium simulado
+  para acesso anônimo, privacidade, publicação/despublicação,
+  acesso normal recusado a `/admin` e acesso autorizado confirmado.
+- **Não houve nova migration, alteração de RLS ou produção.**
+  Validação pendente: contas reais, permissões cruzadas, usabilidade com
+  leitores de tela, segurança de campos de conteúdo compartilhado e
+  aprovação humana da política de publicação.

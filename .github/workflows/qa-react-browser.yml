@@ -35,3 +35,4 @@ jobs:
           done
           node tests/browser-smoke.mjs
           node tests/browser-qa-flow.mjs
+          node tests/browser-access.mjs

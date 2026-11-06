@@ -148,7 +148,7 @@ export default function PublicPage() {
           <section className="panel" aria-labelledby="public-summary">
             <h2 id="public-summary" className="font-semibold">Resumo</h2>
             <div className="public-react-facts mt-4">
-              {fields(facts.map(([key, label]) => [label, String(detail.data!.task[key] ?? "")]))}
+              {fields(facts.map(([key, label]): [string, string] => [label, String(detail.data!.task[key] ?? "")]))}
             </div>
           </section>
           <section className="panel" aria-labelledby="public-scenarios">

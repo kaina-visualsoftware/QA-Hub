@@ -93,3 +93,25 @@ continua necessária a associação explícita pelo proprietário.
 A extração local de PDF/DOCX foi exercitada no smoke Chromium com arquivos
 sintéticos. A proteção de RLS, upload e download de originais com contas reais
 ainda requer homologação antes do corte de produção.
+
+## Áreas públicas e administrativas (migração em rascunho)
+
+A biblioteca de TFs públicas está acessível pela rota da SPA `#/publicas`,
+inclusive **sem autenticação**. O detalhe `#/publicas?tf=<UUID>` carrega
+somente uma TF marcada `publica=true` e consulta apenas os campos
+explicitamente selecionados do resumo, dos cenários e dos diagramas.
+O desenho Mermaid é executado sob demanda com prévia isolada em iframe
+sandbox, sem HTML de entrada inserido no documento da aplicação.
+
+O autor pode publicar ou retirar uma TF pela própria página, depois de
+confirmar o alcance de exposição: descrição, análise técnica, cenários,
+resultados observados e diagramas passam a ser públicos. A mutação é
+limitada por `id` e `user_id` e só confirma sucesso após retorno do banco.
+O painel `#/admin` verifica `qa_admins` via RLS e somente carrega
+a lista administrativa após autorização da conta; filtros por autor,
+situação e busca são locais. A tela não gerencia convites nem modifica
+políticas administrativas.
+
+A publicação é opt-in e não existe no serviço publicado até o corte
+da migração. Testes de autorização no navegador usam Supabase simulado:
+não são equivalentes a um teste real de políticas RLS com duas contas.
