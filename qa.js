@@ -318,6 +318,12 @@ window.addEventListener('message', event => {
     toast('Post registrado como documento da TF · versão '+String(event.data.version||'1')+'.');
     return;
   }
+  if (event.data?.type === 'qa-hub:open-documents') {
+    const id=event.data.taskId;
+    if (state.tasks.some(task=>task.id===id))
+      location.hash='#/tarefa/'+encodeURIComponent(id)+'?tab=documentos';
+    return;
+  }
   if (event.data?.type === 'qa-hub:open-task') {
     if (state.tasks.some(task=>task.id===event.data.taskId)) location.hash='#/tarefa/'+event.data.taskId+'?tab=cenarios';
     return;
