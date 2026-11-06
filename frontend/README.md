@@ -12,10 +12,21 @@ Variáveis VITE_ opcionais são descritas em .env.example; nunca incluir service
 sb_secret_ ou tokens de provedores no cliente.
 
 O incremento traz Auth, listagem/busca de TFs, criação rápida, edição básica,
-cenários e execução manual. Estados remotos usam TanStack Query; foco local,
+cenários, execução manual, edição/exclusão de registros e diagramas Mermaid nativos (lazy). Estados remotos usam TanStack Query; foco local,
 Zustand; validação, Zod/React Hook Form. Nenhuma aprovação automática via IA.
 
-Pendências: paridade de IA, histórico, documentos, diagramas, importação,
-CRUD completo, callbacks de produção, testes RLS com contas reais,
+Pendências: paridade de IA, histórico, documentos, geração de diagramas por IA,
+requisitos, callbacks de produção, testes RLS com contas reais,
 acessibilidade e desempenho. package-lock.json deve ser gerado e versionado
 em ambiente com acesso ao registry antes do corte de produção.
+
+## Testes do primeiro incremento
+
+O workflow React instala dependências, executa verificação TS estrita, ESLint,
+Vitest e build. O smoke do navegador mede renderização de login, mudança de
+modo e ausência de rolagem horizontal em 390/768/1366 px, sem acessar contas reais.
+As suites de browser e de dados reais são verificações distintas.
+
+Importações locais reutilizam qa-parser.mjs, exigem revisão de cenários
+explícitos e não registram aprovação automática. Erro de anexação mostra alerta
+após abrir a TF salva; não há transação atômica neste estágio.

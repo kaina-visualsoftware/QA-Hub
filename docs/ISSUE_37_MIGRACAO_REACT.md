@@ -9,13 +9,13 @@ Branch: feat/issue-37-react-foundation. Produção preservada em qa.html.
 | Login/cadastro/sessão | AuthProvider | Homologar callback e RLS |
 | Recuperação de senha | AuthProvider | Redirecionamento para SPA no corte |
 | TFs: listagem/busca/filtro | Workspace | Paginação server-side |
-| Cadastro de TF como rascunho | Workspace | Extração local/IA |
+| Cadastro de TF como rascunho | Workspace | IA NVIDIA e modelo local |
 | Edição de dados básicos | TaskPage | Campos adicionais, exclusão |
-| Adicionar cenário | TaskPage | Editar e excluir cenário |
+| Adicionar/editar/excluir cenário | TaskPage | Evidências vinculadas |
 | Aprovar/reprovar/bloquear cenário | TaskPage | Execução E2E Supabase real |
 | TF em foco | Zustand por conta | Validar navegação direta |
 | Gerador de testes/posts | Link para qa.html | Migrar geradores.html e #31 |
-| Diagrama Mermaid | Link para qa.html | Migrar viewer/editor com segurança |
+| Diagrama Mermaid CRUD + prévia isolada | DiagramPanel (lazy) | Geração por IA, zoom avançado |
 | Requisitos R1–R4 | Legado | Migrar módulos com rastreabilidade |
 | Documentos/evidências/auditoria | Legado | Migrar Phase2/3/4 |
 | Release, diff, XML | Legado | Migrar ferramentas locais |
@@ -49,3 +49,17 @@ Supabase. Não existem números de performance medidos neste incremento.
 Não fazer deploy até paridade e homologação. Para rollback futuro, restaurar
 o workflow de deploy dos arquivos HTML/JS legados e manter qa.html e callbacks
 autorizados no Supabase.
+
+## Incrementos implementados e verificados
+
+- Fundação React, sessão e núcleo de TFs/cenários, PR #39.
+- Parser puro existente copiado sem alteração para a SPA; revisão local antes
+  de cadastrar cenários, todos começam não executados.
+- Situação da TF é alterada apenas pelo testador; edição e exclusão com confirmação.
+- CRUD de diagramas em React, Mermaid importado somente ao abrir a prévia;
+  visualização de SVG em sandbox sem permissão de script, sem iframe da ferramenta legada.
+- CI de tipo, lint, testes e build passou para commit eedc1425.
+
+**Não homologado:** rede com Supabase real, permissões em duas contas,
+leitor de tela, comparação visual HeroUI/Flowbite, performance antes/depois,
+importação transacional, migração dos módulos legados faltantes. A PR é draft.
