@@ -322,6 +322,26 @@ for(const width of [390,1366]){
  });
  assert.equal(docCard.background,'rgb(255, 255, 255)');
  assert.equal(docCard.ink,'rgb(32, 43, 56)');
+ // Issue #31: create independent test cases from the post workspace, using
+ // the TF's full authorized fields and selected approved requirements.
+ assert.equal(await page.locator('#qa-test-from-post').isVisible(),true);
+ await page.locator('#qa-test-from-post').click();
+ assert.equal(await page.locator('#ttl').textContent(),'Casos de teste');
+ await page.locator('#go').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#qa-attach-list .qa-case').length===2);
+ const consolidated=linkedAiCalls.at(-1);
+ assert.equal(consolidated.mode,'teste');
+ assert.match(consolidated.tarefa,/Rateio do kit/);
+ assert.match(consolidated.tarefa,/Tratamento de percentuais negativos|Cálculo corrigido/);
+ assert.match(consolidated.tarefa,/Identificação|Problema, limitação/);
+ assert.match(consolidated.requisito,/RF-001|RN-002/);
+ assert.doesNotMatch(consolidated.tarefa,/Outra TF|não pode vazar/);
+ assert.match(await page.locator('#qa-test-context-status').innerText(),/cenários existentes/);
+ assert.equal(await page.locator('#qa-test-context-preview').isVisible(),true);
+ await page.locator('#n-post').evaluate(button=>button.click());
+ await page.waitForFunction(()=>document.querySelector('#ttl').textContent==='Posts do fórum');
+ assert.equal(await page.locator('#qa-post-document').isVisible(),true,
+   'Generating tests must not erase the independent post draft');
  // First version is saved explicitly to the TF; only then the screen clears.
  await page.locator('#qa-post-content').fill((await page.locator('#qa-post-content').inputValue())
    .replace('**JUSTIFICATIVA:**','Texto revisado.\n\n**JUSTIFICATIVA:**'));
