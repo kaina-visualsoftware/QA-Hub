@@ -125,6 +125,29 @@ for(const width of [390,1366]){
   await page.waitForFunction(()=>document.querySelector('#prev').textContent.includes('MELHORIA NO PEDIDO'));
   await page.waitForFunction(()=>!document.querySelector('#go').disabled);
   assert.match(await page.locator('#prev').innerText(),/CAMINHO DO MENU/);
+  // The post is part of QA Hub's light design system even when the browser
+  // or OS prefers dark colors.
+  await page.emulateMedia({colorScheme:'dark'});
+  const colors=await page.evaluate(()=>{
+    const css=selector=>getComputedStyle(document.querySelector(selector));
+    return {
+      theme:document.documentElement.dataset.theme,
+      embedded:document.documentElement.dataset.embedded,
+      page:css('body').backgroundColor,
+      surface:css('#prev').backgroundColor,
+      field:css('#t').backgroundColor,
+      ink:css('body').color,
+      overflow:document.documentElement.scrollWidth-innerWidth
+    };
+  });
+  assert.equal(colors.theme,'light','Generator must not inherit the old dark theme');
+  assert.equal(colors.embedded,'true');
+  assert.equal(colors.page,'rgb(245, 247, 247)','Generator background should match QA Hub');
+  assert.equal(colors.surface,'rgb(255, 255, 255)','Post preview should use white panels');
+  assert.equal(colors.field,'rgb(255, 255, 255)','Post fields should use white surfaces');
+  assert.equal(colors.ink,'rgb(32, 43, 56)','Post should have QA Hub text color');
+  assert.ok(colors.overflow<=1,'Post horizontal overflow at '+width);
+  await page.screenshot({path:'artifacts/ui/qa-post-light-'+width+'.png',fullPage:true});
   assert.ok((await page.locator('#hl').innerText()).includes('MELHORIA NO PEDIDO'));
   await page.locator('#n-teste').evaluate(el=>el.click());
   await page.locator('#t').fill('TF 123456 — validar pedido no módulo Vendas');
@@ -218,6 +241,12 @@ for(const width of [390,1366]){
  await page.waitForFunction(()=>!document.querySelector('#qa-post-document').hidden);
  await page.waitForFunction(()=>!document.querySelector('#qa-post-save').disabled);
  assert.match(await page.locator('#qa-post-content').inputValue(),/MELHORIA NO PEDIDO/);
+ const docCard=await page.locator('#qa-post-document').evaluate(node=>{
+   const css=getComputedStyle(node);
+   return {background:css.backgroundColor,ink:css.color};
+ });
+ assert.equal(docCard.background,'rgb(255, 255, 255)');
+ assert.equal(docCard.ink,'rgb(32, 43, 56)');
  await page.locator('#qa-post-content').fill(post+'\n\nTexto revisado.');
  await page.locator('#qa-post-save').click();
  await page.waitForFunction(()=>document.querySelector('#qa-post-status').textContent.includes('versão 1'));
