@@ -262,8 +262,24 @@ try {
     const source=await page.locator('#tool-frame').getAttribute('src');
     await tool.locator('#t').fill('QA Hub mantém o conteúdo ao alternar ferramentas');
     await page.locator('#sidebar .navigation a[data-route="ferramentas/diff"]').evaluate(el=>el.click());
-    await page.waitForFunction(()=>document.querySelector('#tool-view-title').textContent==='Comparar textos');
-    await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Comparar textos');
+    await page.locator('#native-diff').waitFor({state:'visible'});
+    assert.equal(await page.locator('#tool-frame').isVisible(),false,'Native text tool should not use an iframe');
+    await page.locator('#native-diff textarea').first().fill('Pedido\nAntes');
+    await page.locator('#native-diff textarea').last().fill('Pedido\nDepois');
+    await page.locator('#native-diff .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-diff .qa-native-output').innerText(),/1 adicionada/);
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/xml"]').evaluate(el=>el.click());
+    await page.locator('#native-xml').waitFor({state:'visible'});
+    await page.locator('#native-xml textarea').first().fill('<root><item a="1"/></root>');
+    await page.locator('#native-xml textarea').last().fill('<root><item a="2"/></root>');
+    await page.locator('#native-xml .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-xml .qa-native-output').innerText(),/ATRIBUTO/);
+    await page.locator('#sidebar .navigation a[data-route="ferramentas/release"]').evaluate(el=>el.click());
+    await page.locator('#native-release').waitFor({state:'visible'});
+    await page.locator('#native-release input').first().fill('12.10.06.0000');
+    await page.locator('#native-release textarea').nth(1).fill('Status 12\n#67866 — BUG — Correção de pedido');
+    await page.locator('#native-release .qa-native-actions > button').first().click();
+    assert.match(await page.locator('#native-release .qa-native-output').innerText(),/Tarefas da Release/);
     await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
     await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
     assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
@@ -503,6 +519,24 @@ CENÁRIO 1 - Incluir produto
        await page.locator('#document-save').click();
        await page.waitForFunction(()=>document.querySelector('#document-status').textContent.includes('versão 3'));
        await page.screenshot({path:'artifacts/ui/qa-phase3-links-'+width+'.png',fullPage:true});
+       // Phase 4: imported legacy cases remain unexecuted, evidence is audited.
+       await page.locator('#tab-btn-historico').click();
+       await page.waitForFunction(()=>document.querySelector('#legacy-record').options.length>1);
+       await page.locator('#legacy-record').selectOption('conta:teste:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+       await page.waitForFunction(()=>document.querySelectorAll('#legacy-case-list .qa-phase4-check').length===1);
+       assert.match(await page.locator('#legacy-case-list').innerText(),/não executados/);
+       page.once('dialog',dialog=>dialog.accept());
+       await page.locator('#legacy-import-save').click();
+       await page.waitForFunction(()=>document.querySelector('#legacy-status').textContent.includes('1 cenário(s)'));
+       await page.locator('#tab-btn-cenarios').click();
+       assert.match(await page.locator('#scenarios-list').innerText(),/Importação histórica/);
+       await page.locator('#tab-btn-auditoria').click();
+       await page.locator('#evidence-summary').fill('Conferido o fluxo de pedido nesta versão.');
+       page.once('dialog',dialog=>dialog.accept());
+       await page.locator('#evidence-save').click();
+       await page.waitForFunction(()=>document.querySelector('#evidence-list').textContent.includes('Conferido o fluxo'));
+       assert.match(await page.locator('#audit-list').innerText(),/Evidência adicionada/);
+       await page.screenshot({path:'artifacts/ui/qa-phase4-audit-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){
       await page.locator('#tab-btn-diagramas').click();
