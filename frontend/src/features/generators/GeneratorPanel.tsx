@@ -23,6 +23,11 @@ import {
 import { generateWithNvidia } from "./stream";
 import type { GeneratorMode } from "./stream";
 
+type GeneratorAssembly =
+  | { kind: "ready"; taskContext: ReturnType<typeof composeFullTaskContext>;
+      approved: ReturnType<typeof composeRequirementContext> }
+  | { kind: "error"; error: string };
+
 type Props = {
   task: Task;
   userId: string;
@@ -82,7 +87,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
     setMessage(""); setError(""); setDirtyOutput(false);
   }, [task.id, mode]);
 
-  const assembly = useMemo(() => {
+  const assembly = useMemo<GeneratorAssembly | null>(() => {
     if (!support.data || !requirements.data) return null;
     try {
       const taskContext = composeFullTaskContext(task, support.data, { limit: 30000 });
@@ -90,13 +95,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
         requirements.data, selected, sanitizeAiContext(extra),
         { taskId: task.id, limit: 20000 }
       );
-      return { taskContext, approved };
+      return { kind: "ready", taskContext, approved };
     } catch (reason) {
-      return { error: messageOf(reason) };
+      return { kind: "error", error: messageOf(reason) };
     }
   }, [support.data, requirements.data, task, selected, extra]);
-  const generationError = assembly && "error" in assembly ? assembly.error : "";
-  const context = assembly && "taskContext" in assembly ? assembly : null;
+  const generationError = assembly?.kind === "error" ? assembly.error : "";
+  const context = assembly?.kind === "ready" ? assembly : null;
   const missingSources = context?.taskContext.failedSources ?? [];
   const canSend = formOwn && !generating && !!context &&
     !requirements.isLoading && !support.isLoading &&
