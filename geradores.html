@@ -531,7 +531,7 @@ function renderExec(){CN=null;const b=$("exec");b.innerHTML="";const T=S.teste;
  const hd=()=>{const c=ST.map(s=>sc.filter(x=>st(x.t)===s).length);$("xs").textContent="Colados no SIA "+sc.filter(x=>ex[x.t]&&ex[x.t].c).length+"/"+sc.length+" · OK "+c[1]+" · Falhou "+c[2]+" · Bloqueado "+c[3]};
  const K=CH.map(c=>/^## Cen[aá]rio/.test(c)?c.match(/^## (.*)/)[1].trim():undefined),DF={s:"Não testado",o:""};
  const commit=(chs,keys,sel)=>{let n=0;const nx={};const out=chs.map((c,k)=>{if(!/^## Cen[aá]rio/.test(c))return c;n++;const old=c.match(/^## (.*)/)[1].trim(),rest=old.replace(/^Cen[aá]rio\s*\d*\s*[—–-]?\s*/i,""),nt="Cenário "+String(n).padStart(2,"0")+(rest?" — "+rest:""),key=keys[k];nx[nt]=(key&&ex[key])?ex[key]:(key===null?{...DF}:(ex[nt]||{...DF}));return c.replace(/^## .*/,"## "+nt)});
-  T.md=out.join("");T.exec=nx;T.sel=sel;$("prev").innerHTML=toHTML(T.md);if(T.id)store("teste").upd(T.id,{md:T.md,exec:nx}).catch(()=>msg("não salvou a edição"));renderExec()};
+  T.md=out.join("");T.exec=nx;T.sel=sel;$("prev").innerHTML=toHTML(T.md);if(T.id)store("teste").upd(T.id,{md:T.md,exec:nx}).catch(()=>msg("não salvou a edição"));renderExec();renderAttachReview()};
  const list=()=>{const l=$("xl");l.innerHTML="";sc.forEach((x,j)=>{const e=document.createElement("button");e.className="xi"+(j===i?" on":"");const d=document.createElement("i"),s0=st(x.t),dn=!!(ex[x.t]&&ex[x.t].c);
    if(s0==="Não testado"||(s0==="OK"&&!dn))d.style.cssText="background:transparent;border:2px solid #667085";else{d.style.background=CL[s0];if(dn)d.textContent="✓"}
    if(dn)e.style.opacity=".6";e.append(d,num(x.t)+" · "+ti(x.t));e.onclick=()=>{i=j;T.sel=j;T.edit=false;draw()};l.append(e)})};
