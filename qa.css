@@ -647,6 +647,41 @@ button:disabled{cursor:wait;opacity:.7}
 .qa-native-advanced-grid>.qa-native-field:nth-child(2){grid-column:2}
 .qa-native-advanced-grid>.qa-native-field:nth-child(3){grid-column:1 / -1}
 .qa-native-advanced-grid textarea{height:110px;min-height:90px;max-height:40vh}
+/* Corrige o checkbox XML que herdava altura mínima de inputs de formulário. */
+.qa-native-panel .qa-native-checkbox{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  line-height:1.45;
+  cursor:pointer;
+  margin:0;
+}
+.qa-native-panel .qa-native-checkbox input[type="checkbox"]{
+  appearance:auto;
+  width:18px;
+  min-width:18px;
+  height:18px;
+  min-height:18px;
+  margin:0;
+  padding:0;
+  flex:0 0 18px;
+  accent-color:var(--qa-accent,#0d786d);
+}
+.qa-native-panel .qa-native-checkbox span{
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-size:.83rem;
+  color:#3b555b;
+}
+#native-diff .qa-native-field textarea,
+#native-xml .qa-native-field textarea{
+  height:185px;
+  min-height:130px;
+  max-height:55vh;
+}
 /* All evidence and history panels follow the existing card rhythm. */
 .qa-phase4-panel{
   border-color:var(--qa-border,#d8e2e5);
