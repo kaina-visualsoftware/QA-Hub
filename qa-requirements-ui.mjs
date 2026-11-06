@@ -1,4 +1,5 @@
 import {parseRequirements,prepareImport,normalizeRequirement,REQUIREMENT_TYPES} from './qa-requirements.mjs';
+import {createRequirementsFilesUi} from './qa-requirements-files-ui.mjs';
 
 // Requirement workspace is bound to exactly one TF. A new, unsaved TF can
 // prepare an in-memory batch; nothing is persisted until its TF exists.
@@ -37,6 +38,36 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
     Boolean(getUserId()&&getTask()?.user_id===getUserId());
   let activeTaskId=null,saved=[],preview=[],sourceText='',queued=null;
   let token=0,editId=null,saving=false,loadError=false;
+  let fileSourceId=null,fileSourceTask=null;
+  function clearFileAssociation(){
+    fileSourceId=null;fileSourceTask=null;
+    $('requirements-active-file').hidden=true;
+    $('requirements-active-file-label').textContent='';
+  }
+  const filesUi=createRequirementsFilesUi({
+    db,getTask,getTaskId,getUserId,toast,
+    onSourceReady:({id,taskId,text,filename})=>{
+      if(taskId!==getTaskId()||!id)return;
+      fileSourceId=id;fileSourceTask=taskId;
+      $('requirements-active-file').hidden=false;
+      $('requirements-active-file-label').textContent=
+        'Fonte vinculada: '+filename+'. O texto pode ser revisado; desvincule se usar outro documento.';
+      $('requirements-source').value=text||'';
+      preview=[];sourceText='';queued=null;
+      $('requirements-review').replaceChildren();
+      $('requirements-review-section').hidden=true;
+      message(text
+        ?'Texto extraído pronto para organizar. Revise o conteúdo antes de cadastrar requisitos.'
+        :'Arquivo sem texto extraível. Transcreva manualmente os requisitos para associá-los à fonte.');
+      onDirty?.(true);
+      $('requirements-source').focus();
+    }
+  });
+  $('requirements-unlink-file').addEventListener('click',()=>{
+    clearFileAssociation();
+    message('Fonte desvinculada. Um novo texto será salvo como fonte independente.');
+    onDirty?.(true);
+  });
 
   function markPreviewDirty(){
     queued=null;
@@ -45,6 +76,7 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
   function reset(){
     token++;activeTaskId=null;saved=[];preview=[];sourceText='';
     queued=null;editId=null;saving=false;loadError=false;
+    clearFileAssociation();filesUi.reset();
     $('requirements-source').value='';
     $('requirements-search').value='';
     $('requirements-filter').value='todos';
@@ -198,6 +230,7 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
     }
     $('requirements-help').textContent='Os requisitos são privados e vinculados somente a esta TF. Revise os itens antes de aprová-los.';
     await loadSaved(taskId);
+    await filesUi.load(taskId);
   }
   $('requirements-organize').addEventListener('click',()=>{
     try{
@@ -238,14 +271,20 @@ export function createRequirementsUi({db,getTask,getTaskId,getUserId,toast,onDir
     saving=true;$('requirements-save').disabled=true;
     try{
       if(!taskId||!getUserId())throw Error('Selecione uma TF salva.');
-      const {data,error}=await db.rpc('qa_import_requisitos',{
-        p_tarefa_id:taskId,p_texto:batch.text,p_itens:batch.items
-      });
+      const usingFile=Boolean(fileSourceId&&fileSourceTask===taskId);
+      const {data,error}=usingFile
+        ?await db.rpc('qa_import_requisitos_da_fonte',{
+          p_tarefa_id:taskId,p_fonte_id:fileSourceId,p_itens:batch.items
+        })
+        :await db.rpc('qa_import_requisitos',{
+          p_tarefa_id:taskId,p_texto:batch.text,p_itens:batch.items
+        });
       if(error)throw error;
       if(data?.tarefa_id!==taskId)throw Error('Confirmação do banco incompatível com a TF selecionada.');
       const inserted=Number(data?.inserted)||0,skipped=Number(data?.skipped)||0;
       if(inserted){
         preview=[];sourceText='';queued=null;$('requirements-source').value='';
+        clearFileAssociation();
         $('requirements-review-section').hidden=true;
         $('requirements-review').replaceChildren();
         onDirty?.(false);
