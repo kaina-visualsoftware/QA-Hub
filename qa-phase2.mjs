@@ -87,8 +87,9 @@ export async function saveTfDocument(client,{taskId,type,title,content,source='m
     p_conteudo:value(content),p_origem:source
   });
   if(error)throw error;
-  if(!data||data.tarefa_id!==taskId)throw Error('O documento não foi confirmado no banco.');
-  return data;
+  const saved=Array.isArray(data)?data[0]:data;
+  if(!saved||saved.tarefa_id!==taskId)throw Error('O documento não foi confirmado no banco.');
+  return saved;
 }
 
 export function selectedScenarioContext(task,scenarios=[],ids=[]) {
