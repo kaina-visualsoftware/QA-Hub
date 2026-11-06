@@ -1005,6 +1005,20 @@ const postDocumentUi=createPostDocumentUi({
   getTask:()=>reviewController.getTask(),
   embedded:document.documentElement.dataset.embedded==="true",
   onSaved:record=>{
+    // Post versions keep an explicit reference to the requirement snapshots
+    // used at generation time, even if the user revised the resulting Markdown.
+    const linked=reviewController.getTask(),snapshots=S.post.requirementsSnapshot||[];
+    if(linked&&record?.id&&snapshots.length){
+      recordRequirementUsage(supa,{
+        taskId:linked.id,uid,type:'post',
+        artifactRef:'documento:'+record.id,snapshots
+      }).then(()=>{
+        if(document.documentElement.dataset.embedded==='true')
+          parent.postMessage({type:'qa-hub:requirements-used',taskId:linked.id},location.origin);
+      }).catch(error=>{
+        $('st').textContent+=' · Rastreabilidade da versão não salva: '+(error?.message||String(error));
+      });
+    }
     // Save was confirmed by Supabase. Keep the TF in focus and the historical
     // post untouched, but clear every editable field for the next draft.
     S.post={t:'',r:'',md:''};
