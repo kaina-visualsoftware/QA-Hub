@@ -26,7 +26,7 @@ create policy qa_documentos_select on public.qa_documentos
 for select to authenticated
 using (
   exists (
-    select 1 from public.qa_tarefas t where t.id=tarefa_id and t.user_id=user_id
+    select 1 from public.qa_tarefas t where t.id=tarefa_id and t.user_id=qa_documentos.user_id
     and (
       t.user_id=(select auth.uid())
       or exists(select 1 from public.qa_admins a where a.user_id=(select auth.uid()))
@@ -37,7 +37,7 @@ create policy qa_documentos_insert on public.qa_documentos
 for insert to authenticated
 with check (
   exists (
-    select 1 from public.qa_tarefas t where t.id=tarefa_id and t.user_id=user_id
+    select 1 from public.qa_tarefas t where t.id=tarefa_id and t.user_id=qa_documentos.user_id
     and (
       t.user_id=(select auth.uid())
       or exists(select 1 from public.qa_admins a where a.user_id=(select auth.uid()))
