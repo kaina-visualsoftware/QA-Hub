@@ -641,18 +641,64 @@ function updatePublicLink(task){
   anchor.hidden=!(task?.id&&task.publica);
   if(task?.id&&task.publica)anchor.href='./public.html?tf='+encodeURIComponent(task.id);
 }
+function renderTaskNextActions(){
+  const id=state.currentId,task=state.tasks.find(t=>t.id===id);
+  const box=$('#qa-next-actions');
+  box.hidden=!task;
+  if(!task)return;
+  const progress=progressForTask(state.scenarios.filter(s=>s.tarefa_id===id));
+  $('#qa-next-progress').textContent=progress.done+'/'+progress.total+' executados';
+  $('#qa-next-caption').textContent=progress.total
+    ?progress.pending+' cenário(s) pendente(s) · '+progress.failed+' com falha · '+progress.blocked+' bloqueado(s).'
+    :'Esta TF ainda não tem casos. Gere um roteiro ou adicione o primeiro cenário.';
+  $('#qa-next-test').href='#/ferramentas/teste?tf='+encodeURIComponent(id);
+  $('#qa-next-post').href='#/ferramentas/post?tf='+encodeURIComponent(id);
+  $('#qa-scenario-generator').href='#/ferramentas/teste?tf='+encodeURIComponent(id);
+  $('#qa-next-derive').disabled=!progress.done;
+  $('#qa-next-report').disabled=!progress.total;
+  $('#qa-next-message').textContent='';
+}
 function renderScenarios() {
-  $('#scenarios-number').textContent = state.scenarios.length;
-  $('#scenarios-list').innerHTML = state.scenarios.length ? state.scenarios.map((s,i)=>
-    '<article class="scenario-card"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
-    esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+'" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button><button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
-    '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
-    (s.passos?'<p class="field-label">Passos executados</p><p class="scenario-content">'+esc(s.passos)+'</p>':'')+
-    (s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'')+
-    (s.obtido?'<p class="field-label">Resultado obtido</p><p class="scenario-content">'+esc(s.obtido)+'</p>':'')+
-    (s.observacoes?'<p class="field-label">Observações</p><p class="scenario-content">'+esc(s.observacoes)+'</p>':'')+
-    '</article>').join('') :
-    '<div class="empty"><strong>Sem cenários cadastrados</strong>Adicione seus passos e resultados individualmente.</div>';
+  const progress=progressForTask(state.scenarios);
+  $('#scenarios-number').textContent=state.scenarios.length;
+  $('#qa-scenario-progress').textContent=progress.done+'/'+progress.total+
+    ' executados · '+progress.failed+' com falha · '+progress.blocked+' bloqueado(s)';
+  $('#qa-scenario-next').disabled=!progress.pending;
+  const filter=$('#qa-scenario-filter').value;
+  const filtered=state.scenarios.filter(s=>filter==='all'||
+    filter==='pending'&&s.status==='nao_executado'||
+    filter==='failed'&&s.status==='reprovado'||
+    filter==='blocked'&&s.status==='bloqueado');
+  $('#scenarios-list').innerHTML=filtered.length ? filtered.map((s)=>{
+    const i=state.scenarios.indexOf(s);
+    const quick=(status,title,extra='')=>
+      '<button type="button" class="btn soft qa-quick-choice '+extra+
+      '" data-quick-id="'+esc(s.id)+'" data-quick-status="'+status+
+      '" aria-label="'+esc(title)+' — '+esc(s.titulo)+'">'+esc(title)+'</button>';
+    const details=[
+      s.passos?'<p class="field-label">Passos</p><p class="scenario-content">'+esc(s.passos)+'</p>':'',
+      s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'',
+      s.obtido?'<p class="field-label">Resultado observado</p><p class="scenario-content">'+esc(s.obtido)+'</p>':'',
+      s.observacoes?'<p class="field-label">Observações</p><p class="scenario-content">'+esc(s.observacoes)+'</p>':''
+    ].join('');
+    return '<article class="scenario-card qa-fast-card" data-quick-card="'+esc(s.id)+'"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
+      esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+
+      '" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button>'+
+      '<button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
+      '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
+      '<div class="qa-quick-results" role="group" aria-label="Resultado de '+esc(s.titulo)+'">'+
+      quick('aprovado','Funcionou','qa-quick-success')+
+      quick('reprovado','Não funcionou','qa-quick-fail')+
+      quick('bloqueado','Bloqueado')+
+      quick('nao_executado','Não executado')+
+      '<button type="button" class="btn soft" data-quick-evidence="'+esc(s.id)+'">Evidência</button></div>'+
+      '<details class="qa-quick-details"><summary>Ver passos, esperado e observações</summary>'+details+
+      '</details></article>';
+  }).join('') :
+    (state.scenarios.length?
+      '<div class="empty"><strong>Sem cenários neste filtro</strong>Selecione Todos para exibir outros resultados.</div>':
+      '<div class="empty"><strong>Sem cenários cadastrados</strong>Gere casos de teste ou adicione um cenário manualmente.</div>');
+  renderTaskNextActions();
 }
 function renderDiagrams() {
   $('#diagrams-number').textContent = state.diagrams.length;
