@@ -14,6 +14,7 @@ import { createPhase3Ui } from './qa-phase3-ui.mjs';
 import { slicePage } from './qa-phase4.mjs';
 import { createNativeTools } from './qa-native-tools.mjs';
 import { createPhase4Ui } from './qa-phase4-ui.mjs';
+import { createRequirementsUi } from './qa-requirements-ui.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -53,6 +54,11 @@ const phase4=createPhase4Ui({
     else await phase2.loadDocuments(id);
     await loadData();
   }
+});
+const requirements=createRequirementsUi({
+  db,getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getTaskId:()=>state.currentId,getUserId:()=>state.user?.id,toast,
+  onDirty:value=>setFormDirty('requirements-source',value)
 });
 const nativeTools=createNativeTools({
   root:$('#native-tools'),db,
@@ -335,7 +341,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
-  for (const tab of ['resumo','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
+  for (const tab of ['resumo','requisitos','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -471,7 +477,7 @@ async function route() {
       await openTask(id);
     } else setView('editor');
     const requestedTab=new URLSearchParams(query).get('tab');
-    if (state.currentId===id && ['cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'].includes(requestedTab))
+    if (state.currentId===id && ['requisitos','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'].includes(requestedTab))
       selectTab(requestedTab);
     return;
   }
@@ -482,7 +488,11 @@ function setTaskStep(step, focus=false) {
   $('#assist-panel').hidden=!entering;
   $('#editor-fields').hidden=entering;
   $('#save-task').hidden=entering;
-  $('#task-detail-tabs').hidden=entering || !state.currentId;
+  $('#task-detail-tabs').hidden=entering;
+  // New TFs can prepare an in-memory requirements preview; other dependent
+  // tabs remain disabled until the task is saved.
+  for(const tab of ['cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria'])
+    $('#tab-btn-'+tab).disabled=!state.currentId;
   $('#editor-caption').hidden=entering;
   $('#save-status').hidden=entering || state.dirtyForms.size===0;
   if(focus){
@@ -502,6 +512,7 @@ function openNewTask() {
   state.currentId=null;
   phase2.reset();
   phase4.reset();
+  requirements.startNew();
   setTaskStep('entry');
   $('#assist-text').value='';
   $('#assist-error').hidden=true;
@@ -583,6 +594,7 @@ async function openTask(id) {
     await phase2.loadDocuments(id);
     await phase3.load(id);
     await phase4.load(id);
+    await requirements.load(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
@@ -956,6 +968,9 @@ $('#task-form').addEventListener('submit',async (event)=>{
     }
     if(result.error) throw result.error;
     const id=result.data.id;
+    // Mark this TF as existing immediately. If an associated requirement
+    // import fails, a retry must UPDATE the same TF rather than INSERT anew.
+    if(!state.currentId){state.currentId=id;requirements.attachTask(id);}
     focusTask(id);
     setFormDirty('task-form',false);
     setFormDirty('assist-text',false);
@@ -975,10 +990,20 @@ $('#task-form').addEventListener('submit',async (event)=>{
       }
     }
     if(!scenarioWarning)state.pendingScenarios=[];
+    let requirementWarning='';
+    try{
+      await requirements.onTaskSaved(id);
+    }catch(error){
+      requirementWarning='TF salva, mas não foi possível adicionar os requisitos. Abra Requisitos e tente salvar novamente: '+errMessage(error);
+    }
     await refreshAfterSave(id);
     if(scenarioWarning)toast(scenarioWarning,true);
+    if(requirementWarning)toast(requirementWarning,true);
+    // The TF is persisted even if a secondary batch fails; opening its details
+    // must not prompt to discard the already-confirmed task save.
+    setFormDirty('requirements-source',false);
     location.hash='#/tarefa/'+id;
-    if(!scenarioWarning)toast('Tarefa salva com sucesso.');
+    if(!scenarioWarning&&!requirementWarning)toast('Tarefa salva com sucesso.');
   }catch(e){toast('Falha ao salvar TF: '+errMessage(e),true)}finally{busy(button,false)}
 });
 $('#delete-task').addEventListener('click',async()=>{
