@@ -17,6 +17,8 @@ create table if not exists public.qa_geracao_contextos(
   foreign key(tarefa_id,user_id)
     references public.qa_tarefas(id,user_id) on delete cascade
 );
+create unique index if not exists qa_r3_context_output_unique
+  on public.qa_geracao_contextos(tarefa_id,tipo,artefato_ref);
 create index if not exists qa_r3_context_task_idx
   on public.qa_geracao_contextos(tarefa_id,created_at desc);
 create index if not exists qa_r3_context_user_idx
@@ -46,7 +48,7 @@ create policy qa_r3_context_insert on public.qa_geracao_contextos
           or not exists(
             select 1 from public.qa_requisitos r
             where r.id::text=selected.item->>'id'
-              and r.tarefa_id=tarefa_id
+              and r.tarefa_id=qa_geracao_contextos.tarefa_id
               and r.user_id=(select auth.uid())
               and r.estado='aprovado'
               and r.codigo=selected.item->>'codigo'
