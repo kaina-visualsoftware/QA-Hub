@@ -23,7 +23,15 @@ export function createClient(){
       {id:'diagram-private',tarefa_id:priv,titulo:'Fluxo secreto',conteudo:'flowchart TD\\n A --> B'}
     ],
     qa_admins:[],
-    qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[]
+    qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
+    qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
+    qa_generator_tests:[{
+      id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      user_id:'55555555-5555-4555-8555-555555555555',
+      ts:1750000000000,titulo:'Roteiro legado',
+      md:'## Cenário 01 — Importação histórica\\n### Passos\\n1. Abrir pedido\\n### Resultado esperado\\n- Pedido listado',
+      exec:{'Cenário 01 — Importação histórica':{s:'OK',o:'FUNCIONANDO:'}}
+    }]
   };
   let user=null;
   let nextId=0;
@@ -38,6 +46,16 @@ export function createClient(){
           created_at: new Date().toISOString()
         }));
         tables[table].push(...added);
+        if(['qa_evidencias','qa_cenarios'].includes(table)){
+          for(const row of added){
+            tables.qa_eventos.push({
+              id:'audit-'+(++nextId),tarefa_id:row.tarefa_id,
+              acao:table==='qa_evidencias'?'evidencia.criada':'cenario.criado',
+              detalhes:table==='qa_evidencias'?{tipo:row.tipo}:{status:row.status},
+              created_at:new Date().toISOString()
+            });
+          }
+        }
         return {data:added,error:null};
       }
       if(kind==='update'){
@@ -56,6 +74,7 @@ export function createClient(){
       select(){return q},
       order(){return q},
       limit(){return Promise.resolve(execute())},
+      range(start,end){const result=execute();return Promise.resolve({data:result.data.slice(start,end+1),error:null})},
       eq(key,value){conditions[key]=value;return q},
       maybeSingle(){const result=execute();return Promise.resolve({
         data:result.data[0]??null,error:null
@@ -73,6 +92,25 @@ export function createClient(){
   return {
     from,
     async rpc(name,args){
+      if(name==='qa_attach_generated_cases'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
+        let inserted=0,skipped=0;
+        for(const row of args.p_itens){
+          const same=tables.qa_cenarios.some(s=>s.tarefa_id===task.id&&
+            (s.origem_geracao===args.p_geracao_id&&s.origem_item===row.source_index));
+          if(same){skipped++;continue}
+          const item={...row,id:'33333333-3333-4333-8333-'+String(++nextId).padStart(12,'0'),
+            tarefa_id:task.id,user_id:user.id,ordem:1,status:'nao_executado',
+            obtido:'',origem_geracao:args.p_geracao_id,origem_item:row.source_index};
+          tables.qa_cenarios.push(item);
+          tables.qa_eventos.push({id:'audit-'+(++nextId),tarefa_id:task.id,
+            acao:'cenario.criado',detalhes:{status:'nao_executado'},
+            created_at:new Date().toISOString()});
+          inserted++;
+        }
+        return {data:{inserted,skipped,tarefa_id:task.id},error:null};
+      }
       if(name==='qa_link_release'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
