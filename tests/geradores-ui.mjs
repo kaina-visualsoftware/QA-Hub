@@ -310,7 +310,10 @@ for(const width of [390,1366]){
  assert.match(linkedAiCalls.at(-1).requisito,/RF-001/);
  assert.match(linkedAiCalls.at(-1).requisito,/RN-002/);
  assert.doesNotMatch(linkedAiCalls.at(-1).requisito,/RF-999|Não aprovado|não pode vazar/);
- assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos.length),2);
+ // The mock Supabase rows reset on page navigation; each linked page must
+ // independently record the context of its own generated artifact.
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos.length),1);
+ assert.equal(await page.evaluate(()=>window.__qaIntegrationRows.qa_geracao_contextos[0].quantidade),2);
  await page.waitForFunction(()=>!document.querySelector('#qa-post-save').disabled);
  assert.match(await page.locator('#qa-post-content').inputValue(),/MELHORIA NO PEDIDO/);
  const docCard=await page.locator('#qa-post-document').evaluate(node=>{
