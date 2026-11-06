@@ -119,6 +119,21 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 :root[data-embedded="true"] .it{background:#fff}
 :root[data-embedded="true"] [hidden]{display:none!important}
 :root[data-embedded="true"] #prev{overflow-wrap:anywhere}
+.qa-attach{margin-top:18px;padding:18px;border:1px solid #cbdeda;background:var(--card,#fff);border-radius:12px}
+.qa-attach h3{margin:0 0 8px;font-size:17px}.qa-attach .mu{font-size:13px;line-height:1.55}
+.qa-attach-toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.qa-case-list{display:grid;gap:12px;margin-top:14px}
+.qa-case{border:1px solid var(--bd);border-radius:10px;padding:13px;background:#fff;min-width:0}
+.qa-case-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.qa-case-head strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.qa-case.duplicate{border-color:#d3b672;background:#fffaf0}
+.qa-case-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.qa-case-fields label{font-size:12px;color:var(--mut);min-width:0}
+.qa-case-fields input,.qa-case-fields textarea{display:block;width:100%;margin-top:6px;font-size:13px;box-sizing:border-box;min-height:38px}
+.qa-case-fields .full{grid-column:1/-1}
+.qa-attach-status{font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.qa-attach-link{font-size:13px;font-weight:700;color:#0d786d}
+@media(max-width:600px){.qa-attach{padding:12px}.qa-case-fields{grid-template-columns:1fr}.qa-case-fields .full{grid-column:auto}}
 </style>
 </head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
@@ -134,6 +149,13 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <div id="out">
 <div class="bar"><button class="s" id="cp">Copiar formatado</button><button class="s" id="cm">Copiar Markdown</button><button class="s" id="cb">Copiar BBCode</button></div>
 <div class="card" id="prev"></div><div id="exec"></div>
+<section id="qa-attach" class="qa-attach" aria-labelledby="qa-attach-title" hidden>
+  <h3 id="qa-attach-title">Adicionar casos à TF</h3>
+  <p class="mu" id="qa-attach-info">Selecione os casos gerados. A TF existente será preservada.</p>
+  <div class="qa-attach-toolbar"><button class="s" id="qa-attach-all" type="button">Selecionar disponíveis</button><button class="s" id="qa-create-draft" type="button" hidden>Criar rascunho de TF</button><a class="qa-attach-link" id="qa-attach-open" href="./qa.html" hidden>Abrir cenários da TF</a></div>
+  <div class="qa-case-list" id="qa-attach-list" role="group" aria-label="Casos gerados revisáveis"></div>
+  <div class="qa-attach-toolbar"><button class="p" id="qa-attach-save" type="button">Adicionar selecionados à TF</button><span class="qa-attach-status" id="qa-attach-status" role="status" aria-live="polite"></span></div>
+</section>
 <details id="bbd"><summary>BBCode (para colar no editor em modo código)</summary><textarea id="bb" readonly></textarea></details>
 </div>
 <div id="hist"><h3>Histórico <span id="hk" style="color:var(--mut);font-weight:400;font-size:12px"></span></h3>
@@ -145,6 +167,8 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
+import {TASK_UUID} from './qa-workspace.mjs';
+import {createGeneratorReview} from './qa-generator-review.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
 const POST=`Você escreve posts de melhoria para o fórum de uma software house (ERP MyCommerce), em português do Brasil, a partir da TAREFA e, se houver, do REQUISITO colados pelo usuário.
@@ -294,7 +318,7 @@ async function renderHist(){const st=store(mode),lc=store(mode,true);$("hk").tex
   const w=document.createElement("div"),b=document.createElement("b"),s=document.createElement("small");
   b.textContent=p.titulo||"(sem título)";s.textContent=new Date(p.ts).toLocaleString("pt-BR");w.append(b,s);
   const o=document.createElement("button");o.className="s";o.textContent="Abrir";
-  o.onclick=()=>{S[mode]={t:p.tarefa||"",r:p.requisito||"",md:p.md,id:p.id,exec:p.exec||{}};load();scrollTo({top:0,behavior:"smooth"})};
+  o.onclick=()=>{S[mode]={t:p.tarefa||"",r:p.requisito||"",md:p.md,id:p.id,exec:p.exec||{},generationId:TASK_UUID.test(String(p.id))?String(p.id):crypto.randomUUID()};load();scrollTo({top:0,behavior:"smooth"})};
   const x=document.createElement("button");x.className="s d";x.textContent="Excluir";
   x.onclick=async()=>{if(x.dataset.c!=="1"){x.dataset.c="1";x.textContent="Confirmar?";setTimeout(()=>{x.dataset.c="";x.textContent="Excluir"},3000);return}try{await p._s.del(p.id)}catch(e){$("st").textContent="Erro ao excluir: "+(e&&(e.message||e.code)||e)}renderHist()};
   d.append(w,o,x);box.append(d)}}
@@ -490,7 +514,8 @@ function toolXml(){
    if(x.tx!==y.tx)o.push("VALOR     "+p+": "+JSON.stringify(x.tx)+" → "+JSON.stringify(y.tx))}
   for(const p of Object.keys(B))if(!(p in A))o.push("ADICIONADO "+p);
   const t=o.slice(0,3000).join("\n");res(o.length?o.length+" diferença(s) encontrada(s)":"Nenhuma diferença estrutural encontrada com as opções escolhidas",esc(t||"Elementos, atributos, namespaces e valores iguais."),t)}}
-const defExec=md=>{const e={};for(const m of md.matchAll(/^## (Cen[aá]rio[^\n]*)/gm))e[m[1].trim()]={s:"OK",o:"FUNCIONANDO:"};return e};
+// A geração não significa execução. Históricos antigos mantêm suas marcações manuais.
+const defExec=()=>({});
 let CN=null;
 function renderExec(){CN=null;const b=$("exec");b.innerHTML="";const T=S.teste;
  const CH=(mode==="teste"&&T.md)?T.md.split(/^(?=## )/m):[],SI=CH.map((c,k)=>/^## Cen[aá]rio/.test(c)?k:-1).filter(k=>k>=0),P=SI.map(k=>CH[k]);
@@ -504,9 +529,9 @@ function renderExec(){CN=null;const b=$("exec");b.innerHTML="";const T=S.teste;
  const bm=x=>x.body.replace(/^### (.*)$/gm,"**$1:**").trim(),blk=x=>"**"+x.t+"**\n\n"+bm(x)+"\n\nOBS:"+(((ex[x.t]||{}).o||"").trim()?" "+((ex[x.t]||{}).o||"").trim().replace(/\n+/g," "):""),pl=m=>m.replace(/\*\*/g,"").replace(/`/g,"");
  const put=(x,p)=>{ex[x.t]={...(ex[x.t]||{}),...p}},msg=t=>{const m=$("xm");if(m)m.textContent=t},sv=()=>{try{if(T.id)store("teste").upd(T.id,{exec:ex}).then(()=>msg("salvo")).catch(e=>msg("não salvou: "+(e&&(e.message||e.code)||e)))}catch(e){msg("não salvou: "+(e&&e.message||e))}};
  const hd=()=>{const c=ST.map(s=>sc.filter(x=>st(x.t)===s).length);$("xs").textContent="Colados no SIA "+sc.filter(x=>ex[x.t]&&ex[x.t].c).length+"/"+sc.length+" · OK "+c[1]+" · Falhou "+c[2]+" · Bloqueado "+c[3]};
- const K=CH.map(c=>/^## Cen[aá]rio/.test(c)?c.match(/^## (.*)/)[1].trim():undefined),DF={s:"OK",o:"FUNCIONANDO:"};
+ const K=CH.map(c=>/^## Cen[aá]rio/.test(c)?c.match(/^## (.*)/)[1].trim():undefined),DF={s:"Não testado",o:""};
  const commit=(chs,keys,sel)=>{let n=0;const nx={};const out=chs.map((c,k)=>{if(!/^## Cen[aá]rio/.test(c))return c;n++;const old=c.match(/^## (.*)/)[1].trim(),rest=old.replace(/^Cen[aá]rio\s*\d*\s*[—–-]?\s*/i,""),nt="Cenário "+String(n).padStart(2,"0")+(rest?" — "+rest:""),key=keys[k];nx[nt]=(key&&ex[key])?ex[key]:(key===null?{...DF}:(ex[nt]||{...DF}));return c.replace(/^## .*/,"## "+nt)});
-  T.md=out.join("");T.exec=nx;T.sel=sel;$("prev").innerHTML=toHTML(T.md);if(T.id)store("teste").upd(T.id,{md:T.md,exec:nx}).catch(()=>msg("não salvou a edição"));renderExec()};
+  T.md=out.join("");T.exec=nx;T.sel=sel;$("prev").innerHTML=toHTML(T.md);if(T.id)store("teste").upd(T.id,{md:T.md,exec:nx}).catch(()=>msg("não salvou a edição"));renderExec();renderAttachReview()};
  const list=()=>{const l=$("xl");l.innerHTML="";sc.forEach((x,j)=>{const e=document.createElement("button");e.className="xi"+(j===i?" on":"");const d=document.createElement("i"),s0=st(x.t),dn=!!(ex[x.t]&&ex[x.t].c);
    if(s0==="Não testado"||(s0==="OK"&&!dn))d.style.cssText="background:transparent;border:2px solid #667085";else{d.style.background=CL[s0];if(dn)d.textContent="✓"}
    if(dn)e.style.opacity=".6";e.append(d,num(x.t)+" · "+ti(x.t));e.onclick=()=>{i=j;T.sel=j;T.edit=false;draw()};l.append(e)})};
@@ -564,7 +589,7 @@ function load(){const s=S[mode],c=M[mode];
  $("cb").style.display=$("bbd").style.display=c.bb?"":"none";
  if(s.md){$("prev").innerHTML=toHTML(s.md);$("bb").value=toBB(s.md);$("out").style.display="block"}else $("out").style.display="none";
  for(const k in M)$(M[k].nav).classList.toggle("on",k===mode);
- renderExec();if(!c.tool)renderHist()}
+ renderExec();renderAttachReview();if(!c.tool)renderHist()}
 function sw(k){if(k===mode)return;S[mode].t=$("t").value;S[mode].r=$("r").value;if(M[mode].tool){TV[mode]={};document.querySelectorAll("#tool textarea,#tool select").forEach(e=>TV[mode][e.id]=e.value);document.querySelectorAll("#tool input[type=checkbox]").forEach(e=>TV[mode][e.id]=e.checked)}mode=k;load()}
 for(const k in M)$(M[k].nav).onclick=()=>sw(k);
 async function copy(txt,html){try{
@@ -634,13 +659,13 @@ $("go").onclick=async()=>{
   });
   let md=result.text.trim();
   if(result.truncated)md+="\n\n**ATENÇÃO:** o resultado pode estar incompleto devido ao limite da IA.";
-  S[k]={t,r,md,exec:k==="teste"?defExec(md):{}};
+  S[k]={t,r,md,exec:k==="teste"?defExec(md):{},generationId:crypto.randomUUID()};
   if(k===mode)load();
   const record={ts:Date.now(),titulo:(md.match(/^# (.+)$/m)||[])[1]||"",
    tarefa:t,requisito:r,md,exec:S[k].exec};
   try{
    S[k].id=await store(k).save(record);
-   if(k===mode){await renderHist();renderExec();$("st").textContent="Resultado salvo no histórico."}
+   if(k===mode){await renderHist();renderExec();renderAttachReview();$("st").textContent="Resultado salvo no histórico."}
   }catch(error){
    try{
     S[k].id=await store(k,true).save(record);
@@ -654,7 +679,7 @@ $("go").onclick=async()=>{
    const draft={ts:Date.now(),titulo:"(interrompido) "+((part.match(/^# (.+)$/m)||[])[1]||""),
     tarefa:t,requisito:r,md:part,exec:k==="teste"?defExec(part):{}};
    try{await store(k).save(draft)}catch{await store(k,true).save(draft)}
-   if(k===mode){S[k]={t,r,md:part,exec:draft.exec};await renderHist();renderExec()}
+   if(k===mode){S[k]={t,r,md:part,exec:draft.exec,generationId:crypto.randomUUID()};await renderHist();renderExec();renderAttachReview()}
   }
  }finally{
   $("go").disabled=false;
@@ -673,29 +698,8 @@ function reflectMode(){
 for(const k in M){
  $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
 }
-const linkedTf=new URLSearchParams(location.search).get("tf");
-if(document.documentElement.dataset.embedded==="true"){
-  // In embedded mode, show this bar only when a TF may be imported.
-  document.querySelector(".qa-generator-session").hidden=!linkedTf;
-}
-if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
- $("import-task").hidden=false;
- $("import-task").onclick=async()=>{
-  if(!uid){$("session-label").textContent="Entre no QA Hub para importar uma TF.";return}
-  const {data,error}=await supa.from("qa_tarefas").select("*").eq("id",linkedTf).maybeSingle();
-  if(error||!data){$("session-label").textContent="TF indisponível ou sem permissão.";return}
-  const fields=[
-   ["Código",data.codigo],["Título",data.titulo],["Sistema",data.sistema],
-   ["O que foi testado",data.descricao],["Como funciona",data.explicacao],
-   ["Problema e causa",data.causa],["O que foi alterado",data.correcao],
-   ["Conclusão",data.conclusao],["Observações",data.observacoes]
-  ];
-  const text=fields.filter(([,v])=>String(v||"").trim()).map(([k,v])=>k+": "+v).join("\n\n");
-  if(mode!=="post"&&mode!=="teste")sw("teste");
-  S[mode].t=text;$("t").value=text;
-  $("session-label").textContent="Dados da TF carregados. Confira antes de gerar.";
- };
-}
+const reviewController=createGeneratorReview({client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,embedded:document.documentElement.dataset.embedded==="true"});
+function renderAttachReview(){return reviewController.render()}
 (async()=>{
  load();reflectMode();
  addEventListener("beforeunload",e=>{
@@ -711,6 +715,8 @@ if(linkedTf&&/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(linkedTf)){
   $("session-label").textContent="Sem conexão: ferramentas locais disponíveis.";
  }
  await recover();
+ await reviewController.loadTask().catch(error=>{$("session-label").textContent=error.message||String(error)});
+ await renderAttachReview();
  if(mode==="home"&&HR)HR();
 })();
 if(document.documentElement.dataset.embedded==="true"){

@@ -436,6 +436,13 @@ button:disabled{cursor:wait;opacity:.7}
  .task-generator-links .btn{flex:1 1 auto}
 }
 
+/* Global TF context shared by every tool. */
+.context-switcher{display:flex;gap:8px;align-items:center;min-width:0;max-width:min(430px,38vw)}
+.context-switcher label{font-size:.68rem;font-weight:750;color:#546b74;white-space:nowrap}
+.context-switcher select{min-width:0;max-width:260px;width:100%;padding:9px 10px;border:1px solid #cbd9db;border-radius:9px;background:#fff;color:#1b3943;font-size:.82rem}
+.context-open{font-size:.77rem;font-weight:750;color:#087f71;white-space:nowrap}
+@media(max-width:1000px){.topbar{flex-wrap:wrap}.context-switcher{max-width:100%;flex:1 1 100%;order:3}.context-switcher select{max-width:none}}
+@media(max-width:600px){.topbar-actions{flex-wrap:wrap}.context-switcher{width:100%;max-width:100%;order:3}.context-switcher label{min-width:57px}}
 /* Unified QA Hub shell for tool modules. A single sidebar and topbar own navigation. */
 .qa-tools-heading{margin-bottom:20px}
 .qa-tool-frame{display:block;width:100%;height:740px;border:0;background:transparent;min-width:0}
