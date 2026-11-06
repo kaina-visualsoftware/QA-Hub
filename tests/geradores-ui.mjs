@@ -125,6 +125,33 @@ for(const width of [390,1366]){
   await page.waitForFunction(()=>document.querySelector('#prev').textContent.includes('MELHORIA NO PEDIDO'));
   await page.waitForFunction(()=>!document.querySelector('#go').disabled);
   assert.match(await page.locator('#prev').innerText(),/CAMINHO DO MENU/);
+  // Posts and test plans must match the native release panel, including
+  // outer border, padding, spacing and absence of layout overflow.
+  async function checkPanel(selector,mode){
+    const style=await page.locator(selector).evaluate(node=>{
+      const computed=getComputedStyle(node),rect=node.getBoundingClientRect();
+      const fields=[...node.querySelectorAll('textarea,input,select')].filter(el=>el.getClientRects().length)
+        .map(input=>input.getBoundingClientRect()).map(x=>({left:x.left,right:x.right}));
+      return {
+        bg:computed.backgroundColor,border:computed.borderTopWidth,
+        radius:parseFloat(computed.borderTopLeftRadius),
+        padding:parseFloat(computed.paddingLeft),
+        bounds:{left:rect.left,right:rect.right},
+        fields,
+        overflow:document.documentElement.scrollWidth-innerWidth
+      };
+    });
+    assert.equal(style.bg,'rgb(255, 255, 255)',mode+': outer panel must be white');
+    assert.equal(style.border,'1px',mode+': panel border');
+    assert.ok(style.radius>=12,mode+': panel radius '+style.radius);
+    assert.ok(style.padding>=14,mode+': panel padding '+style.padding);
+    assert.ok(style.fields.every(box=>box.left>=style.bounds.left-1&&box.right<=style.bounds.right+1),
+      mode+': inputs must remain inside panel at '+width);
+    assert.ok(style.overflow<=1,mode+': no horizontal overflow '+style.overflow);
+  }
+  await checkPanel('#qa-generator-workspace','post');
+  assert.equal(await page.locator('#qa-generator-workspace #hist').isVisible(),true);
+  assert.equal(await page.locator('#qa-generator-workspace #gr').isVisible(),true);
   // The post is part of QA Hub's light design system even when the browser
   // or OS prefers dark colors.
   await page.emulateMedia({colorScheme:'dark'});
@@ -156,6 +183,8 @@ for(const width of [390,1366]){
   await page.waitForFunction(()=>!document.querySelector('#go').disabled);
   assert.equal(await page.locator('#xl button').count(),2);
   assert.match(await page.locator('#xs').innerText(),/0\/2/);
+  await checkPanel('#qa-generator-workspace','teste');
+  await page.screenshot({path:'artifacts/ui/qa-unified-tests-'+width+'.png',fullPage:true});
   assert.deepEqual(aiCalls,['post','teste']);
   await page.locator('#n-release').evaluate(el=>el.click());
   await page.locator('#rv').fill('12.10.06.0000');
@@ -174,6 +203,9 @@ for(const width of [390,1366]){
   await page.locator('#b1').click();
   assert.match(await page.locator('#to').innerText(),/ATRIBUTO/);
   await page.locator('#n-lib').evaluate(el=>el.click());
+  assert.equal(await page.locator('#qa-generator-workspace').isVisible(),false);
+  await checkPanel('#tool','informacoes-importantes');
+  await page.screenshot({path:'artifacts/ui/qa-unified-library-'+width+'.png',fullPage:true});
   await page.locator('#lr').fill('Licença de teste');
   await page.locator('#lc').fill('CÓDIGO EXEMPLO');
   await page.locator('#ls').click();

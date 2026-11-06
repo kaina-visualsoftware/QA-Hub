@@ -206,6 +206,178 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
   :root[data-embedded="true"] .qa-post-document{padding:14px}
   :root[data-embedded="true"] .qa-post-actions{align-items:stretch}
 }
+
+/* QA Hub unified tool surfaces.
+   AI post, AI test plan and the local library follow the native release panel. */
+:root[data-embedded="true"] #qa-generator-workspace,
+:root[data-embedded="true"][data-tool="lib"] #tool{
+  display:block;
+  min-width:0;
+  width:100%;
+  margin:0;
+  padding:clamp(16px,2.25vw,26px);
+  background:var(--card);
+  color:var(--tx);
+  border:1px solid var(--bd);
+  border-radius:13px;
+  box-shadow:0 4px 18px rgba(13,45,56,.025);
+}
+:root[data-embedded="true"] #qa-generator-workspace[hidden]{display:none!important}
+:root[data-embedded="true"] #qa-generator-workspace .qa-ai-note{
+  margin:0 0 18px;
+  font-size:13px;
+  line-height:1.5;
+  color:var(--mut);
+}
+:root[data-embedded="true"] #qa-generator-workspace .grid{
+  min-width:0;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px 20px;
+  align-items:start;
+}
+:root[data-embedded="true"] #qa-generator-workspace .grid>div{min-width:0}
+:root[data-embedded="true"] #qa-generator-workspace .grid label,
+:root[data-embedded="true"][data-tool="lib"] #tool label{
+  display:block;
+  margin:0 0 8px;
+  color:#38545c;
+  font-size:.83rem;
+  font-weight:650;
+  line-height:1.4;
+}
+:root[data-embedded="true"] #qa-generator-workspace #t,
+:root[data-embedded="true"] #qa-generator-workspace #r{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  background:#fff;
+  color:var(--tx);
+  border:1px solid var(--bd);
+  border-radius:9px;
+  padding:12px;
+  font:13px/1.6 ui-monospace,Consolas,monospace;
+}
+:root[data-embedded="true"] #qa-generator-workspace .bar{
+  min-width:0;
+  margin:18px 0 0;
+  gap:10px;
+}
+:root[data-embedded="true"] #qa-generator-workspace .bar button,
+:root[data-embedded="true"][data-tool="lib"] #tool .acts button{
+  min-height:40px;
+  white-space:normal;
+}
+:root[data-embedded="true"] #qa-generator-workspace #hist{
+  margin:26px 0 0;
+  padding:22px 0 0;
+  border-top:1px solid var(--bd);
+  min-width:0;
+}
+:root[data-embedded="true"] #qa-generator-workspace #hist h3{
+  margin:0 0 13px;
+  color:var(--tx);
+  font-size:1rem;
+  line-height:1.4;
+  font-weight:700;
+}
+:root[data-embedded="true"] #qa-generator-workspace #hist .acts{
+  margin:0 0 13px!important;
+  display:flex;
+  min-width:0;
+  gap:10px;
+  align-items:center;
+}
+:root[data-embedded="true"] #qa-generator-workspace #hq{
+  flex:1 1 340px;
+  max-width:none;
+  min-width:0;
+  min-height:44px;
+  border-color:var(--bd);
+  background:#fff;
+  color:var(--tx);
+}
+:root[data-embedded="true"] #qa-generator-workspace #hist .acts button{
+  min-height:44px;
+  white-space:normal;
+}
+:root[data-embedded="true"] #qa-generator-workspace #out{
+  margin-top:16px;
+  min-width:0;
+}
+:root[data-embedded="true"] #qa-generator-workspace #prev{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+:root[data-embedded="true"] #qa-generator-workspace .qa-post-document,
+:root[data-embedded="true"] #qa-generator-workspace .qa-attach{
+  width:100%;
+  min-width:0;
+  margin-top:18px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool .hc{
+  min-width:0;
+  padding:18px 20px;
+  background:#f8fbfa;
+  border:1px solid var(--bd);
+  border-radius:10px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool .ff{
+  gap:14px 16px;
+  min-width:0;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool .ff>div{
+  min-width:0;
+  flex-basis:260px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool :is(input,select,textarea){
+  max-width:100%;
+  border-color:var(--bd);
+  color:var(--tx);
+  background:#fff;
+  border-radius:9px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool :is(input,select){
+  min-height:42px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool #ll{
+  min-width:0;
+  display:grid;
+  gap:10px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool #lq{
+  min-width:0;
+  flex:1 1 300px;
+  max-width:none;
+  min-height:44px;
+}
+:root[data-embedded="true"][data-tool="lib"] #tool .lc2{
+  min-width:0;
+  border-color:var(--bd);
+  background:#fff;
+  border-radius:10px;
+}
+@media(max-width:800px){
+  :root[data-embedded="true"] #qa-generator-workspace .grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:14px;
+  }
+}
+@media(max-width:600px){
+  :root[data-embedded="true"] #qa-generator-workspace,
+  :root[data-embedded="true"][data-tool="lib"] #tool{padding:15px}
+  :root[data-embedded="true"] #qa-generator-workspace .bar{align-items:stretch}
+  :root[data-embedded="true"] #qa-generator-workspace .bar>.p{width:100%}
+  :root[data-embedded="true"] #qa-generator-workspace #hist{margin-top:22px;padding-top:18px}
+  :root[data-embedded="true"] #qa-generator-workspace #hist .acts{
+    flex-wrap:wrap;
+  }
+  :root[data-embedded="true"] #qa-generator-workspace #hist .acts #hq{
+    flex:1 0 100%;
+  }
+  :root[data-embedded="true"][data-tool="lib"] #tool .hc{padding:14px}
+  :root[data-embedded="true"][data-tool="lib"] #tool .ff>div{flex-basis:100%}
+}
 </style>
 </head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
@@ -217,6 +389,7 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <button class="p" type="button" id="qa-phase3-tool-action">Registrar na TF</button>
 <span class="qa-phase3-tool-status" id="qa-phase3-tool-status" role="status"></span>
 </section>
+<section id="qa-generator-workspace" class="qa-generator-workspace" aria-label="Geração e revisão de documentação">
 <p id="ai-privacy-info" class="qa-ai-note" hidden>O relatório é enviado à NVIDIA somente ao clicar em Gerar.</p>
 <div class="grid" id="gr">
 <div><label for="t" id="l1"></label><textarea id="t"></textarea></div>
@@ -247,6 +420,7 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <div id="hm" style="color:var(--mut);font-size:13px;margin-bottom:8px"></div>
 <div id="hp" style="display:none;margin-bottom:10px"><textarea id="hb" style="height:110px" placeholder="Cole aqui o backup copiado antes" spellcheck="false"></textarea><div class="acts"><button class="p" id="hg">Validar backup</button></div></div>
 <div id="hl"></div></div>
+</section>
 </main></div>
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
@@ -685,6 +859,8 @@ $("hg").onclick=async()=>{
  hmsg(n+" itens importados.");pend=null;$("hg").textContent="Validar backup";$("hb").value="";$("hp").style.display="none";renderHist()};
 /* UI */
 function load(){const s=S[mode],c=M[mode];phase3Tools.clear();
+ document.documentElement.dataset.tool=mode;
+ $("qa-generator-workspace").hidden=Boolean(c.tool);
  $("ttl").textContent=c.title;$("go").textContent=c.btn||"";
  $("gr").style.display=$("go").style.display=$("hist").style.display=c.tool?"none":"";$("tool").innerHTML="";if(c.tool){c.tool();const v=TV[mode]||{};for(const id in v){const e=$(id);if(e){if(typeof v[id]==="boolean")e.checked=v[id];else e.value=v[id]}}const old=RS[mode]||[];RS[mode]=[];old.forEach(a=>res(...a))}
  $("l1").textContent=c.l1||"Tarefa (cole a página da tarefa do SIA, com descrição e histórico)";$("l2").textContent=c.l2||"Requisito (opcional)";
