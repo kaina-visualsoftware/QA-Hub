@@ -397,7 +397,12 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <div><label for="r" id="l2"></label><textarea id="r"></textarea></div>
 </div>
 <div id="qa-context-requirements" hidden></div>
-<div class="bar"><button class="p" id="go"></button><button class="s" id="sh" style="display:none"></button><span id="st"></span></div>
+<details id="qa-test-context-preview" class="qa-test-context-preview" hidden>
+  <summary>Contexto consolidado para gerar os casos</summary>
+  <p id="qa-test-context-status" class="mu" role="status" aria-live="polite"></p>
+  <pre id="qa-test-context-text"></pre>
+</details>
+<div class="bar"><button class="p" id="go"></button><button class="s" type="button" id="qa-test-from-post" hidden>Gerar casos desta TF</button><button class="s" id="sh" style="display:none"></button><span id="st"></span></div>
 <div id="out">
 <div class="bar"><button class="s" id="cp">Copiar formatado</button><button class="s" id="cm">Copiar Markdown</button><button class="s" id="cb">Copiar BBCode</button></div>
 <div class="card" id="prev"></div><div id="exec"></div>
@@ -433,6 +438,7 @@ import {createPostDocumentUi} from './qa-post-doc.mjs';
 import {formatGeneratedPost} from './qa-post-format.mjs';
 import {createPhase3GeneratorTools} from './qa-phase3-tools.mjs';
 import {createRequirementPicker} from './qa-requirements-picker.mjs';
+import {fetchTaskSupport,composeFullTaskContext,sanitizeAiContext} from './qa-test-context.mjs';
 import {recordRequirementUsage} from './qa-requirements-context.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
@@ -850,6 +856,8 @@ function load(){const s=S[mode],c=M[mode];phase3Tools.clear();
  $("gr").style.display=$("go").style.display=$("hist").style.display=c.tool?"none":"";$("tool").innerHTML="";if(c.tool){c.tool();const v=TV[mode]||{};for(const id in v){const e=$(id);if(e){if(typeof v[id]==="boolean")e.checked=v[id];else e.value=v[id]}}const old=RS[mode]||[];RS[mode]=[];old.forEach(a=>res(...a))}
  $("l1").textContent=c.l1||"Tarefa (cole a página da tarefa do SIA, com descrição e histórico)";$("l2").textContent=c.l2||"Complemento opcional (além dos requisitos aprovados da TF)";
  requirementsPicker.updateExtra(s.r||'');
+ $("qa-test-from-post").hidden=mode!=="post"||!reviewController.getTask();
+ $("qa-test-context-preview").hidden=mode!=="teste"||!reviewController.getTask();
  {const ot=mode==="post"?"teste":mode==="teste"?"post":"",so=ot?S[ot]:null;
   if(so&&(so.t||so.r)&&(so.t!==s.t||so.r!==s.r)){$("sh").style.display="";$("sh").textContent="↔ Usar a tarefa de "+M[ot].title;$("sh").onclick=()=>{$("t").value=so.t;$("r").value=so.r;$("sh").style.display="none"}}else $("sh").style.display="none"}$("t").value=s.t;$("r").value=s.r;$("st").textContent="";
  $("t").placeholder=mode==="post"?"Tarefa #198253 ...":"Tarefa #198253 ...";$("r").placeholder="# Requisito ...";
@@ -930,7 +938,32 @@ $("go").onclick=async()=>{
  if(!uid){$("st").textContent="Entre no QA Hub para usar a NVIDIA. As ferramentas locais continuam disponíveis.";return}
  $("go").disabled=true;$("st").textContent="Gerando com NVIDIA…";let part="",lt=0;
  try{
-  const result=await streamGenerator(k,t.slice(0,30000),requirementContext.text,text=>{
+  let taskPayload=t;
+  let requirementPayload=requirementContext.text;
+  const tf=reviewController.getTask();
+  if(k==='teste'&&tf){
+    $('st').textContent='Consolidando documentos, cenários, evidências e histórico da TF…';
+    const gathered=await fetchTaskSupport(supa,tf,uid);
+    const structured=composeFullTaskContext(tf,gathered,{manual:t});
+    taskPayload=structured.text;
+    requirementPayload=sanitizeAiContext(requirementPayload);
+    const el=$('qa-test-context-preview');
+    el.hidden=false;
+    $('qa-test-context-text').textContent=
+      'TAREFA:\n'+taskPayload+'\n\nREQUISITOS APROVADOS SELECIONADOS:\n'+requirementPayload;
+    $('qa-test-context-status').textContent=
+      'TF #'+(tf.codigo||tf.id)+' · '+structured.sourceCounts.scenarios+
+      ' cenários existentes · '+structured.sourceCounts.documents+
+      ' documentos · '+structured.sourceCounts.evidence+' evidências · '+
+      structured.sourceCounts.events+' eventos · '+requirementContext.selectedCount+
+      ' requisitos aprovados escolhidos.'+
+      (structured.failedSources.length?
+        ' Fontes não lidas: '+structured.failedSources.join('; '):'')+
+      ' Dados pessoais e credenciais reconhecidos foram mascarados. Confira a prévia.';
+  }
+  if(taskPayload.length>30000||requirementPayload.length>20000)
+    throw Error('O texto excede o limite da geração. Reduza o contexto explicitamente; nenhum trecho será descartado.');
+  const result=await streamGenerator(k,taskPayload,requirementPayload,text=>{
    part=text;
    try{if(Date.now()-lt>1200){lt=Date.now();localStorage.setItem("draft_"+k,JSON.stringify({t,r,md:text,ts:Date.now()}))}}catch{}
    if(k===mode){$("prev").innerHTML=toHTML(text);$("out").style.display="block";$("st").textContent="Gerando em tempo real…"}
@@ -994,6 +1027,15 @@ for(const k in M){
  $(M[k].nav).onclick=()=>{sw(k);reflectMode()};
 }
 const reviewController=createGeneratorReview({client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,embedded:document.documentElement.dataset.embedded==="true"});
+$('qa-test-from-post').addEventListener('click',()=>{
+  const tf=reviewController.getTask();
+  if(!tf){$('st').textContent='Selecione uma TF antes de gerar casos.';return;}
+  S.post.t=$('t').value;S.post.r=$('r').value;
+  S.teste.t=$('t').value;S.teste.r=$('r').value;
+  sw('teste');reflectMode();
+  $('go').focus();
+  $('st').textContent='O mesmo contexto da TF está pronto para gerar os casos separadamente. Revise os requisitos e clique Gerar casos de teste.';
+});
 const requirementsPicker=createRequirementPicker({
   root:$('qa-context-requirements'),db:supa,getUserId:()=>uid
 });
