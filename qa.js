@@ -227,9 +227,12 @@ function renderTasks() {
   const emptyWithoutFilters = '<div class="empty"><strong>Nenhuma TF cadastrada</strong>' +
     '<p>Cadastre seu primeiro teste ou importe um relatório existente.</p>' +
     '<button type="button" class="btn primary" data-new-task>Criar primeira TF</button></div>';
-  $('#task-list').innerHTML = list.length ? list.map(taskItem).join('') :
+  const page=slicePage(list,state.taskListPage);
+  $('#task-list').innerHTML = list.length ? page.rows.map(taskItem).join('') :
     (hasFilters ? emptyWithFilters : emptyWithoutFilters);
-  $('#task-count').textContent = list.length + ' tarefa(s) na lista' + (state.tasks.length >= 1000 ? ' · primeiros 1.000 registros' : '');
+  $('#tasks-load-more').hidden=!page.hasMore;
+  $('#task-count').textContent = page.visible+' de '+page.total+' tarefa(s) nesta consulta'+
+    (state.tasks.length >= 1000 ? ' · limite de carregamento: 1.000 TFs' : '');
 }
 function renderDashboard() {
   const tasks = state.tasks, scenarios = state.scenarioStats;
@@ -842,9 +845,11 @@ function navigateNewTask() {
   } else location.hash = '#/nova';
 }
 $('#new-task').addEventListener('click',navigateNewTask);
-$('#task-search').addEventListener('input',renderTasks);
-$('#filter-status').addEventListener('change',renderTasks);
-$('#filter-type').addEventListener('change',renderTasks);
+function resetTaskListPage(){state.taskListPage=0;renderTasks();}
+$('#task-search').addEventListener('input',resetTaskListPage);
+$('#filter-status').addEventListener('change',resetTaskListPage);
+$('#filter-type').addEventListener('change',resetTaskListPage);
+$('#tasks-load-more').addEventListener('click',()=>{state.taskListPage++;renderTasks();});
 window.addEventListener('hashchange',()=>route().catch(e=>toast(errMessage(e),true)));
 $$('[data-tab]').forEach(button=>{
   button.addEventListener('click',()=>selectTab(button.dataset.tab));
