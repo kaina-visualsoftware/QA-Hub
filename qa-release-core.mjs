@@ -111,6 +111,8 @@ export function reviewRelease({raw,announcement,version='',compat='',signature='
     bbcode:fmtBB(result.out,version,compat,signature)
   };
 }
+function lcs(a,b){const n=a.length,m=b.length,t=Array.from({length:n+1},()=>new Uint16Array(m+1));for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)t[i][j]=a[i]===b[j]?t[i+1][j+1]+1:Math.max(t[i+1][j],t[i][j+1]);const o=[];let i=0,j=0;while(i<n&&j<m){if(a[i]===b[j]){o.push([" ",a[i]]);i++;j++}else if(t[i+1][j]>=t[i][j+1])o.push(["-",a[i++]]);else o.push(["+",b[j++]])}while(i<n)o.push(["-",a[i++]]);while(j<m)o.push(["+",b[j++]]);return o}
+function fl(el,p,m,w){const a={};for(const t of el.attributes)a[t.name]=t.value;const kids=[...el.children];let tx=[...el.childNodes].filter(n=>n.nodeType===3||n.nodeType===4).map(n=>n.nodeValue).join("");if(w)tx=tx.trim();m[p]={ns:el.namespaceURI||"",a,tx};const c={},i={};kids.forEach(k=>c[k.nodeName]=(c[k.nodeName]||0)+1);kids.forEach(k=>{i[k.nodeName]=(i[k.nodeName]||0)+1;fl(k,p+"/"+k.nodeName+(c[k.nodeName]>1?"["+i[k.nodeName]+"]":""),m,w)})}
 export function compareTextLines(first,second){
   const a=String(first).replace(/\r/g,'').split('\n');
   const b=String(second).replace(/\r/g,'').split('\n');
