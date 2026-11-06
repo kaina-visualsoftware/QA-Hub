@@ -86,6 +86,13 @@
             <article class="panel"><div class="panel-head"><div><h2>Resultado por situação</h2><p class="muted">Distribuição das TFs</p></div></div><div class="chart-container"><canvas id="status-chart" role="img" aria-label="Gráfico de tarefas por situação"></canvas></div><div id="chart-summary" class="chart-summary"></div></article>
             <article class="panel"><div class="panel-head"><div><h2>Tipos de teste</h2><p class="muted">BUILD vs. RELEASE</p></div></div><div id="types-chart" class="types-chart"></div><hr><div class="mini-help">Os indicadores consideram os registros visíveis à sua conta.</div></article>
           </div>
+          <section class="panel qa-coverage-panel" aria-labelledby="coverage-heading">
+            <div class="panel-head"><div><h2 id="coverage-heading">Cobertura de execução</h2><p class="muted">Indicadores calculados a partir dos cenários realmente cadastrados e executados.</p></div></div>
+            <div class="qa-coverage-summary"><strong id="coverage-percent">0%</strong><div class="qa-coverage-track" role="progressbar" aria-label="Proporção de cenários executados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="coverage-progress"><span id="coverage-bar" style="width:0%"></span></div></div>
+            <p id="coverage-detail" class="muted">Nenhum cenário carregado.</p>
+            <div id="coverage-breakdown" class="qa-coverage-breakdown"></div>
+            <p class="muted fine">Cobertura mede cenários com status de execução registrado. Não comprova que a TF inteira foi aprovada.</p>
+          </section>
           <article class="panel"><div class="panel-head"><div><h2>Últimas tarefas</h2><p class="muted">Acesse rapidamente as TFs mais recentes</p></div><a href="#/tarefas" class="subtle-link">Ver todas →</a></div><div id="recent-list" class="task-list"></div></article>
         </section>
 
@@ -140,7 +147,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -233,6 +240,36 @@
           <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
             <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
             <div id="diagrams-list" class="stack gap-md"></div>
+          </div>
+          <div id="tab-vinculos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-vinculos" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Vínculos da TF</h2><p class="muted">Releases, resultados de comparação e referências técnicas reutilizáveis, sem alterar os dados originais da tarefa.</p></div></div>
+            <div class="qa-phase3-layout">
+              <section class="panel qa-phase3-panel">
+                <h3>Releases associadas</h3>
+                <p class="muted fine">Associe uma release somente após confirmar que a TF faz parte dela. Nenhum número de tarefa é vinculado automaticamente.</p>
+                <div class="qa-phase3-inline"><label>Versão da release <input id="links-release-version" placeholder="12.10.06.0000" maxlength="40" inputmode="numeric"></label><button class="btn primary" type="button" id="links-release-save">Associar release</button></div>
+                <p id="links-release-status" role="status" class="qa-phase3-feedback"></p>
+                <div id="links-release-list" class="qa-phase3-list"></div>
+              </section>
+              <section class="panel qa-phase3-panel">
+                <h3>Comparações anexadas</h3>
+                <p class="muted fine">As comparações de texto/XML armazenam exclusivamente quantidades de diferenças; os arquivos e conteúdos originais permanecem no navegador.</p>
+                <div id="links-comparison-list" class="qa-phase3-list"></div>
+              </section>
+              <section class="panel qa-phase3-panel qa-phase3-wide">
+                <h3>Referências reutilizáveis</h3>
+                <p class="muted fine">Checklists e regras privadas à sua conta. Não inclua senhas, tokens, acessos, CPFs, CNPJs ou dados pessoais.</p>
+                <div class="qa-phase3-reference-form">
+                  <label>Categoria <select id="links-reference-category"><option value="checklist">Checklist</option><option value="regra">Regra de teste</option><option value="nota">Nota técnica</option></select></label>
+                  <label>Título <input id="links-reference-title" maxlength="160" placeholder="Ex.: Validar edição de pedido"></label>
+                  <label class="qa-phase3-wide">Conteúdo <textarea id="links-reference-content" rows="3" maxlength="2000" placeholder="Ex.: Conferir campos obrigatórios e mensagens de erro."></textarea></label>
+                  <label class="qa-phase3-wide qa-phase3-consent"><input id="links-reference-safe" type="checkbox"> Confirmo que esta referência não contém credenciais nem dados pessoais.</label>
+                  <button id="links-reference-save" class="btn primary" type="button">Salvar referência</button>
+                  <span id="links-reference-status" class="qa-phase3-feedback" role="status"></span>
+                </div>
+                <div id="links-reference-list" class="qa-phase3-list"></div>
+              </section>
+            </div>
           </div>
           <div id="tab-documentos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-documentos" tabindex="0" hidden>
             <div class="section-top"><div><h2>Documentos da TF</h2><p class="muted">Posts e relatórios privados, com histórico de versões.</p></div><button class="btn primary" id="document-generate-report" type="button">Gerar relatório da execução</button></div>
