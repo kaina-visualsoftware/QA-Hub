@@ -746,3 +746,49 @@ button:disabled{cursor:wait;opacity:.7}
  .qa-native-result{padding:10px;font-size:.75rem}
  .qa-phase4-entry{padding:11px}
 }
+
+/* R1 · Requisitos vinculados à TF — QA Hub design system. */
+.qa-req-panel{padding:clamp(16px,2.2vw,24px);min-width:0;margin-bottom:18px}
+.qa-req-panel .section-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.qa-req-panel .section-heading h3{font-size:1rem;line-height:1.35;color:#223c43;margin:0}
+.qa-req-panel .section-heading p{margin:0}
+.qa-req-field{display:grid;gap:7px;color:#3c5760;font-size:.81rem;font-weight:650;line-height:1.4;min-width:0}
+.qa-req-field :is(input,select,textarea){display:block;width:100%;min-width:0;max-width:100%;margin:0;padding:11px 12px;border:1px solid #cbd9db;border-radius:9px;background:#fff;color:#203a42;font-size:.86rem;font-weight:400;line-height:1.55}
+.qa-req-field :is(input,select){min-height:44px}
+.qa-req-field textarea{resize:vertical;min-height:84px;max-height:55vh;overflow:auto}
+.qa-req-field :is(input,select,textarea):focus-visible{outline:2px solid #178f80;outline-offset:1px}
+.qa-req-panel #requirements-source{min-height:148px;font-family:ui-monospace,Consolas,monospace;font-size:.83rem}
+.qa-req-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:15px;min-width:0}
+.qa-req-actions>.btn{min-height:44px;white-space:normal;text-align:center}
+.qa-req-feedback{min-height:22px;font-size:.84rem;line-height:1.5;margin:12px 0 0;color:#19685f;overflow-wrap:anywhere}
+.qa-req-review-list,.qa-req-saved-list{display:grid;gap:12px;margin-top:16px}
+.qa-req-preview-card,.qa-req-saved{border:1px solid #dce8e5;border-radius:11px;background:#fbfdfc;padding:16px;min-width:0}
+.qa-req-preview-card{display:grid;gap:12px}
+.qa-req-preview-top,.qa-req-saved-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
+.qa-req-preview-top{flex-wrap:wrap}
+.qa-req-check{display:flex;align-items:flex-start;gap:9px;color:#344f58;font-weight:650;font-size:.83rem;cursor:pointer;min-width:0}
+.qa-req-check span{min-width:0;overflow-wrap:anywhere}
+.qa-req-check input[type=checkbox]{width:18px;min-width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:#14877b}
+.qa-req-status{background:#eaf4f0;border:1px solid #d2e7df;color:#1a645a;border-radius:40px;padding:5px 9px;font-size:.72rem;font-weight:600}
+.qa-req-edit-grid,.qa-req-filters{display:grid;grid-template-columns:minmax(0,.6fr) minmax(0,.7fr) minmax(0,1.3fr) minmax(0,.75fr);gap:12px}
+.qa-req-filters{grid-template-columns:minmax(0,2fr) minmax(175px,1fr);gap:14px}
+.qa-req-origin{overflow-wrap:anywhere;margin:0}
+.qa-req-saved{background:#fff}
+.qa-req-saved-head>div:first-child{min-width:0;overflow-wrap:anywhere}
+.qa-req-saved-head strong{font-size:.9rem;line-height:1.4;display:block}
+.qa-req-saved-head small{font-size:.75rem;color:#607880;display:block;margin-top:5px}
+.qa-req-saved .qa-req-description,.qa-req-saved .qa-req-acceptance{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.85rem;line-height:1.6;margin:12px 0 0;color:#365861}
+.qa-req-saved .qa-req-acceptance{background:#f4f8f7;border-radius:8px;padding:10px 12px}
+.qa-req-saved-editor{display:grid;gap:13px;margin-top:15px;padding-top:15px;border-top:1px solid #e0ebe7}
+.qa-req-saved-editor>.btn{justify-self:start}
+.qa-req-empty{border:1px dashed #d5e4df;background:#f8fbfa;border-radius:9px;padding:20px;color:#567078;font-size:.86rem;line-height:1.5}
+@media(max-width:950px){.qa-req-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+ .qa-req-panel{padding:15px}
+ .qa-req-edit-grid,.qa-req-filters{grid-template-columns:minmax(0,1fr)}
+ .qa-req-actions{align-items:stretch}
+ .qa-req-actions>.btn{width:100%}
+ .qa-req-preview-card,.qa-req-saved{padding:13px}
+ .qa-req-saved-head{flex-direction:column}
+ .qa-req-saved-editor>.btn{width:100%}
+}
