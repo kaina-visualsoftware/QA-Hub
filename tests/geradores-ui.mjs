@@ -177,6 +177,8 @@ for(const width of [390,1366]){
  await page.locator('#go').click();
  await page.waitForFunction(()=>document.querySelector('#qa-case-list') || document.querySelector('#qa-attach-list .qa-case'));
  await page.waitForFunction(()=>document.querySelectorAll('#qa-attach-list .qa-case').length===2);
+ assert.match(await page.locator('#exec').innerText(),/execução e os resultados reais são registrados na TF/);
+ assert.equal(await page.locator('#xl').count(),0,'Linked execution must not use independent Markdown status controls');
  await page.waitForFunction(()=>!document.querySelector('#qa-attach-save').disabled);
  await page.locator('#qa-attach-list .qa-case input[type=checkbox]').last().uncheck();
  await page.locator('#qa-attach-save').click();
