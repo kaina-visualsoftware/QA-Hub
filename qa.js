@@ -1563,13 +1563,13 @@ $('#import-confirm').addEventListener('click',async()=>{
   const button=$('#import-confirm');busy(button,true);
   try {
     const parsed=parseReport($('#import-text').value);
-    const taskData={titulo:parsed.titulo,tipo_teste:parsed.tipo_teste,status:'rascunho',descricao:parsed.descricao,
+    const taskData=normalizeNarrativeFields({titulo:parsed.titulo,tipo_teste:parsed.tipo_teste,status:'rascunho',descricao:parsed.descricao,
       conclusao:parsed.conclusao,observacoes:parsed.observacoes,funcionando:parsed.funcionando,erro_reproduzido:parsed.erro_reproduzido,
-      user_id:state.user.id,executado_em:dateToday()};
+      user_id:state.user.id,executado_em:dateToday()},TASK_NARRATIVE_FIELDS);
     const {data,error}=await db.from('qa_tarefas').insert(taskData).select().single();
     if(error)throw error;
     if(parsed.cenarios.length){
-      const input=parsed.cenarios.map(s=>({user_id:state.user.id,tarefa_id:data.id,ordem:s.ordem,titulo:s.titulo,passos:s.passos,status:'nao_executado'}));
+      const input=parsed.cenarios.map(s=>normalizeNarrativeFields({user_id:state.user.id,tarefa_id:data.id,ordem:s.ordem,titulo:s.titulo,passos:s.passos,status:'nao_executado'},SCENARIO_NARRATIVE_FIELDS));
       const {error:scenariosError}=await db.from('qa_cenarios').insert(input);
       if(scenariosError){
         toast('A TF foi criada, mas a importação dos cenários falhou: '+errMessage(scenariosError),true);
