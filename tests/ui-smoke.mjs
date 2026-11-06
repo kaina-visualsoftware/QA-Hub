@@ -25,6 +25,7 @@ export function createClient(){
     qa_admins:[],
     qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
     qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
+    qa_requisito_fontes:[],qa_requisitos:[],
     qa_generator_tests:[{
       id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       user_id:'55555555-5555-4555-8555-555555555555',
@@ -33,6 +34,7 @@ export function createClient(){
       exec:{'Cenário 01 — Importação histórica':{s:'OK',o:'FUNCIONANDO:'}}
     }]
   };
+  window.__qaR1Rows=tables;
   let user=null;
   let nextId=0;
   function from(table){
@@ -92,6 +94,31 @@ export function createClient(){
   return {
     from,
     async rpc(name,args){
+      if(name==='qa_import_requisitos'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+        if(!task||task.user_id!==user?.id)
+          return {data:null,error:{message:'TF sem permissão'}};
+        if(!Array.isArray(args.p_itens)||args.p_itens.length<1)
+          return {data:null,error:{message:'Itens inválidos'}};
+        const source={id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+          tarefa_id:task.id,user_id:user.id,tipo_fonte:'texto',
+          texto_extraido:args.p_texto,created_at:new Date().toISOString()};
+        tables.qa_requisito_fontes.push(source);
+        let inserted=0,skipped=0;
+        for(const row of args.p_itens){
+          if(tables.qa_requisitos.some(q=>q.tarefa_id===task.id&&q.codigo===row.codigo)){
+            skipped++;continue;
+          }
+          tables.qa_requisitos.push({
+            ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
+            tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
+            created_at:new Date().toISOString()
+          });
+          inserted++;
+        }
+        if(!inserted)tables.qa_requisito_fontes.pop();
+        return {data:{tarefa_id:task.id,fonte_id:inserted?source.id:null,inserted,skipped},error:null};
+      }
       if(name==='qa_attach_generated_cases'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         if(!task||task.user_id!==user?.id)return {data:null,error:{message:'TF sem permissão'}};
