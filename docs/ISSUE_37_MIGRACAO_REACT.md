@@ -288,3 +288,40 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   não implica download do modelo, mas o footprint real em rede depende
   do navegador, caching e backend.
 - Nenhum deploy ou merge: PR permanece draft.
+
+## Auditoria automática de acessibilidade e guarda de carregamento
+
+- Ferramenta: `axe-core@4.14.0` como dependência de desenvolvimento
+  fixada no manifest e lockfile, com `npm ci` validado. Workflow
+  auxiliar de atualização do lockfile foi eliminado.
+- `frontend/tests/browser-accessibility.mjs` passa a executar no
+  Chromium como parte do workflow de browser, após os testes de TF,
+  acesso público, admin e callback.
+- Cobertura: sete estados (login, cadastro, recuperação, listagem
+  pública, TF pública detalhada, workspace autenticado e Nova TF)
+  em 390 e 1366 px, 14 combinações ao todo.
+- O teste verifica WCAG 2.0/2.1/2.2 A/AA com axe-core, ausência de
+  overflow horizontal e carregamento lazy: nenhum arquivo de modelo,
+  Worker ou runtime WASM antes do consentimento de IA.
+- A **primeira execução** encontrou 14 conjuntos de violações
+  automáticas de contraste (uma família de problemas compartilhada):
+  botão primário HeroUI v3, metadados secundários, rótulos de seção,
+  kicker da topbar e link do cabeçalho público.
+- A correção centralizou o tema em tokens semânticos escuros e
+  aumentou o contraste de `.eyebrow`, `.topbar-kicker`,
+  `.task-text small`, `.public-react-header .secondary-link`
+  e `.button--primary`, sem alterações de navegação, RLS ou schema.
+- **Execução aprovada no commit `c382d8d7`: zero violações
+  automáticas nas 14 combinações.** O workflow React browser foi
+  concluído com sucesso, assim como TypeScript, lint, Vitest, build,
+  checks legados e smoke do legado.
+- Evidências CI: React browser
+  https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42310575718,
+  React foundation
+  https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42310575935.
+- **Pendente para homologação assistiva**: NVDA/TalkBack/VoiceOver,
+  navegação somente por teclado, zoom/reflow de 200–400%,
+  alto contraste/forced colors, monitoramento de foco nos diálogos
+  e testes em dispositivos reais. Axe não comprova conformidade
+  WCAG completa nem permissões RLS reais.
+- Nenhum deploy, merge ou alteração em banco: PR continua draft.

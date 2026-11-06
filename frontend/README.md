@@ -159,3 +159,24 @@ Testes Vitest verificam o contrato, worker sintético, limites e cancelamento.
 O E2E Chromium usa Worker simulado, sem baixar pesos reais. Homologação
 obrigatória ainda pendente: inferência com modelo real em máquina e celular,
 medição de memória/rede/tempo, revisão das saídas e acessibilidade.
+
+## Auditoria automatizada de acessibilidade
+
+O workflow `QA Hub React browser smoke` executa
+`frontend/tests/browser-accessibility.mjs` com `axe-core@4.14.0`
+fixado no lockfile. O teste verifica critérios WCAG 2.0/2.1/2.2
+A/AA, overflow horizontal e fluxo de teclado em 390 e 1366 px,
+cobrindo login, cadastro, recuperação, biblioteca pública,
+detalhe público, workspace autenticado e cadastro rápido de TF.
+A suíte falha caso encontre violações automáticas; não há exceções
+para contraste. O teste também observa requisições e garante que
+pesos, runtime WASM e Worker de IA **não são solicitados antes da
+autorização explícita**.
+
+A primeira auditoria apontou 14 conjuntos de falhas de contraste.
+Foram corrigidos os tokens de ação primária do HeroUI, textos de
+metadados, rótulos, cabeçalho e link público. No commit `c382d8d7`,
+as 14 combinações passaram sem violações automáticas nos critérios
+verificados. Este resultado **não equivale à homologação completa
+WCAG**, que ainda exige testes manuais com leitor de tela, teclado,
+zoom até 400%, alto contraste, navegadores e aparelhos reais.
