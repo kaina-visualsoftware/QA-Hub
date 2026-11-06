@@ -5,3 +5,8 @@ export function comparisonCounters(type:"diff_texto"|"diff_xml",values:{adiciona
 export function validateReference(input:{categoria:"checklist"|"regra"|"nota";titulo:string;conteudo:string}):{categoria:"checklist"|"regra"|"nota";titulo:string;conteudo:string};
 export function linkTaskRelease(db:SupabaseClient,params:{taskId:string;version:string}):Promise<string>;
 export function createReference(db:SupabaseClient,params:{userId:string;categoria:"checklist"|"regra"|"nota";titulo:string;conteudo:string}):Promise<{id:string}>;
+
+export function recordComparison(db:SupabaseClient,params:{
+  taskId:string;userId:string;type:"diff_texto"|"diff_xml";
+  values:{adicionados:number;removidos:number;alterados:number}
+}):Promise<{id:string}>;

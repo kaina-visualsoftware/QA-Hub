@@ -3,6 +3,7 @@ import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, GitCompareArrows, GitMerge, NotebookPen, Save, X } from "lucide-react";
 import { z } from "zod";
+import ComparisonTool from "./ComparisonTool";
 import { supabase } from "../../lib/supabase";
 import type { Task } from "../../lib/contracts";
 import {
@@ -214,6 +215,8 @@ export default function LinksPanel({
         </article>)}
       </div>}
       {tab === "comparisons" && <div className="stack mt-5" role="tabpanel">
+        <ComparisonTool task={task} userId={userId} />
+        <div className="divider mt-4" />
         <p className="text-muted text-sm">
           Somente os contadores de comparações são persistidos. Textos e XML originais
           permanecem fora da base de dados e desta tela.
