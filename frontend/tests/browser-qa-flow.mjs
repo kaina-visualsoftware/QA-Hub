@@ -11,8 +11,8 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   sistema:"Financeiro",versao:"12.00",causa:"Filtro omitia valores negativos",
   correcao:"Critério corrigido",conclusao:"",observacoes:"",publica:false,
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
-const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[];
-let requirementImports=0,coverageSaves=0,evidenceSaves=0;
+const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],releases=[],releaseLinks=[],referenceRows=[];
+let requirementImports=0,coverageSaves=0,evidenceSaves=0,releaseSaves=0,referenceSaves=0;
 let aiCalls=0,attachCalls=0,postSaves=0;
 const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -38,6 +38,29 @@ async function mock(route){
   if(p.endsWith("/rest/v1/qa_requisito_fontes"))return send([]);
   if(p.endsWith("/rest/v1/qa_requisito_revisoes"))return send([]);
   if(p.endsWith("/rest/v1/qa_geracao_contextos"))return send([]);
+  if(p.endsWith("/rest/v1/qa_releases"))return send(releases);
+  if(p.endsWith("/rest/v1/qa_release_tarefas"))return send(releaseLinks);
+  if(p.endsWith("/rest/v1/qa_artefatos"))return send([]);
+  if(p.endsWith("/rest/v1/qa_referencias")){
+    if(m==="POST"){
+      referenceSaves++;
+      const payload=req.postDataJSON();
+      referenceRows.push({...payload,id:"99999999-9999-4999-8999-999999999999",
+        created_at:"2026-11-06T12:45:00.000Z"});
+      return send({id:"99999999-9999-4999-8999-999999999999"},201);
+    }
+    return send(referenceRows);
+  }
+  if(p.endsWith("/rest/v1/rpc/qa_link_release")){
+    releaseSaves++;
+    const args=req.postDataJSON();
+    assert.equal(args.p_tarefa_id,taskId);
+    const releaseId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    releases.push({id:releaseId,versao:args.p_versao,
+      created_at:"2026-11-06T12:40:00.000Z"});
+    releaseLinks.push({release_id:releaseId,tarefa_id:taskId});
+    return send(releaseId);
+  }
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
   if(p.endsWith("/rest/v1/qa_evidencias")){
     if(m==="POST"){
@@ -183,6 +206,23 @@ try{
   assert.equal(evidenceRows[0].tipo,"observacao");
   await page.getByRole("tab",{name:"Auditoria"}).click();
   await page.getByText("Nenhum evento encontrado.").waitFor();
+  await page.getByRole("button",{name:/Releases e referências/}).click();
+  const linkPanel=page.locator("section[aria-labelledby='links-heading']");
+  await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
+  await linkPanel.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
+  await linkPanel.getByRole("button",{name:"Vincular release"}).click();
+  await linkPanel.getByText("Release vinculada à TF sem alterar seus testes.").waitFor();
+  assert.equal(releaseSaves,1);
+  assert.equal(releases[0].versao,"12.10.06.0000");
+  await linkPanel.getByRole("tab",{name:"Referências"}).click();
+  await linkPanel.getByLabel("Título").fill("Checklist de desconto");
+  await linkPanel.getByLabel("Conteúdo").fill("Verificar a atualização do total.");
+  await linkPanel.getByRole("button",{name:"Salvar referência"}).click();
+  await linkPanel.getByText("Referência privada salva.").waitFor();
+  assert.equal(referenceSaves,1);
+  assert.equal(referenceRows.length,1);
+  assert.equal(scenarios[0].status,"nao_executado");
+  assert.equal(tasks[0].status,"rascunho");
   assert.deepEqual(failures,[]);
-  console.log("E2E sintético React: login, IA, casos pendentes, post versionado, requisitos, cobertura e evidências.");
+  console.log("E2E sintético React: QA, IA, requisitos, cobertura, evidências, release e referência.");
 }finally{await browser.close()}
