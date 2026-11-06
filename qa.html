@@ -233,9 +233,37 @@
                 <p class="muted">Cole o texto da especificação para organizar requisitos funcionais, não funcionais, regras de negócio e critérios de aceite. Revise antes de salvar.</p>
               </div>
             </div>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-file-title">
+              <div class="section-heading">
+                <h3 id="requirements-file-title">Anexar especificação de requisitos</h3>
+                <p class="muted fine">Arquivos privados, com histórico de versões.</p>
+              </div>
+              <p class="muted fine">PDF com texto, DOCX, TXT ou MD — até 10 MB. A extração acontece no navegador, sem enviar o conteúdo à IA. PDFs digitalizados precisam de transcrição manual.</p>
+              <label class="qa-req-field" for="requirements-file">
+                <span>Selecionar arquivo</span>
+                <input id="requirements-file" type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown">
+              </label>
+              <div id="requirements-file-preview-wrap" class="qa-req-file-preview" hidden>
+                <label class="qa-req-field" for="requirements-file-preview">
+                  <span>Texto encontrado no arquivo (prévia)</span>
+                  <textarea id="requirements-file-preview" rows="5" readonly></textarea>
+                </label>
+                <p class="muted fine">O original será preservado integralmente. Após anexar, revise os requisitos no formulário abaixo antes de aprová-los.</p>
+              </div>
+              <div class="qa-req-actions">
+                <button id="requirements-file-save" class="btn primary" type="button" disabled>Anexar arquivo à TF</button>
+                <span class="muted fine">É necessário salvar a TF antes de anexar um arquivo.</span>
+              </div>
+              <p id="requirements-file-feedback" class="qa-req-feedback" role="status" aria-live="polite"></p>
+              <div class="section-heading qa-req-files-heading">
+                <h3>Arquivos e versões</h3>
+                <p id="requirements-file-count" class="muted fine">Nenhum arquivo anexado</p>
+              </div>
+              <div id="requirements-file-list" class="qa-req-file-list"></div>
+            </section>
             <section class="panel qa-req-panel" aria-labelledby="requirements-source-title">
               <div class="section-heading"><h3 id="requirements-source-title">Adicionar requisitos a partir de texto</h3></div>
-              <p id="requirements-help" class="muted fine">Os requisitos permanecem privados e associados a esta TF. A leitura de PDF/DOCX e outros arquivos será adicionada na fase R2.</p>
+              <p id="requirements-help" class="muted fine">Os requisitos permanecem privados e associados a esta TF. Anexe arquivos privados ou digite os requisitos. As informações extraídas sempre precisam de revisão antes de serem cadastradas.</p>
               <label class="qa-req-field" for="requirements-source">
                 <span>Texto original dos requisitos</span>
                 <textarea id="requirements-source" rows="7" maxlength="30000" placeholder="RF001: Ao remover um desconto, o valor total do pedido deve ser recalculado.
@@ -243,6 +271,10 @@ RN001: Não permitir percentuais negativos fora da regra definida.
 Critérios de aceite:
 - O novo total é apresentado ao operador."></textarea>
               </label>
+              <div id="requirements-active-file" class="qa-req-active-file" hidden>
+                <span id="requirements-active-file-label"></span>
+                <button id="requirements-unlink-file" class="btn soft" type="button">Desvincular fonte</button>
+              </div>
               <div class="qa-req-actions">
                 <button id="requirements-organize" class="btn primary" type="button">Organizar requisitos</button>
                 <span class="muted fine">A extração inicial é feita no navegador, sem enviar o texto para IA.</span>
