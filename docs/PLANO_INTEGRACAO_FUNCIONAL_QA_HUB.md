@@ -1,6 +1,7 @@
 # QA Hub — Plano de integração funcional e contexto único
 
-**Estado:** proposta técnica, sem alterações em produção.  
+**Estado:** documento histórico de planejamento, com implementação posterior em PRs separadas.  
+**Atualização:** 06/11/2026 — fases de integração entregues nas PRs [#21](https://github.com/kaina-visualsoftware/QA-Hub/pull/21), [#22](https://github.com/kaina-visualsoftware/QA-Hub/pull/22), [#23](https://github.com/kaina-visualsoftware/QA-Hub/pull/23) e [#24](https://github.com/kaina-visualsoftware/QA-Hub/pull/24). Este texto registra requisitos e decisões planejadas, não comprova sozinho que cada item do backlog esteja concluído. Recursos legados de IA continuam parcialmente embutidos, e a evolução de performance/arquitetura prossegue.  
 **Data:** 05/11/2026.  
 **Repositório:** `kaina-visualsoftware/QA-Hub`.  
 **Dependência:** acesso e isolamento de dados continuam controlados por Supabase Auth + RLS.
