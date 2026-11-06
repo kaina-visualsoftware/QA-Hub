@@ -11,7 +11,8 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   sistema:"Financeiro",versao:"12.00",causa:"Filtro omitia valores negativos",
   correcao:"Critério corrigido",conclusao:"",observacoes:"",publica:false,
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
-const scenarios=[],documents=[],failures=[];
+const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[];
+let requirementImports=0,coverageSaves=0;
 let aiCalls=0,attachCalls=0,postSaves=0;
 const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -32,12 +33,41 @@ async function mock(route){
   if(p.endsWith("/rest/v1/qa_admins"))return send(null);
   if(p.endsWith("/rest/v1/qa_tarefas"))return send(tasks);
   if(p.endsWith("/rest/v1/qa_cenarios"))return send(scenarios);
-  if(p.endsWith("/rest/v1/qa_requisitos"))return send([]);
+  if(p.endsWith("/rest/v1/qa_requisitos"))return send(requirements);
+  if(p.endsWith("/rest/v1/qa_requisito_cenarios"))return send(requirementLinks);
+  if(p.endsWith("/rest/v1/qa_requisito_fontes"))return send([]);
+  if(p.endsWith("/rest/v1/qa_requisito_revisoes"))return send([]);
+  if(p.endsWith("/rest/v1/qa_geracao_contextos"))return send([]);
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
   if(p.endsWith("/rest/v1/qa_evidencias"))return send([]);
   if(p.endsWith("/rest/v1/qa_eventos"))return send([]);
   if(p.endsWith("/rest/v1/qa_generator_tests"))return send([],201);
   if(p.endsWith("/rest/v1/qa_generator_posts"))return send([],201);
+  if(p.endsWith("/rest/v1/rpc/qa_import_requisitos")){
+    requirementImports++;
+    const payload=req.postDataJSON();
+    assert.equal(payload.p_tarefa_id,taskId);
+    assert.match(payload.p_texto,/RF001/);
+    for(const [index,item] of payload.p_itens.entries()){
+      requirements.push({...item,id:"66666666-6666-4666-8666-"+
+        String(index+1).padStart(12,"0"),tarefa_id:taskId,user_id:userId,
+        fonte_id:null,versao:1,created_at:"2026-11-06T12:00:00.000Z",
+        updated_at:"2026-11-06T12:00:00.000Z"});
+    }
+    return send({tarefa_id:taskId,inserted:payload.p_itens.length,skipped:0});
+  }
+  if(p.endsWith("/rest/v1/rpc/qa_set_requirement_scenarios")){
+    coverageSaves++;
+    const payload=req.postDataJSON();
+    assert.equal(payload.p_tarefa_id,taskId);
+    requirementLinks.splice(0,requirementLinks.length,
+      ...payload.p_cenario_ids.map((id,index)=>({
+        id:"77777777-7777-4777-8777-"+String(index+1).padStart(12,"0"),
+        tarefa_id:taskId,requisito_id:payload.p_requisito_id,cenario_id:id
+      })));
+    return send({tarefa_id:taskId,requisito_id:payload.p_requisito_id,
+      linked:payload.p_cenario_ids.length,inserted:payload.p_cenario_ids.length,removed:0});
+  }
   if(p.endsWith("/rest/v1/rpc/qa_attach_generated_cases")){
     attachCalls++;
     const payload=req.postDataJSON();
@@ -107,6 +137,29 @@ try{
   await page.getByText(/Post salvo em Documentos/).waitFor();
   assert.equal(postSaves,1);
   assert.equal(aiCalls,2);
+
+  await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
+  await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
+  await page.getByText("Importar requisitos de texto (prévia e revisão)").click();
+  await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio")
+    .fill("RF001: A remoção de desconto deve atualizar o total do pedido.");
+  await page.getByRole("button",{name:"Organizar",exact:true}).click();
+  await page.getByRole("button",{name:/Aprovar selecionados na prévia/}).click();
+  await page.getByRole("button",{name:/Salvar 1 revisado/}).click();
+  await page.getByText(/1 requisito\(s\) importado/).waitFor();
+  assert.equal(requirementImports,1);
+  assert.equal(requirements.length,1);
+  assert.equal(requirements[0].estado,"aprovado");
+  await page.getByRole("tab",{name:"Cobertura"}).click();
+  await page.getByRole("button",{name:"Vincular cenários"}).click();
+  await page.getByRole("checkbox",{name:/Remover desconto/}).check();
+  await page.getByRole("button",{name:"Salvar vínculos"}).click();
+  await page.getByText(/1 cenário\(s\) associado/).waitFor();
+  assert.equal(coverageSaves,1);
+  assert.equal(requirementLinks.length,1);
+  assert.equal(requirementLinks[0].cenario_id,scenarios[0].id);
+  assert.equal(scenarios[0].status,"nao_executado");
+  assert.equal(tasks[0].status,"rascunho");
   assert.deepEqual(failures,[]);
-  console.log("E2E sintético React: login, contexto/consentimento, roteiro, casos não executados e post.");
+  console.log("E2E sintético React: login, IA, casos pendentes, post versionado, importação R1 e cobertura R4.");
 }finally{await browser.close()}
