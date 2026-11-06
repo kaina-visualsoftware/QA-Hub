@@ -204,3 +204,12 @@ e Mermaid forem incluídos no caminho inicial. O baseline
 medido em CI foi **286.560 bytes gzip**; isto não representa
 tempo real de carregamento, Core Web Vitals nem tamanho dos
 pesos do modelo baixados sob demanda.
+
+A rodada Chromium aprovada no commit `1ec95c1a`
+([evidência](https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42314979152))
+cobriu **21 combinações de tela e largura CSS** (320, 390 e 1366px),
+incluindo os dois diálogos: sem violações automáticas nas regras
+WCAG testadas e com restituição do foco após Escape. O contraste
+do estado vazio do workspace também foi corrigido. O orçamento
+e os testes estáticos seguiram verdes. Ainda há homologação
+assistiva manual pendente conforme o checklist.

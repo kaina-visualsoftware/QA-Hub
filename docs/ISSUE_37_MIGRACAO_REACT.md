@@ -350,6 +350,15 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   **286.560 bytes gzip**, versus limite de **358.400 bytes**.
   Este limite não mede latência real, memórias do dispositivo
   nem os pesos do modelo de IA.
-- **Pendente:** CI do último commit com E2E de foco/reflow,
-  homologação humana com leitor de tela e zoom, benchmark real
-  de velocidade/memória e RLS/Storage com contas reais.
+- **CI aprovada no commit `1ec95c1a`**: 21 estados/viewport CSS
+  em 320, 390 e 1366 px, sem violações automáticas WCAG nas regras
+  testadas, com Tab/Shift+Tab/Escape e restauração do foco nos
+  dois diálogos. Evidência:
+  https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42314979152.
+  Build/typecheck/lint/Vitest e orçamento de bundle:
+  https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42314979254.
+  Checks e navegador legado também passaram.
+- **Pendente:** homologação humana com leitores de tela e zoom real,
+  benchmark de rede/memória/Core Web Vitals e RLS/Storage com
+  contas reais. A verificação automática de viewport 320 px é
+  uma aproximação de reflow a 400%, não prova zoom nativo.
