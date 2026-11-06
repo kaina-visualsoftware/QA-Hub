@@ -5,7 +5,7 @@ import {POST_SYSTEM,messagesForGenerator} from '../supabase/functions/qa-generat
 
 test('post generator prompt requires technical publication sections, in order',()=>{
   const required=['TÍTULO','PRIMEIRO PARÁGRAFO','PARÁGRAFO DE COMPARAÇÃO',
-    'CAMINHO DE ACESSO','IMAGENS','Comportamento detalhado','TAREFA','JUSTIFICATIVA'];
+    'CAMINHO DE ACESSO','IMAGENS','Comportamento detalhado','7. "**TAREFA:**"','8. "**JUSTIFICATIVA:**"'];
   let previous=-1;
   for(const section of required){
     const index=POST_SYSTEM.indexOf(section);
