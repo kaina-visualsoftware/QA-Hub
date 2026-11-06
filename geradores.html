@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8">
+<html lang="pt-BR" data-theme="light"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QA Hub — Geradores</title>
 <script>
@@ -8,7 +8,11 @@
 (() => {
   const query = new URLSearchParams(location.search);
   if (query.get('embedded') === '1') {
-    document.documentElement.dataset.embedded = 'true';
+    const root = document.documentElement;
+    root.dataset.embedded = 'true';
+    // The QA Hub shell has a single light theme. Do not inherit the
+    // legacy dark mode, even if the OS prefers dark colors.
+    root.dataset.theme = 'light';
     return;
   }
   const requested = (query.get('mode') || location.hash.slice(1) || 'post').toLowerCase();
@@ -102,15 +106,15 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 </style>
 <style id="qa-embedded-generator-style">
 :root[data-embedded="true"]{color-scheme:light;--bg:#f5f7f7;--card:#fff;--tx:#202b38;--mut:#5b6e79;--bd:#d8e2e5;--ac:#0d786d;--acx:#fff;--sel:#e5f4f0}
-:root[data-embedded="true"] body{min-height:0;background:transparent;color:var(--tx);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root[data-embedded="true"] body{min-height:0;background:var(--bg);color:var(--tx);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 :root[data-embedded="true"] .app{display:block;min-height:0}
 :root[data-embedded="true"] nav{display:none!important}
-:root[data-embedded="true"] main{width:100%;max-width:none;padding:0!important;margin:0;overflow:visible}
+:root[data-embedded="true"] main{width:100%;max-width:none;padding:0!important;margin:0;overflow:visible;background:transparent}
 :root[data-embedded="true"] h2.t{display:none}
 :root[data-embedded="true"] .qa-generator-session{padding:10px 12px;margin:0 0 15px;background:#fff;border:1px solid var(--bd)}
 :root[data-embedded="true"] .qa-generator-session>div:first-child,
 :root[data-embedded="true"] .qa-return-mobile{display:none}
-:root[data-embedded="true"] .card,:root[data-embedded="true"] .hc{background:#fff}
+:root[data-embedded="true"] .card,:root[data-embedded="true"] .hc{background:var(--card);border-color:var(--bd)}
 :root[data-embedded="true"] .tl{background:#f8fbfa}
 :root[data-embedded="true"] .tl:hover{background:var(--sel)}
 :root[data-embedded="true"] button.p{background:#0d786d;color:#fff}
@@ -119,6 +123,31 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 :root[data-embedded="true"] .it{background:#fff}
 :root[data-embedded="true"] [hidden]{display:none!important}
 :root[data-embedded="true"] #prev{overflow-wrap:anywhere}
+:root[data-embedded="true"] .qa-generator-session,
+:root[data-embedded="true"] .qa-post-document,
+:root[data-embedded="true"] .qa-attach,
+:root[data-embedded="true"] .card,
+:root[data-embedded="true"] .hc{
+  background:var(--card);
+  color:var(--tx);
+  border:1px solid var(--bd);
+  border-radius:13px;
+  box-shadow:0 4px 18px rgba(13,45,56,.025);
+}
+:root[data-embedded="true"] .qa-post-document{padding:20px}
+:root[data-embedded="true"] .qa-post-document h3{color:var(--tx)}
+:root[data-embedded="true"] .qa-post-document label{color:#38515a}
+:root[data-embedded="true"] .qa-post-document input,
+:root[data-embedded="true"] .qa-post-document textarea,
+:root[data-embedded="true"] #t,
+:root[data-embedded="true"] #r{
+  background:#fff;
+  color:var(--tx);
+  border-color:var(--bd);
+}
+:root[data-embedded="true"] #prev code,
+:root[data-embedded="true"] #prev pre{background:var(--bg);color:var(--tx)}
+
 .qa-attach{margin-top:18px;padding:18px;border:1px solid #cbdeda;background:var(--card,#fff);border-radius:12px}
 .qa-attach h3{margin:0 0 8px;font-size:17px}.qa-attach .mu{font-size:13px;line-height:1.55}
 .qa-attach-toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:12px 0}
