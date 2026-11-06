@@ -990,6 +990,121 @@ window.addEventListener('beforeunload',event=>{
   event.preventDefault();
   event.returnValue='';
 });
+// Issue #33 — single-screen human execution, bound to the existing scenario ID.
+// No AI result can invoke this path. Errors leave stored data unchanged.
+let quickResultBusy=false,quickPending=null;
+async function commitQuickResult(scenario,status,observed=''){
+  if(quickResultBusy||state.isBusy||!state.currentId||!scenario||
+    scenario.tarefa_id!==state.currentId)return false;
+  const taskId=state.currentId;
+  if(scenario.status===status){
+    toast('Este cenário já possui essa situação. Edite o registro se precisar acrescentar observações.');
+    return true;
+  }
+  if(scenario.status!=='nao_executado'){
+    const confirmed=await askRecordConfirmation({
+      title:'Alterar o resultado deste cenário?',
+      description:'A execução atual de “'+scenario.titulo+'” já está registrada. O resultado anterior será preservado nas observações. Confirma uma nova execução?',
+      confirmText:'Atualizar resultado',danger:false
+    });
+    if(!confirmed||taskId!==state.currentId)return false;
+  }
+  let payload;
+  try{payload=quickExecutionPayload(scenario,status,observed);}
+  catch(error){toast(errMessage(error),true);return false;}
+  if(scenario.obtido&&scenario.status!=='nao_executado'){
+    const note='Execução anterior ('+(statuses[scenario.status]||scenario.status)+
+      '): '+scenario.obtido;
+    payload.observacoes=[scenario.observacoes||'',note].filter(Boolean).join('\n');
+  }
+  quickResultBusy=true;
+  $$('#scenarios-list [data-quick-status]').forEach(button=>button.disabled=true);
+  try{
+    const {data,error}=await db.from('qa_cenarios')
+      .update(payload).eq('id',scenario.id).eq('tarefa_id',taskId)
+      .select('id').maybeSingle();
+    if(error)throw error;
+    if(!data?.id)throw Error('O banco não confirmou o resultado do cenário.');
+    await refreshRecordList('scenario',taskId);
+    toast('Resultado salvo neste cenário. A situação geral da TF permanece inalterada.');
+    return true;
+  }catch(error){
+    toast('Falha ao registrar resultado: '+errMessage(error),true);
+    return false;
+  }finally{
+    quickResultBusy=false;
+    $$('#scenarios-list [data-quick-status]').forEach(button=>button.disabled=false);
+  }
+}
+function showQuickResultDialog(scenario,status){
+  if(!scenario||!['reprovado','bloqueado'].includes(status))return;
+  const dialog=$('#qa-quick-result-dialog');
+  if(dialog.open)return;
+  quickPending={scenarioId:scenario.id,status,taskId:state.currentId};
+  $('#qa-quick-title').textContent=status==='reprovado'?'Registrar falha':'Registrar bloqueio';
+  $('#qa-quick-intro').textContent=scenario.titulo+
+    ' · informe o comportamento observado para registrar a execução.';
+  $('#qa-quick-observed').value=scenario.status===status?scenario.obtido||'':'';
+  dialog.showModal();$('#qa-quick-observed').focus();
+}
+$('#qa-quick-cancel').addEventListener('click',()=>{
+  quickPending=null;$('#qa-quick-result-dialog').close();
+});
+$('#qa-quick-result-dialog').addEventListener('close',()=>{quickPending=null});
+$('#qa-quick-result-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!quickPending||quickResultBusy)return;
+  const item=state.scenarios.find(s=>s.id===quickPending.scenarioId);
+  if(!item||state.currentId!==quickPending.taskId)return;
+  const input=$('#qa-quick-observed');
+  if(!input.reportValidity())return;
+  const button=$('#qa-quick-confirm');
+  button.disabled=true;
+  const ok=await commitQuickResult(item,quickPending.status,input.value);
+  button.disabled=false;
+  if(ok&&$('#qa-quick-result-dialog').open)$('#qa-quick-result-dialog').close();
+});
+$('#qa-scenario-filter').addEventListener('change',renderScenarios);
+$('#qa-scenario-next').addEventListener('click',()=>{
+  const pending=state.scenarios.find(s=>s.status==='nao_executado');
+  if(!pending)return toast('Nenhum cenário pendente nesta TF.');
+  $('#qa-scenario-filter').value='pending';
+  renderScenarios();
+  const card=document.querySelector('[data-quick-card="'+pending.id+'"]');
+  card?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  card?.querySelector('[data-quick-status="aprovado"]')?.focus({preventScroll:true});
+});
+$('#qa-next-execute').addEventListener('click',()=>{
+  selectTab('cenarios');
+  if(state.scenarios.some(s=>s.status==='nao_executado'))
+    $('#qa-scenario-next').click();
+});
+$('#qa-next-derive').addEventListener('click',()=>{
+  const task=state.tasks.find(t=>t.id===state.currentId);
+  if(!task)return;
+  const {tested,conclusion,summary}=createCompletionDraft(task,state.scenarios);
+  if(!summary.finalizados)return toast('Execute ao menos um cenário antes de compor os resultados.',true);
+  const form=$('#task-form');
+  if((form.elements.descricao.value.trim()||form.elements.conclusao.value.trim())&&
+     !confirm('O formulário já contém descrição ou conclusão. Substituir pelos textos derivados dos cenários executados? Os dados somente serão salvos ao clicar em Salvar TF.'))
+    return;
+  form.elements.descricao.value=tested;
+  form.elements.conclusao.value=conclusion;
+  setFormDirty('task-form');
+  $('#qa-next-message').textContent='Resumo e conclusão sugeridos a partir dos resultados reais. Revise e clique Salvar TF; nada foi gravado automaticamente.';
+  form.elements.descricao.scrollIntoView({behavior:'smooth',block:'center'});
+  toast('Proposta preenchida para revisão. Não houve salvamento automático.');
+});
+$('#qa-next-report').addEventListener('click',()=>{
+  selectTab('documentos');
+  $('#document-generate-report').click();
+});
+$('#qa-next-diagram').addEventListener('click',()=>{
+  selectTab('diagramas');$('#add-diagram').click();
+});
+$('#qa-next-evidence').addEventListener('click',()=>{
+  selectTab('auditoria');$('#evidence-summary').focus();
+});
 document.addEventListener('click',async (event)=>{
   const target=event.target.closest('button');
   if(!target) return;
