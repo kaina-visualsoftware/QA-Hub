@@ -461,6 +461,9 @@ CENÁRIO 1 - Incluir produto
        await page.locator('#links-reference-list .qa-phase3-actions button').nth(1).click();
        assert.equal(await page.locator('#tab-btn-documentos').getAttribute('aria-selected'),'true');
        assert.match(await page.locator('#document-content').inputValue(),/Validar mensagens e regras de desconto/);
+       // Finish the document workflow so navigation does not discard the new draft.
+       await page.locator('#document-save').click();
+       await page.waitForFunction(()=>document.querySelector('#document-status').textContent.includes('versão 3'));
        await page.screenshot({path:'artifacts/ui/qa-phase3-links-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){
