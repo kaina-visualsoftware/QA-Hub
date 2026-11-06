@@ -80,7 +80,7 @@ export default function AdminPage() {
               value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
           <label className="field">Autor
-            <select value={ownership}
+            <select aria-label="Filtrar por autor" value={ownership}
               onChange={(event) => setOwnership(event.target.value as typeof ownership)}>
               <option value="all">Todos os autores</option>
               <option value="mine">Minhas TFs</option>

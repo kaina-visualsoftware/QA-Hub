@@ -138,9 +138,9 @@ try{
   await elevated.getByRole("heading",{name:"Painel administrativo"}).waitFor({timeout:20000});
   await elevated.getByText("TF de outra conta").waitFor();
   assert.ok(adminListCalls>=1,"Admin read should happen only after server-confirmed role");
-  await elevated.getByLabel("Autor").selectOption("mine");
+  await elevated.getByRole("combobox",{name:"Filtrar por autor"}).selectOption("mine");
   assert.equal(await elevated.getByText("TF de outra conta").count(),0);
-  await elevated.getByLabel("Autor").selectOption("others");
+  await elevated.getByRole("combobox",{name:"Filtrar por autor"}).selectOption("others");
   await elevated.getByText("TF de outra conta").waitFor();
   assert.deepEqual(errors,[]);
   console.log("E2E de acesso: visitante anônimo, publicação/despublicação explícita, usuário não-admin e administrador verificado.");
