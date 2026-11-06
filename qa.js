@@ -949,7 +949,7 @@ $('#diagram-generate').addEventListener('click',async()=>{
   if(state.isBusy || !state.currentId)return;
   const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
   const currentTask=state.tasks.find(t=>t.id===state.currentId);
-  const picked=$('input[name="diagram-scenario"]:checked').map(input=>input.value);
+  const picked=[...document.querySelectorAll('input[name="diagram-scenario"]:checked')].map(input=>input.value);
   const chosen=selectedScenarioContext(currentTask||{},state.scenarios,picked);
   const source=custom ? $('#diagram-ai-text').value.trim() :
     collectTaskContext(currentTask||{},chosen.selected);
