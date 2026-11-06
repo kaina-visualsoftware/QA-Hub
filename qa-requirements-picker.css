@@ -6,7 +6,7 @@
 .qa-r3-count{font-size:.78rem;font-weight:600;color:#27695d}
 .qa-r3-help{font-size:.81rem;color:#58727b;line-height:1.55;margin:0}
 .qa-r3-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
-.qa-r3-actions button{background:#fff;border:1px solid #d3e2dc;color:#255d54;border-radius:8px;cursor:pointer;padding:8px 11px;min-height:39px;font:600 .8rem/1.35 inherit;max-width:100%;white-space:normal}
+.qa-r3-actions button{background:#fff;border:1px solid #d3e2dc;color:#255d54;border-radius:8px;cursor:pointer;padding:8px 11px;min-height:39px;font-family:inherit;font-size:.8rem;font-weight:600;line-height:1.35;max-width:100%;white-space:normal}
 .qa-r3-actions button:hover{background:#eaf5f1}
 .qa-r3-actions button:disabled{opacity:.55;cursor:default}
 .qa-r3-status{margin:2px 0;font-size:.79rem;line-height:1.5;color:#406c61;overflow-wrap:anywhere}
