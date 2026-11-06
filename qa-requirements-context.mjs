@@ -18,7 +18,7 @@ export function approvedRequirementRows(rows,taskId){
   if(!Array.isArray(rows))throw Error('Resposta de requisitos inválida.');
   return rows.filter(item=>item&&item.estado==='aprovado'&&item.tarefa_id===taskId)
     .map(item=>({
-      id:String(item.id||''),tarefa_id:item.tarefa_id,
+      id:String(item.id||''),tarefa_id:item.tarefa_id,estado:'aprovado',
       codigo:clean(item.codigo),tipo:clean(item.tipo),titulo:clean(item.titulo),
       descricao:clean(item.descricao),criterios_aceite:clean(item.criterios_aceite),
       updated_at:String(item.updated_at||''),ordem:Number(item.ordem)||0
