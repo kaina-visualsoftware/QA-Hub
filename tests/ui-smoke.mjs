@@ -281,13 +281,18 @@ try {
     await page.locator('#sidebar .navigation a[data-route="ferramentas/release"]').evaluate(el=>el.click());
     await page.locator('#native-release').waitFor({state:'visible'});
     await page.locator('#native-release input').first().fill('12.10.06.0000');
-    await page.locator('#native-release textarea').nth(1).fill('Status 12\n#67866 — BUG — Correção de pedido');
+    await page.locator('#native-release .qa-native-release-grid textarea').first().fill('Status 12\n#67866 — BUG — Correção de pedido');
     await page.locator('#native-release .qa-native-actions > button').first().click();
     assert.match(await page.locator('#native-release .qa-native-output').innerText(),/Tarefas da Release/);
+    const advanced=page.locator('#native-release .qa-native-advanced');
+    assert.equal(await advanced.getAttribute('open'),null,'Optional release fields should be collapsed by default');
+    await page.locator('#native-release .qa-native-advanced summary').click();
+    assert.equal(await advanced.evaluate(node=>node.open),true,'Advanced release settings must be accessible');
+    await page.locator('#native-release .qa-native-advanced summary').click();
     const visual=await page.locator('#native-release').evaluate(node=>{
       const box=node.getBoundingClientRect();
       const grid=node.querySelector('.qa-native-grid');
-      const inputs=[...node.querySelectorAll('.qa-native-field')].map(field=>{
+      const inputs=[...node.querySelectorAll('.qa-native-release-grid > .qa-native-field')].map(field=>{
         const rect=field.getBoundingClientRect();
         return {left:rect.left,right:rect.right,width:rect.width};
       });
