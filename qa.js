@@ -550,6 +550,23 @@ function openDiagram(d=null) {
   $('#diagram-ai-text').value='';
   form.querySelector('[name="diagram-ai-origin"][value="task"]').checked=true;
   $('#diagram-ai-text-wrap').hidden=true;
+  $('#diagram-scenario-wrap').hidden=false;
+  const selected=new Set(Array.isArray(d?.origem_cenarios)&&d.origem_cenarios.length
+    ? d.origem_cenarios : state.scenarios.map(item=>item.id));
+  const group=$('#diagram-scenario-list');group.replaceChildren();
+  if(!state.scenarios.length){
+    const hint=document.createElement('p');hint.className='muted fine';
+    hint.textContent='Nenhum cenário cadastrado nesta TF.';group.append(hint);
+  }
+  for(const scenario of state.scenarios){
+    const label=document.createElement('label'),check=document.createElement('input');
+    check.type='checkbox';check.name='diagram-scenario';check.value=scenario.id;
+    check.checked=selected.has(scenario.id);
+    label.append(check,document.createTextNode(scenario.titulo));group.append(label);
+  }
+  state.diagramGenerationContext=d?{
+    kind:d.origem_tipo||'manual',ids:Array.isArray(d.origem_cenarios)?d.origem_cenarios:[]
+  }:null;
   $('#diagram-ai-progress').hidden=true;
   $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
   form.hidden=false;
@@ -904,7 +921,9 @@ $('#scenario-form').addEventListener('submit',async event=>{
   }catch(e){toast(errMessage(e),true)}finally{busy(button,false)}
 });
 $$('input[name="diagram-ai-origin"]').forEach(input=>input.addEventListener('change',()=>{
-  $('#diagram-ai-text-wrap').hidden=$('input[name="diagram-ai-origin"]:checked').value!=='text';
+  const custom=$('input[name="diagram-ai-origin"]:checked').value==='text';
+  $('#diagram-ai-text-wrap').hidden=!custom;
+  $('#diagram-scenario-wrap').hidden=custom;
 }));
 $('#task-visibility').addEventListener('change',()=>{
   const publicChoice=$('#task-visibility').value==='true';
@@ -916,8 +935,10 @@ $('#diagram-generate').addEventListener('click',async()=>{
   if(state.isBusy || !state.currentId)return;
   const custom=$('input[name="diagram-ai-origin"]:checked')?.value==='text';
   const currentTask=state.tasks.find(t=>t.id===state.currentId);
+  const picked=$('input[name="diagram-scenario"]:checked').map(input=>input.value);
+  const chosen=selectedScenarioContext(currentTask||{},state.scenarios,picked);
   const source=custom ? $('#diagram-ai-text').value.trim() :
-    collectTaskContext(currentTask||{},state.scenarios);
+    collectTaskContext(currentTask||{},chosen.selected);
   const error=$('#diagram-ai-error'),progress=$('#diagram-ai-progress');
   error.hidden=true;error.textContent='';
   if(!source.trim()){
@@ -935,6 +956,7 @@ $('#diagram-generate').addEventListener('click',async()=>{
       onProgress:message=>{progress.textContent=message;}
     });
     const code=cleanMermaid(result.code);
+    state.diagramGenerationContext={kind:custom?'texto':'tf',ids:custom?[]:chosen.ids};
     $('#diagram-source').value=code;
     setFormDirty('diagram-form');
     if(!$('#diagram-form').elements.titulo.value.trim()){
@@ -968,7 +990,9 @@ $('#diagram-form').addEventListener('submit',async event=>{
   if(!form.reportValidity())return;
   busy(button,true);
   try{
-    const values={titulo:form.elements.titulo.value.trim(),conteudo:horizontalFlowchart(form.elements.conteudo.value.trim()),updated_at:new Date().toISOString()};
+    const values={titulo:form.elements.titulo.value.trim(),conteudo:horizontalFlowchart(form.elements.conteudo.value.trim()),updated_at:new Date().toISOString(),
+      origem_tipo:state.diagramGenerationContext?.kind||'manual',
+      origem_cenarios:state.diagramGenerationContext?.ids||[]};
     const id=form.elements.id.value;
     const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
