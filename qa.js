@@ -15,6 +15,8 @@ import { slicePage } from './qa-phase4.mjs';
 import { createNativeTools } from './qa-native-tools.mjs';
 import { createPhase4Ui } from './qa-phase4-ui.mjs';
 import { createRequirementsUi } from './qa-requirements-ui.mjs';
+import { createRequirementPicker } from './qa-requirements-picker.mjs';
+import { combineDiagramContext,recordRequirementUsage } from './qa-requirements-context.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -23,6 +25,9 @@ const db = createClient(QA_CONFIG.url, QA_CONFIG.publishableKey);
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const diagramViewer=createDiagramViewer($('#diagram-viewer'));
+const diagramRequirementPicker=createRequirementPicker({
+  root:$('#diagram-requirements-picker'),db,getUserId:()=>state.user?.id
+});
 const state = { selectedTaskId: null, draftFromGenerator: null, user: null, tasks: [], scenarioStats: [], scenarios: [], diagrams: [], currentId: null, chart: null, signingUp: false, isBusy: false, dirtyForms: new Set(), activeHash: null, assistDraft: null, pendingScenarios: [], diagramGenerationContext: null, toolMode: null, toolFrameContext: null, taskListPage:0 };
 const statuses = { rascunho: 'Rascunho', em_teste: 'Em teste', aprovado: 'Aprovado', reprovado: 'Reprovado', bloqueado: 'Bloqueado', nao_executado: 'Não executado' };
 const taskFields = ['publica','codigo','titulo','tipo_teste','status','sistema','versao','ambiente','base_teste','empresa','testador','descricao','explicacao','causa','correcao','conclusao','observacoes','erro_reproduzido','funcionando','executado_em'];
@@ -675,6 +680,11 @@ function openDiagram(d=null) {
   state.diagramGenerationContext=d?{
     kind:d.origem_tipo||'manual',ids:Array.isArray(d.origem_cenarios)?d.origem_cenarios:[]
   }:null;
+  const focused=state.tasks.find(t=>t.id===state.currentId);
+  diagramRequirementPicker.load(focused).catch(error=>{
+    const message=$('#diagram-ai-error');
+    message.hidden=false;message.textContent='Falha ao carregar requisitos: '+errMessage(error);
+  });
   $('#diagram-ai-progress').hidden=true;
   $('#diagram-preview').textContent='Clique em Prévia para visualizar o diagrama.';
   form.hidden=false;
@@ -1060,10 +1070,19 @@ $('#diagram-generate').addEventListener('click',async()=>{
   const currentTask=state.tasks.find(t=>t.id===state.currentId);
   const picked=[...document.querySelectorAll('input[name="diagram-scenario"]:checked')].map(input=>input.value);
   const chosen=selectedScenarioContext(currentTask||{},state.scenarios,picked);
-  const source=custom ? $('#diagram-ai-text').value.trim() :
-    collectTaskContext(currentTask||{},chosen.selected);
   const error=$('#diagram-ai-error'),progress=$('#diagram-ai-progress');
   error.hidden=true;error.textContent='';
+  let source,selectedRequirements;
+  try{
+    if(diagramRequirementPicker.taskId!==state.currentId)
+      throw Error('Os requisitos desta TF ainda não foram carregados. Atualize antes de gerar.');
+    selectedRequirements=diagramRequirementPicker.getContext('');
+    const taskText=custom ? $('#diagram-ai-text').value.trim() :
+      collectTaskContext(currentTask||{},chosen.selected);
+    source=combineDiagramContext(taskText,selectedRequirements.text);
+  }catch(contextError){
+    error.textContent=errMessage(contextError);error.hidden=false;return;
+  }
   if(!source.trim()){
     error.textContent=custom?'Descreva o processo para gerar o diagrama.':'Esta TF ainda não tem informações suficientes.';
     error.hidden=false;
@@ -1079,7 +1098,11 @@ $('#diagram-generate').addEventListener('click',async()=>{
       onProgress:message=>{progress.textContent=message;}
     });
     const code=cleanMermaid(result.code);
-    state.diagramGenerationContext={kind:custom?'texto':'tf',ids:custom?[]:chosen.ids};
+    state.diagramGenerationContext={
+      kind:custom?'texto':'tf',ids:custom?[]:chosen.ids,
+      generationId:crypto.randomUUID(),
+      requirementsSnapshot:selectedRequirements.snapshots
+    };
     $('#diagram-source').value=code;
     setFormDirty('diagram-form');
     if(!$('#diagram-form').elements.titulo.value.trim()){
@@ -1120,6 +1143,17 @@ $('#diagram-form').addEventListener('submit',async event=>{
     const result=id?await db.from('qa_diagramas').update(values).eq('id',id).eq('tarefa_id',state.currentId):
       await db.from('qa_diagramas').insert({...values,user_id:state.user.id,tarefa_id:state.currentId});
     if(result.error)throw result.error;
+    if(state.diagramGenerationContext?.requirementsSnapshot?.length){
+      try{
+        await recordRequirementUsage(db,{
+          taskId:state.currentId,uid:state.user.id,type:'diagrama',
+          artifactRef:id||state.diagramGenerationContext.generationId,
+          snapshots:state.diagramGenerationContext.requirementsSnapshot
+        });
+      }catch(error){
+        toast('Diagrama salvo, mas não foi possível registrar os requisitos utilizados: '+errMessage(error),true);
+      }
+    }
     setFormDirty('diagram-form',false);
     $('#diagram-dialog').close();
     form.hidden=true;
