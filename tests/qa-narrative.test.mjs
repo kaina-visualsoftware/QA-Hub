@@ -6,7 +6,7 @@ test('issue 30: uppercase phrases are sentence-cased with accents and punctuatio
  assert.equal(normalizeNarrative('REALIZADO TESTE DE DEVOLUÇÃO.'),'Realizado teste de devolução.');
  assert.equal(normalizeNarrative('CONSULTA DE CPF VIA API'),'Consulta de CPF via API');
  assert.equal(normalizeNarrative('ERRO NA NF. CONSULTAR SQL!'),'Erro na NF. Consultar SQL!');
- assert.equal(normalizeNarrative('VALOR R$ 49,50.\r\nPERÍODO 2026-11-06!'),'Valor r$ 49,50.\r\nPeríodo 2026-11-06!');
+ assert.equal(normalizeNarrative('VALOR R$ 49,50.\r\nPERÍODO 2026-11-06!'),'Valor R$ 49,50.\r\nPeríodo 2026-11-06!');
 });
 test('issue 30: mixed case, URLs, emails, code and paths are not corrupted',()=>{
  const input='Gerado uma VENDA usando API do SIA.';
@@ -15,6 +15,7 @@ test('issue 30: mixed case, URLs, emails, code and paths are not corrupted',()=>
  assert.equal(normalizeNarrative('ENVIADO PARA QA@EXAMPLE.COM'),'Enviado para QA@EXAMPLE.COM');
  assert.equal(normalizeNarrative('ABRIR C:\\TEMP\\QA\\LOG.TXT'),'Abrir C:\\TEMP\\QA\\LOG.TXT');
  assert.equal(normalizeNarrative('CONSULTAR \u0060PedidoID\u0060'), 'Consultar \u0060PedidoID\u0060');
+ assert.equal(normalizeNarrative('SELECT ID, CODIGO FROM QA_TAREFAS;'),'SELECT ID, CODIGO FROM QA_TAREFAS;');
  assert.equal(normalizeNarrative('\u0060\u0060\u0060\nSELECT * FROM PEDIDO;\n\u0060\u0060\u0060'),'\u0060\u0060\u0060\nSELECT * FROM PEDIDO;\n\u0060\u0060\u0060');
 });
 test('issue 30: preserved line breaks, only narrative fields change',()=>{
