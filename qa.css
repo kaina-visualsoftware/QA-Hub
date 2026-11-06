@@ -792,3 +792,52 @@ button:disabled{cursor:wait;opacity:.7}
  .qa-req-saved-head{flex-direction:column}
  .qa-req-saved-editor>.btn{width:100%}
 }
+
+
+/* R2 · Private requirement files and immutable version history. */
+.qa-req-panel input[type=file]{
+  width:100%;min-width:0;max-width:100%;padding:10px 12px;
+  font-size:.82rem;line-height:1.5;background:#fff;color:#294a51;
+  border:1px solid #cbd9db;border-radius:9px;cursor:pointer;
+}
+.qa-req-panel input[type=file]::file-selector-button{
+  margin-right:13px;padding:8px 12px;background:#ecf5f1;
+  border:1px solid #c9ddd6;border-radius:8px;
+  color:#17594f;font-weight:650;cursor:pointer;
+}
+.qa-req-panel input[type=file]:disabled{cursor:not-allowed;opacity:.7}
+.qa-req-file-preview{margin:14px 0;padding:14px;background:#f7fbf9;
+  border:1px solid #dce9e4;border-radius:10px;min-width:0}
+.qa-req-file-preview textarea{min-height:116px;max-height:290px;
+  font-family:ui-monospace,Consolas,monospace;font-size:.8rem;
+  color:#2c4650}
+.qa-req-file-preview p{margin:9px 0 0}
+.qa-req-files-heading{padding-top:17px;margin-top:20px;
+  border-top:1px solid #e0ebe8}
+.qa-req-file-list{display:grid;gap:10px;min-width:0}
+.qa-req-attachment-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;min-width:0;padding:13px 15px;
+  border:1px solid #dce8e5;border-radius:10px;background:#fbfdfc;
+}
+.qa-req-attachment-info{min-width:0;flex:1 1 190px;overflow-wrap:anywhere}
+.qa-req-attachment-info strong{display:block;font-size:.86rem;line-height:1.45;color:#203d43}
+.qa-req-attachment-info small{display:block;margin-top:5px;font-size:.74rem;color:#587079}
+.qa-req-attachment-row .qa-req-actions{margin:0;gap:8px}
+.qa-req-attachment-row .btn{min-height:40px;white-space:normal}
+.qa-req-active-file{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;margin-top:13px;
+  padding:11px 13px;background:#eaf6f1;border:1px solid #c5e4d9;
+  color:#1b6358;border-radius:9px;font-size:.83rem;line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.qa-req-active-file>span{min-width:0;flex:1 1 180px}
+.qa-req-active-file .btn{min-height:40px}
+@media(max-width:600px){
+  .qa-req-attachment-row{padding:12px}
+  .qa-req-attachment-row .qa-req-actions{width:100%}
+  .qa-req-attachment-row .qa-req-actions .btn{flex:1 1 120px}
+  .qa-req-active-file .btn{width:100%}
+  .qa-req-file-preview{padding:12px}
+}
