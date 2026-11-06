@@ -29,7 +29,7 @@ function AppLayout() {
         <Link to="/" activeProps={{ className: "nav-link active" }} className="nav-link">
           <LayoutList size={18} /> Tarefas de teste
         </Link>
-        <Link to="/" search={{}} className="nav-link" hash="nova">
+        <Link to="/" search={{ newTask: true }} className="nav-link">
           <Plus size={18} /> Nova TF
         </Link>
       </nav>
@@ -65,7 +65,14 @@ function AppLayout() {
 }
 
 const rootRoute = createRootRoute({ component: AppLayout });
-const homeRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: Workspace });
+const homeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  validateSearch: (search: Record<string, unknown>) => ({
+    newTask: search.newTask === true || search.newTask === "1"
+  }),
+  component: Workspace
+});
 const taskRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tarefa/$taskId",

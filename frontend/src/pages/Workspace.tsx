@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ArrowRight, CheckCheck, Filter, Plus, Search, X } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
-import { createTask, getAdminRole, listTasks } from "../lib/data";
+import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
+import { parseReport } from "../lib/legacy-parser.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -15,6 +16,9 @@ export function Workspace() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const [showForm, setShowForm] = useState(false);
+  const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
+  const [extractionNotice, setExtractionNotice] = useState("");
+  const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const queryClient = useQueryClient();
@@ -32,8 +36,22 @@ export function Workspace() {
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
   });
   const create = useMutation({
-    mutationFn: (draft: TaskDraft) => createTask(userId, draft),
-    onSuccess: async (task) => {
+    mutationFn: async (draft: TaskDraft) => {
+      const task = await createTask(userId, draft);
+      let warning = "";
+      const selected = extracted.filter((item) => item.selected);
+      if (selected.length) {
+        try { await addExtractedScenarios(task.id, userId, selected); }
+        catch (error) { warning = error instanceof Error ? error.message : "Falha ao salvar cenários extraídos"; }
+      }
+      return { task, warning };
+    },
+    onSuccess: async ({ task, warning }) => {
+      if (warning) {
+        try { sessionStorage.setItem("qa-react-import-warning:" + task.id,
+          "TF salva, mas os cenários extraídos não foram adicionados: " + warning); } catch {}
+      }
+      setExtracted([]); setExtractionNotice("");
       setFocused(task.id);
       await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
       setShowForm(false);
@@ -43,8 +61,8 @@ export function Workspace() {
   });
 
   useEffect(() => {
-    if (window.location.hash === "#nova") setShowForm(true);
-  }, []);
+    if (newTask) setShowForm(true);
+  }, [newTask]);
 
   useEffect(() => {
     if (focusedId && tasks.data && !tasks.data.some((task) => task.id === focusedId)) setFocused(null);
@@ -94,9 +112,37 @@ export function Workspace() {
           <label className="field">Versão<input placeholder="Opcional" {...form.register("versao")} /></label>
         </div>
         <label className="field">Descrição / problema
-          <textarea rows={4} placeholder="Cole aqui o contexto que você já tem. Não precisa preencher todos os campos."
+          <textarea rows={6} placeholder="Cole um relatório completo ou descreva a TF. Não precisa preencher todos os campos."
             {...form.register("descricao")} />
         </label>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="secondary" type="button" onPress={() => {
+            const text = form.getValues("descricao");
+            try {
+              const parsed = parseReport(text);
+              form.setValue("titulo", parsed.titulo || "Relatório importado", { shouldValidate: true });
+              form.setValue("tipo_teste", parsed.tipo_teste);
+              form.setValue("descricao", parsed.descricao || text, { shouldValidate: true });
+              setExtracted(parsed.cenarios.map((item) => ({
+                titulo: item.titulo, passos: item.passos, esperado: item.esperado,
+                observacoes: "", selected: true
+              })));
+              setExtractionNotice(parsed.cenarios.length
+                ? parsed.cenarios.length + " cenário(s) explícito(s) identificado(s). Revise antes de salvar."
+                : "Descrição extraída. Não foram identificados cenários explícitos.");
+            } catch (error) { setExtractionNotice(error instanceof Error ? error.message : "Falha ao extrair"); }
+          }}>Extrair sem IA</Button>
+          <span className="text-muted text-sm">Análise local, sem envio do texto para terceiros.</span>
+        </div>
+        {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
+        {extracted.length > 0 && <fieldset className="extracted-cases">
+          <legend className="font-semibold">Cenários identificados — selecione para anexar</legend>
+          {extracted.map((item, index) => <label key={index} className="extracted-case">
+            <input type="checkbox" checked={item.selected} onChange={(e) =>
+              setExtracted((items) => items.map((v, i) => i === index ? {...v, selected: e.target.checked} : v))} />
+            <span><strong>{item.titulo}</strong><small>{item.passos.slice(0, 180)}</small></span>
+          </label>)}
+        </fieldset>}
         <div className="flex items-center gap-3 justify-end">
           <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
           <Button type="button" variant="secondary" onPress={() => setShowForm(false)}>Cancelar</Button>

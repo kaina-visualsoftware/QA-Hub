@@ -71,3 +71,22 @@ export async function saveScenarioResult(
   fail(error);
   if (!data) throw Error("Cenário não encontrado ou sem permissão de alteração.");
 }
+
+export async function addExtractedScenarios(
+  taskId: string, userId: string,
+  items: Array<{ titulo: string; passos: string; esperado: string; observacoes: string }>
+): Promise<void> {
+  if (!items.length) return;
+  if (items.length > 50) throw Error("Máximo de 50 cenários por importação.");
+  const rows = items.map((item, index) => {
+    const value = scenarioDraftSchema.parse({
+      titulo: item.titulo, passos: item.passos.slice(0, 20000),
+      esperado: (item.esperado || "Conferir o comportamento descrito nos passos.").slice(0, 20000),
+      observacoes: item.observacoes || ""
+    });
+    return {...value, tarefa_id: taskId, user_id: userId,
+      ordem: index + 1, obtido: "", status: "nao_executado"};
+  });
+  const { error } = await supabase.from("qa_cenarios").insert(rows);
+  fail(error);
+}
