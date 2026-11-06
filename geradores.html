@@ -537,6 +537,25 @@ function toolXml(){
 const defExec=()=>({});
 let CN=null;
 function renderExec(){CN=null;const b=$("exec");b.innerHTML="";const T=S.teste;
+ const taskId=new URLSearchParams(location.search).get('tf');
+ if(mode==='teste'&&taskId&&TASK_UUID.test(taskId)){
+  const note=document.createElement('p');
+  note.className='qa-linked-execution-note';
+  note.textContent='Este roteiro é um rascunho. A execução e os resultados reais são registrados na TF, não no histórico local do gerador.';
+  const link=document.createElement('a');
+  link.className='qa-linked-execution-link';
+  link.href='./qa.html#/tarefa/'+encodeURIComponent(taskId)+'?tab=execucao';
+  link.textContent='Abrir execução dos cenários da TF';
+  link.onclick=event=>{
+   if(window.parent!==window){
+    event.preventDefault();
+    parent.postMessage({type:'qa-hub:open-execution',taskId},location.origin);
+   }
+  };
+  b.append(note,link);
+  $('prev').style.display='';
+  return;
+ }
  const CH=(mode==="teste"&&T.md)?T.md.split(/^(?=## )/m):[],SI=CH.map((c,k)=>/^## Cen[aá]rio/.test(c)?k:-1).filter(k=>k>=0),P=SI.map(k=>CH[k]);
  if(!P.length){$("prev").style.display="";return}
  const sc=P.map(p=>({t:p.match(/^## (.*)/)[1].trim(),body:p.replace(/^## .*\n?/,"").replace(/\n-{3,}\s*$/,"")}));
