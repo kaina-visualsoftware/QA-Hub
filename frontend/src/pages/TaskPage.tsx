@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ArrowLeft, Check, CircleHelp, ExternalLink, FileText, GitBranchPlus, Plus, X } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
-  addScenario, getAdminRole, listScenarios, listTasks, saveScenarioResult, updateTask
+  addScenario, getAdminRole, listScenarios, listTasks, saveScenarioResult, updateTask,
+  editScenario, removeScenario, removeTask, setTaskStatus
 } from "../lib/data";
 import {
-  scenarioDraftSchema, taskDraftSchema, scenarioStatusLabels, taskStatusLabels, progressOf
+  scenarioDraftSchema, taskDraftSchema, scenarioStatusLabels, taskStatusLabels, taskStatuses, progressOf
 } from "../lib/contracts";
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -24,6 +25,7 @@ export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
   const { user } = useAuth();
   const userId = user?.id ?? "";
+  const navigate = useNavigate();
   const focusTask = useFocus((s) => s.setTask);
   const queryClient = useQueryClient();
   const role = useQuery({ queryKey: ["role", userId], queryFn: () => getAdminRole(userId), enabled: !!userId });
@@ -39,6 +41,9 @@ export default function TaskPage() {
   });
   const [editing, setEditing] = useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
+  const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
+  const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
+  const [importWarning, setImportWarning] = useState("");
   const [pending, setPending] = useState<{ scenario: Scenario; status: ExecutionResult["status"] } | null>(null);
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
@@ -54,6 +59,14 @@ export default function TaskPage() {
   });
 
   useEffect(() => { focusTask(taskId); }, [taskId, focusTask]);
+  useEffect(() => {
+    try {
+      const key = "qa-react-import-warning:" + taskId;
+      const message = sessionStorage.getItem(key);
+      if (message) { setImportWarning(message); sessionStorage.removeItem(key); }
+    } catch { /* optional browser storage */ }
+  }, [taskId]);
+  useEffect(() => { if (task) setNextStatus(task.status); }, [task?.status]);
   useEffect(() => {
     if (!task) return;
     taskForm.reset({
@@ -73,10 +86,12 @@ export default function TaskPage() {
     onSuccess: async () => { setEditing(false); setSaved("Alterações da TF salvas."); await invalidate(); }
   });
   const createScenario = useMutation({
-    mutationFn: (draft: ScenarioDraft) => addScenario(taskId, userId, draft,
-      Math.max(0, ...(scenarios.data ?? []).map((item) => item.ordem)) + 1),
+    mutationFn: (draft: ScenarioDraft) => editingScenario
+      ? editScenario(taskId, editingScenario.id, draft)
+      : addScenario(taskId, userId, draft,
+          Math.max(0, ...(scenarios.data ?? []).map((item) => item.ordem)) + 1),
     onSuccess: async () => {
-      scenarioForm.reset(); setShowScenarioForm(false); setSaved("Cenário adicionado como não executado.");
+      scenarioForm.reset(); setShowScenarioForm(false); setEditingScenario(null); setSaved("Cenário salvo.");
       await invalidate();
     }
   });
@@ -87,6 +102,23 @@ export default function TaskPage() {
       setPending(null); setObserved(""); setSaved("Execução registrada. A situação da TF não foi alterada automaticamente.");
       await invalidate();
     }
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: (status: (typeof taskStatuses)[number]) => setTaskStatus(taskId, status),
+    onSuccess: async () => { setSaved("Situação da TF alterada manualmente."); await invalidate(); }
+  });
+  const deleteTaskMutation = useMutation({
+    mutationFn: () => removeTask(taskId),
+    onSuccess: async () => {
+      focusTask(null);
+      await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
+      await navigate({ to: "/" });
+    }
+  });
+  const deleteScenarioMutation = useMutation({
+    mutationFn: (id: string) => removeScenario(taskId, id),
+    onSuccess: async () => { setSaved("Cenário excluído."); await invalidate(); }
   });
 
   const progress = progressOf(scenarios.data || []);
@@ -119,12 +151,34 @@ export default function TaskPage() {
         <Button variant="secondary" onPress={() => setEditing((value) => !value)}>{editing ? "Fechar edição" : "Editar TF"}</Button>
       </div>
     </div>
-    <section className="progress-panel" aria-label="Progresso da execução">
+    <section className="panel mt-4" aria-label="Situação da tarefa">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="field" style={{ minWidth: 190 }}>Situação da TF
+          <select value={nextStatus} onChange={(e) =>
+            setNextStatus(taskStatuses.find((value) => value === e.target.value) ?? "rascunho")}>
+            {taskStatuses.map((value) => <option value={value} key={value}>{taskStatusLabels[value]}</option>)}
+          </select>
+        </label>
+        <Button variant="secondary" onPress={() => void updateStatus.mutateAsync(nextStatus)}
+          isDisabled={nextStatus === task.status || updateStatus.isPending}>Atualizar situação</Button>
+        <div className="ml-auto">
+          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending} onPress={() => {
+            if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
+          }}>Excluir TF</Button>
+        </div>
+      </div>
+      {(updateStatus.isError || deleteTaskMutation.isError) &&
+        <p role="alert" className="notice error mt-3">
+          {updateStatus.error?.message || deleteTaskMutation.error?.message}
+        </p>}
+    </section>
+    <section className="progress-panel mt-4" aria-label="Progresso da execução">
       <div><strong>{progress.executed}/{progress.total}</strong><span>cenários executados</span></div>
       <div className="progress-meter"><span style={{ width: progress.total ? (progress.executed / progress.total * 100) + "%" : "0%" }} /></div>
       <small>Somente resultados salvos contam como executados.</small>
     </section>
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
+    {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
 
     {editing && <section className="panel mt-5">
       <div className="section-heading"><h2>Editar dados da TF</h2><button onClick={() => setEditing(false)} aria-label="Fechar edição"><X size={18} /></button></div>
@@ -145,13 +199,13 @@ export default function TaskPage() {
 
     <section className="action-rail mt-5" aria-label="Próximas ações">
       <div><p className="eyebrow">CONTINUE POR AQUI</p><h2>Execução e documentação</h2></div>
-      <Button onPress={() => setShowScenarioForm(true)}><Plus size={16} /> Adicionar cenário</Button>
+      <Button onPress={() => { setEditingScenario(null); scenarioForm.reset(); setShowScenarioForm(true); }}><Plus size={16} /> Adicionar cenário</Button>
       <a href={legacyLink(taskId, "diagramas")} className="secondary-link"><GitBranchPlus size={16} /> Diagramas <ExternalLink size={13} /></a>
       <a href={legacyLink(taskId, "documentos")} className="secondary-link"><FileText size={16} /> Posts / documentos <ExternalLink size={13} /></a>
     </section>
 
     {showScenarioForm && <section className="panel mt-5" aria-label="Novo cenário">
-      <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>Cadastrar cenário</h2></div>
+      <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>{editingScenario ? "Editar cenário" : "Cadastrar cenário"}</h2></div>
         <button onClick={() => setShowScenarioForm(false)} aria-label="Fechar"><X size={18} /></button></div>
       <form className="stack mt-4" onSubmit={scenarioForm.handleSubmit((values) => void createScenario.mutateAsync(values))}>
         <label className="field">Título<input placeholder="Ex.: Aplicar desconto em item desdobrado" {...scenarioForm.register("titulo")} />
@@ -163,7 +217,7 @@ export default function TaskPage() {
         <label className="field">Observações (opcional)<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onPress={() => setShowScenarioForm(false)}>Cancelar</Button>
-          <Button type="submit" isDisabled={createScenario.isPending}>Adicionar cenário</Button>
+          <Button type="submit" isDisabled={createScenario.isPending}>{editingScenario ? "Salvar cenário" : "Adicionar cenário"}</Button>
         </div>
         {createScenario.isError && <p role="alert" className="notice error">{createScenario.error.message}</p>}
       </form>
@@ -188,6 +242,21 @@ export default function TaskPage() {
           <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(index + 1).padStart(2, "0")}</span>
               <h3>{scenario.titulo}</h3></div><span className={"status-chip " + scenario.status}>
                 {scenarioStatusLabels[scenario.status]}</span></div>
+          <div className="flex gap-2 mt-3">
+            <button className="secondary-link" onClick={() => {
+              setEditingScenario(scenario);
+              scenarioForm.reset({
+                titulo: scenario.titulo, passos: scenario.passos,
+                esperado: scenario.esperado, observacoes: scenario.observacoes
+              });
+              setShowScenarioForm(true);
+              window.scrollTo({ top: 280, behavior: "smooth" });
+            }}>Editar cenário</button>
+            <button className="secondary-link" disabled={deleteScenarioMutation.isPending} onClick={() => {
+              if (window.confirm("Excluir permanentemente este cenário?"))
+                void deleteScenarioMutation.mutateAsync(scenario.id);
+            }}>Excluir</button>
+          </div>
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
             <button disabled={saveResult.isPending} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
             <button disabled={saveResult.isPending} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
@@ -202,7 +271,9 @@ export default function TaskPage() {
           </details>
         </article>)}
       </div>
-      {saveResult.isError && <p className="notice error mt-4" role="alert">{saveResult.error.message}</p>}
+      {(saveResult.isError || deleteScenarioMutation.isError) && <p className="notice error mt-4" role="alert">
+        {saveResult.error?.message || deleteScenarioMutation.error?.message}
+      </p>}
     </section>
 
     {pending && <div className="dialog-backdrop" role="presentation">

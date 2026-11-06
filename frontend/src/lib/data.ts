@@ -90,3 +90,37 @@ export async function addExtractedScenarios(
   const { error } = await supabase.from("qa_cenarios").insert(rows);
   fail(error);
 }
+
+export async function setTaskStatus(taskId: string, status: Task["status"]): Promise<void> {
+  const valid = taskSchema.shape.status.parse(status);
+  const { data, error } = await supabase.from("qa_tarefas").update({
+    status: valid, updated_at: new Date().toISOString()
+  }).eq("id", taskId).select("id").maybeSingle();
+  fail(error);
+  if (!data) throw Error("Sem permissão para alterar a situação da TF.");
+}
+
+export async function removeTask(taskId: string): Promise<void> {
+  const { data, error } = await supabase.from("qa_tarefas").delete()
+    .eq("id", taskId).select("id").maybeSingle();
+  fail(error);
+  if (!data) throw Error("Sem permissão para excluir a TF.");
+}
+
+export async function editScenario(
+  taskId: string, scenarioId: string, draft: ScenarioDraft
+): Promise<void> {
+  const fields = scenarioDraftSchema.parse(draft);
+  const { data, error } = await supabase.from("qa_cenarios").update({
+    ...fields, updated_at: new Date().toISOString()
+  }).eq("id", scenarioId).eq("tarefa_id", taskId).select("id").maybeSingle();
+  fail(error);
+  if (!data) throw Error("Sem permissão para editar o cenário.");
+}
+
+export async function removeScenario(taskId: string, scenarioId: string): Promise<void> {
+  const { data, error } = await supabase.from("qa_cenarios").delete()
+    .eq("id", scenarioId).eq("tarefa_id", taskId).select("id").maybeSingle();
+  fail(error);
+  if (!data) throw Error("Sem permissão para excluir o cenário.");
+}
