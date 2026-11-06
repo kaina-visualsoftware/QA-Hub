@@ -34,3 +34,4 @@ jobs:
             sleep 1
           done
           node tests/browser-smoke.mjs
+          node tests/browser-qa-flow.mjs
