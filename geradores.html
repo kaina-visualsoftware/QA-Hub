@@ -148,12 +148,24 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 .qa-linked-execution-note{margin:12px 0 8px;font-size:13px;line-height:1.55;color:#536d74}
 .qa-linked-execution-link{display:inline-flex;padding:9px 12px;border:1px solid #b7d6ce;background:#ebf6f2;border-radius:8px;font-size:13px;font-weight:700;color:#096f64;text-decoration:none}
 .qa-linked-execution-link:hover{background:#dff1eb}
+/* Opt-in release and comparison linking. */
+.qa-phase3-tool{margin:14px 0 17px;padding:17px;border:1px solid #bbdacf;border-radius:12px;background:#f1f8f5;min-width:0}
+.qa-phase3-tool h3{font-size:16px;margin:0 0 7px;color:#174c44}
+.qa-phase3-tool p{font-size:13px;line-height:1.55;color:#446b68;overflow-wrap:anywhere}
+.qa-phase3-tool button{min-height:40px}
+.qa-phase3-tool-status{margin-left:10px;font-size:13px;color:#247163}
+@media(max-width:600px){.qa-phase3-tool{padding:12px}.qa-phase3-tool button{width:100%}}
 </style>
 </head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>
 <main>
 <div class="qa-generator-session"><div><strong>Ferramentas de QA</strong><small id="session-label">As ferramentas locais não precisam de login.</small></div><div><button id="import-task" class="s" type="button" hidden>Usar dados da TF</button><a href="./qa.html" class="qa-return-mobile">Voltar às TFs</a></div></div>
 <h2 class="t" id="ttl"></h2><div id="tool"></div>
+<section id="qa-phase3-tool" class="qa-phase3-tool" hidden aria-labelledby="qa-phase3-tool-title">
+<h3 id="qa-phase3-tool-title">Vincular à TF</h3><p id="qa-phase3-tool-note"></p>
+<button class="p" type="button" id="qa-phase3-tool-action">Registrar na TF</button>
+<span class="qa-phase3-tool-status" id="qa-phase3-tool-status" role="status"></span>
+</section>
 <p id="ai-privacy-info" class="qa-ai-note" hidden>O relatório é enviado à NVIDIA somente ao clicar em Gerar.</p>
 <div class="grid" id="gr">
 <div><label for="t" id="l1"></label><textarea id="t"></textarea></div>
@@ -191,6 +203,7 @@ import {QA_CONFIG} from './qa-config.js';
 import {TASK_UUID} from './qa-workspace.mjs';
 import {createGeneratorReview} from './qa-generator-review.mjs';
 import {createPostDocumentUi} from './qa-post-doc.mjs';
+import {createPhase3GeneratorTools} from './qa-phase3-tools.mjs';
 const supa=createClient(QA_CONFIG.url,QA_CONFIG.publishableKey);
 const $=id=>document.getElementById(id);
 const POST=`Você escreve posts de melhoria para o fórum de uma software house (ERP MyCommerce), em português do Brasil, a partir da TAREFA e, se houver, do REQUISITO colados pelo usuário.
@@ -508,7 +521,7 @@ function toolRelease(){
   for(const r of R){const o=parseRec(r,team),k=r.st||$("rst").value;if(!g[k]){at.push(o.n+": status "+k+" não é 11 nem 12; tarefa não incluída");continue}
    g[k].push("- "+o.n+" — "+(o.ty||"TIPO NÃO INFORMADO")+" — "+(o.sp||"SPRINT NÃO INFORMADA")+(o.obs?" "+o.obs:""));at.push(...o.at)}
   const t="Tarefas da Release "+v+"\n\nStatus 12 (já estão em build)\n\n"+g[12].join("\n")+"\n\nStatus 11 (Aguardando versão)\n\n"+g[11].join("\n");
-  res("Lista organizada",esc(t),t);if(at.length)res("Conferir (não vai no texto)",esc(at.join("\n")),at.join("\n"))};
+  res("Lista organizada",esc(t),t);if(at.length)res("Conferir (não vai no texto)",esc(at.join("\n")),at.join("\n"));phase3Tools.showRelease({version:v,numbers:R.map(item=>tn(item.lines[0])[0]?.n).filter(Boolean)})};
  $("b2").onclick=()=>{clr();$("ts").textContent="";const R=cmpRel($("ra").value,$("rc").value);
   if(R.err){$("ts").textContent=R.err;return}
   {const F=fmtBB(R.out,$("rv").value.trim(),$("rp").value,$("rg").value);const pn=F.replace(/\[\/?b\]/g,""),hh=esc(F).replace(/\[b\]/g,"<b>").replace(/\[\/b\]/g,"</b>").replace(/\n/g,"<br>");res("Comunicado no padrão BBCode (pronto para o fórum)",esc(F),F,[["Copiar BBCode",F],["Copiar normal",pn,hh]])}
@@ -522,7 +535,7 @@ function toolDiff(){
   if(a.length>1500||b.length>1500){$("ts").textContent="Limite de 1500 linhas por texto.";return}$("ts").textContent="";
   const d=lcs(a,b),ad=d.filter(x=>x[0]==="+").length,rm=d.filter(x=>x[0]==="-").length;
   const C={"+":"background:rgba(46,160,67,.28)","-":"background:rgba(248,81,73,.28)"," ":""};
-  res("Resumo: "+ad+" linha(s) adicionada(s), "+rm+" removida(s); comparação linha a linha, sem interpretar o sentido",d.map(x=>'<div style="'+C[x[0]]+'">'+x[0]+" "+esc(x[1])+"</div>").join(""),d.map(x=>x[0]+" "+x[1]).join("\n"))}}
+  res("Resumo: "+ad+" linha(s) adicionada(s), "+rm+" removida(s); comparação linha a linha, sem interpretar o sentido",d.map(x=>'<div style="'+C[x[0]]+'">'+x[0]+" "+esc(x[1])+"</div>").join(""),d.map(x=>x[0]+" "+x[1]).join("\n"));phase3Tools.showComparison("diff_texto",{adicionados:ad,removidos:rm,alterados:0})}}
 function fl(el,p,m,w){const a={};for(const t of el.attributes)a[t.name]=t.value;const kids=[...el.children];let tx=[...el.childNodes].filter(n=>n.nodeType===3||n.nodeType===4).map(n=>n.nodeValue).join("");if(w)tx=tx.trim();m[p]={ns:el.namespaceURI||"",a,tx};const c={},i={};kids.forEach(k=>c[k.nodeName]=(c[k.nodeName]||0)+1);kids.forEach(k=>{i[k.nodeName]=(i[k.nodeName]||0)+1;fl(k,p+"/"+k.nodeName+(c[k.nodeName]>1?"["+i[k.nodeName]+"]":""),m,w)})}
 function toolXml(){
  panel([["xa","XML A (original)"],["xb","XML B (novo)"]],[["b1","Comparar estrutura"]],'<label style="font-weight:400;margin-top:10px"><input type="checkbox" id="xw" checked> Ignorar indentação e espaços nas pontas dos valores (namespaces, atributos, valores e elementos continuam sendo comparados)</label>');
@@ -535,7 +548,7 @@ function toolXml(){
    for(const k of new Set([...Object.keys(x.a),...Object.keys(y.a)]))if(x.a[k]!==y.a[k])o.push("ATRIBUTO  "+p+"@"+k+": "+(k in x.a?x.a[k]:"(ausente)")+" → "+(k in y.a?y.a[k]:"(ausente)"));
    if(x.tx!==y.tx)o.push("VALOR     "+p+": "+JSON.stringify(x.tx)+" → "+JSON.stringify(y.tx))}
   for(const p of Object.keys(B))if(!(p in A))o.push("ADICIONADO "+p);
-  const t=o.slice(0,3000).join("\n");res(o.length?o.length+" diferença(s) encontrada(s)":"Nenhuma diferença estrutural encontrada com as opções escolhidas",esc(t||"Elementos, atributos, namespaces e valores iguais."),t)}}
+  const t=o.slice(0,3000).join("\n");res(o.length?o.length+" diferença(s) encontrada(s)":"Nenhuma diferença estrutural encontrada com as opções escolhidas",esc(t||"Elementos, atributos, namespaces e valores iguais."),t);phase3Tools.showComparison("diff_xml",{adicionados:o.filter(line=>line.startsWith("ADICIONADO ")).length,removidos:o.filter(line=>line.startsWith("REMOVIDO ")).length,alterados:o.filter(line=>!line.startsWith("ADICIONADO ")&&!line.startsWith("REMOVIDO ")).length})}}
 // A geração não significa execução. Históricos antigos mantêm suas marcações manuais.
 const defExec=()=>({});
 let CN=null;
@@ -620,7 +633,7 @@ $("hg").onclick=async()=>{
  let n=0;for(const[k,r]of pend){try{await store(k).save(r);n++}catch(e){}}
  hmsg(n+" itens importados.");pend=null;$("hg").textContent="Validar backup";$("hb").value="";$("hp").style.display="none";renderHist()};
 /* UI */
-function load(){const s=S[mode],c=M[mode];
+function load(){const s=S[mode],c=M[mode];phase3Tools.clear();
  $("ttl").textContent=c.title;$("go").textContent=c.btn||"";
  $("gr").style.display=$("go").style.display=$("hist").style.display=c.tool?"none":"";$("tool").innerHTML="";if(c.tool){c.tool();const v=TV[mode]||{};for(const id in v){const e=$(id);if(e){if(typeof v[id]==="boolean")e.checked=v[id];else e.value=v[id]}}const old=RS[mode]||[];RS[mode]=[];old.forEach(a=>res(...a))}
  $("l1").textContent=c.l1||"Tarefa (cole a página da tarefa do SIA, com descrição e histórico)";$("l2").textContent=c.l2||"Requisito (opcional)";
@@ -744,6 +757,10 @@ const postDocumentUi=createPostDocumentUi({
   client:supa,getMode:()=>mode,getUserId:()=>uid,state:S,
   getTask:()=>reviewController.getTask(),
   embedded:document.documentElement.dataset.embedded==="true"
+});
+const phase3Tools=createPhase3GeneratorTools({
+ client:supa,getTask:()=>reviewController.getTask(),
+ getUserId:()=>uid,embedded:document.documentElement.dataset.embedded==="true"
 });
 function renderAttachReview(){return reviewController.render()}
 (async()=>{
