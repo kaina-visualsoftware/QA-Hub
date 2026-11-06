@@ -448,3 +448,51 @@ button:disabled{cursor:wait;opacity:.7}
 .qa-tool-frame{display:block;width:100%;height:740px;border:0;background:transparent;min-width:0}
 .qa-tools-view{min-width:0}
 @media(max-width:600px){.qa-tools-heading{margin-bottom:14px}.qa-tool-frame{width:100%}}
+
+/* Fase 2 — execução da TF, documentos privados e seleção de cenários. */
+.qa-execution-summary{display:inline-flex;max-width:100%;padding:10px 14px;background:#eaf5f2;border:1px solid #c9e3da;border-radius:10px;color:#164e4a;font-size:.84rem;font-weight:700;line-height:1.6}
+.qa-execution-list{display:grid;gap:14px;min-width:0}
+.qa-execution-case{padding:20px;min-width:0}
+.qa-execution-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.qa-execution-heading h3{font-size:1rem;overflow-wrap:anywhere;margin:0}
+.qa-execution-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0 0 18px}
+.qa-execution-details>div{background:#f5f9f8;padding:12px 14px;border:1px solid #e0e9e6;border-radius:9px;min-width:0}
+.qa-execution-details b{font-size:.76rem;color:#46666b}
+.qa-execution-details p{margin:6px 0 0;font-size:.85rem;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.qa-execution-fields{display:grid;grid-template-columns:minmax(165px,.6fr) minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.qa-execution-fields label{display:block;font-size:.78rem;color:#475c62;font-weight:600;min-width:0}
+.qa-execution-fields select,.qa-execution-fields textarea{display:block;width:100%;min-width:0;margin-top:7px;padding:10px 12px;border:1px solid #cbd9db;border-radius:9px;background:#fff;color:#1b3439;font-weight:400;font-size:.85rem}
+.qa-execution-fields textarea{resize:vertical;min-height:86px}
+.qa-execution-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.qa-execution-feedback{font-size:.8rem;color:#77603e}
+.qa-document-editor{padding:22px;margin-bottom:20px}
+.qa-document-editor .field-grid{display:grid;grid-template-columns:minmax(150px,.4fr) minmax(0,1fr);gap:14px;margin:16px 0}
+.qa-document-editor label{font-size:.79rem;font-weight:650;color:#38515a}
+.qa-document-editor input,.qa-document-editor select,.qa-document-editor textarea{display:block;width:100%;min-width:0;margin-top:7px;border-radius:9px;border:1px solid #cbd9db;background:#fff;color:#1b3439;padding:11px;font-weight:400}
+.qa-document-editor textarea{resize:vertical;line-height:1.55;font: .86rem/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
+.qa-document-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px}
+#document-status{font-size:.8rem;color:#356d66;line-height:1.5}
+.qa-documents-list{display:grid;gap:10px}
+.qa-document-row{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #dae5e3;background:#fff;border-radius:11px;padding:14px 17px;min-width:0}
+.qa-document-row>div{min-width:0}
+.qa-document-row strong{display:block;font-size:.9rem;overflow-wrap:anywhere}
+.qa-document-row small{display:block;color:#627780;font-size:.76rem;margin-top:5px}
+.qa-document-row button{flex-shrink:0}
+.qa-diagram-scenarios{border:1px solid #dce7e5;border-radius:11px;padding:13px 15px;margin:14px 0;min-width:0}
+.qa-diagram-scenarios legend{font-size:.81rem;font-weight:750;padding:0 5px;color:#314c54}
+.qa-diagram-scenario-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:10px 0}
+.qa-diagram-scenario-list label{display:flex;gap:9px;align-items:start;font-size:.8rem;font-weight:500;color:#34565a;overflow-wrap:anywhere}
+.qa-diagram-scenario-list input{width:17px;height:17px;flex-shrink:0;margin:1px 0}
+@media(max-width:900px){
+ .qa-execution-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .qa-execution-fields label:first-child{grid-column:1/-1}
+}
+@media(max-width:600px){
+ .qa-execution-case{padding:14px}
+ .qa-execution-details,.qa-execution-fields,.qa-document-editor .field-grid{grid-template-columns:1fr}
+ .qa-execution-fields label:first-child{grid-column:auto}
+ .qa-document-editor{padding:15px}
+ .qa-document-row{flex-direction:column;align-items:stretch}
+ .qa-document-row button{align-self:flex-start}
+ .qa-diagram-scenario-list{grid-template-columns:1fr}
+}
