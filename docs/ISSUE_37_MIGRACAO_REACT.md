@@ -247,3 +247,18 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   Validação pendente: contas reais, permissões cruzadas, usabilidade com
   leitores de tela, segurança de campos de conteúdo compartilhado e
   aprovação humana da política de publicação.
+
+## Callback isolado e higiene de sessão — incremento atual
+
+- auth.html é uma entrada Vite adicional, compilada junto da SPA.
+- O fluxo evita misturar tokens #access_token da Supabase Auth
+  com a rota #/ do TanStack Router.
+- O callback não imprime tokens ou códigos e usa location.replace
+  para não manter credenciais em URLs de navegação após sucesso.
+- A rota autenticada #/recuperar permite atualização de senha e
+  retorna à página inicial após a conclusão.
+- Query cache TanStack é descartado em mudança ou saída de conta.
+- Teste Chromium simula link inválido e recuperação de senha.
+- REDIRECT PADRÃO ainda é qa.html; auth.html exige allowlist/SSL,
+  deploy e testes Supabase Auth reais antes de ativação.
+- Sem mudança de banco, RLS, main ou deploy neste incremento.

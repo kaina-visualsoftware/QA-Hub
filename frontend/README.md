@@ -115,3 +115,21 @@ políticas administrativas.
 A publicação é opt-in e não existe no serviço publicado até o corte
 da migração. Testes de autorização no navegador usam Supabase simulado:
 não são equivalentes a um teste real de políticas RLS com duas contas.
+
+## Callback React de autenticação (preparado, NÃO ativado)
+
+A segunda entrada Vite auth.html recebe callbacks de Supabase em página
+separada. O fragmento de acesso do Supabase não compete com o hash router
+TanStack (#/). Após detectar uma sessão, redireciona para a SPA sem
+parâmetros temporários de autenticação na URL. O fluxo de recuperação
+segue para #/recuperar e oferece atualização de senha autenticada.
+
+O padrão VITE_AUTH_REDIRECT_URL permanece apontando para qa.html.
+Para adotar a nova entrada será necessário: deploy da SPA, permitir a URL
+https://kaina-visualsoftware.github.io/QA-Hub/auth.html na allowlist de
+redirects Supabase, configurar VITE_AUTH_REDIRECT_URL para essa URL,
+homologar email de confirmação, recuperação, PKCE/implicit e troca de conta.
+Links antigos continuam no legado até o corte aprovado.
+
+Os testes Chromium usam tokens e endpoints simulados, não configurações
+reais de autenticação. O cache TanStack é zerado em troca/saída de conta.
