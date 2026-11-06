@@ -199,3 +199,17 @@ O gerador de **Posts do fórum** segue a sequência obrigatória: **título em d
 Quando a melhoria menciona permissões, o post descreve os estados ativado e desativado e sinaliza nomes/grupos não informados. Alterações de colunas, largura e ordem de grids são descritas como configurações por usuário. Trechos insuficientemente fundamentados ficam explicitamente marcados para revisão, não apresentados como fatos confirmados.
 
 A geração mantém o resultado na tela para revisão e o salva no histórico. Ao usar **Salvar versão na TF**, a gravação é confirmada no banco; **somente depois** os campos de tarefa/requisitos, a prévia e o editor de post são limpos para o próximo post. O histórico, as versões documentais e a TF em foco permanecem. Em caso de falha no salvamento, os campos não são apagados. O texto do prompt do endpoint `qa-generators` deve ser implantado no Supabase junto à mudança do site.
+
+## R1 — Requisitos estruturados por TF
+
+A aba **Requisitos** permite colar até 30.000 caracteres de especificação, organizar localmente os itens em **RF/RNF/RN/CA**, revisar todos os campos, selecionar e aprovar os itens desejados antes de salvá-los. O organizador destaca códigos e classificações sugeridos e marca possíveis duplicatas; **não utiliza IA nem envia o texto a terceiros**. Critérios de aceite do texto são preservados. Requisitos podem ser editados, aprovados e arquivados, com busca e filtro.
+
+Os requisitos e seus textos-fonte são **privados ao proprietário**, mesmo quando a TF está configurada como pública. A RPC transacional \`qa_import_requisitos\` vincula os registros à **mesma TF**, limita cada lote a 100 itens, ignora códigos já existentes e não altera os demais campos da tarefa. Chaves compostas impedem vincular requisitos a fontes de outra TF; o cliente não pode editar IDs de proprietário/TF/fonte.
+
+Para uma **TF ainda não salva**, siga: criar TF → prosseguir à revisão → aba Requisitos → colar/organizar/revisar → **Salvar requisitos na TF** (prepara apenas na memória) → aba Resumo → **Salvar TF**. Só depois de a TF existir o lote é persistido. Se a importação falhar, a TF já criada não será duplicada ao tentar novamente. A interface mantém a prévia para recuperação.
+
+**Banco:** executar a migração aditiva \`supabase/qa_r1_requirements.sql\`, que cria \`qa_requisito_fontes\`, \`qa_requisitos\`, RLS, índices e RPC. Não há alterações destrutivas em TFs, cenários ou documentos.
+
+**Fases posteriores:** R2 adicionará anexos PDF/DOCX/TXT/MD; R3 reutilizará os requisitos aprovados nos geradores; R4 acrescentará revisões históricas e a matriz requisito↔cenário. A R1 **não** habilita upload nem inclusão automática de requisitos nos prompts.
+
+**Testes:** \`node --test tests/qa-requirements.test.mjs\` e smoke do Chromium nas resoluções 320/390/768/1366, incluindo criação da TF, prévia, aprovação, salvamento no banco sem TF duplicada e responsividade.
