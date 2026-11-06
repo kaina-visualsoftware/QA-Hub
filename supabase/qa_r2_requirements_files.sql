@@ -137,7 +137,7 @@ begin
     raise exception 'Caminho do anexo inválido' using errcode='22023';
   end if;
   if p_nome is null or char_length(btrim(p_nome)) not between 1 and 180
-    or p_nome like '%/%' or p_nome like '%\%' or
+    or p_nome like '%/%' or position(chr(92) in p_nome)>0 or
     p_mime not in ('application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain','text/markdown') or
