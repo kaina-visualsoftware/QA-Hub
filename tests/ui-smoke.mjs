@@ -596,6 +596,8 @@ CENÁRIO 1 - Incluir produto
     }
     const title=page.locator('#task-form input[name="titulo"]');
     await title.fill('Teste de responsividade '+width);
+    await page.locator('#task-form textarea[name="descricao"]').fill(
+      'GERADO UMA VENDA TAL\nCONSULTA DE CPF VIA API');
     if(!(await page.locator('#save-status').isVisible())){
       const details=await page.evaluate(()=>{
         const n=document.querySelector('#save-status');
@@ -618,6 +620,10 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction((expected)=>document.querySelector('#scenarios-number').textContent===String(expected),width===320?0:1);
     assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
     assert.equal(await page.locator('#tab-btn-cenarios').isDisabled(),false);
+    assert.equal(await page.locator('#qa-next-actions').isVisible(),true);
+    assert.match(await page.locator('#qa-next-test').getAttribute('href'),/#\/ferramentas\/teste\?tf=/);
+    assert.equal(await page.locator('#task-form textarea[name="descricao"]').inputValue(),
+      'Gerado uma venda tal\nConsulta de CPF via API');
     await page.locator('#tab-btn-requisitos').click();
     await page.waitForFunction(()=>document.querySelector('#requirements-number').textContent==='2');
     assert.match(await page.locator('#requirements-count').innerText(),/2 aprovado/);
@@ -791,6 +797,30 @@ CENÁRIO 1 - Incluir produto
       await page.waitForFunction(()=>document.querySelectorAll('.qa-r4-revision').length>=1);
       assert.match(await page.locator('.qa-r4-revision').first().innerText(),/Versão 1/);
       await page.screenshot({path:'artifacts/ui/qa-r4-coverage-'+width+'.png',fullPage:true});
+      // Issue #33: fast human execution from the same scenario card.
+      await page.locator('#tab-btn-cenarios').click();
+      await page.locator('#scenarios-list [data-quick-status="aprovado"]').first().click();
+      await page.waitForFunction(()=>window.__qaR1Rows.qa_cenarios
+        .some(s=>s.titulo==='Cenário novo no modal'&&s.status==='aprovado'));
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_cenarios
+        .find(s=>s.titulo==='Cenário novo no modal').obtido),'',
+        'Approving by a deliberate click must not fabricate an observed result');
+      assert.match(await page.locator('#qa-scenario-progress').innerText(),/1\/1 executados/);
+      await page.locator('#scenarios-list [data-quick-status="nao_executado"]').first().click();
+      await page.locator('#record-confirm-accept').click();
+      await page.waitForFunction(()=>window.__qaR1Rows.qa_cenarios
+        .some(s=>s.titulo==='Cenário novo no modal'&&s.status==='nao_executado'));
+      await page.locator('#scenarios-list [data-quick-status="reprovado"]').first().click();
+      await page.locator('#qa-quick-result-dialog').waitFor({state:'visible'});
+      await page.locator('#qa-quick-observed').fill('A rotina retornou mensagem diferente da esperada.');
+      await page.locator('#qa-quick-confirm').click();
+      await page.waitForFunction(()=>window.__qaR1Rows.qa_cenarios
+        .some(s=>s.titulo==='Cenário novo no modal'&&s.status==='reprovado'));
+      await page.locator('#scenarios-list [data-quick-status="nao_executado"]').first().click();
+      await page.locator('#record-confirm-accept').click();
+      await page.waitForFunction(()=>window.__qaR1Rows.qa_cenarios
+        .some(s=>s.titulo==='Cenário novo no modal'&&s.status==='nao_executado'));
+      await page.screenshot({path:'artifacts/ui/qa-quick-execution-'+width+'.png',fullPage:true});
       // Phase 2: results are persisted on the original scenario, never inferred.
       await page.locator('#tab-btn-execucao').click();
       await page.locator('#execution-list .qa-execution-case').waitFor({state:'visible'});

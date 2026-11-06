@@ -28,7 +28,7 @@ test('parses scenario headings and fields, never inferring a passed state',()=>{
  assert.equal(parsed[0].titulo,'Abrir pedido');
  assert.match(parsed[0].passos,/2. Abrir pedido/);
  assert.equal(parsed[0].esperado,'- Pedido aberto.');
- assert.equal(parsed[0].observacoes,'Abrir a tela.');
+ assert.equal(parsed[0].observacoes,'Objetivo:\nAbrir a tela.');
  assert.equal(parsed[1].titulo,'Editar pedido');
  assert.ok(parsed.every(x=>x.selected));
  assert.ok(parsed.every(x=>!('status' in x)));

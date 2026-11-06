@@ -151,6 +151,25 @@
           <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-requisitos" type="button" data-tab="requisitos" role="tab" aria-controls="tab-requisitos" aria-selected="false" tabindex="-1">Requisitos <span id="requirements-number">0</span></button><button class="tab" id="tab-btn-cobertura" type="button" data-tab="cobertura" role="tab" aria-controls="tab-cobertura" aria-selected="false" tabindex="-1">Cobertura <span id="coverage-count">0</span></button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
+            <section id="qa-next-actions" class="panel qa-next-actions" aria-labelledby="qa-next-title" hidden>
+              <div class="qa-next-head"><div><h2 id="qa-next-title">Próximo passo nesta TF</h2>
+                <p id="qa-next-caption" class="muted fine">Salve a TF para gerar e executar testes sem preencher novamente os dados.</p></div>
+                <span id="qa-next-progress" class="qa-next-progress">0/0 executados</span></div>
+              <div class="qa-next-buttons">
+                <a id="qa-next-test" href="#/ferramentas/teste" class="btn primary">Gerar casos com a TF</a>
+                <button id="qa-next-execute" type="button" class="btn soft">Executar cenários</button>
+                <button id="qa-next-derive" type="button" class="btn soft">Preencher resumo dos testes</button>
+                <button id="qa-next-report" type="button" class="btn soft">Gerar relatório</button>
+              </div>
+              <details class="qa-next-more"><summary>Outras ações desta TF</summary>
+                <div class="qa-next-buttons">
+                  <a id="qa-next-post" href="#/ferramentas/post" class="btn soft">Gerar post</a>
+                  <button id="qa-next-diagram" type="button" class="btn soft">Criar diagrama</button>
+                  <button id="qa-next-evidence" type="button" class="btn soft">Registrar evidência</button>
+                </div>
+              </details>
+              <p id="qa-next-message" class="muted fine" role="status" aria-live="polite"></p>
+            </section>
             <form id="task-form">
               <section class="panel form-panel">
                 <div class="section-heading"><h2>Dados da TF</h2></div>
@@ -176,7 +195,7 @@
               <section class="panel form-panel">
                 <div class="section-heading"><h2>Descrição e análise</h2></div>
                 <div class="stack">
-                  <label>O que foi testado? <textarea name="descricao" rows="4" placeholder="Objetivo e abrangência do teste"></textarea></label>
+                  <label>Descrição da TF / O que será testado (opcional) <textarea name="descricao" rows="4" placeholder="Cole a descrição ou use Preencher resumo dos testes após executar os cenários"></textarea></label>
                 </div>
                 <details id="task-analysis-details" class="optional-details">
                   <summary>Análise técnica <span>Funcionamento, causa e correção</span></summary>
@@ -353,7 +372,13 @@ Critérios de aceite:
             </section>
           </div>
           <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
-            <div class="section-top"><div><h2>Cenários de teste</h2><p class="muted">Cada cenário possui passos e resultado próprios.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
+            <div class="section-top"><div><h2>Testar cenários</h2><p class="muted">Registre o resultado real sem abrir um formulário para cada caso. Somente ações do QA registram execução.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
+            <div class="qa-scenarios-toolbar">
+              <span id="qa-scenario-progress" class="qa-next-progress" role="status">0/0 executados</span>
+              <label>Mostrar <select id="qa-scenario-filter"><option value="all">Todos</option><option value="pending">Pendentes</option><option value="failed">Com falha</option><option value="blocked">Bloqueados</option></select></label>
+              <button id="qa-scenario-next" class="btn soft" type="button">Próximo pendente</button>
+              <a id="qa-scenario-generator" class="btn soft" href="#/ferramentas/teste">Gerar mais casos</a>
+            </div>
             <div id="scenarios-list" class="stack gap-md"></div>
             
           </div>
@@ -470,6 +495,17 @@ Critérios de aceite:
   </div>
 
   <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+<dialog id="qa-quick-result-dialog" class="qa-quick-dialog" aria-labelledby="qa-quick-title" aria-modal="true">
+  <form id="qa-quick-result-form">
+    <h2 id="qa-quick-title">Registrar resultado</h2>
+    <p id="qa-quick-intro" class="muted fine"></p>
+    <label>O que ocorreu? <textarea id="qa-quick-observed" rows="4" minlength="5" maxlength="10000" required placeholder="Descreva o erro ou o motivo do bloqueio"></textarea></label>
+    <div class="qa-quick-dialog-actions">
+      <button id="qa-quick-cancel" type="button" class="btn soft">Cancelar</button>
+      <button id="qa-quick-confirm" type="submit" class="btn primary">Salvar resultado</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="scenario-dialog" class="qa-editor-dialog qa-scenario-dialog" aria-labelledby="scenario-form-title" aria-modal="true">
     <div class="qa-dialog-shell">
       <form id="scenario-form" class="qa-modal-form" hidden>

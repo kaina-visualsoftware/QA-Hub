@@ -2,6 +2,7 @@ import {
   EXECUTION_STATUSES, executionSummary, buildExecutionReport,
   cleanDocumentName, saveTfDocument
 } from './qa-phase2.mjs';
+import {normalizeNarrative} from './qa-narrative.mjs';
 
 export function createPhase2Ui({
   db,getTask,getScenarios,getTaskId,refreshScenarios,onOpenDocuments,markDirty,toast
@@ -74,8 +75,8 @@ export function createPhase2Ui({
       save.addEventListener('click',async()=>{
         if(working||!getTaskId()||getTaskId()!==taskId)return;
         const chosen=statusSelect.value,observed=outcomeText.value.trim(),notes=remarkText.value.trim();
-        if((chosen==='aprovado'||chosen==='reprovado')&&!observed){
-          info.textContent='Descreva o resultado observado antes de aprovar ou reprovar.';
+        if(chosen==='reprovado'&&!observed){
+          info.textContent='Descreva o resultado observado antes de reprovar.';
           outcomeText.focus();return;
         }
         if(chosen==='bloqueado'&&!observed&&!notes){
@@ -85,7 +86,7 @@ export function createPhase2Ui({
         working=true;save.disabled=true;info.textContent='Salvando…';
         try{
           const {data,error}=await db.from('qa_cenarios').update({
-            status:chosen,obtido:observed,observacoes:notes,
+            status:chosen,obtido:normalizeNarrative(observed),observacoes:normalizeNarrative(notes),
             updated_at:new Date().toISOString()
           }).eq('id',scenario.id).eq('tarefa_id',taskId).select('id').maybeSingle();
           if(error)throw error;

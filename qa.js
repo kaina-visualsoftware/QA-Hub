@@ -18,6 +18,8 @@ import { createRequirementsUi } from './qa-requirements-ui.mjs';
 import { createRequirementPicker } from './qa-requirements-picker.mjs';
 import { createRequirementUsageUi } from './qa-requirements-usage-ui.mjs';
 import { createCoverageUi } from './qa-requirements-coverage-ui.mjs';
+import {normalizeNarrative,normalizeNarrativeFields,TASK_NARRATIVE_FIELDS,SCENARIO_NARRATIVE_FIELDS} from './qa-narrative.mjs';
+import {quickExecutionPayload,createCompletionDraft,progressForTask} from './qa-fast-execution.mjs';
 import { combineDiagramContext,recordRequirementUsage } from './qa-requirements-context.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
@@ -228,12 +230,17 @@ db.auth.onAuthStateChange((event) => {
 
 function taskItem(task) {
   const scenarios = state.scenarioStats.filter(s => s.tarefa_id === task.id);
+  const progress=progressForTask(scenarios);
   const prefix = task.codigo ? task.codigo.slice(0,5) : 'TF';
   return '<div class="task-item"><a href="#/tarefa/' + encodeURIComponent(task.id) + '">' +
     '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
     '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
     scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
-    '</small></span></a>' + (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) + '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
+    '</small><small class="qa-task-progress">' + progress.done + '/' + progress.total + ' executados</small></span></a>' +
+    (progress.pending?'<a class="qa-task-continue" href="#/tarefa/' + encodeURIComponent(task.id) +
+      '?tab=cenarios">Continuar testes</a>':'') +
+    (task.publica ? '<span class="task-sharing">Pública</span>' : '') + statusBadge(task.status) +
+    '<span class="task-date">' + formatDate(task.executado_em) + '</span></div>';
 }
 function renderTasks() {
   const query = $('#task-search').value.toLocaleLowerCase('pt-BR').trim();
@@ -537,6 +544,8 @@ function openNewTask() {
   state.assistDraft=null;
   state.pendingScenarios=[];
   state.currentId=null;
+  $('#qa-next-actions').hidden=true;
+  $('#qa-scenario-filter').value='all';
   phase2.reset();
   phase4.reset();
   requirementUsage.reset();
@@ -591,6 +600,7 @@ async function openTask(id) {
   if (!task) { toast('Tarefa não encontrada ou sem acesso.',true); location.hash = '#/tarefas'; return; }
   clearFormDirty();
   state.currentId = id;
+  state.scenarios=[];state.diagrams=[];
   focusTask(id);
   setTaskStep('review');
   $('#draft-scenario-review').hidden=true;
@@ -634,18 +644,65 @@ function updatePublicLink(task){
   anchor.hidden=!(task?.id&&task.publica);
   if(task?.id&&task.publica)anchor.href='./public.html?tf='+encodeURIComponent(task.id);
 }
+function renderTaskNextActions(){
+  const id=state.currentId,task=state.tasks.find(t=>t.id===id);
+  const box=$('#qa-next-actions');
+  box.hidden=!task;
+  if(!task)return;
+  const progress=progressForTask(state.scenarios.filter(s=>s.tarefa_id===id));
+  $('#qa-next-progress').textContent=progress.done+'/'+progress.total+' executados';
+  $('#qa-next-caption').textContent=progress.total
+    ?progress.pending+' cenário(s) pendente(s) · '+progress.failed+' com falha · '+progress.blocked+' bloqueado(s).'
+    :'Esta TF ainda não tem casos. Gere um roteiro ou adicione o primeiro cenário.';
+  $('#qa-next-test').href='#/ferramentas/teste?tf='+encodeURIComponent(id);
+  $('#qa-next-post').href='#/ferramentas/post?tf='+encodeURIComponent(id);
+  $('#qa-scenario-generator').href='#/ferramentas/teste?tf='+encodeURIComponent(id);
+  $('#qa-next-derive').disabled=!progress.done;
+  $('#qa-next-report').disabled=!progress.total;
+  $('#qa-next-message').textContent='';
+}
 function renderScenarios() {
-  $('#scenarios-number').textContent = state.scenarios.length;
-  $('#scenarios-list').innerHTML = state.scenarios.length ? state.scenarios.map((s,i)=>
-    '<article class="scenario-card"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
-    esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+'" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button><button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
-    '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
-    (s.passos?'<p class="field-label">Passos executados</p><p class="scenario-content">'+esc(s.passos)+'</p>':'')+
-    (s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'')+
-    (s.obtido?'<p class="field-label">Resultado obtido</p><p class="scenario-content">'+esc(s.obtido)+'</p>':'')+
-    (s.observacoes?'<p class="field-label">Observações</p><p class="scenario-content">'+esc(s.observacoes)+'</p>':'')+
-    '</article>').join('') :
-    '<div class="empty"><strong>Sem cenários cadastrados</strong>Adicione seus passos e resultados individualmente.</div>';
+  const progress=progressForTask(state.scenarios);
+  $('#scenarios-number').textContent=state.scenarios.length;
+  $('#qa-scenario-progress').textContent=progress.done+'/'+progress.total+
+    ' executados · '+progress.failed+' com falha · '+progress.blocked+' bloqueado(s)';
+  $('#qa-scenario-next').disabled=!progress.pending;
+  const filter=$('#qa-scenario-filter').value;
+  const filtered=state.scenarios.filter(s=>filter==='all'||
+    filter==='pending'&&s.status==='nao_executado'||
+    filter==='failed'&&s.status==='reprovado'||
+    filter==='blocked'&&s.status==='bloqueado');
+  $('#scenarios-list').innerHTML=filtered.length ? filtered.map((s)=>{
+    const i=state.scenarios.indexOf(s);
+    const quick=(status,title,extra='')=>
+      '<button type="button" class="btn soft qa-quick-choice '+extra+
+      '" data-quick-id="'+esc(s.id)+'" data-quick-status="'+status+
+      '" aria-label="'+esc(title)+' — '+esc(s.titulo)+'">'+esc(title)+'</button>';
+    const details=[
+      s.passos?'<p class="field-label">Passos</p><p class="scenario-content">'+esc(s.passos)+'</p>':'',
+      s.esperado?'<p class="field-label">Resultado esperado</p><p class="scenario-content">'+esc(s.esperado)+'</p>':'',
+      s.obtido?'<p class="field-label">Resultado observado</p><p class="scenario-content">'+esc(s.obtido)+'</p>':'',
+      s.observacoes?'<p class="field-label">Observações</p><p class="scenario-content">'+esc(s.observacoes)+'</p>':''
+    ].join('');
+    return '<article class="scenario-card qa-fast-card" data-quick-card="'+esc(s.id)+'"><header><div><p class="eyebrow">CENÁRIO '+(i+1).toString().padStart(2,'0')+'</p><h3>'+
+      esc(s.titulo)+'</h3></div><div class="card-actions"><button data-edit-scenario="'+esc(s.id)+
+      '" type="button">Editar</button><button data-delete-scenario="'+esc(s.id)+'" type="button">Excluir</button>'+
+      '<button data-scenario-coverage="'+esc(s.id)+'" type="button">Cobertura</button></div></header>'+
+      '<div class="scenario-meta">'+statusBadge(s.status)+'</div>'+
+      (s.obtido?'<p class="qa-quick-inline-result">Resultado registrado: '+esc(s.obtido)+'</p>':'')+
+      '<div class="qa-quick-results" role="group" aria-label="Resultado de '+esc(s.titulo)+'">'+
+      quick('aprovado','Funcionou','qa-quick-success')+
+      quick('reprovado','Não funcionou','qa-quick-fail')+
+      quick('bloqueado','Bloqueado')+
+      quick('nao_executado','Não executado')+
+      '<button type="button" class="btn soft" data-quick-evidence="'+esc(s.id)+'">Evidência</button></div>'+
+      '<details class="qa-quick-details"><summary>Ver passos, esperado e observações</summary>'+details+
+      '</details></article>';
+  }).join('') :
+    (state.scenarios.length?
+      '<div class="empty"><strong>Sem cenários neste filtro</strong>Selecione Todos para exibir outros resultados.</div>':
+      '<div class="empty"><strong>Sem cenários cadastrados</strong>Gere casos de teste ou adicione um cenário manualmente.</div>');
+  renderTaskNextActions();
 }
 function renderDiagrams() {
   $('#diagrams-number').textContent = state.diagrams.length;
@@ -937,10 +994,141 @@ window.addEventListener('beforeunload',event=>{
   event.preventDefault();
   event.returnValue='';
 });
+// Issue #33 — single-screen human execution, bound to the existing scenario ID.
+// No AI result can invoke this path. Errors leave stored data unchanged.
+let quickResultBusy=false,quickPending=null;
+async function commitQuickResult(scenario,status,observed=''){
+  if(quickResultBusy||state.isBusy||!state.currentId||!scenario||
+    scenario.tarefa_id!==state.currentId)return false;
+  const taskId=state.currentId;
+  if(scenario.status===status){
+    toast('Este cenário já possui essa situação. Edite o registro se precisar acrescentar observações.');
+    return true;
+  }
+  if(scenario.status!=='nao_executado'){
+    const confirmed=await askRecordConfirmation({
+      title:'Alterar o resultado deste cenário?',
+      description:'A execução atual de “'+scenario.titulo+'” já está registrada. O resultado anterior será preservado nas observações. Confirma uma nova execução?',
+      confirmText:'Atualizar resultado',danger:false
+    });
+    if(!confirmed||taskId!==state.currentId)return false;
+  }
+  let payload;
+  try{payload=quickExecutionPayload(scenario,status,observed);}
+  catch(error){toast(errMessage(error),true);return false;}
+  if(scenario.obtido&&scenario.status!=='nao_executado'){
+    const note='Execução anterior ('+(statuses[scenario.status]||scenario.status)+
+      '): '+scenario.obtido;
+    payload.observacoes=[scenario.observacoes||'',note].filter(Boolean).join('\n');
+  }
+  quickResultBusy=true;
+  $$('#scenarios-list [data-quick-status]').forEach(button=>button.disabled=true);
+  try{
+    const {data,error}=await db.from('qa_cenarios')
+      .update(payload).eq('id',scenario.id).eq('tarefa_id',taskId)
+      .select('id').maybeSingle();
+    if(error)throw error;
+    if(!data?.id)throw Error('O banco não confirmou o resultado do cenário.');
+    await refreshRecordList('scenario',taskId);
+    toast('Resultado salvo neste cenário. A situação geral da TF permanece inalterada.');
+    return true;
+  }catch(error){
+    toast('Falha ao registrar resultado: '+errMessage(error),true);
+    return false;
+  }finally{
+    quickResultBusy=false;
+    $$('#scenarios-list [data-quick-status]').forEach(button=>button.disabled=false);
+  }
+}
+function showQuickResultDialog(scenario,status){
+  if(!scenario||!['reprovado','bloqueado'].includes(status))return;
+  const dialog=$('#qa-quick-result-dialog');
+  if(dialog.open)return;
+  quickPending={scenarioId:scenario.id,status,taskId:state.currentId};
+  $('#qa-quick-title').textContent=status==='reprovado'?'Registrar falha':'Registrar bloqueio';
+  $('#qa-quick-intro').textContent=scenario.titulo+
+    ' · informe o comportamento observado para registrar a execução.';
+  $('#qa-quick-observed').value=scenario.status===status?scenario.obtido||'':'';
+  dialog.showModal();$('#qa-quick-observed').focus();
+}
+$('#qa-quick-cancel').addEventListener('click',()=>{
+  quickPending=null;$('#qa-quick-result-dialog').close();
+});
+$('#qa-quick-result-dialog').addEventListener('close',()=>{quickPending=null});
+$('#qa-quick-result-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!quickPending||quickResultBusy)return;
+  const item=state.scenarios.find(s=>s.id===quickPending.scenarioId);
+  if(!item||state.currentId!==quickPending.taskId)return;
+  const input=$('#qa-quick-observed');
+  if(!input.reportValidity())return;
+  const button=$('#qa-quick-confirm');
+  button.disabled=true;
+  const ok=await commitQuickResult(item,quickPending.status,input.value);
+  button.disabled=false;
+  if(ok&&$('#qa-quick-result-dialog').open)$('#qa-quick-result-dialog').close();
+});
+$('#qa-scenario-filter').addEventListener('change',renderScenarios);
+$('#qa-scenario-next').addEventListener('click',()=>{
+  const pending=state.scenarios.find(s=>s.status==='nao_executado');
+  if(!pending)return toast('Nenhum cenário pendente nesta TF.');
+  $('#qa-scenario-filter').value='pending';
+  renderScenarios();
+  const card=document.querySelector('[data-quick-card="'+pending.id+'"]');
+  card?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  card?.querySelector('[data-quick-status="aprovado"]')?.focus({preventScroll:true});
+});
+$('#qa-next-execute').addEventListener('click',()=>{
+  selectTab('cenarios');
+  if(state.scenarios.some(s=>s.status==='nao_executado'))
+    $('#qa-scenario-next').click();
+});
+$('#qa-next-derive').addEventListener('click',()=>{
+  const task=state.tasks.find(t=>t.id===state.currentId);
+  if(!task)return;
+  const {tested,conclusion,summary}=createCompletionDraft(task,state.scenarios);
+  if(!summary.finalizados)return toast('Execute ao menos um cenário antes de compor os resultados.',true);
+  const form=$('#task-form');
+  if((form.elements.descricao.value.trim()||form.elements.conclusao.value.trim())&&
+     !confirm('O formulário já contém descrição ou conclusão. Substituir pelos textos derivados dos cenários executados? Os dados somente serão salvos ao clicar em Salvar TF.'))
+    return;
+  form.elements.descricao.value=tested;
+  form.elements.conclusao.value=conclusion;
+  setFormDirty('task-form');
+  $('#qa-next-message').textContent='Resumo e conclusão sugeridos a partir dos resultados reais. Revise e clique Salvar TF; nada foi gravado automaticamente.';
+  form.elements.descricao.scrollIntoView({behavior:'smooth',block:'center'});
+  toast('Proposta preenchida para revisão. Não houve salvamento automático.');
+});
+$('#qa-next-report').addEventListener('click',()=>{
+  selectTab('documentos');
+  $('#document-generate-report').click();
+});
+$('#qa-next-diagram').addEventListener('click',()=>{
+  selectTab('diagramas');$('#add-diagram').click();
+});
+$('#qa-next-evidence').addEventListener('click',()=>{
+  selectTab('auditoria');$('#evidence-summary').focus();
+});
 document.addEventListener('click',async (event)=>{
   const target=event.target.closest('button');
   if(!target) return;
   if(target.matches('[data-new-task]')) navigateNewTask();
+  const quickId=target.dataset.quickId,quickStatus=target.dataset.quickStatus;
+  if(quickId&&quickStatus){
+    const scenario=state.scenarios.find(s=>s.id===quickId);
+    if(!scenario)return;
+    if(quickStatus==='reprovado'||quickStatus==='bloqueado')
+      showQuickResultDialog(scenario,quickStatus);
+    else await commitQuickResult(scenario,quickStatus);
+    return;
+  }
+  const quickEvidence=target.dataset.quickEvidence;
+  if(quickEvidence&&state.scenarios.some(s=>s.id===quickEvidence)){
+    selectTab('auditoria');
+    $('#evidence-scenario').value=quickEvidence;
+    $('#evidence-summary').focus();
+    return;
+  }
   if(target.matches('[data-clear-filters]')){
     $('#task-search').value='';
     $('#filter-status').value='';
@@ -998,7 +1186,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
   if(!form.reportValidity()) return;
   busy(button,true);
   try {
-    const data=inputValues(form,taskFields);
+    const data=normalizeNarrativeFields(inputValues(form,taskFields),TASK_NARRATIVE_FIELDS);
     data.erro_reproduzido=nullableBool(data.erro_reproduzido);
     data.funcionando=nullableBool(data.funcionando);
     data.publica=data.publica==='true';
@@ -1022,8 +1210,10 @@ $('#task-form').addEventListener('submit',async (event)=>{
     const confirmedScenarios=state.pendingScenarios.filter(scenario=>scenario.selected!==false);
     if(confirmedScenarios.length){
       const payload=confirmedScenarios.map((scenario,index)=>({
-        titulo:scenario.titulo,passos:scenario.passos,esperado:scenario.esperado,
-        obtido:scenario.obtido,observacoes:scenario.observacoes,
+        ...normalizeNarrativeFields({
+          titulo:scenario.titulo,passos:scenario.passos,esperado:scenario.esperado,
+          obtido:scenario.obtido,observacoes:scenario.observacoes
+        },SCENARIO_NARRATIVE_FIELDS),
         tarefa_id:id,user_id:state.user.id,ordem:index+1,status:'nao_executado'
       }));
       const {error:scenarioError}=await db.from('qa_cenarios').insert(payload);
@@ -1072,7 +1262,7 @@ $('#scenario-form').addEventListener('submit',async event=>{
   if(!form.reportValidity())return;
   const button=form.querySelector('[type=submit]');busy(button,true);
   try{
-    const values=inputValues(form,scenarioFields);
+    const values=normalizeNarrativeFields(inputValues(form,scenarioFields),SCENARIO_NARRATIVE_FIELDS);
     values.ordem=Math.max(0,Number(values.ordem)||0);
     values.updated_at=new Date().toISOString();
     const id=form.elements.id.value;
@@ -1373,13 +1563,13 @@ $('#import-confirm').addEventListener('click',async()=>{
   const button=$('#import-confirm');busy(button,true);
   try {
     const parsed=parseReport($('#import-text').value);
-    const taskData={titulo:parsed.titulo,tipo_teste:parsed.tipo_teste,status:'rascunho',descricao:parsed.descricao,
+    const taskData=normalizeNarrativeFields({titulo:parsed.titulo,tipo_teste:parsed.tipo_teste,status:'rascunho',descricao:parsed.descricao,
       conclusao:parsed.conclusao,observacoes:parsed.observacoes,funcionando:parsed.funcionando,erro_reproduzido:parsed.erro_reproduzido,
-      user_id:state.user.id,executado_em:dateToday()};
+      user_id:state.user.id,executado_em:dateToday()},TASK_NARRATIVE_FIELDS);
     const {data,error}=await db.from('qa_tarefas').insert(taskData).select().single();
     if(error)throw error;
     if(parsed.cenarios.length){
-      const input=parsed.cenarios.map(s=>({user_id:state.user.id,tarefa_id:data.id,ordem:s.ordem,titulo:s.titulo,passos:s.passos,status:'nao_executado'}));
+      const input=parsed.cenarios.map(s=>normalizeNarrativeFields({user_id:state.user.id,tarefa_id:data.id,ordem:s.ordem,titulo:s.titulo,passos:s.passos,status:'nao_executado'},SCENARIO_NARRATIVE_FIELDS));
       const {error:scenariosError}=await db.from('qa_cenarios').insert(input);
       if(scenariosError){
         toast('A TF foi criada, mas a importação dos cenários falhou: '+errMessage(scenariosError),true);
