@@ -13,7 +13,10 @@ export function collectTaskContext(task,scenarios=[]){
     if(s.esperado)values.push('Resultado esperado: '+s.esperado);
     if(s.obtido)values.push('Resultado observado: '+s.obtido);
   }
-  return values.join('\n').slice(0,19500);
+  const text=values.join('\n');
+  if(text.length>19500)
+    throw Error('Os dados da TF e os cenários ultrapassam 19.500 caracteres. Selecione menos cenários antes de gerar; nenhum trecho será omitido.');
+  return text;
 }
 const label=s=>String(s||'').replace(/[\x00-\x1f<>"\\\[\]{}|]/g,' ').replace(/\s+/g,' ').trim().slice(0,94);
 export function fallbackFlowchart(text){
