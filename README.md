@@ -244,3 +244,21 @@ A R3 usa o mesmo módulo `qa-requirements-context.mjs` para **Posts**, **Roteiro
 **Migrações antes de publicar:** `supabase/qa_r3_requirements_context.sql` (tabela e políticas privadas de rastreabilidade) e `supabase/qa_r3_context_fk_index.sql` (índice para a chave composta da nova tabela), nesta ordem. São aditivas e não modificam registros anteriores. Requer R1 e R2 instaladas. Não há mudança necessária no endpoint existente de IA, que já aceita o texto da TF e o requisito composto.
 
 **Validação:** `tests/qa-requirements-context.test.mjs`, `tests/geradores-ui.mjs` e `tests/ui-smoke.mjs`. Testes incluem seleção parcial, ausência de vazamento entre TFs, rejeição acima do limite, histórico de revisões e diagrama com requisitos aprovados. **R4** acrescentará vínculos requisito↔cenário e matriz formal de cobertura.
+
+## R4 — Matriz de cobertura e revisões de requisitos
+
+A aba **Cobertura** relaciona os requisitos **aprovados** da TF aos **cenários salvos**, sem alterar seus status ou os dados da própria tarefa. Cada requisito pode ser vinculado a vários cenários e um cenário pode atender vários requisitos. A opção **Cobertura** no cartão de cada cenário abre a matriz com esse cenário pré-selecionado para revisão; nada é gravado até clicar em **Salvar vínculos**.
+
+**Indicadores distintos:**
+- **Cobertura estrutural:** requisitos aprovados com ao menos um cenário associado ÷ total de requisitos aprovados.
+- **Requisitos validados:** requisitos aprovados cujos **todos** os cenários associados estão efetivamente com status `aprovado` no banco ÷ total de requisitos aprovados.
+- **Sem cobertura:** requisitos aprovados sem cenários; **Execução pendente:** vínculos sem execução integral; **Com falha** e **Bloqueado:** refletem resultados reais dos cenários. Um requisito com qualquer cenário reprovado é classificado como **Com falha**; se não houver falha, mas houver bloqueio, fica **Bloqueado**; se houver cenários não executados, não é considerado validado.
+- A lista permite **buscar**, filtrar, selecionar cenários vinculados e **exportar CSV**. O CSV protege células que iniciam com operadores de fórmula de planilha.
+
+**Histórico de requisitos:** após a migração R4, requisitos existentes recebem uma versão-base. Novos requisitos recebem **versão 1**; edições de código, título, descrição, critérios de aceite, situação ou ordem geram novas revisões imutáveis, consultáveis por **Histórico de alterações** na matriz. O histórico anterior à implantação não pode ser reconstruído automaticamente (snapshots de gerações R3 permanecem disponíveis separadamente). Alterações em `updated_at` isoladamente não criam versões artificiais.
+
+**Persistência e segurança:** a migration aditiva `supabase/qa_r4_requirement_coverage.sql` cria `qa_requisito_cenarios`, `qa_requisito_revisoes`, vínculos compostos que impedem associação entre TFs ou contas diferentes, RLS por proprietário e a RPC `qa_set_requirement_scenarios` (`SECURITY INVOKER`), transacional, idempotente e limitada a 200 cenários por requisito. A tabela de revisões é somente leitura; gatilhos internos preservam versões e os clientes não podem escrevê-las. Mesmo uma TF pública não expõe os requisitos, vínculos ou revisões.
+
+**Ordem de implantação:** R1 → R2 → R3 → R4. A migration não substitui TFs, casos, documentos, execuções ou versões anteriores. Os testes `tests/qa-requirements-coverage.test.mjs` e `tests/ui-smoke.mjs` verificam classificação de cobertura, ausência de aprovação automática, rejeição de IDs inválidos, isolamento entre TFs, links e layout responsivo.
+
+A R4 não interpreta automaticamente se um cenário satisfaz um requisito; a associação é uma decisão explícita do testador. Ela também não declara uma TF inteira aprovada.
