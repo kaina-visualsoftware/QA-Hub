@@ -701,6 +701,8 @@ CENÁRIO 1 - Incluir produto
     await firstTab.press('ArrowRight');
     assert.equal(await page.locator('#tab-btn-requisitos').getAttribute('aria-selected'),'true');
     await page.locator('#tab-btn-requisitos').press('ArrowRight');
+    assert.equal(await page.locator('#tab-btn-cobertura').getAttribute('aria-selected'),'true');
+    await page.locator('#tab-btn-cobertura').press('ArrowRight');
     assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
     assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
     await page.locator('#tab-btn-resumo').click();
