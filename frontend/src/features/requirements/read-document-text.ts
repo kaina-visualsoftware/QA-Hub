@@ -26,7 +26,6 @@ async function pdfText(bytes: Uint8Array): Promise<ExtractedText> {
   const loading = pdfjs.getDocument({
     data: new Uint8Array(bytes),
     useSystemFonts: true,
-    isEvalSupported: false,
     stopAtErrors: true
   });
   let pdf: Awaited<typeof loading.promise> | undefined;
@@ -75,8 +74,7 @@ async function pdfText(bytes: Uint8Array): Promise<ExtractedText> {
     return bounded(result, partial
       ? "A extração foi interrompida após atingir o limite de prévia." : "");
   } finally {
-    if (pdf) await pdf.destroy();
-    else await loading.destroy();
+    await loading.destroy();
   }
 }
 
