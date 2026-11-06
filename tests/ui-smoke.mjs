@@ -426,6 +426,8 @@ CENÁRIO 1 - Incluir produto
       await page.locator('.qa-execution-fields textarea').first().fill('Pedido abriu com o resultado esperado.');
       await page.locator('.qa-execution-actions button').first().click();
       await page.waitForFunction(()=>document.querySelector('#execution-summary').textContent.includes('1 aprovados'));
+      await page.waitForFunction(()=>document.querySelector('#coverage-percent').textContent==='100%');
+      assert.match(await page.locator('#coverage-detail').innerText(),/1 de 1 cenários/);
       assert.match(await page.locator('#scenarios-list').innerText(),/Pedido abriu com o resultado esperado/);
       await page.locator('#tab-btn-documentos').click();
       await page.locator('#document-generate-report').click();
