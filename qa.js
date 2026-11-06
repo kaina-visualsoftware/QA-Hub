@@ -9,6 +9,8 @@ import { collectTaskContext, cleanMermaid, horizontalFlowchart, requestAiDiagram
 import { createDiagramViewer } from './qa-diagram-viewer.mjs';
 import { createPhase2Ui } from './qa-phase2-ui.mjs';
 import { selectedScenarioContext } from './qa-phase2.mjs';
+import { coverageMetrics } from './qa-phase3.mjs';
+import { createPhase3Ui } from './qa-phase3-ui.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
 const callbackErrorCode = location.hash.startsWith('#error=')
@@ -33,6 +35,12 @@ const phase2 = createPhase2Ui({
   onOpenDocuments:()=>selectTab('documentos'),
   markDirty:setFormDirty,
   toast
+});
+const phase3 = createPhase3Ui({
+  db,getTask:()=>state.tasks.find(t=>t.id===state.currentId),
+  getTaskId:()=>state.currentId,getUserId:()=>state.user?.id,
+  onDocuments:()=>selectTab('documentos'),
+  markDirty:setFormDirty,toast
 });
 const statusBadge = (v) => '<span class="status ' + esc(v) + '">' + esc(statuses[v] || v) + '</span>';
 const errMessage = (err) => {
@@ -161,6 +169,7 @@ db.auth.onAuthStateChange((event) => {
     state.currentId=null; state.scenarios=[]; state.diagrams=[];
     state.dirtyForms.clear();
     phase2.reset();
+    phase3.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
     frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
@@ -199,6 +208,20 @@ function renderTasks() {
 }
 function renderDashboard() {
   const tasks = state.tasks, scenarios = state.scenarioStats;
+  const coverage=coverageMetrics(tasks,scenarios);
+  $('#coverage-percent').textContent=coverage.coveragePct+'%';
+  $('#coverage-progress').setAttribute('aria-valuenow',String(coverage.coveragePct));
+  $('#coverage-bar').style.width=coverage.coveragePct+'%';
+  $('#coverage-detail').textContent=coverage.executed+' de '+coverage.totalCases+' cenários com execução registrada · '+coverage.withCases+' de '+coverage.totalTasks+' TFs possuem cenários.';
+  const breakdown=$('#coverage-breakdown');breakdown.replaceChildren();
+  for(const [title,n] of [
+    ['Não executados',coverage.unexecuted],['Aprovados',coverage.approved],
+    ['Reprovados',coverage.failed],['Bloqueados',coverage.blocked],
+    ['TFs sem cenários',coverage.withoutCases]
+  ]) {
+    const pill=document.createElement('span');pill.className='qa-coverage-stat';
+    pill.textContent=title+': '+n;breakdown.append(pill);
+  }
   $('#stat-tasks').textContent = tasks.length;
   $('#stat-scenarios').textContent = scenarios.length;
   $('#stat-approved').textContent = tasks.filter(t => t.status === 'aprovado').length;
@@ -283,7 +306,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
-  for (const tab of ['resumo','cenarios','execucao','diagramas','documentos','historico']) {
+  for (const tab of ['resumo','cenarios','execucao','diagramas','vinculos','documentos','historico']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
     const button = $('[data-tab="'+tab+'"]');
@@ -311,6 +334,12 @@ window.addEventListener('message', event => {
     state.draftFromGenerator={title:String(event.data.title||'').slice(0,240),description:String(event.data.description||'').slice(0,4000),
       cases:Array.isArray(event.data.cases)?event.data.cases.slice(0,100):[]};
     location.hash='#/nova';
+    return;
+  }
+  if (event.data?.type === 'qa-hub:phase3-changed') {
+    const id=event.data.taskId;
+    if(state.currentId===id)
+      phase3.load(id).catch(error=>toast(errMessage(error),true));
     return;
   }
   if (event.data?.type === 'qa-hub:document-saved') {
@@ -393,7 +422,7 @@ async function route() {
       await openTask(id);
     } else setView('editor');
     const requestedTab=new URLSearchParams(query).get('tab');
-    if (state.currentId===id && ['cenarios','execucao','diagramas','documentos','historico'].includes(requestedTab))
+    if (state.currentId===id && ['cenarios','execucao','diagramas','vinculos','documentos','historico'].includes(requestedTab))
       selectTab(requestedTab);
     return;
   }
@@ -502,6 +531,7 @@ async function openTask(id) {
     state.scenarios=s.data||[]; state.diagrams=d.data||[];
     renderScenarios(); renderDiagrams();
     await phase2.loadDocuments(id);
+    await phase3.load(id);
   } catch(e) { toast('Não foi possível buscar os detalhes: '+errMessage(e),true); }
 }
 function updatePublicLink(task){
