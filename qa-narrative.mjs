@@ -7,6 +7,7 @@ export const TECHNICAL_TERMS=Object.freeze([
  'SKU','EAN','IBGE','CEP','ICMS','ISS','PIS','COFINS','ICMS-ST'
 ]);
 const PROTECT=[
+ /R\$/g,
  /\u0060{3}[\s\S]*?\u0060{3}/g,
  /\u0060[^\u0060\n]*\u0060/g,
  /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi,
@@ -43,7 +44,7 @@ export function normalizeNarrative(value,{terms=TECHNICAL_TERMS}={}){
  return value.split(/(\r\n|\r|\n)/).map(line=>{
   if(/^\r\n$|^\r$|^\n$/.test(line))return line;
   if(/^\s*\u0060{3}/.test(line)){fenced=!fenced;return line;}
-  if(fenced)return line;
+  if(fenced||/^\s*(?:SELECT|UPDATE|INSERT|DELETE|CREATE|ALTER|DROP|MERGE|WITH)\b/i.test(line))return line;
   const {text,restore}=maskTokens(line,terms);
   if(!letter.test(text)||!upper.test(text)||lower.test(text))return line;
   return restore(toSentenceCase(text));
