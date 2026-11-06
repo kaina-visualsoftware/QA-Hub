@@ -34,6 +34,7 @@ create table if not exists public.qa_requisitos (
   fonte_id uuid,
   codigo text not null check(codigo ~ '^(RF|RNF|RN|CA)-[0-9]{3,4}$'),
   tipo text not null check(tipo in ('RF','RNF','RN','CA')),
+  constraint qa_requisito_codigo_tipo check(split_part(codigo,'-',1)=tipo),
   titulo text not null check(char_length(btrim(titulo)) between 3 and 240),
   descricao text not null check(char_length(btrim(descricao)) between 5 and 6000),
   criterios_aceite text not null default '' check(char_length(criterios_aceite) <= 4000),
@@ -57,7 +58,10 @@ alter table public.qa_requisitos enable row level security;
 
 revoke all on public.qa_requisito_fontes,public.qa_requisitos from anon,authenticated;
 grant select,insert on public.qa_requisito_fontes to authenticated;
-grant select,insert,update on public.qa_requisitos to authenticated;
+grant select,insert on public.qa_requisitos to authenticated;
+-- Metadata linking a requirement to the owner, TF and source is immutable.
+grant update(codigo,tipo,titulo,descricao,criterios_aceite,estado,origem_trecho,ordem,updated_at)
+  on public.qa_requisitos to authenticated;
 
 create policy qa_requisito_fontes_read on public.qa_requisito_fontes
   for select to authenticated
