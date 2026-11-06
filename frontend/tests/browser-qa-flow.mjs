@@ -1,5 +1,41 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import JSZip from "jszip";
+
+// Small synthetic PDF built locally; no production document is used.
+function makePdf(text) {
+  const escaped=text.replaceAll("\\","\\\\").replaceAll("(","\\(").replaceAll(")","\\)");
+  const stream="BT\n/F1 12 Tf\n72 720 Td\n("+escaped+") Tj\nET\n";
+  const objects=[
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Length "+Buffer.byteLength(stream,"ascii")+" >>\nstream\n"+stream+"endstream"
+  ];
+  let pdf="%PDF-1.4\n";
+  const offsets=[0];
+  for(let i=0;i<objects.length;i++){
+    offsets.push(Buffer.byteLength(pdf,"ascii"));
+    pdf+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";
+  }
+  const xref=Buffer.byteLength(pdf,"ascii");
+  pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+  for(const offset of offsets.slice(1))pdf+=String(offset).padStart(10,"0")+" 00000 n \n";
+  pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+  return Buffer.from(pdf,"ascii");
+}
+async function makeDocx(text){
+  const zip=new JSZip();
+  zip.file("[Content_Types].xml",
+    '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="xml" ContentType="application/xml"/></Types>');
+  zip.file("word/document.xml",
+    '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+    '<w:body><w:p><w:r><w:t>'+text+'</w:t></w:r></w:p></w:body></w:document>');
+  return zip.generateAsync({type:"nodebuffer",compression:"DEFLATE"});
+}
+
 
 // Synthetic fixture. This test intercepts every Supabase request.
 const userId="11111111-1111-4111-8111-111111111111";
@@ -262,6 +298,27 @@ try{
   assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  const reqPanel=page.locator("section[aria-labelledby='requirements-heading']");
+  await reqPanel.getByRole("tab",{name:"Fontes e anexos"}).click();
+  const fileInput=reqPanel.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name:"requisitos.pdf",mimeType:"application/pdf",
+    buffer:makePdf("RF001: O sistema deve atualizar o pedido.")
+  });
+  await reqPanel.getByRole("button",{name:"Verificar arquivo"}).click();
+  await reqPanel.getByText(/Arquivo verificado/).waitFor({timeout:25000});
+  const preview=reqPanel.getByLabel("Texto que será associado ao arquivo (prévia de leitura)");
+  assert.match(await preview.inputValue(),/RF001: O sistema deve atualizar o pedido/);
+  await fileInput.setInputFiles({
+    name:"requisitos.docx",
+    mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    buffer:await makeDocx("RF002: O campo desconto deve aceitar revisao.")
+  });
+  await reqPanel.getByRole("button",{name:"Verificar arquivo"}).click();
+  await reqPanel.getByText(/Arquivo verificado/).waitFor({timeout:25000});
+  assert.match(await preview.inputValue(),/RF002: O campo desconto deve aceitar revisao/);
+  assert.equal(await reqPanel.getByRole("button",{name:"Anexar versão privada"}).isDisabled(),false);
+  // Selecting and extracting locally must never write any file into Storage.
   assert.deepEqual(failures,[]);
-  console.log("E2E sintético React: QA, IA, requisitos, cobertura, evidências, release, referência e diff texto/XML.");
+  console.log("E2E sintético React: QA, IA, R1-R4, evidências, release, diff e extração local PDF/DOCX.");
 }finally{await browser.close()}
