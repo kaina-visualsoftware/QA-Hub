@@ -27,3 +27,11 @@
   .qa-r3-actions button{flex:1 1 115px}
   .qa-r3-list{max-height:220px}
 }
+
+/* Issue #31: inspect the exact, redacted context before sending test prompts. */
+.qa-test-context-preview{min-width:0;max-width:100%;margin:14px 0;padding:12px 14px;border:1px solid #d8e7e2;border-radius:11px;background:#f8fbfa;color:#2b4c55}
+.qa-test-context-preview summary{cursor:pointer;font-size:.84rem;font-weight:750;line-height:1.5;color:#215b52}
+.qa-test-context-preview p{font-size:.76rem;line-height:1.6;margin:9px 0;color:#55727a;overflow-wrap:anywhere}
+.qa-test-context-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;min-width:0;max-height:360px;overflow:auto;font:.75rem/1.65 ui-monospace,Consolas,monospace;background:#fff;border:1px solid #e0ebe7;border-radius:9px;padding:12px;color:#34505a}
+#qa-test-from-post{background:#ebf6f2;color:#176a57;border:1px solid #cee8dd;min-height:39px;white-space:normal}
+@media(max-width:600px){#qa-test-from-post{flex:1 1 150px}.qa-test-context-preview{padding:12px}}
