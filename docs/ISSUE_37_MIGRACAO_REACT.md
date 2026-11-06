@@ -149,18 +149,19 @@ não utilizados. Não trocar para outra biblioteca apenas por presunção.
 - **R2**: listagem e download de fontes originais privadas;
   upload com verificação local de cabeçalho, SHA-256, nome, tamanho,
   MIME e registro no Storage/RPC sem substituir versões.
-  TXT/MD são lidos localmente; PDF/DOCX são preservados em sua forma
-  original e, nesta etapa, precisam de transcrição manual para indexar
-  o texto. A extração automática de PDF/DOCX do legado ainda não foi portada.
+  TXT/MD/PDF/DOCX são lidos localmente; PDF.js e JSZip entram via importação
+  dinâmica, com limites de 200 páginas, 10 MB de arquivo, 30 mil caracteres
+  de prévia e 1.000 entradas ZIP. O arquivo original é preservado integral.
+  Documentos sem texto extraível exigem transcrição manual (sem OCR).
 - **R3**: consulta somente leitura ao histórico de revisões exatas
   selecionadas nas gerações, sem expor binários de anexos.
 - Requisitos permanecem **privados para o proprietário da TF**; a
   consulta administrativa não habilita a edição de requisitos de terceiros.
 - A migração reutiliza migrations existentes e não executa SQL novo.
 
-Pendente: homologação real de RPCs, simulação de fluxo R1/R4 em navegador,
-extração local PDF/DOCX, teste robusto de anexo e download/segurança de
-RLS em duas contas antes da migração de produção.
+Pendente: homologação real de RPCs, teste de upload/download no Storage e
+validação de RLS com duas contas antes do corte. Os fluxos R1/R4 e a
+extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
 
 ## Evidências e auditoria — extensão da migração React
 
@@ -182,8 +183,8 @@ RLS em duas contas antes da migração de produção.
   `qa-phase3.mjs`, com cópia e exclusão explicitamente confirmada.
 - Contadores salvos de comparação texto/XML podem ser consultados; não são
   exibidos nem persistidos textos/arquivos originais nesse painel.
-- Pendências: ferramenta de comparação local, XML seguro, testes com contas
-  Supabase reais e homologação do fluxo.
+- Pendências: testes com contas Supabase reais, XML com namespaces complexos
+  e homologação do fluxo.
 
 ## Ferramentas locais da fase 3 — comparação e release
 
@@ -200,3 +201,27 @@ RLS em duas contas antes da migração de produção.
   não implicam vínculo automático; `qa_link_release` permanece separado.
 - Paridade ainda demanda homologação com entradas reais (principalmente
   XML com namespaces complexos) e auditoria de acessibilidade/performance.
+
+## Extração de documentos e comparação local — validação de 06/11/2026
+
+- `pdfjs-dist@6.5.438` e `jszip@3.10.2` fixados no manifest e no lockfile,
+  gerados com `npm install` + `npm ci` no GitHub Actions. O workflow
+  temporário de atualização do lockfile foi excluído.
+- `read-document-text.ts`: leitura PDF/DOCX no navegador, imports e worker
+  carregados sob demanda, sem CDN de terceiros em tempo de uso.
+- PDF com limite de 200 páginas e somente texto extraível; DOCX com
+  verificação de estrutura ZIP, CRC, limite de entradas e do XML expandido,
+  rejeitando DTD. Prévia limitada a 30.000 caracteres, original integral
+  conservado para upload privado somente após confirmação do QA.
+- O smoke Chromium com **PDF e DOCX sintéticos** confirmou a extração
+  local e ausência de upload automático. O E2E também cobre diff texto/XML,
+  bloqueio de DTD e registro de **somente contagens** após confirmação.
+- `npm ci`, TypeScript, lint, Vitest, bundle e smoke Chromium: aprovados
+  no incremento `e1e39da5`. O legado e a publicação atual não mudaram.
+- Medição de artefatos no build (tamanho bruto, não tráfego): PDF.js 444,23 KB;
+  worker PDF 2.248,83 KB; JSZip 95,93 KB; entrada principal 785,30 KB
+  (gzip 234,72 KB). Imports sob demanda não equivalem a medição real de
+  latência ou carregamento.
+- **Pendente:** teste com arquivos PDF/DOCX reais e malformados, RLS com
+  duas contas, upload/download real de Storage, acessibilidade e performance.
+  PDF digitalizado continua exigindo OCR externo/transcrição.
