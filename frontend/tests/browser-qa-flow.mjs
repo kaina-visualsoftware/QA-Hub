@@ -140,7 +140,10 @@ try{
 
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
-  await page.getByText("Importar requisitos de texto (prévia e revisão)").click();
+  const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
+  if (!(await sourceField.isVisible())) {
+    await page.getByText("Importar requisitos de texto (prévia e revisão)").click();
+  }
   await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio")
     .fill("RF001: A remoção de desconto deve atualizar o total do pedido.");
   await page.getByRole("button",{name:"Organizar",exact:true}).click();
