@@ -387,7 +387,8 @@ try {
     if(width===768){
       await page.locator('#assist-manual').click();
       assert.equal(await page.locator('#editor-fields').isVisible(),true);
-      assert.equal(await page.locator('#task-detail-tabs').isVisible(),false);
+      assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
+      assert.equal(await page.locator('#tab-btn-cenarios').isDisabled(),true);
       assert.equal(await page.locator('#assist-back').isVisible(),true);
       await page.locator('#assist-back').click();
       assert.equal(await page.locator('#assist-panel').isVisible(),true);
@@ -419,7 +420,9 @@ CENÁRIO 1 - Incluir produto
     await page.locator('#editor-fields').waitFor({state:'visible'});
     assert.equal(await page.locator('#assist-panel').isVisible(),false);
     assert.equal(await page.locator('#ai-loading-modal').isVisible(),false);
-    assert.equal(await page.locator('#task-detail-tabs').isVisible(),false);
+    assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
+    assert.equal(await page.locator('#tab-btn-requisitos').isDisabled(),false);
+    assert.equal(await page.locator('#tab-btn-cenarios').isDisabled(),true);
     assert.equal(await page.locator('#save-task').isVisible(),true);
     assert.equal(await page.locator('.wizard-review-heading').count(),0);
     assert.equal(await page.locator('#task-form #assist-back').count(),1);
@@ -431,6 +434,24 @@ CENÁRIO 1 - Incluir produto
       assert.match(await page.locator('#draft-scenario-count').innerText(),/0 de 1/);
     }
     assert.match(await page.locator('#editor-caption').innerText(),/1 caso/);
+    // R1: draft requirements are reviewable before the TF exists and must
+    // remain in memory until the original task is saved.
+    await page.locator('#tab-btn-requisitos').click();
+    assert.equal(await page.locator('#tab-requisitos').isVisible(),true);
+    await page.locator('#requirements-source').fill(
+      'RF001: O pedido deve recalcular o total após remover desconto.\n'+
+      'Critérios de aceite:\n- O valor atualizado é exibido na tela.\n\n'+
+      'RN001: O sistema impede percentuais negativos não permitidos.');
+    await page.locator('#requirements-organize').click();
+    assert.equal(await page.locator('#requirements-review .qa-req-preview-card').count(),2);
+    assert.match(await page.locator('#requirements-review').innerText(),/RF-001/);
+    await page.locator('#requirements-approve').click();
+    await page.locator('#requirements-save').click();
+    assert.match(await page.locator('#requirements-feedback').innerText(),/Salve a TF/);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisitos.length),0);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),0);
+    await page.screenshot({path:'artifacts/ui/qa-r1-preview-'+width+'.png',fullPage:true});
+    await page.locator('#tab-btn-resumo').click();
     assert.equal(await page.locator('#task-extra-details').evaluate(el=>el.open),false);
     assert.equal(await page.locator('#task-analysis-details').evaluate(el=>el.open),false);
     const saveIsAtBottom=await page.evaluate(()=>{
@@ -474,9 +495,25 @@ CENÁRIO 1 - Incluir produto
     await page.waitForFunction(()=>location.hash.startsWith('#/tarefa/'));
     await page.waitForFunction((expected)=>document.querySelector('#scenarios-number').textContent===String(expected),width===320?0:1);
     assert.equal(await page.locator('#task-detail-tabs').isVisible(),true);
+    assert.equal(await page.locator('#tab-btn-cenarios').isDisabled(),false);
+    await page.locator('#tab-btn-requisitos').click();
+    await page.waitForFunction(()=>document.querySelector('#requirements-number').textContent==='2');
+    assert.match(await page.locator('#requirements-count').innerText(),/2 aprovado/);
+    assert.equal(await page.locator('#requirements-list .qa-req-saved').count(),2);
+    assert.equal(await page.locator('#requirements-source').inputValue(),'');
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisitos.length),2);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),1);
+    assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_tarefas.filter(t=>t.user_id==='55555555-5555-4555-8555-555555555555').length),1,
+      'R1 cannot create an extra TF');
+    let reqOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    assert.ok(reqOverflow<=1,'Requirements panel overflow at '+width+': '+reqOverflow);
+    await page.screenshot({path:'artifacts/ui/qa-r1-saved-'+width+'.png',fullPage:true});
+    await page.locator('#tab-btn-resumo').click();
     const firstTab=page.locator('#tab-btn-resumo');
     await firstTab.focus();
     await firstTab.press('ArrowRight');
+    assert.equal(await page.locator('#tab-btn-requisitos').getAttribute('aria-selected'),'true');
+    await page.locator('#tab-btn-requisitos').press('ArrowRight');
     assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
     assert.equal(await page.locator('#tab-cenarios').isVisible(),true);
     await page.locator('#tab-btn-resumo').click();
