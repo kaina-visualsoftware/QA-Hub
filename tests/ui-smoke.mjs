@@ -256,6 +256,8 @@ try {
     assert.equal(await page.locator('#tool-view-title').innerText(),'Posts do fórum');
     const tool=page.frameLocator('#tool-frame');
     await tool.locator('#t').waitFor({state:'visible',timeout:12000});
+    const requirementHeight=await tool.locator('#r').evaluate(node=>node.getBoundingClientRect().height);
+    assert.ok(requirementHeight<=130,'Embedded optional requirement must stay compact at '+width+': '+requirementHeight);
     assert.equal(await tool.locator('nav').isVisible(),false,'No duplicate tool navigation');
     assert.equal(await context.pages().length,1,'Tool navigation must not open another tab');
     assert.equal(await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').getAttribute('aria-current'),'page');
@@ -276,6 +278,11 @@ try {
     await page.locator('#native-xml textarea').last().fill('<root><item a="2"/></root>');
     await page.locator('#native-xml .qa-native-actions > button').first().click();
     assert.match(await page.locator('#native-xml .qa-native-output').innerText(),/ATRIBUTO/);
+    const checkboxSize=await page.locator('#native-xml input[type=checkbox]').evaluate(node=>{
+      const rect=node.getBoundingClientRect();return {width:rect.width,height:rect.height};
+    });
+    assert.ok(checkboxSize.width<=24&&checkboxSize.height<=24,
+      'XML checkbox should not inherit full-size text input dimensions at '+width+': '+JSON.stringify(checkboxSize));
     await page.evaluate(()=>document.activeElement?.blur());
     await page.screenshot({path:'artifacts/ui/qa-native-xml-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/release"]').evaluate(el=>el.click());
