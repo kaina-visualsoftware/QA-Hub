@@ -22,7 +22,7 @@ const field=(title,type='textarea',rows=5)=>{
 
 export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
   const panels=new Map(),state=new Map();
-  let currentMode='';
+  let currentMode='',lastContext=null;
   function box(mode){
     if(panels.has(mode))return panels.get(mode);
     const node=el('section',{class:'qa-native-panel',id:'native-'+mode});
@@ -95,7 +95,8 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     for(const input of [a,b,trim]) input.addEventListener('input',()=>{
       last=null;save.disabled=true;
     });
-    state.set(mode,{refresh:()=>{save.disabled=!last||!getTask()||getTask().user_id!==getUserId()}});
+    state.set(mode,{refresh:()=>{save.disabled=!last||!getTask()||getTask().user_id!==getUserId()},
+      invalidate:()=>{last=null;save.disabled=true}});
   }
   function makeRelease(){
     const mode='release',node=box(mode);
@@ -146,10 +147,16 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
       last=null;link.disabled=true;
     });
     state.set(mode,{refresh:()=>{link.disabled=!last||!getTask()||getTask().user_id!==getUserId()||
-      !exactTaskCodePresent(getTask().codigo,last.numbers)}});
+      !exactTaskCodePresent(getTask().codigo,last.numbers)},
+      invalidate:()=>{last=null;link.disabled=true}});
   }
   makeDiff('diff');makeDiff('xml');makeRelease();
   function open(mode){
+    const focused=getTask()?.id||'';
+    if(lastContext!==focused){
+      for(const controller of state.values())controller.invalidate();
+      lastContext=focused;
+    }
     currentMode=mode;
     root.hidden=false;
     for(const [name,panel] of panels)panel.hidden=name!==mode;
@@ -159,5 +166,16 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     currentMode='';root.hidden=true;
     for(const panel of panels.values())panel.hidden=true;
   }
-  return {open,hide,refresh:()=>state.get(currentMode)?.refresh()};
+  function reset(){
+    hide();lastContext=null;
+    for(const panel of panels.values()){
+      for(const control of panel.querySelectorAll('input,textarea')){
+        if(control.type==='checkbox')control.checked=true;
+        else control.value='';
+      }
+      panel.querySelector('.qa-native-output')?.replaceChildren();
+    }
+    for(const controller of state.values())controller.invalidate();
+  }
+  return {open,hide,reset,refresh:()=>state.get(currentMode)?.refresh()};
 }
