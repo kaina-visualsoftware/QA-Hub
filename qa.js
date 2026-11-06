@@ -18,6 +18,8 @@ import { createRequirementsUi } from './qa-requirements-ui.mjs';
 import { createRequirementPicker } from './qa-requirements-picker.mjs';
 import { createRequirementUsageUi } from './qa-requirements-usage-ui.mjs';
 import { createCoverageUi } from './qa-requirements-coverage-ui.mjs';
+import {normalizeNarrative,normalizeNarrativeFields,TASK_NARRATIVE_FIELDS,SCENARIO_NARRATIVE_FIELDS} from './qa-narrative.mjs';
+import {quickExecutionPayload,createCompletionDraft,progressForTask} from './qa-fast-execution.mjs';
 import { combineDiagramContext,recordRequirementUsage } from './qa-requirements-context.mjs';
 
 // Capture Supabase Auth callback errors before the SDK processes the URL fragment.
@@ -998,7 +1000,7 @@ $('#task-form').addEventListener('submit',async (event)=>{
   if(!form.reportValidity()) return;
   busy(button,true);
   try {
-    const data=inputValues(form,taskFields);
+    const data=normalizeNarrativeFields(inputValues(form,taskFields),TASK_NARRATIVE_FIELDS);
     data.erro_reproduzido=nullableBool(data.erro_reproduzido);
     data.funcionando=nullableBool(data.funcionando);
     data.publica=data.publica==='true';
@@ -1022,8 +1024,10 @@ $('#task-form').addEventListener('submit',async (event)=>{
     const confirmedScenarios=state.pendingScenarios.filter(scenario=>scenario.selected!==false);
     if(confirmedScenarios.length){
       const payload=confirmedScenarios.map((scenario,index)=>({
-        titulo:scenario.titulo,passos:scenario.passos,esperado:scenario.esperado,
-        obtido:scenario.obtido,observacoes:scenario.observacoes,
+        ...normalizeNarrativeFields({
+          titulo:scenario.titulo,passos:scenario.passos,esperado:scenario.esperado,
+          obtido:scenario.obtido,observacoes:scenario.observacoes
+        },SCENARIO_NARRATIVE_FIELDS),
         tarefa_id:id,user_id:state.user.id,ordem:index+1,status:'nao_executado'
       }));
       const {error:scenarioError}=await db.from('qa_cenarios').insert(payload);
@@ -1072,7 +1076,7 @@ $('#scenario-form').addEventListener('submit',async event=>{
   if(!form.reportValidity())return;
   const button=form.querySelector('[type=submit]');busy(button,true);
   try{
-    const values=inputValues(form,scenarioFields);
+    const values=normalizeNarrativeFields(inputValues(form,scenarioFields),SCENARIO_NARRATIVE_FIELDS);
     values.ordem=Math.max(0,Number(values.ordem)||0);
     values.updated_at=new Date().toISOString();
     const id=form.elements.id.value;
