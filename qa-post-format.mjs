@@ -55,8 +55,13 @@ export function formatGeneratedPost(markdown,{taskText=''}={}) {
       if(!next){
         let j=i+1;
         while(j<before.length&&!before[j].trim())j++;
-        if(j<before.length&&!/^\[(?:Imagem:|Caminho)/i.test(before[j].trim())){
-          next=before[j].trim();i=j;
+        if(j<before.length){
+          const candidate=before[j].trim();
+          if(candidate===pathFallback){
+            next=pathFallback;i=j;
+          }else if(!/^\[Imagem:/i.test(candidate)){
+            next=candidate;i=j;
+          }
         }
       }
       if(next)path=next.replace(/^\*\*|\*\*$/g,'').trim();
