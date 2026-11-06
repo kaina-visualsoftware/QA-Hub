@@ -565,6 +565,21 @@ button:disabled{cursor:wait;opacity:.7}
 @media(max-width:600px){.qa-native-panel{gap:13px}.qa-native-actions .btn{width:100%}.qa-phase4-panel{padding:14px}.qa-phase4-actions .btn{width:100%}.qa-native-result{padding:12px}}
 
 
+/* Skip-link só aparece ao receber foco: evita sobreposição visual nos
+   screenshots de página longa e mantém navegação por teclado. */
+.skip-link:not(:focus){
+  width:1px;
+  height:1px;
+  padding:0;
+  border:0;
+  overflow:hidden;
+  white-space:nowrap;
+  clip:rect(0,0,0,0);
+  clip-path:inset(50%);
+  transform:none;
+}
+.skip-link:focus{clip:auto;clip-path:none;transform:none}
+
 /* QA Hub — revisão visual: ferramentas nativas, formulários e navegação de TF.
    Mantém a paleta do shell, sem introduzir outro tema. */
 .qa-native-tools{width:100%;min-width:0}
