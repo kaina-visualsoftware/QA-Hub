@@ -147,7 +147,7 @@
           </section>
 
           <div id="editor-fields" class="editor-fields" hidden>
-          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-requisitos" type="button" data-tab="requisitos" role="tab" aria-controls="tab-requisitos" aria-selected="false" tabindex="-1">Requisitos <span id="requirements-number">0</span></button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
 
           <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
             <form id="task-form">
@@ -224,6 +224,60 @@
                 </div>
               </div>
             </form>
+          </div>
+
+          <div id="tab-requisitos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-requisitos" tabindex="0" hidden>
+            <div class="section-top">
+              <div>
+                <h2>Requisitos da TF</h2>
+                <p class="muted">Cole o texto da especificação para organizar requisitos funcionais, não funcionais, regras de negócio e critérios de aceite. Revise antes de salvar.</p>
+              </div>
+            </div>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-source-title">
+              <div class="section-heading"><h3 id="requirements-source-title">Adicionar requisitos a partir de texto</h3></div>
+              <p id="requirements-help" class="muted fine">Os requisitos permanecem privados e associados a esta TF. A leitura de PDF/DOCX e outros arquivos será adicionada na fase R2.</p>
+              <label class="qa-req-field" for="requirements-source">
+                <span>Texto original dos requisitos</span>
+                <textarea id="requirements-source" rows="7" maxlength="30000" placeholder="RF001: Ao remover um desconto, o valor total do pedido deve ser recalculado.
+RN001: Não permitir percentuais negativos fora da regra definida.
+Critérios de aceite:
+- O novo total é apresentado ao operador."></textarea>
+              </label>
+              <div class="qa-req-actions">
+                <button id="requirements-organize" class="btn primary" type="button">Organizar requisitos</button>
+                <span class="muted fine">A extração inicial é feita no navegador, sem enviar o texto para IA.</span>
+              </div>
+              <p id="requirements-feedback" class="qa-req-feedback" role="status" aria-live="polite"></p>
+            </section>
+            <section id="requirements-review-section" class="panel qa-req-panel" aria-labelledby="requirements-review-title" hidden>
+              <div class="section-heading"><h3 id="requirements-review-title">Revisão antes do cadastro</h3></div>
+              <p id="requirements-preview-count" class="muted fine"></p>
+              <div id="requirements-review" class="qa-req-review-list"></div>
+              <div class="qa-req-actions">
+                <button id="requirements-approve" class="btn soft" type="button">Aprovar selecionados</button>
+                <button id="requirements-save" class="btn primary" type="button">Salvar requisitos na TF</button>
+              </div>
+            </section>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-saved-title">
+              <div class="section-heading">
+                <h3 id="requirements-saved-title">Requisitos cadastrados</h3>
+                <p class="muted fine" id="requirements-count">Nenhum requisito cadastrado</p>
+              </div>
+              <div class="qa-req-filters">
+                <label class="qa-req-field">Buscar requisitos
+                  <input id="requirements-search" type="search" placeholder="Código, título ou descrição">
+                </label>
+                <label class="qa-req-field">Filtrar por situação
+                  <select id="requirements-filter">
+                    <option value="todos">Todos</option>
+                    <option value="aprovado">Aprovados</option>
+                    <option value="rascunho">Rascunhos</option>
+                    <option value="arquivado">Arquivados</option>
+                  </select>
+                </label>
+              </div>
+              <div id="requirements-list" class="qa-req-saved-list"></div>
+            </section>
           </div>
 
           <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
