@@ -341,6 +341,7 @@ function setView(name) {
   setSidebar(false);
 }
 function selectTab(name) {
+  if($('#tab-btn-'+name)?.disabled)return;
   for (const tab of ['resumo','requisitos','cenarios','execucao','diagramas','vinculos','documentos','historico','auditoria']) {
     const selected = name === tab;
     $('#tab-'+tab).hidden = !selected;
@@ -879,9 +880,9 @@ $$('[data-tab]').forEach(button=>{
   button.addEventListener('click',()=>selectTab(button.dataset.tab));
   button.addEventListener('keydown',event=>{
     const keys=['ArrowLeft','ArrowRight','Home','End'];
-    if(!keys.includes(event.key)) return;
+    if(!keys.includes(event.key)||button.disabled) return;
     event.preventDefault();
-    const tabs=$$('[data-tab]');
+    const tabs=$('[data-tab]').filter(tab=>!tab.disabled);
     const position=tabs.indexOf(button);
     const next=event.key==='Home' ? 0 : event.key==='End' ? tabs.length-1 :
       (position + (event.key==='ArrowRight'?1:-1) + tabs.length) % tabs.length;
