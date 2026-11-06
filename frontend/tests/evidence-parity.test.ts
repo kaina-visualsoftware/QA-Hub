@@ -25,6 +25,6 @@ describe("evidências e auditoria da fase 4", () => {
     expect(auditLabel({ acao: "cenario.status" })).toBe("Resultado de cenário registrado");
     expect(auditDetails({ acao: "cenario.status", detalhes: {
       anterior: "nao_executado", novo: "reprovado"
-    } })).toContain("não").toBeDefined();
+    } })).toBe("nao_executado → reprovado");
   });
 });
