@@ -194,7 +194,7 @@ db.auth.onAuthStateChange((event) => {
     phase2.reset();
     phase3.reset();
     phase4.reset();
-    nativeTools.hide();
+    nativeTools.reset();
     state.user = null; state.tasks = []; state.scenarioStats = [];
     const frame = $('#tool-frame');
     frame.removeAttribute('data-initialized'); frame.src = 'about:blank';
