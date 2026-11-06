@@ -336,6 +336,7 @@ for(const width of [390,1366]){
  assert.match(consolidated.tarefa,/Identificação|Problema, limitação/);
  assert.match(consolidated.requisito,/RF-001|RN-002/);
  assert.doesNotMatch(consolidated.tarefa,/Outra TF|não pode vazar/);
+ await page.locator('#qa-test-context-preview summary').click();
  assert.match(await page.locator('#qa-test-context-status').innerText(),/cenários existentes/);
  assert.equal(await page.locator('#qa-test-context-preview').isVisible(),true);
  await page.locator('#n-post').evaluate(button=>button.click());
