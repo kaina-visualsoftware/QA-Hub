@@ -25,7 +25,7 @@ export function createClient(){
     qa_admins:[],
     qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
     qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
-    qa_requisito_fontes:[],qa_requisitos:[],qa_geracao_contextos:[],
+    qa_requisito_fontes:[],qa_requisitos:[],qa_geracao_contextos:[],qa_requisito_cenarios:[],qa_requisito_revisoes:[],
     qa_generator_tests:[{
       id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       user_id:'55555555-5555-4555-8555-555555555555',
@@ -38,6 +38,15 @@ export function createClient(){
   let user=null;
   let nextId=0;
   const storageObjects=new Map();
+  function snapshot(row){
+    tables.qa_requisito_revisoes.push({
+      id:'history-'+(++nextId),requisito_id:row.id,
+      tarefa_id:row.tarefa_id,user_id:row.user_id,versao:row.versao||1,
+      codigo:row.codigo,tipo:row.tipo,titulo:row.titulo,
+      descricao:row.descricao,criterios_aceite:row.criterios_aceite,
+      estado:row.estado,created_at:new Date().toISOString()
+    });
+  }
   function from(table){
     let kind='read',payload=null,conditions={};
     function rows(){return (tables[table]||[]).filter(row=>
@@ -49,6 +58,7 @@ export function createClient(){
           created_at: new Date().toISOString()
         }));
         tables[table].push(...added);
+        if(table==='qa_requisitos')added.forEach(row=>{row.versao=1;snapshot(row)});
         if(['qa_evidencias','qa_cenarios'].includes(table)){
           for(const row of added){
             tables.qa_eventos.push({
@@ -63,7 +73,14 @@ export function createClient(){
       }
       if(kind==='update'){
         const found=rows();
-        found.forEach(row=>Object.assign(row,payload));
+        found.forEach(row=>{
+          if(table==='qa_requisitos'){
+            const changed=['codigo','tipo','titulo','descricao','criterios_aceite','estado','origem_trecho','ordem']
+              .some(field=>payload[field]!==undefined&&payload[field]!==row[field]);
+            Object.assign(row,payload);
+            if(changed){row.versao=(row.versao||1)+1;snapshot(row)}
+          }else Object.assign(row,payload);
+        });
         return {data:found,error:null};
       }
       if(kind==='delete'){
@@ -147,6 +164,32 @@ export function createClient(){
         };
         tables.qa_requisito_fontes.push(source);
         return {data:{id:source.id,tarefa_id:task.id,versao:version},error:null};
+      }
+      if(name==='qa_set_requirement_scenarios'){
+        const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id&&t.user_id===user?.id);
+        const req=tables.qa_requisitos.find(r=>r.id===args.p_requisito_id&&
+          r.tarefa_id===args.p_tarefa_id&&r.user_id===user?.id&&r.estado==='aprovado');
+        const chosen=args.p_cenario_ids||[];
+        if(!task||!req||!Array.isArray(chosen)||chosen.length>200||
+          new Set(chosen).size!==chosen.length||
+          chosen.some(id=>!tables.qa_cenarios.some(s=>s.id===id&&
+            s.tarefa_id===task.id&&s.user_id===user.id)))
+          return {data:null,error:{message:'TF, requisito ou cenário não autorizado'}};
+        const prior=tables.qa_requisito_cenarios.filter(x=>x.requisito_id===req.id);
+        const removed=prior.filter(x=>!chosen.includes(x.cenario_id)).length;
+        tables.qa_requisito_cenarios=tables.qa_requisito_cenarios.filter(x=>
+          x.requisito_id!==req.id||chosen.includes(x.cenario_id));
+        let inserted=0;
+        for(const id of chosen){
+          if(!tables.qa_requisito_cenarios.some(x=>x.requisito_id===req.id&&x.cenario_id===id)){
+            tables.qa_requisito_cenarios.push({
+              id:'link-'+(++nextId),tarefa_id:task.id,user_id:user.id,
+              requisito_id:req.id,cenario_id:id
+            });
+            inserted++;
+          }
+        }
+        return {data:{tarefa_id:task.id,requisito_id:req.id,linked:chosen.length,inserted,removed},error:null};
       }
       if(name==='qa_import_requisitos_da_fonte'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
