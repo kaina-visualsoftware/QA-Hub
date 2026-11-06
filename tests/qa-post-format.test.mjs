@@ -15,7 +15,7 @@ test('post generator prompt requires technical publication sections, in order',(
   assert.match(POST_SYSTEM,/Anteriormente/);
   assert.match(POST_SYSTEM,/ATIVADA/);
   assert.match(POST_SYSTEM,/DESATIVADA/);
-  assert.match(POST_SYSTEM,/salvos por usuário/);
+  assert.match(POST_SYSTEM,/salvas por usuário/);
   assert.match(POST_SYSTEM,/Caminho a ser confirmado/);
   assert.equal(messagesForGenerator('post','TF 67866','RF-001')[0].content,POST_SYSTEM);
   assert.match(messagesForGenerator('teste','Tarefa 67866','')[0].content,/ROTEIRO DE TESTES/);
