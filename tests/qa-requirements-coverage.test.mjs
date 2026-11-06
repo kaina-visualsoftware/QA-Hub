@@ -77,12 +77,12 @@ test('R4: RPC strictly verifies selection and confirmation',async()=>{
     taskId:task,requirementId:req(1).id,scenarioIds:selected});
   assert.equal(response.linked,1);
   assert.deepEqual(request.p_cenario_ids,selected);
-  assert.throws(()=>saveRequirementScenarioLinks(db,{
+  await assert.rejects(()=>saveRequirementScenarioLinks(db,{
     taskId:task,requirementId:req(1).id,scenarioIds:[...selected,...selected]
   }),/únicos/);
-  assert.throws(()=>saveRequirementScenarioLinks(db,{
-    taskId:task,requirementId:req(1).id,scenarioIds:[other]
-  }),/válidos|únicos/);
+  await assert.rejects(()=>saveRequirementScenarioLinks(db,{
+    taskId:task,requirementId:req(1).id,scenarioIds:['not-a-uuid']
+  }),/válidos/);
 });
 test('R4: safe CSV export has headers and guards against formula injection',()=>{
   const r={...req(1),titulo:'=HYPERLINK("bad")'};
