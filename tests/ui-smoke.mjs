@@ -202,11 +202,12 @@ export function createClient(){
           if(tables.qa_requisitos.some(x=>x.tarefa_id===task.id&&x.codigo===row.codigo)){
             skipped++;continue;
           }
-          tables.qa_requisitos.push({
+          const created={
             ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
             tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
-            created_at:new Date().toISOString()
-          });
+            versao:1,created_at:new Date().toISOString()
+          };
+          tables.qa_requisitos.push(created);snapshot(created);
           inserted++;
         }
         return {data:{tarefa_id:task.id,fonte_id:source.id,inserted,skipped},error:null};
@@ -226,11 +227,12 @@ export function createClient(){
           if(tables.qa_requisitos.some(q=>q.tarefa_id===task.id&&q.codigo===row.codigo)){
             skipped++;continue;
           }
-          tables.qa_requisitos.push({
+          const created={
             ...row,id:'44444444-4444-4444-8444-'+String(++nextId).padStart(12,'0'),
             tarefa_id:task.id,user_id:user.id,fonte_id:source.id,
-            created_at:new Date().toISOString()
-          });
+            versao:1,created_at:new Date().toISOString()
+          };
+          tables.qa_requisitos.push(created);snapshot(created);
           inserted++;
         }
         if(!inserted)tables.qa_requisito_fontes.pop();
