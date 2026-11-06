@@ -36,3 +36,18 @@
 .diagram-item{border-top:1px solid #e1ebed;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
 .diagram-item strong{font-size:.87rem;overflow-wrap:anywhere}.diagram-item-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:900px){.diagram-layout{grid-template-columns:1fr}}
+
+/* Generator and document views use the same spacing, contrast and controls as the QA workspace. */
+.generator-stats{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.generator-stats span{padding:8px 12px;border:1px solid #cddfe2;background:#f3faf9;border-radius:10px;font-size:.79rem;color:#3d5962}
+.generator-stats strong{color:#193b46}
+.generator-context{border:1px solid #c8dee0;border-radius:12px;padding:12px 14px;background:#f9fcfc}
+.generator-context summary{font-size:.83rem;font-weight:700;cursor:pointer;color:#245664}
+.generator-context textarea,.readonly-doc{border:1px solid #cbdde0;border-radius:9px;width:100%;padding:10px;font-size:.82rem;line-height:1.5;resize:vertical;white-space:pre-wrap;background:#fff}
+.generator-case{border:1px solid #d3e3e5;border-radius:12px;padding:17px;background:#fafdfd}
+.generator-docs{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);gap:24px}
+.document-choice{display:flex;text-align:left;align-items:flex-start;gap:9px;padding:11px;width:100%;background:white;border:1px solid #d8e6e7;border-radius:11px;min-width:0;color:#244653}
+.document-choice.selected,.document-choice:hover{border-color:#4d9da5;background:#eff9f7}
+.document-choice span{min-width:0}.document-choice strong,.document-choice small{display:block;overflow-wrap:anywhere}
+.document-choice small{color:#5f7880;font-size:.72rem;margin-top:4px}
+@media(max-width:950px){.generator-docs{grid-template-columns:1fr}}

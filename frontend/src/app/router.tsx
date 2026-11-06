@@ -52,7 +52,9 @@ function AppLayout() {
           <strong>Área de trabalho</strong>
         </div>
         <div className="topbar-tools">
-          {taskId && <span className="focus-pill" title={taskId}>TF em foco</span>}
+          {taskId && <Link to="/tarefa/$taskId" params={{ taskId }} className="focus-pill">
+            Abrir TF em foco
+          </Link>}
           <span className="account-email">{user.email}</span>
           <Button size="sm" variant="secondary" onPress={() => void supabase.auth.signOut()}>
             <LogOut size={16} /> Sair

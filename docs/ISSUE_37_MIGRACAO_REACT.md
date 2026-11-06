@@ -14,10 +14,10 @@ Branch: feat/issue-37-react-foundation. Produção preservada em qa.html.
 | Adicionar/editar/excluir cenário | TaskPage | Evidências vinculadas |
 | Aprovar/reprovar/bloquear cenário | TaskPage | Execução E2E Supabase real |
 | TF em foco | Zustand por conta | Validar navegação direta |
-| Gerador de testes/posts | Link para qa.html | Migrar geradores.html e #31 |
+| Gerador de testes/posts | GeneratorPanel + Edge Function | Fluxo principal migrado; faltam modos alternativos e histórico avançado |
 | Diagrama Mermaid CRUD + prévia isolada | DiagramPanel (lazy) | Geração por IA, zoom avançado |
 | Requisitos R1–R4 | Legado | Migrar módulos com rastreabilidade |
-| Documentos/evidências/auditoria | Legado | Migrar Phase2/3/4 |
+| Posts/relatórios versionados | DocumentsPanel + RPC | Migração básica feita; evidências/auditoria seguem no legado |
 | Release, diff, XML | Legado | Migrar ferramentas locais |
 | Admin, visibilidade e página pública | Supabase e legado | Migrar UI/guards |
 | Links antigos e callback de Auth | qa.html/index.html mantidos | Compatibilizar no corte |
@@ -63,3 +63,33 @@ autorizados no Supabase.
 **Não homologado:** rede com Supabase real, permissões em duas contas,
 leitor de tela, comparação visual HeroUI/Flowbite, performance antes/depois,
 importação transacional, migração dos módulos legados faltantes. A PR é draft.
+
+## Incremento seguinte — geradores e documentos em React
+
+- O TaskPage agora abre geradores nativos para post e roteiro, vinculados à TF
+  selecionada. Os dados de apoio são recuperados por TF e conta autenticada.
+- O contexto consolida cenários já cadastrados, documentos, evidências e eventos
+  (somente metadados textuais); fontes indisponíveis são apresentadas. Não ocorre
+  corte silencioso de texto acima dos limites da Edge Function.
+- Requisitos aprovados são selecionáveis; a chamada à NVIDIA exige consentimento
+  explícito e prévia textual do contexto saneado. A função de IA existente
+  mantém JWT, quota e segredos no Supabase, nunca no frontend.
+- O streaming SSE é interpretado com limites, conclusão e tratamento de erros;
+  respostas parciais não são confundidas com sucesso.
+- O post segue `qa-post-format.mjs` legado e só pode ser salvo com estrutura
+  aprovada, usando RPC de documento versionado; roteiro é revisado por campo
+  e anexado via `qa_attach_generated_cases` transacional e idempotente.
+- Casos novos ficam `nao_executado`; registro de resultados de execução
+  continua sendo ato do testador.
+- Posts, relatórios, versões e exportação Markdown passam a ter interface
+  React. Geração de relatório usa dados persistidos, sem aprovação automática.
+- A coluna de análise técnica e conclusão foi restaurada ao formulário de edição
+  para preservar o contexto dos geradores.
+- Falhas de persistência de histórico ou rastreabilidade são mostradas, sem
+  apagar a revisão ou a TF.
+
+**Limitações restantes:** revisão completa das fases de requisitos R1–R4,
+edição/zoom avançado Mermaid, IA local no navegador, visualização pública,
+liberação de evidências, auditoria e release/diff/XML. Segurança real RLS,
+contas de homologação, acessibilidade assistiva, comparação de performance
+e corte de produção permanecem pendentes.

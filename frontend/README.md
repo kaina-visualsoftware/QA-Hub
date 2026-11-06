@@ -30,3 +30,19 @@ As suites de browser e de dados reais são verificações distintas.
 Importações locais reutilizam qa-parser.mjs, exigem revisão de cenários
 explícitos e não registram aprovação automática. Erro de anexação mostra alerta
 após abrir a TF salva; não há transação atômica neste estágio.
+
+## Geradores nativos e documentos
+
+Ao abrir uma TF, use **Gerar casos com IA**, **Gerar post com IA** e
+**Documentos / relatório**. A IA só processa dados após consentimento explícito;
+o texto efetivamente enviado pode ser revisado antes do envio.
+O backend usa a Edge Function `qa-generators` já publicada, sem chaves privadas
+no navegador. Os requisitos aprovados e o contexto completo são consultados
+para a TF proprietária; uma TF de outro usuário não pode ter conteúdo enviado
+à IA mesmo quando visível a um administrador.
+Os casos anexados nunca são marcados como executados.
+Os documentos são versionados e permanecem privados por RLS.
+
+O Vite dev usa a porta **8765** por compatibilidade com a lista de origens
+permitidas pela Edge Function atual. O callback Auth precisa estar autorizado
+se você testar cadastro/recuperação localmente.

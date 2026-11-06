@@ -27,7 +27,16 @@ export const taskSchema = z.object({
   sistema: z.string().nullish(),
   versao: z.string().nullish(),
   executado_em: z.string().nullish(),
-  publica: z.boolean().nullish()
+  publica: z.boolean().nullish(),
+  ambiente: z.string().nullish(),
+  base_teste: z.string().nullish(),
+  empresa: z.string().nullish(),
+  testador: z.string().nullish(),
+  explicacao: z.string().nullish(),
+  causa: z.string().nullish(),
+  correcao: z.string().nullish(),
+  conclusao: z.string().nullish(),
+  observacoes: z.string().nullish()
 });
 export type Task = z.infer<typeof taskSchema>;
 
@@ -51,7 +60,16 @@ export const taskDraftSchema = z.object({
   tipo_teste: z.enum(["BUILD", "RELEASE"]),
   codigo: z.string().trim().max(100),
   sistema: z.string().trim().max(160),
-  versao: z.string().trim().max(100)
+  versao: z.string().trim().max(100),
+  ambiente: z.string().trim().max(240).optional(),
+  base_teste: z.string().trim().max(240).optional(),
+  empresa: z.string().trim().max(240).optional(),
+  testador: z.string().trim().max(240).optional(),
+  explicacao: z.string().trim().max(30000).optional(),
+  causa: z.string().trim().max(30000).optional(),
+  correcao: z.string().trim().max(30000).optional(),
+  conclusao: z.string().trim().max(30000).optional(),
+  observacoes: z.string().trim().max(30000).optional()
 });
 export type TaskDraft = z.infer<typeof taskDraftSchema>;
 

@@ -4,7 +4,8 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FileText, GitBranchPlus, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, FileText, GitBranchPlus, Plus, X, WandSparkles } from "lucide-react";
+import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
   addScenario, getAdminRole, listScenarios, listTasks, saveScenarioResult, updateTask,
@@ -17,11 +18,8 @@ import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib
 import { useFocus } from "../stores/focus";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
-
-function legacyLink(taskId: string, tab: string) {
-  return "https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/tarefa/" +
-    encodeURIComponent(taskId) + "?tab=" + encodeURIComponent(tab);
-}
+const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
+const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -44,6 +42,8 @@ export default function TaskPage() {
   const [editing, setEditing] = useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [generatorMode, setGeneratorMode] = useState<GeneratorMode | null>(null);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
   const [importWarning, setImportWarning] = useState("");
@@ -74,7 +74,11 @@ export default function TaskPage() {
     if (!task) return;
     taskForm.reset({
       titulo: task.titulo, descricao: task.descricao || "", tipo_teste: task.tipo_teste,
-      codigo: task.codigo || "", sistema: task.sistema || "", versao: task.versao || ""
+      codigo: task.codigo || "", sistema: task.sistema || "", versao: task.versao || "",
+      explicacao: task.explicacao || "", causa: task.causa || "", correcao: task.correcao || "",
+      conclusao: task.conclusao || "", observacoes: task.observacoes || "",
+      ambiente: task.ambiente || "", base_teste: task.base_teste || "",
+      empresa: task.empresa || "", testador: task.testador || ""
     });
   }, [task, taskForm.reset]);
 
@@ -195,6 +199,22 @@ export default function TaskPage() {
           <label className="field">Versão<input {...taskForm.register("versao")} /></label>
         </div>
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
+        <details className="generator-context">
+          <summary>Análise técnica e informações adicionais</summary>
+          <div className="form-grid mt-4">
+            <label className="field">Ambiente<input {...taskForm.register("ambiente")} /></label>
+            <label className="field">Base de teste<input {...taskForm.register("base_teste")} /></label>
+            <label className="field">Empresa<input {...taskForm.register("empresa")} /></label>
+            <label className="field">Testador<input {...taskForm.register("testador")} /></label>
+          </div>
+          <div className="stack mt-4">
+            <label className="field">Como funciona / análise<textarea rows={3} {...taskForm.register("explicacao")} /></label>
+            <label className="field">Causa identificada<textarea rows={3} {...taskForm.register("causa")} /></label>
+            <label className="field">Correção realizada<textarea rows={3} {...taskForm.register("correcao")} /></label>
+            <label className="field">Conclusão<textarea rows={3} {...taskForm.register("conclusao")} /></label>
+            <label className="field">Observações<textarea rows={3} {...taskForm.register("observacoes")} /></label>
+          </div>
+        </details>
         <Button type="submit" isDisabled={saveTask.isPending}>Salvar alterações</Button>
         {saveTask.isError && <p className="notice error" role="alert">{saveTask.error.message}</p>}
       </form>
@@ -203,10 +223,23 @@ export default function TaskPage() {
     <section className="action-rail mt-5" aria-label="Próximas ações">
       <div><p className="eyebrow">CONTINUE POR AQUI</p><h2>Execução e documentação</h2></div>
       <Button onPress={() => { setEditingScenario(null); scenarioForm.reset(); setShowScenarioForm(true); }}><Plus size={16} /> Adicionar cenário</Button>
-      <button type="button" onClick={() => setShowDiagrams((value) => !value)} className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
-      <a href={legacyLink(taskId, "documentos")} className="secondary-link"><FileText size={16} /> Posts / documentos <ExternalLink size={13} /></a>
+      <button type="button" onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}
+        className="secondary-link"><WandSparkles size={16} /> Gerar casos com IA</button>
+      <button type="button" onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}
+        className="secondary-link"><WandSparkles size={16} /> Gerar post com IA</button>
+      <button type="button" onClick={() => { setShowDocuments((value) => !value); setGeneratorMode(null); }}
+        className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
+      <button type="button" onClick={() => setShowDiagrams((value) => !value)}
+        className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
     </section>
 
+    {generatorMode && <Suspense fallback={<p role="status" className="notice mt-4">Carregando gerador…</p>}>
+      <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
+        scenarios={scenarios.data || []} mode={generatorMode} onClose={() => setGeneratorMode(null)} />
+    </Suspense>}
+    {showDocuments && <Suspense fallback={<p role="status" className="notice mt-4">Carregando documentos…</p>}>
+      <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId} />
+    </Suspense>}
     {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
       <DiagramPanel taskId={taskId} userId={userId} />
     </Suspense>}
