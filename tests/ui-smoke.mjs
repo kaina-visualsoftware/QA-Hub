@@ -25,7 +25,7 @@ export function createClient(){
     qa_admins:[],
     qa_documentos:[],qa_releases:[],qa_release_tarefas:[],qa_artefatos:[],qa_referencias:[],
     qa_evidencias:[],qa_eventos:[],qa_generator_posts:[],
-    qa_requisito_fontes:[],qa_requisitos:[],
+    qa_requisito_fontes:[],qa_requisitos:[],qa_geracao_contextos:[],
     qa_generator_tests:[{
       id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       user_id:'55555555-5555-4555-8555-555555555555',
@@ -243,6 +243,7 @@ export function createClient(){
         if(name!=='qa-ai')return {data:null,error:new Error('Unknown function')};
         await new Promise(resolve=>setTimeout(resolve,400));
         if(body.mode==='diagram'){
+          window.__qaDiagramPrompt=body.text;
           return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',
             mermaid:'flowchart TD\\n  A["Início"] --> B["Validar pedido"]\\n  B --> C["Concluir"]'},error:null};
         }
@@ -797,6 +798,9 @@ CENÁRIO 1 - Incluir produto
       await page.locator('#diagram-dialog').waitFor({state:'visible'});
       assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
       assert.equal(await page.locator('#diagram-ai-text-wrap').isVisible(),false);
+      await page.waitForFunction(()=>document.querySelector('#diagram-requirements-picker .qa-r3-count')?.textContent.includes('5 de 5'));
+      assert.equal(await page.locator('#diagram-requirements-picker .qa-r3-item').count(),5);
+      await page.locator('#diagram-requirements-picker .qa-r3-choice input').first().uncheck();
       if(width===390){
         await page.locator('input[name="diagram-ai-origin"][value="text"]').check();
         await page.locator('#diagram-ai-text').fill('Abrir pedido, verificar estoque e concluir pedido.');
@@ -805,6 +809,11 @@ CENÁRIO 1 - Incluir produto
       await page.locator('#diagram-ai-progress').waitFor({state:'visible'});
       await page.waitForFunction(()=>document.querySelector('#diagram-source').value.startsWith('flowchart LR'));
       await page.waitForFunction(()=>document.querySelector('#diagram-ai-progress').hidden===true);
+      const prompt=await page.evaluate(()=>window.__qaDiagramPrompt||'');
+      assert.match(prompt,/RF-003|RF-004|RF-005/,'Approved requirements must be included');
+      assert.doesNotMatch(prompt,/RF-001/,'Unselected requirement must not be sent');
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_geracao_contextos.length),0,
+        'Unsaved diagram must not create a permanent provenance record');
       await page.locator('#zoom-diagram-preview').click();
       await page.locator('#diagram-viewer').waitFor({state:'visible'});
       const initialZoom=await page.locator('#diagram-zoom-label').innerText();
@@ -816,6 +825,9 @@ CENÁRIO 1 - Incluir produto
       await page.locator('#diagram-form button[type="submit"]').click();
       await page.locator('#diagram-dialog').waitFor({state:'hidden'});
       await page.waitForFunction(()=>document.querySelector('#diagrams-number').textContent==='1');
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_geracao_contextos.length),1,
+        'Saving the diagram must record its selected requirement revisions');
+      assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_geracao_contextos[0].quantidade),4);
       assert.equal(await page.locator('#tab-btn-diagramas').getAttribute('aria-selected'),'true');
       await page.locator('[data-zoom-diagram]').click();
       await page.locator('#diagram-viewer').waitFor({state:'visible'});
