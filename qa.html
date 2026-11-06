@@ -70,7 +70,7 @@
     <div class="workspace">
       <header class="topbar">
         <div class="topbar-start"><button class="menu-button" id="menu-button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false" type="button"><svg class="menu-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg></button><div><span class="eyebrow">QUALIDADE DE SOFTWARE</span><div class="breadcrumb" id="breadcrumb">Visão geral</div></div></div>
-        <div class="topbar-actions"><button id="new-task" class="btn primary" type="button">+ Nova TF</button><button id="logout" class="btn soft" type="button">Sair</button></div>
+        <div class="topbar-actions"><div class="context-switcher"><label for="context-task-select">TF em foco</label><select id="context-task-select" aria-label="Selecionar TF em foco"><option value="">Nenhuma TF selecionada</option></select><a id="context-task-open" href="#/tarefas" class="context-open" hidden>Abrir TF</a></div><button id="new-task" class="btn primary" type="button">+ Nova TF</button><button id="logout" class="btn soft" type="button">Sair</button></div>
       </header>
 
       <main class="content" id="main-content" tabindex="-1">
@@ -198,7 +198,7 @@
               <section id="draft-scenario-review" class="panel draft-scenario-review" hidden aria-labelledby="draft-scenario-title">
                 <div class="draft-scenario-header">
                   <h2 id="draft-scenario-title">Casos de teste encontrados</h2>
-                  <p>Marque somente os que foram realmente testados. Itens desmarcados não serão gravados.</p>
+                  <p>Selecione os casos que deseja cadastrar. Eles começarão como não executados, até você registrar o resultado real.</p>
                 </div>
                 <div id="draft-scenario-list" class="draft-scenario-list" role="group" aria-label="Confirmar casos de teste"></div>
                 <p id="draft-scenario-count" class="muted fine" aria-live="polite"></p>
