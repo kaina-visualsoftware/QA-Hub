@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, FileText, GitBranchPlus, Plus, X, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, FileText, GitBranchPlus, GitMerge, Plus, X, WandSparkles } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -22,6 +22,7 @@ const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"
 const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel"));
 const RequirementsPanel = lazy(() => import("../features/requirements/RequirementsPanel"));
 const EvidencePanel = lazy(() => import("../features/evidence/EvidencePanel"));
+const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -47,6 +48,7 @@ export default function TaskPage() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
   const [generatorMode, setGeneratorMode] = useState<GeneratorMode | null>(null);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
@@ -231,6 +233,8 @@ export default function TaskPage() {
         className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
       <button type="button" onClick={() => setShowEvidence((value) => !value)}
         className="secondary-link"><ClipboardList size={16} /> {showEvidence ? "Ocultar evidências" : "Evidências e auditoria"}</button>
+      <button type="button" onClick={() => setShowLinks((value) => !value)}
+        className="secondary-link"><GitMerge size={16} /> {showLinks ? "Ocultar releases" : "Releases e referências"}</button>
       <button type="button" onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}
         className="secondary-link"><WandSparkles size={16} /> Gerar casos com IA</button>
       <button type="button" onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}
@@ -248,6 +252,9 @@ export default function TaskPage() {
     {showEvidence && <Suspense fallback={<p role="status" className="notice mt-4">Carregando evidências…</p>}>
       <EvidencePanel key={task.id} task={task} userId={userId}
         scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)} />
+    </Suspense>}
+    {showLinks && <Suspense fallback={<p role="status" className="notice mt-4">Carregando releases…</p>}>
+      <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)} />
     </Suspense>}
     {generatorMode && <Suspense fallback={<p role="status" className="notice mt-4">Carregando gerador…</p>}>
       <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}

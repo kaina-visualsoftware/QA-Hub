@@ -173,3 +173,14 @@ RLS em duas contas antes da migração de produção.
 - Exige a TF própria para cadastrar evidências; referências com características
   evidentes de credenciais/token na URL são rejeitadas no cliente.
 - Pendência: validar com Supabase real, duas contas/RLS e prova de acessibilidade.
+
+## Fase 3 — releases e referências em React
+
+- A TF pode ser associada a uma versão confirmada via `qa_link_release`,
+  mantendo RLS e sem alterar automaticamente a situação da TF.
+- Referências técnicas privadas são cadastradas via os validadores legados
+  `qa-phase3.mjs`, com cópia e exclusão explicitamente confirmada.
+- Contadores salvos de comparação texto/XML podem ser consultados; não são
+  exibidos nem persistidos textos/arquivos originais nesse painel.
+- Pendências: ferramenta de comparação local, XML seguro, testes com contas
+  Supabase reais e homologação do fluxo.

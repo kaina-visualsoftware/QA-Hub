@@ -64,3 +64,12 @@ registradas e vinculadas a cenários por uma operação explícita; não é perm
 editar nem apagar evidências já cadastradas. A aba Auditoria mostra eventos
 gerados pelos gatilhos do banco em modo somente leitura. Nenhuma senha, log
 bruto ou captura binária é enviado ou armazenado nesse módulo.
+
+## Releases e referências técnicas
+
+A TF agora oferece **Releases e referências** em React, com associação explícita de
+versões no formato `12.10.06.0000`, referências privadas da conta (checklists,
+regras e notas, com validação contra credenciais) e histórico somente leitura dos
+contadores de comparação. Para preservar a privacidade, os textos e XML originais
+não são guardados nesses registros. A comparação visual e local ainda depende
+da migração das ferramentas do legado.
