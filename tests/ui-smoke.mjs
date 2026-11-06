@@ -118,7 +118,7 @@ export function createClient(){
       async getSession(){return {data:{session:user?{user}:null},error:null}},
       onAuthStateChange(){return {data:{subscription:{unsubscribe(){}}}}},
       async signInWithPassword({email}){
-        user={id:'qa-fixture-user',email};
+        user={id:'55555555-5555-4555-8555-555555555555',email};
         return {data:{user,session:{user}},error:null};
       },
       async signOut(){user=null;return {error:null}},
