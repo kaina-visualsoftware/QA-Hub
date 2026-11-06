@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, CheckCheck, Filter, Plus, Search, X } from "lucide-react";
+import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles, X } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
+import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -20,6 +21,11 @@ export function Workspace() {
   const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
   const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
+  const [allowModel, setAllowModel] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiProgress, setAiProgress] = useState("");
+  const modelRef = useRef<LocalModelClient | null>(null);
+  const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -33,6 +39,74 @@ export function Workspace() {
     queryFn: () => listTasks(userId, role.data ?? false),
     enabled: !!userId && role.data !== undefined
   });
+  useEffect(() => () => {
+    aiRunRef.current++;
+    modelRef.current?.dispose();
+    modelRef.current = null;
+  }, []);
+
+  function showReview(source: string, draft: LocalDraft, viaModel: boolean) {
+    setLocalReview({ source, draft });
+    setExtracted(draft.cenarios
+      .filter((item) => item.titulo.trim().length >= 3 &&
+        item.passos.trim().length > 0 && item.esperado.trim().length > 0)
+      .map((item) => ({
+        titulo: item.titulo.slice(0,240), passos: item.passos.slice(0,20000),
+        esperado: item.esperado.slice(0,20000),
+        observacoes: item.observacoes.slice(0,20000), selected: false
+      })));
+    setExtractionNotice(viaModel
+      ? "Sugestão de IA preparada no seu dispositivo. Confira cada campo: a IA pode errar ou inventar informações."
+      : "Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
+  }
+
+  async function analyzeWithModel() {
+    const source = form.getValues("descricao");
+    if (!allowModel || aiBusy) return;
+    if (!source.trim() || source.length > 6000) {
+      setExtractionNotice("A IA local aceita entre 1 e 6.000 caracteres. Para textos maiores, use a extração sem IA.");
+      return;
+    }
+    const run = ++aiRunRef.current;
+    setAiBusy(true); setAiProgress("Preparando o worker local…");
+    setLocalReview(null); setExtracted([]);
+    try {
+      const { createOpenModelClient } = await import("../lib/legacy/qa-ai-open.mjs");
+      if (aiRunRef.current !== run) return;
+      modelRef.current?.dispose();
+      const client = createOpenModelClient();
+      modelRef.current = client;
+      const draft = await client.extract(source, (message) => {
+        if (aiRunRef.current === run) setAiProgress(message);
+      });
+      if (aiRunRef.current !== run) return;
+      if (form.getValues("descricao") !== source) {
+        setExtractionNotice("O texto mudou durante a análise. Execute a IA novamente para gerar uma prévia atualizada.");
+        return;
+      }
+      showReview(source, draft, true);
+    } catch (error) {
+      if (aiRunRef.current === run) {
+        setExtractionNotice(error instanceof Error ? error.message :
+          "Não foi possível usar o modelo neste dispositivo. Use a extração sem IA.");
+      }
+    } finally {
+      if (aiRunRef.current === run) {
+        setAiBusy(false); setAiProgress("");
+      }
+      modelRef.current?.dispose();
+      modelRef.current = null;
+    }
+  }
+
+  function cancelModel() {
+    aiRunRef.current++;
+    modelRef.current?.dispose();
+    modelRef.current = null;
+    setAiBusy(false); setAiProgress("");
+    setExtractionNotice("Análise com modelo local cancelada. Você pode usar a extração sem IA.");
+  }
+
   const form = useForm<TaskDraft>({
     resolver: zodResolver(taskDraftSchema),
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
@@ -98,7 +172,9 @@ export function Workspace() {
       <div className="section-heading">
         <div><p className="eyebrow">CADASTRO RÁPIDO</p><h2 id="new-task-title">Nova TF</h2>
           <p className="text-muted">Somente o essencial agora. Detalhe os cenários depois.</p></div>
-        <button aria-label="Fechar cadastro" onClick={() => setShowForm(false)}><X size={18} /></button>
+        <button aria-label="Fechar cadastro" onClick={() => {
+          cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
+        }}><X size={18} /></button>
       </div>
       <form onSubmit={form.handleSubmit((values) => void create.mutateAsync(values))} className="stack mt-5">
         <div className="form-grid">
@@ -122,22 +198,40 @@ export function Workspace() {
             const source = form.getValues("descricao");
             try {
               const draft = extractLocalDraft(source);
-              setLocalReview({ source, draft });
-              setExtracted(draft.cenarios
-                .filter((item) => item.titulo.trim().length >= 3 &&
-                  item.passos.trim().length > 0 && item.esperado.trim().length > 0)
-                .map((item) => ({
-                  titulo: item.titulo.slice(0,240), passos: item.passos.slice(0,20000),
-                  esperado: item.esperado.slice(0,20000),
-                  observacoes: item.observacoes.slice(0,20000), selected: false
-                })));
-              setExtractionNotice("Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
+              showReview(source, draft, false);
             } catch (error) {
               setLocalReview(null); setExtracted([]);
               setExtractionNotice(error instanceof Error ? error.message : "Falha na análise local.");
             }
           }}>Analisar texto localmente</Button>
           <span className="text-muted text-sm">Extração determinística no navegador, sem IA e sem envio externo.</span>
+        </div>
+        <div className="generator-context stack" aria-label="Assistente generativo no navegador">
+          <div>
+            <h3 className="font-semibold">IA generativa local (opcional)</h3>
+            <p className="text-muted text-sm mt-2">
+              O modelo público é baixado sob demanda e pode usar bastante memória e espaço no navegador.
+              O relatório é processado no próprio dispositivo, sem ser enviado ao provedor do modelo.
+              Só use após revisar o texto para não incluir dados sensíveis desnecessários.
+            </p>
+          </div>
+          <label className="flex gap-2 items-start text-sm">
+            <input type="checkbox" checked={allowModel} onChange={(event) =>
+              setAllowModel(event.target.checked)} disabled={aiBusy} />
+            Autorizo baixar o modelo público e executar a análise localmente.
+          </label>
+          <div className="flex gap-2 flex-wrap items-center">
+            <Button type="button" variant="secondary"
+              isDisabled={!allowModel || aiBusy}
+              onPress={() => void analyzeWithModel()}>
+              <Sparkles size={16} /> {aiBusy ? "Analisando no dispositivo…" : "Analisar com IA local"}
+            </Button>
+            {aiBusy && <Button type="button" variant="secondary"
+              onPress={cancelModel}>Cancelar análise</Button>}
+          </div>
+          {aiProgress && <p role="status" aria-live="polite" className="text-muted text-sm">
+            {aiProgress}
+          </p>}
         </div>
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
         {localReview && <section className="generator-context stack"
@@ -202,7 +296,7 @@ export function Workspace() {
         <div className="flex items-center gap-3 justify-end">
           <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
           <Button type="button" variant="secondary" onPress={() => {
-            setShowForm(false); setLocalReview(null); setExtracted([]);
+            cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
           }}>Cancelar</Button>
           <Button type="submit" isDisabled={create.isPending}>Salvar e abrir TF</Button>
         </div>
