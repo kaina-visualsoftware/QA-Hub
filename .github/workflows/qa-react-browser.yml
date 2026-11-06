@@ -37,3 +37,4 @@ jobs:
           node tests/browser-qa-flow.mjs
           node tests/browser-access.mjs
           node tests/browser-auth-callback.mjs
+          node tests/browser-accessibility.mjs
