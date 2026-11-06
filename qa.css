@@ -496,3 +496,35 @@ button:disabled{cursor:wait;opacity:.7}
  .qa-document-row button{align-self:flex-start}
  .qa-diagram-scenario-list{grid-template-columns:1fr}
 }
+
+/* Fase 3 — cobertura do dashboard, vínculos de release e conhecimento privado. */
+.qa-coverage-panel{margin-bottom:22px}
+.qa-coverage-summary{display:flex;align-items:center;gap:18px;margin:12px 0}
+.qa-coverage-summary strong{font-size:1.85rem;font-weight:800;color:#135d55;font-variant-numeric:tabular-nums}
+.qa-coverage-track{height:14px;border-radius:100px;background:#e1ece9;overflow:hidden;flex:1;max-width:620px}
+.qa-coverage-track span{height:100%;display:block;border-radius:inherit;background:#178f80;transition:width .2s}
+.qa-coverage-breakdown{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.qa-coverage-stat{display:inline-flex;padding:7px 11px;background:#f1f6f5;border:1px solid #dce9e6;border-radius:100px;font-size:.77rem;color:#294951}
+.qa-phase3-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.qa-phase3-panel{min-width:0;padding:20px}
+.qa-phase3-panel h3{margin-bottom:7px;font-size:1.01rem}
+.qa-phase3-wide{grid-column:1/-1}
+.qa-phase3-inline{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.qa-phase3-inline label{flex:1;min-width:160px}
+.qa-phase3-inline input,.qa-phase3-reference-form input,.qa-phase3-reference-form textarea,.qa-phase3-reference-form select{display:block;width:100%;min-width:0;margin-top:6px;padding:10px 11px;border:1px solid #cbd9db;border-radius:9px;background:#fff;color:#213c43}
+.qa-phase3-panel label{font-size:.79rem;font-weight:650;color:#375962}
+.qa-phase3-feedback{font-size:.81rem;color:#19675d;line-height:1.5;margin:9px 0}
+.qa-phase3-list{display:grid;gap:10px;margin-top:14px}
+.qa-phase3-item{padding:13px 15px;border:1px solid #dce7e5;border-radius:10px;background:#fff;min-width:0}
+.qa-phase3-item strong,.qa-phase3-item small,.qa-phase3-item span{display:block;overflow-wrap:anywhere}
+.qa-phase3-item strong{font-size:.87rem}
+.qa-phase3-item span{font-size:.82rem;color:#47656b;margin-top:5px}
+.qa-phase3-item small{font-size:.76rem;color:#6a8085;margin-top:5px}
+.qa-phase3-reference-form{display:grid;grid-template-columns:minmax(140px,.4fr) minmax(0,1fr);align-items:end;gap:13px}
+.qa-phase3-reference-form textarea{resize:vertical;min-height:85px;line-height:1.55}
+.qa-phase3-consent{display:flex!important;gap:9px;align-items:flex-start}
+.qa-phase3-consent input{width:17px;height:17px;margin:2px 0;flex-shrink:0}
+.qa-phase3-reference p{white-space:pre-wrap;overflow-wrap:anywhere;color:#385961;font-size:.84rem;margin:10px 0}
+.qa-phase3-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:840px){.qa-phase3-layout{grid-template-columns:1fr}.qa-phase3-wide{grid-column:auto}}
+@media(max-width:600px){.qa-phase3-panel{padding:15px}.qa-phase3-reference-form{grid-template-columns:1fr}.qa-phase3-inline{flex-direction:column;align-items:stretch}.qa-coverage-summary{gap:11px}.qa-coverage-summary strong{font-size:1.5rem}}

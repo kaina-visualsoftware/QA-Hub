@@ -155,3 +155,21 @@ A migration versionada `supabase/qa_phase2_documents.sql` cria `qa_documentos` c
 Antes de publicar uma instalação nova, aplique **na ordem** `supabase/schema.sql`, as demais migrations anteriores e `supabase/qa_phase2_documents.sql` no projeto Supabase correspondente. No ambiente principal do QA Hub, a migration da Fase 2 foi aplicada em 06/11/2026.
 
 **Validação recomendada:** abra uma TF existente, execute um cenário e confira que o status da TF não mudou; gere um relatório, salve duas revisões, recarregue e abra o histórico; gere um post, vincule-o à TF; gere diagrama selecionando cenários distintos; repita as verificações com um segundo usuário e confirme que ele não acessa os documentos privados.
+
+## Fase 3 — Releases, comparações e conhecimento reutilizável
+
+A TF continua sendo a entidade principal. A aba **Vínculos** reúne três recursos integrados:
+
+- **Releases:** informe o número da versão (formato `12.10.06.0000`) e confirme manualmente a associação da TF. A ferramenta **Lista e comunicado** também permite vincular à release depois de organizar a lista, **somente quando o código da TF em foco está presente** nos números informados. O vínculo nunca é inferido automaticamente por título ou versão. A operação é idempotente.
+- **Comparações de textos/XML:** ao comparar, é possível escolher **Salvar indicadores na TF**. Apenas as quantidades de adições, remoções e alterações são persistidas em `qa_artefatos`. O XML e os textos originais não são armazenados nem enviados ao Supabase nesse fluxo. A aba Vínculos mostra o histórico resumido.
+- **Referências técnicas:** cadastre checklists, regras e notas **privadas para sua conta**, reutilize entre TFs, copie ou acrescente ao rascunho de um documento. É necessário confirmar que não há credenciais ou dados pessoais. O gerador legado **Informações importantes** continua separado, local, sem migração automática de senhas/códigos/acessos.
+
+O **dashboard** apresenta cobertura de execução = cenários com status aprovado/reprovado/bloqueado ÷ total de cenários cadastrados, além de quantidade de TFs com/sem cenários. Cobertura não significa aprovação da TF nem mede todos os requisitos do software. Os cálculos respeitam o conjunto de TFs/cenários carregado para a conta e os limites de paginação já existentes.
+
+### Implantação e segurança
+
+A migração aditiva `supabase/qa_phase3_links.sql` cria `qa_releases`, `qa_release_tarefas`, `qa_artefatos` e `qa_referencias`, habilita RLS em todas, restringe o acesso à conta proprietária e cria a RPC `qa_link_release` como `SECURITY INVOKER`. Não há remoção de registros nem associação automática de TFs legadas.
+
+O campo `codigo` da TF deve corresponder exatamente à lista autorizada ao associar pela ferramenta de release. Vincular uma tarefa de outro usuário é bloqueado; administradores podem visualizá-la quando autorizados, mas a criação de vínculo permanece restrita ao proprietário. Não coloque senhas, tokens, dados pessoais ou conteúdo bruto de XML em referências ou relatórios de comparação.
+
+**Homologação:** com TF própria, confirme um vínculo de release e repita para verificar idempotência; gere um diff e um XML, salve os indicadores e confirme ausência dos conteúdos originais; cadastre referência e reutilize em outra TF; confira a cobertura do dashboard antes/depois de registrar a execução de um cenário; teste acesso com contas distintas.
