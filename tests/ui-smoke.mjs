@@ -447,7 +447,7 @@ CENÁRIO 1 - Incluir produto
     assert.equal(await page.locator('#requirements-review .qa-req-preview-card input[type=text]').first().inputValue(),'RF-001');
     await page.locator('#requirements-approve').click();
     await page.locator('#requirements-save').click();
-    assert.match(await page.locator('#requirements-feedback').innerText(),/Salve a TF/);
+    assert.match(await page.locator('#requirements-feedback').innerText(),/Salvar TF/);
     assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisitos.length),0);
     assert.equal(await page.evaluate(()=>window.__qaR1Rows.qa_requisito_fontes.length),0);
     await page.screenshot({path:'artifacts/ui/qa-r1-preview-'+width+'.png',fullPage:true});
