@@ -13,6 +13,7 @@ const rows={qa_generator_posts:[],qa_generator_tests:[],
     causa:'Rateio do kit',correcao:'Cálculo corrigido',status:'rascunho',
     observacoes:'Não deve ser alterado'}],
   qa_cenarios:[]};
+if(typeof window!=='undefined')window.__qaIntegrationRows=rows;
 let seq=0;
 export function createClient(){
   return {
@@ -173,8 +174,18 @@ for(const width of [390,1366]){
    tasks:window.__qaIntegrationRows?.qa_tarefas?.length??null,
    cases:window.__qaIntegrationRows?.qa_cenarios?.length??null
  }));
- // Supabase mock is a separate module; inspect the rendered UI and persistence
- // by reopening the same generated batch and checking duplicate detection.
+ assert.equal(integrity.tasks,1,'Importing cases must not create a TF');
+ assert.equal(integrity.cases,1,'Only one selected case should be imported');
+ const saved=await page.evaluate(()=>({
+   task:window.__qaIntegrationRows.qa_tarefas[0],
+   case:window.__qaIntegrationRows.qa_cenarios[0]
+ }));
+ assert.equal(saved.task.codigo,'67866');
+ assert.equal(saved.task.observacoes,'Não deve ser alterado');
+ assert.equal(saved.task.causa,'Rateio do kit');
+ assert.equal(saved.case.status,'nao_executado');
+ // Reload should preserve the navigation and the focused task (database behavior
+ // is checked by the RPC contract and SQL migration, as the fake resets on reload).
  await page.reload();
  await page.waitForFunction(()=>document.querySelector('#session-label').textContent.includes('67866'));
  await page.screenshot({path:'artifacts/ui/qa-cases-integration.png',fullPage:true});
