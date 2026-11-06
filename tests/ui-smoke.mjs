@@ -22,7 +22,8 @@ export function createClient(){
       {id:'diagram-public',tarefa_id:pub,titulo:'Fluxo compartilhado',conteudo:'flowchart TD\\n A["Começo"] --> B["Fim"]'},
       {id:'diagram-private',tarefa_id:priv,titulo:'Fluxo secreto',conteudo:'flowchart TD\\n A --> B'}
     ],
-    qa_admins:[]
+    qa_admins:[],
+    qa_documentos:[]
   };
   let user=null;
   let nextId=0;
@@ -71,6 +72,24 @@ export function createClient(){
   }
   return {
     from,
+    async rpc(name,args){
+      if(name!=='qa_save_document')return {data:null,error:{message:'RPC desconhecida'}};
+      const parent=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
+      if(!parent || parent.user_id!==user?.id)
+        return {data:null,error:{message:'TF sem permissão'}};
+      const versions=tables.qa_documentos.filter(doc=>doc.tarefa_id===parent.id&&doc.tipo===args.p_tipo);
+      const latest=versions.sort((a,b)=>b.versao-a.versao)[0];
+      if(latest&&latest.titulo===args.p_titulo&&latest.conteudo===args.p_conteudo)
+        return {data:latest,error:null};
+      const saved={
+        id:'test-doc-'+(++nextId),tarefa_id:parent.id,user_id:parent.user_id,
+        tipo:args.p_tipo,titulo:args.p_titulo,conteudo:args.p_conteudo,
+        origem:args.p_origem,versao:(latest?.versao||0)+1,
+        created_at:new Date().toISOString()
+      };
+      tables.qa_documentos.push(saved);
+      return {data:saved,error:null};
+    },
     functions:{
       async invoke(name,{body}){
         if(name!=='qa-ai')return {data:null,error:new Error('Unknown function')};
@@ -390,6 +409,31 @@ CENÁRIO 1 - Incluir produto
       assert.match(await page.locator('#scenarios-list').innerText(),/Cenário novo no modal/);
       assert.equal(await page.locator('#tab-btn-cenarios').getAttribute('aria-selected'),'true');
       await page.screenshot({path:'artifacts/ui/scenario-modal-workflow-'+width+'.png',fullPage:true});
+      // Phase 2: results are persisted on the original scenario, never inferred.
+      await page.locator('#tab-btn-execucao').click();
+      await page.locator('#execution-list .qa-execution-case').waitFor({state:'visible'});
+      assert.match(await page.locator('#execution-summary').innerText(),/1 não executados/);
+      await page.locator('.qa-execution-fields select').selectOption('aprovado');
+      await page.locator('.qa-execution-fields textarea').first().fill('Pedido abriu com o resultado esperado.');
+      await page.locator('.qa-execution-actions button').first().click();
+      await page.waitForFunction(()=>document.querySelector('#execution-summary').textContent.includes('1 aprovados'));
+      assert.match(await page.locator('#scenarios-list').innerText(),/Pedido abriu com o resultado esperado/);
+      await page.locator('#tab-btn-documentos').click();
+      await page.locator('#document-generate-report').click();
+      assert.match(await page.locator('#document-content').inputValue(),/Aprovados: 1/);
+      assert.match(await page.locator('#document-content').inputValue(),/Pedido abriu com o resultado esperado/);
+      await page.locator('#document-save').click();
+      await page.waitForFunction(()=>document.querySelector('#document-status').textContent.includes('versão 1'));
+      assert.equal(await page.locator('#documents-list .qa-document-row').count(),1);
+      await page.locator('#document-content').fill((await page.locator('#document-content').inputValue())+'\nNota de revisão adicional.');
+      await page.locator('#document-save').click();
+      await page.waitForFunction(()=>document.querySelector('#document-status').textContent.includes('versão 2'));
+      await page.locator('#tab-btn-historico').click();
+      assert.equal(await page.locator('#documents-history .qa-document-row').count(),2);
+      await page.locator('#documents-history .qa-document-row button').last().click();
+      assert.equal(await page.locator('#tab-btn-documentos').getAttribute('aria-selected'),'true');
+      assert.doesNotMatch(await page.locator('#document-content').inputValue(),/Nota de revisão adicional/);
+      await page.screenshot({path:'artifacts/ui/qa-phase2-documents-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){
       await page.locator('#tab-btn-diagramas').click();
