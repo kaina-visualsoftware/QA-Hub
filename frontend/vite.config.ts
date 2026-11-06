@@ -7,7 +7,7 @@ export default defineConfig({
   server: { host: "localhost", port: 8765, strictPort: true },
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: "dist", sourcemap: false,
+    outDir: "dist", sourcemap: false, manifest: true,
     rollupOptions: {
       input: {
         main: "index.html",
