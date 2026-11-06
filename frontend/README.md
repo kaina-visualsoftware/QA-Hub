@@ -15,8 +15,9 @@ O incremento traz Auth, listagem/busca de TFs, criação rápida, edição bási
 cenários, execução manual, edição/exclusão de registros e diagramas Mermaid nativos (lazy). Estados remotos usam TanStack Query; foco local,
 Zustand; validação, Zod/React Hook Form. Nenhuma aprovação automática via IA.
 
-Pendências: IA local e geração de diagramas por IA, funções administrativas e
-páginas públicas, callbacks de produção, testes RLS com contas reais,
+Pendências: homologação de inferência do modelo local em dispositivos reais,
+geração de diagramas por IA, administração avançada e callbacks de produção,
+testes RLS com contas reais,
 acessibilidade e desempenho. O lockfile versionado permite reproduzir a instalação com `npm ci`.
 
 ## Testes do primeiro incremento
@@ -133,3 +134,28 @@ Links antigos continuam no legado até o corte aprovado.
 
 Os testes Chromium usam tokens e endpoints simulados, não configurações
 reais de autenticação. O cache TanStack é zerado em troca/saída de conta.
+
+## IA generativa local — opcional e sem gravação automática
+
+Na tela Nova TF, use Analisar com IA local somente após marcar a autorização
+explícita para download do modelo público. A aplicação importa
+@huggingface/transformers@3.8.1 sob demanda num Web Worker separado e
+utiliza o modelo onnx-community/Qwen2.5-0.5B-Instruct, herdado do legado.
+Prioriza WebGPU e tenta CPU/WASM caso a GPU não funcione. O modelo e o
+runtime podem exigir downloads grandes e bastante memória. Não habilitar
+automaticamente em dispositivos restritos. O código da biblioteca é
+empacotado com Vite; pesos públicos podem ser baixados do repositório do
+modelo e componentes WASM do runtime. Nenhum texto da TF é enviado pelo
+QA Hub a um backend para esta análise; inferência roda no dispositivo.
+
+Entrada limitada a 6.000 caracteres; a extração determinística continua
+aceitando 30.000. A identificação determinística de código e versão tem
+precedência sobre o modelo. Saídas são normalizadas, exibidas para revisão,
+nunca marcam casos como executados/aprovados, e cenários só são anexados
+se o QA os selecionar e salvar a TF. O botão Cancelar encerra o Worker.
+Em falhas de compatibilidade/memória/rede use Analisar texto localmente.
+
+Testes Vitest verificam o contrato, worker sintético, limites e cancelamento.
+O E2E Chromium usa Worker simulado, sem baixar pesos reais. Homologação
+obrigatória ainda pendente: inferência com modelo real em máquina e celular,
+medição de memória/rede/tempo, revisão das saídas e acessibilidade.

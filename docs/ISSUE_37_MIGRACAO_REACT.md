@@ -9,7 +9,7 @@ Branch: feat/issue-37-react-foundation. Produção preservada em qa.html.
 | Login/cadastro/sessão | AuthProvider | Homologar callback e RLS |
 | Recuperação de senha | AuthProvider | Redirecionamento para SPA no corte |
 | TFs: listagem/busca/filtro | Workspace | Paginação server-side |
-| Cadastro de TF como rascunho | Workspace | IA NVIDIA e modelo local |
+| Cadastro de TF como rascunho | Workspace + extração determinística e IA local opcional | Validar inferência real em navegadores/dispositivos |
 | Edição de dados básicos | TaskPage | Campos adicionais, exclusão |
 | Adicionar/editar/excluir cenário | TaskPage | Evidências vinculadas |
 | Aprovar/reprovar/bloquear cenário | TaskPage | Execução E2E Supabase real |
@@ -89,7 +89,7 @@ importação transacional, migração dos módulos legados faltantes. A PR é dr
   apagar a revisão ou a TF.
 
 **Limitações restantes:** revisão completa das fases de requisitos R1–R4,
-edição/zoom avançado Mermaid, IA local no navegador, visualização pública,
+edição/zoom avançado Mermaid, homologação real de inferência local, visualização pública,
 liberação de evidências, auditoria e release/diff/XML. Segurança real RLS,
 contas de homologação, acessibilidade assistiva, comparação de performance
 e corte de produção permanecem pendentes.
@@ -262,3 +262,29 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
 - REDIRECT PADRÃO ainda é qa.html; auth.html exige allowlist/SSL,
   deploy e testes Supabase Auth reais antes de ativação.
 - Sem mudança de banco, RLS, main ou deploy neste incremento.
+
+## IA generativa local em Web Worker — incremento 06/11/2026
+
+- Fonte pura `qa-ai-open.mjs` e worker do legado portados para
+  `frontend/src/lib/legacy`, com validação, normalização e
+  ancoragem determinística de código e versão.
+- Substituição do import remoto de biblioteca JavaScript via CDN por
+  pacote npm `@huggingface/transformers@3.8.1` versionado e Vite worker
+  empacotado. Pesos do modelo público continuam download sob demanda;
+  dependências WASM podem ser obtidas pelo runtime quando necessárias.
+- Consentimento específico de download antes de ativar; sem download
+  de pesos em login, navegação ou extração determinística.
+- Limite de 6.000 caracteres, progresso, cancelamento com Worker.terminate,
+  fallback manual para extração sem IA, prévia revisável e aplicação explícita.
+- Cenários sugeridos não são selecionados automaticamente e persistem como
+  `nao_executado` após a escolha do QA.
+- Vitest verifica mensagens sintéticas do Worker, cancelamento,
+  limite de entrada, rejeição de JSON inválido e proteção do código/versão.
+- E2E Chromium exercita opt-in e revisão com Worker sintético, sem carregar
+  o modelo real. Validação de pesos reais, desempenho, WebGPU e WASM em
+  dispositivos reais ainda pendente e não deve ser apresentada como feita.
+- `vite build` passou com worker JavaScript de aproximadamente 919 KB e
+  asset WASM de aproximadamente 21,6 MB (tamanhos brutos); só a navegação
+  não implica download do modelo, mas o footprint real em rede depende
+  do navegador, caching e backend.
+- Nenhum deploy ou merge: PR permanece draft.
