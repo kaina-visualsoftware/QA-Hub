@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, FileText, GitBranchPlus, Plus, X, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, FileText, GitBranchPlus, Plus, X, WandSparkles } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -20,6 +20,7 @@ import { useFocus } from "../stores/focus";
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
 const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel"));
+const RequirementsPanel = lazy(() => import("../features/requirements/RequirementsPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -43,6 +44,7 @@ export default function TaskPage() {
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [showRequirements, setShowRequirements] = useState(false);
   const [generatorMode, setGeneratorMode] = useState<GeneratorMode | null>(null);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
@@ -223,6 +225,8 @@ export default function TaskPage() {
     <section className="action-rail mt-5" aria-label="Próximas ações">
       <div><p className="eyebrow">CONTINUE POR AQUI</p><h2>Execução e documentação</h2></div>
       <Button onPress={() => { setEditingScenario(null); scenarioForm.reset(); setShowScenarioForm(true); }}><Plus size={16} /> Adicionar cenário</Button>
+      <button type="button" onClick={() => setShowRequirements((value) => !value)}
+        className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
       <button type="button" onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}
         className="secondary-link"><WandSparkles size={16} /> Gerar casos com IA</button>
       <button type="button" onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}
@@ -233,6 +237,10 @@ export default function TaskPage() {
         className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
     </section>
 
+    {showRequirements && <Suspense fallback={<p role="status" className="notice mt-4">Carregando requisitos…</p>}>
+      <RequirementsPanel key={task.id} task={task} userId={userId}
+        scenarios={scenarios.data || []} onClose={() => setShowRequirements(false)} />
+    </Suspense>}
     {generatorMode && <Suspense fallback={<p role="status" className="notice mt-4">Carregando gerador…</p>}>
       <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
         scenarios={scenarios.data || []} mode={generatorMode} onClose={() => setGeneratorMode(null)} />

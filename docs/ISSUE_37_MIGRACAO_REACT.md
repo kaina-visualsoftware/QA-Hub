@@ -135,3 +135,29 @@ artefatos, **não** bytes efetivamente transferidos ou indicadores Core Web Vita
 Antes da publicação definitiva, comparar com a rede do legado, medir LCP/INP,
 interações, uso de memória, latência das queries e possíveis chunks de vendor
 não utilizados. Não trocar para outra biblioteca apenas por presunção.
+
+## Requisitos R1–R4 em React — incremento de 06/11/2026
+
+- **R1**: `RequirementsPanel` permite colar texto de especificação,
+  organizar via `qa-requirements.mjs`, revisar campo a campo, marcar
+  os selecionados como aprovados e importar via RPC transacional.
+  A edição e o arquivamento preservam as revisões existentes.
+- **R4**: painel de cobertura usa `calculateRequirementCoverage` e os
+  vínculos efetivamente persistidos. A matriz distingue vinculação de
+  execução/validação, oferece associação manual de cenários por RPC
+  e exporta CSV com proteção contra fórmulas de planilhas.
+- **R2**: listagem e download de fontes originais privadas;
+  upload com verificação local de cabeçalho, SHA-256, nome, tamanho,
+  MIME e registro no Storage/RPC sem substituir versões.
+  TXT/MD são lidos localmente; PDF/DOCX são preservados em sua forma
+  original e, nesta etapa, precisam de transcrição manual para indexar
+  o texto. A extração automática de PDF/DOCX do legado ainda não foi portada.
+- **R3**: consulta somente leitura ao histórico de revisões exatas
+  selecionadas nas gerações, sem expor binários de anexos.
+- Requisitos permanecem **privados para o proprietário da TF**; a
+  consulta administrativa não habilita a edição de requisitos de terceiros.
+- A migração reutiliza migrations existentes e não executa SQL novo.
+
+Pendente: homologação real de RPCs, simulação de fluxo R1/R4 em navegador,
+extração local PDF/DOCX, teste robusto de anexo e download/segurança de
+RLS em duas contas antes da migração de produção.

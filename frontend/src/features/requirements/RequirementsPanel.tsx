@@ -1,12 +1,9 @@
-import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Task, Scenario } from "../../lib/contracts";
-import { supabase } from "../../lib/supabase";
 import {
   listRequirements, listRequirementLinks, listRequirementSources, listRequirementUsage
 } from "./requirements-data";
-import type { Requirement } from "./requirements-data";
 import RequirementCatalog from "./RequirementCatalog";
 import CoverageView from "./CoverageView";
 import SourcesView from "./SourcesView";

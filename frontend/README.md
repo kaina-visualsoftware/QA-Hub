@@ -45,3 +45,14 @@ Os documentos são versionados e permanecem privados por RLS.
 O Vite dev usa a porta **8765** por compatibilidade com a lista de origens
 permitidas pela Edge Function atual. O callback Auth precisa estar autorizado
 se você testar cadastro/recuperação localmente.
+
+## Requisitos, cobertura e fontes privadas
+
+Na TF, abra **Requisitos e cobertura**. As abas permitem importar
+especificações, revisar/aprovar/arquivar, relacionar cenários, exportar
+cobertura CSV, anexar documentos privados e consultar snapshots das
+gerações de IA. Apenas o proprietário tem acesso aos registros privados.
+
+PDF/DOCX originais são armazenados, mas a extração de texto automática
+ainda não está disponível nesta interface React. TXT e MD são lidos
+localmente, antes do upload. Nenhum arquivo é transmitido à IA por padrão.
