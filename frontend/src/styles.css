@@ -141,3 +141,11 @@
   background-color:var(--accent-hover);
   color:var(--accent-foreground);
 }
+
+/* The public Mermaid source is an accessible text alternative to sandboxed SVG. */
+.diagram-source{
+  max-height:170px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
+  font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;
+  margin-top:12px;color:#193b46;
+}
+.public-react-zoom{overflow-y:auto;}

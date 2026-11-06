@@ -55,7 +55,7 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
     </div>
     {svg && <iframe title={"Prévia pública: " + diagram.titulo}
       className="diagram-preview mt-3" sandbox="" referrerPolicy="no-referrer"
-      srcDoc={svg} />}
+      tabIndex={-1} srcDoc={svg} />}
     {error && <p className="notice error mt-3" role="alert">{error}</p>}
     {expanded && svg && <div className="public-react-zoom-backdrop" role="presentation">
       <section ref={zoomRef} className="public-react-zoom" role="dialog" aria-modal="true"
@@ -67,7 +67,11 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
           </Button>
         </div>
         <iframe title={"Diagrama ampliado: " + diagram.titulo} className="public-react-zoom-frame"
-          sandbox="" referrerPolicy="no-referrer" srcDoc={svg} />
+          sandbox="" referrerPolicy="no-referrer" tabIndex={-1} srcDoc={svg} />
+        <details className="generator-context">
+          <summary>Consultar texto do diagrama</summary>
+          <pre className="diagram-source">{diagram.conteudo}</pre>
+        </details>
       </section>
     </div>}
   </article>;
