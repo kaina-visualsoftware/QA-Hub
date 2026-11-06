@@ -105,7 +105,7 @@ async function attach(page, width) {
 }
 
 try {
-  for (const width of [390, 1366]) {
+  for (const width of [320, 390, 1366]) {
     const page = await browser.newPage({ viewport: { width, height: 844 } });
     await attach(page, width);
     await page.goto(BASE);
@@ -202,7 +202,7 @@ try {
     console.error("Falhas WCAG detectadas:", JSON.stringify(violations, null, 2));
     throw Error(violations.length + " conjuntos de violações WCAG no React.");
   }
-  console.log("WCAG AA: 14 estados em 390/1366 px, modal Tab/Escape/focus restaurado e IA lazy.");
+  console.log("WCAG AA: 21 estados em 320/390/1366 px, modal Tab/Escape/foco restaurado e IA lazy.");
 } finally {
   await browser.close();
 }
