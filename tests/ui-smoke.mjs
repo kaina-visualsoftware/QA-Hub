@@ -256,6 +256,8 @@ try {
     assert.equal(await page.locator('#tool-view-title').innerText(),'Posts do fórum');
     const tool=page.frameLocator('#tool-frame');
     await tool.locator('#t').waitFor({state:'visible',timeout:12000});
+    const requirementHeight=await tool.locator('#r').evaluate(node=>node.getBoundingClientRect().height);
+    assert.ok(requirementHeight<=130,'Embedded optional requirement must stay compact at '+width+': '+requirementHeight);
     assert.equal(await tool.locator('nav').isVisible(),false,'No duplicate tool navigation');
     assert.equal(await context.pages().length,1,'Tool navigation must not open another tab');
     assert.equal(await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').getAttribute('aria-current'),'page');
@@ -268,18 +270,57 @@ try {
     await page.locator('#native-diff textarea').last().fill('Pedido\nDepois');
     await page.locator('#native-diff .qa-native-actions > button').first().click();
     assert.match(await page.locator('#native-diff .qa-native-output').innerText(),/1 adicionada/);
+    await page.evaluate(()=>document.activeElement?.blur());
+    await page.screenshot({path:'artifacts/ui/qa-native-diff-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/xml"]').evaluate(el=>el.click());
     await page.locator('#native-xml').waitFor({state:'visible'});
     await page.locator('#native-xml textarea').first().fill('<root><item a="1"/></root>');
     await page.locator('#native-xml textarea').last().fill('<root><item a="2"/></root>');
     await page.locator('#native-xml .qa-native-actions > button').first().click();
     assert.match(await page.locator('#native-xml .qa-native-output').innerText(),/ATRIBUTO/);
+    const checkboxSize=await page.locator('#native-xml input[type=checkbox]').evaluate(node=>{
+      const rect=node.getBoundingClientRect();return {width:rect.width,height:rect.height};
+    });
+    assert.ok(checkboxSize.width<=24&&checkboxSize.height<=24,
+      'XML checkbox should not inherit full-size text input dimensions at '+width+': '+JSON.stringify(checkboxSize));
+    await page.evaluate(()=>document.activeElement?.blur());
+    await page.screenshot({path:'artifacts/ui/qa-native-xml-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/release"]').evaluate(el=>el.click());
     await page.locator('#native-release').waitFor({state:'visible'});
     await page.locator('#native-release input').first().fill('12.10.06.0000');
-    await page.locator('#native-release textarea').nth(1).fill('Status 12\n#67866 — BUG — Correção de pedido');
+    await page.locator('#native-release .qa-native-release-grid textarea').first().fill('Status 12\n#67866 — BUG — Correção de pedido');
     await page.locator('#native-release .qa-native-actions > button').first().click();
     assert.match(await page.locator('#native-release .qa-native-output').innerText(),/Tarefas da Release/);
+    const advanced=page.locator('#native-release .qa-native-advanced');
+    assert.equal(await advanced.getAttribute('open'),null,'Optional release fields should be collapsed by default');
+    await page.locator('#native-release .qa-native-advanced summary').click();
+    assert.equal(await advanced.evaluate(node=>node.open),true,'Advanced release settings must be accessible');
+    await page.locator('#native-release .qa-native-advanced summary').click();
+    const visual=await page.locator('#native-release').evaluate(node=>{
+      const box=node.getBoundingClientRect();
+      const grid=node.querySelector('.qa-native-grid');
+      const inputs=[...node.querySelectorAll('.qa-native-release-grid > .qa-native-field')].map(field=>{
+        const rect=field.getBoundingClientRect();
+        return {left:rect.left,right:rect.right,width:rect.width};
+      });
+      return {
+        background:getComputedStyle(node).backgroundColor,
+        border:getComputedStyle(node).borderTopWidth,
+        radius:getComputedStyle(node).borderTopLeftRadius,
+        columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        bounds:{left:box.left,right:box.right},
+        inputs,
+        overflow:document.documentElement.scrollWidth-innerWidth
+      };
+    });
+    assert.equal(visual.background,'rgb(255, 255, 255)','Native tools must use the same white surface as QA Hub panels');
+    assert.equal(visual.border,'1px','Native tools must use standard panel border');
+    assert.ok(visual.inputs.every(input=>input.left>=visual.bounds.left-1&&input.right<=visual.bounds.right+1),
+      'Release fields must stay inside panel at '+width+': '+JSON.stringify(visual));
+    assert.ok(visual.overflow<=1,'Release tool page overflow at '+width+': '+visual.overflow);
+    assert.equal(visual.columns,width>840?2:1,'Native release grid responds correctly at '+width);
+    await page.evaluate(()=>document.activeElement?.blur());
+    await page.screenshot({path:'artifacts/ui/qa-native-release-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
     await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
     assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
@@ -536,6 +577,12 @@ CENÁRIO 1 - Incluir produto
        await page.locator('#evidence-save').click();
        await page.waitForFunction(()=>document.querySelector('#evidence-list').textContent.includes('Conferido o fluxo'));
        assert.match(await page.locator('#audit-list').innerText(),/Evidência adicionada/);
+       await page.waitForFunction(()=>{
+         const tab=document.querySelector('#tab-btn-auditoria').getBoundingClientRect();
+         const bar=document.querySelector('#task-detail-tabs').getBoundingClientRect();
+         return tab.left>=bar.left-2&&tab.right<=bar.right+2;
+       });
+       await page.evaluate(()=>document.activeElement?.blur());
        await page.screenshot({path:'artifacts/ui/qa-phase4-audit-'+width+'.png',fullPage:true});
     }
     if(width===390||width===1366){

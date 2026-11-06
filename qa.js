@@ -344,6 +344,18 @@ function selectTab(name) {
     button.tabIndex = selected ? 0 : -1;
   }
   if(name==='execucao')phase2.renderExecution();
+  // Keep the active tab visible in the horizontally scrollable mobile tab bar,
+  // without scrolling the entire document away from the current form.
+  requestAnimationFrame(()=>{
+    const bar=$('#task-detail-tabs'),active=bar?.querySelector('.tab.active');
+    if(!bar||!active||bar.hidden||!bar.clientWidth)return;
+    const viewport=bar.getBoundingClientRect(),item=active.getBoundingClientRect();
+    const inset=8;
+    if(item.left<viewport.left+inset)
+      bar.scrollLeft-=viewport.left+inset-item.left;
+    else if(item.right>viewport.right-inset)
+      bar.scrollLeft+=item.right-viewport.right+inset;
+  });
 }
 const toolFrame = $('#tool-frame');
 toolFrame.addEventListener('load', () => {

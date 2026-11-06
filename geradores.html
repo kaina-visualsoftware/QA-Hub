@@ -155,6 +155,28 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 .qa-phase3-tool button{min-height:40px}
 .qa-phase3-tool-status{margin-left:10px;font-size:13px;color:#247163}
 @media(max-width:600px){.qa-phase3-tool{padding:12px}.qa-phase3-tool button{width:100%}}
+/* Compactar os geradores quando usados dentro do QA Hub. */
+:root[data-embedded="true"] #t{
+  height:220px;
+  min-height:150px;
+  max-height:60vh;
+}
+:root[data-embedded="true"] #r{
+  height:116px;
+  min-height:90px;
+  max-height:42vh;
+}
+:root[data-embedded="true"] .grid{gap:14px}
+:root[data-embedded="true"] label{line-height:1.45;margin-bottom:6px}
+:root[data-embedded="true"] textarea{border-color:#d8e2e5}
+:root[data-embedded="true"] textarea:focus-visible{border-color:#0d786d}
+@media(max-width:600px){
+  :root[data-embedded="true"] #t{height:205px}
+  :root[data-embedded="true"] #r{height:112px}
+  :root[data-embedded="true"] .qa-attach,
+  :root[data-embedded="true"] .qa-post-document{padding:14px}
+  :root[data-embedded="true"] .qa-post-actions{align-items:stretch}
+}
 </style>
 </head><body><div class="app">
 <nav><a href="./qa.html" class="qa-return">← QA Hub · Tarefas</a><p class="qa-generator-brand">GERADORES <span>QA Hub</span></p><button id="n-home" class="on">🏠 Início</button><h1>Documentação</h1><button id="n-post">📝 Posts do fórum <small class="tg ia">IA</small></button><h1>QA</h1><button id="n-teste">🧪 Casos de teste <small class="tg ia">IA</small></button><h1>Releases</h1><button id="n-release">📦 Lista e comunicado <small class="tg lo">local</small></button><h1>Guardados</h1><button id="n-lib">🗂️ Informações importantes <small class="tg lo">local</small></button><h1>Ferramentas</h1><button id="n-diff">↔️ Comparar textos <small class="tg lo">local</small></button><button id="n-xml">🧾 Comparar XML <small class="tg lo">local</small></button><details class="lg"><summary>O que usa IA?</summary><p><b>Usa IA (gasta tokens)</b></p><ul><li>Posts do fórum: gerar o texto</li><li>Casos de teste: gerar o roteiro</li></ul><p><b>Roda só no código (sem tokens)</b></p><ul><li>Lista de release: organizar e comparar com o comunicado</li><li>Comparar textos e Comparar XML</li><li>Execução dos testes: status, OBS, copiar cenário e relatório</li><li>Informações importantes: códigos, acessos e anotações</li><li>Histórico: abrir, excluir e salvar</li><li>Copiar formatado, Markdown e BBCode</li></ul><p class="mu">Sem tokens, os 2 geradores com IA deixam de gerar, mas tudo o que já foi gerado continua no histórico e o restante funciona normalmente.</p></details></nav>

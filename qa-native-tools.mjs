@@ -25,7 +25,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
   let currentMode='',lastContext=null;
   function box(mode){
     if(panels.has(mode))return panels.get(mode);
-    const node=el('section',{class:'qa-native-panel',id:'native-'+mode});
+    const node=el('section',{class:'panel qa-native-panel',id:'native-'+mode});
     node.hidden=true;root.append(node);panels.set(mode,node);
     return node;
   }
@@ -101,7 +101,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
   function makeRelease(){
     const mode='release',node=box(mode);
     node.append(el('p',{class:'muted'},'Organização e conferência de releases diretamente no QA Hub. A associação à TF é sempre confirmada.'));
-    const fields=el('div',{class:'qa-native-grid'});node.append(fields);
+    const fields=el('div',{class:'qa-native-grid qa-native-release-grid'});node.append(fields);
     const [verLabel,version]=field('Versão (12.10.06.0000)','input');
     version.placeholder='12.10.06.0000';version.maxLength=40;
     const [stLabel,st]=field('Status padrão','select');
@@ -111,7 +111,13 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     const [noteLabel,notice]=field('Comunicado para comparação','textarea',10);
     const [compatLabel,compat]=field('Compatibilidades','textarea',3);
     const [signatureLabel,signature]=field('Assinatura','input');
-    fields.append(verLabel,stLabel,teamLabel,taskLabel,noteLabel,compatLabel,signatureLabel);
+    fields.append(verLabel,stLabel,taskLabel,noteLabel);
+    const advanced=el('details',{class:'qa-native-advanced'});
+    advanced.append(el('summary',{},'Opções adicionais · Equipe, compatibilidades e assinatura'));
+    const advancedGrid=el('div',{class:'qa-native-grid qa-native-advanced-grid'});
+    advancedGrid.append(teamLabel,compatLabel,signatureLabel);
+    advanced.append(advancedGrid);
+    node.append(advanced);
     const results=el('div',{class:'qa-native-output'});
     const buttons=actions(node),link=button('Associar TF em foco à release',async()=>{
       const t=getTask();
