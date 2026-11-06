@@ -457,6 +457,7 @@ CENÁRIO 1 - Incluir produto
        await page.locator('#links-reference-safe').check();
        await page.locator('#links-reference-save').click();
        await page.waitForFunction(()=>document.querySelector('#links-reference-list').textContent.includes('Checklist para pedido'));
+       page.once('dialog',dialog=>dialog.accept());
        await page.locator('#links-reference-list .qa-phase3-actions button').nth(1).click();
        assert.equal(await page.locator('#tab-btn-documentos').getAttribute('aria-selected'),'true');
        assert.match(await page.locator('#document-content').inputValue(),/Validar mensagens e regras de desconto/);
