@@ -21,7 +21,7 @@ jobs:
           node-version: '22'
       - name: Install app and browser runner
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
       - name: Build React app

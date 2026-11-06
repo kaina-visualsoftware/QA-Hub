@@ -93,3 +93,10 @@ edição/zoom avançado Mermaid, IA local no navegador, visualização pública,
 liberação de evidências, auditoria e release/diff/XML. Segurança real RLS,
 contas de homologação, acessibilidade assistiva, comparação de performance
 e corte de produção permanecem pendentes.
+
+## Reprodutibilidade de dependências
+
+O lockfile npm v3 foi gerado em GitHub Actions com Node.js 22, contém 400
+entradas de pacote e está versionado na branch. As verificações de frontend
+executam `npm ci` antes de tipagem, lint, testes e build. Não foram adicionadas
+chaves privadas nem dependências de runtime para este procedimento.

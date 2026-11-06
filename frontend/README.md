@@ -17,8 +17,7 @@ Zustand; validação, Zod/React Hook Form. Nenhuma aprovação automática via I
 
 Pendências: paridade de IA, histórico, documentos, geração de diagramas por IA,
 requisitos, callbacks de produção, testes RLS com contas reais,
-acessibilidade e desempenho. package-lock.json deve ser gerado e versionado
-em ambiente com acesso ao registry antes do corte de produção.
+acessibilidade e desempenho. O lockfile versionado permite reproduzir a instalação com `npm ci`.
 
 ## Testes do primeiro incremento
 
