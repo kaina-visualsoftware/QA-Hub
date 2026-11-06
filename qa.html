@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#112d39">
   <meta name="description" content="Histórico de testes, cenários, evidências e fluxos de QA.">
   <link rel="stylesheet" href="./qa.css">
+  <link rel="stylesheet" href="./qa-requirements-picker.css">
   <script type="module" src="./qa.js"></script>
 </head>
 <body>
@@ -455,6 +456,7 @@ Critérios de aceite:
                 </div>
                 <fieldset id="diagram-scenario-wrap" class="qa-diagram-scenarios"><legend>Cenários usados no diagrama</legend><div id="diagram-scenario-list" class="qa-diagram-scenario-list"></div><p class="muted fine">Os cenários selecionados e os dados da TF serão enviados à IA somente ao gerar. Revise informações confidenciais.</p></fieldset>
                  <label id="diagram-ai-text-wrap" hidden>Descreva o fluxo <textarea id="diagram-ai-text" rows="5" maxlength="12000" placeholder="Ex.: O usuário abre o pedido, escolhe os produtos, confirma e o sistema valida o estoque."></textarea></label>
+                <div id="diagram-requirements-picker" hidden aria-label="Selecionar requisitos para o diagrama"></div>
                 <div class="diagram-ai-actions"><button id="diagram-generate" type="button" class="btn primary">Gerar diagrama com IA</button><span id="diagram-ai-progress" role="status" aria-live="polite" hidden>Gerando diagrama…</span></div>
                 <p id="diagram-ai-error" class="diagram-ai-error" role="alert" hidden></p>
               </section>
