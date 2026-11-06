@@ -2,7 +2,7 @@ import {saveTfDocument} from './qa-phase2.mjs';
 
 // Explicitly save a reviewed generator post as an immutable version attached to a TF.
 // The generator's legacy history remains separate and is never erased or rewritten.
-export function createPostDocumentUi({client,getMode,getUserId,state,getTask,embedded}) {
+export function createPostDocumentUi({client,getMode,getUserId,state,getTask,embedded,onSaved}) {
   const $=id=>document.getElementById(id);
   let saving=false;
   const info=message=>{$('qa-post-status').textContent=message};
@@ -41,6 +41,9 @@ export function createPostDocumentUi({client,getMode,getUserId,state,getTask,emb
       if(embedded)parent.postMessage({
         type:'qa-hub:document-saved',taskId:task.id,version:record.versao
       },location.origin);
+      // Clear only after the database confirmed the version. A failed save
+      // leaves every field intact so the user can retry without data loss.
+      onSaved?.(record);
     }catch(error){
       info('Não foi possível salvar o post: '+(error?.message||String(error)));
     }finally{saving=false;render()}
