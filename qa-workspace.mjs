@@ -1,3 +1,4 @@
+import {normalizeNarrative} from './qa-narrative.mjs';
 // Shared, side-effect free helpers for TF-oriented QA workflows.
 // The same parser powers the generator preview and the regression tests.
 export const TASK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -71,11 +72,11 @@ export function markScenarioDuplicates(candidates,existing=[]) {
 export function validateReviewedCases(items) {
   if (!Array.isArray(items) || items.length>100) throw new Error('Selecione no máximo 100 casos por operação.');
   return items.map((item,index)=>{
-    const titulo=text(item.titulo),passos=clean(item.passos),esperado=clean(item.esperado);
+    const titulo=text(item.titulo),passos=normalizeNarrative(clean(item.passos)),esperado=normalizeNarrative(clean(item.esperado));
     if (titulo.length<3||titulo.length>240) throw new Error('O título do caso '+(index+1)+' deve ter 3 a 240 caracteres.');
     if (!passos||!esperado) throw new Error('Informe passos e resultado esperado no caso '+(index+1)+'.');
     if (passos.length>20000||esperado.length>20000) throw new Error('O caso '+(index+1)+' ultrapassa o limite de texto.');
-    const notes=clean(item.observacoes);
+    const notes=normalizeNarrative(clean(item.observacoes));
     if(notes.length>20000)throw new Error('Observações do caso '+(index+1)+' acima do limite, revise antes de salvar.');
     return {source_index:String(item.source_index||index+1),titulo,passos,esperado,
       observacoes:notes};
