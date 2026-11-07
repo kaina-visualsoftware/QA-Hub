@@ -168,3 +168,39 @@ como medida improvisada. Não executar SQL de homologação no projeto público.
 
 A implementação da branch **não executou** os scripts no banco.
 O teste com Supabase real e usuários de homologação segue obrigatório.
+
+## Auditoria de metadados reais — 07/11/2026
+
+Foi realizada **somente leitura** de metadados no Supabase SIA utilizado pela
+configuração atual do QA Hub: `pg_policies`, `has_table_privilege`,
+lista resumida de tabelas e linter de segurança. Também foi verificada apenas
+a contagem de TFs publicadas; nenhum registro pessoal ou conteúdo de TF foi
+extraído e nenhuma regra foi alterada.
+
+- Há **2 TFs marcadas como públicas** no projeto conectado.
+- `anon` e `authenticated` possuem `SELECT` sobre
+  `qa_tarefas`, `qa_cenarios` e `qa_diagramas`.
+- As políticas `qa_tarefas_public_read`,
+  `qa_cenarios_public_read` e `qa_diagramas_public_read` estão
+  instaladas para `anon, authenticated`, liberando as **linhas**
+  publicadas, sem restringir colunas.
+- Portanto, o risco de acesso público a colunas internas **não é apenas
+  hipotético** no esquema atual; a presença de conteúdo sensível nesses
+  campos não foi inspecionada.
+- **Não existe projeto ou branch de staging identificado na conta Supabase
+  conectada que contém esse projeto.** Não criar projeto cobravel nem
+  aplicar scripts ao banco de produção sem uma etapa de aprovação própria.
+- `supabase/qa_public_read_audit.sql` é um inventário SQL somente leitura
+  de privilégios e políticas para repetir antes/depois da mudança.
+
+A trava `VITE_PUBLIC_SHARING_ENABLED` impede **novas** publicações pela
+SPA React enquanto estiver omitida/desativada. Ela não altera a publicação
+já existente, não substitui RLS e **não bloqueia o frontend legado que
+continua publicado**. A ação de retirar publicação permanece disponível
+para a pessoa proprietária no React.
+
+O script `qa_public_read_lockdown.sql` agora valida, dentro da mesma
+transação, que as RPCs existem, as tabelas possuem RLS e não restam
+concessões `SELECT` a `anon` nem políticas públicas desconhecidas;
+caso contrário, lança erro e desfaz as mudanças. Esta verificação protege
+a etapa de implantação, mas não substitui o E2E com A/B/anon.
