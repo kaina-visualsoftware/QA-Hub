@@ -256,7 +256,7 @@ export default function TaskPage() {
       !window.confirm("Esta ação substituirá o resultado observado anterior. Deseja continuar?")) {
       return;
     }
-    void saveResult.mutateAsync({ scenario, ...result });
+    saveResult.mutate({ scenario, ...result });
   }
   if (tasks.isPending || role.isPending) return <p className="screen-status" role="status">Carregando TF…</p>;
   if (tasks.isError || role.isError) return <p className="notice error" role="alert">Erro ao abrir TF: {tasks.error?.message || role.error?.message}</p>;
@@ -529,7 +529,7 @@ export default function TaskPage() {
         <p className="text-muted mt-2">{pending.scenario.titulo}. Descreva o resultado observado.</p>
         <form className="stack mt-4" onSubmit={(event) => {
           event.preventDefault();
-          void saveResult.mutateAsync({ scenario: pending.scenario, status: pending.status, obtido: observed });
+          saveResult.mutate({ scenario: pending.scenario, status: pending.status, obtido: observed });
         }}>
           <label className="field">Comportamento observado
             <textarea required rows={5} value={observed} onChange={(e) => setObserved(e.target.value)}
