@@ -55,11 +55,29 @@ function respond(route) {
   });
   if (path.endsWith("/auth/v1/user")) return send(person);
   if (path.endsWith("/rest/v1/qa_admins")) return send(null);
+  if (path.endsWith("/rest/v1/rpc/qa_public_tasks_v1")) {
+    assert.equal(method,"POST");
+    const {id,titulo,codigo,tipo_teste,sistema,versao,executado_em}=task;
+    return send([{id,titulo,codigo,tipo_teste,sistema,versao,executado_em}]);
+  }
+  if (path.endsWith("/rest/v1/rpc/qa_public_task_v1")) {
+    assert.equal(method,"POST");
+    assert.equal(request.postDataJSON()?.p_task_id,TASK);
+    const {id,titulo,codigo,tipo_teste,sistema,versao,executado_em,
+      status,descricao,explicacao,causa,correcao,conclusao,observacoes}=task;
+    const {id:scenarioId,titulo:scenarioTitle,ordem,passos,esperado,obtido,
+      observacoes:scenarioNotes,status:scenarioStatus}=scenario;
+    return send({
+      task:{id,titulo,codigo,tipo_teste,sistema,versao,executado_em,
+        status,descricao,explicacao,causa,correcao,conclusao,observacoes},
+      scenarios:[{id:scenarioId,titulo:scenarioTitle,ordem,passos,esperado,
+        obtido,observacoes:scenarioNotes,status:scenarioStatus}],
+      diagrams:[diagram]
+    });
+  }
   if (path.endsWith("/rest/v1/qa_tarefas")) {
-    if (url.searchParams.has("publica")) {
-      assert.equal(url.searchParams.get("publica"), "eq.true");
-      return send(url.searchParams.has("id") ? task : [task]);
-    }
+    assert.equal(url.searchParams.has("publica"),false,
+      "Public pages cannot select from the base table");
     return send([task]);
   }
   if (path.endsWith("/rest/v1/qa_cenarios")) return send([scenario]);
