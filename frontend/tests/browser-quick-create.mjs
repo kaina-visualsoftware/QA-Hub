@@ -117,6 +117,23 @@ try {
   assert.equal(savedCases[0].status, "nao_executado");
   assert.equal(savedTasks[0].status, "rascunho");
 
+  await page.getByRole("region", { name: "Fluxo rápido de QA" })
+    .getByRole("button", { name: "Adicionar cenário" }).click();
+  await editor.waitFor();
+  await editor.getByRole("textbox", { name: "Título" }).fill("Segundo cenário consecutivo");
+  await editor.getByRole("textbox", { name: "Passos" }).fill("Abrir o painel de pagamentos");
+  await editor.getByRole("textbox", { name: "Resultado esperado" })
+    .fill("O valor permanece correto.");
+  await editor.getByRole("button", { name: "Salvar e criar outro" }).click();
+  await page.getByText("Cenário salvo. Preencha o próximo.").waitFor();
+  assert.equal(calls.case, 2);
+  assert.equal(await editor.count(), 1, "Editor should stay open for the next case");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  assert.equal(await editor.getByRole("textbox", { name: "Título" }).inputValue(), "",
+    "Continuing with the next case must clear the previous draft");
+  await editor.getByRole("button", { name: "Cancelar" }).click();
+  assert.equal(calls.case, 2, "Cancel must not create an empty third case");
+
   await page.reload();
   await page.getByRole("heading", { name: "Nova TF com primeiro caso" }).waitFor();
   assert.equal(await page.getByRole("region", { name: "Novo cenário" }).count(), 0,
@@ -130,13 +147,13 @@ try {
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();
   assert.equal(await page.getByRole("region", { name: "Novo cenário" }).count(), 0);
   assert.equal(calls.task, 2);
-  assert.equal(calls.case, 1);
+  assert.equal(calls.case, 2);
 
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 1, "Task details should not overflow a 390px viewport");
   assert.deepEqual(failures, [], "Unexpected requests and browser errors");
-  console.log("Criação rápida: TF + primeiro cenário, gravação explícita, rota descartável e modo apenas abrir.");
+  console.log("Criação rápida: TF + primeiro caso, casos consecutivos, sem execução automática ou reabertura após refresh.");
 } finally {
   await browser.close();
 }
