@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { supabase } from "../../lib/supabase";
 
+// Fail closed on new publications until the database-side public projection
+// and RLS lockdown have been homologated. This is a rollout guard, NOT RLS.
+export const publicSharingEnabled = import.meta.env.VITE_PUBLIC_SHARING_ENABLED === "true";
+
 const uuid = z.uuid();
 export const publicTaskCardSchema = z.object({
   id: uuid,
@@ -62,6 +66,9 @@ export async function loadPublishedTask(taskId: string) {
 export async function updatePublication(taskId: string, userId: string, publish: boolean) {
   uuid.parse(taskId);
   uuid.parse(userId);
+  if (publish && !publicSharingEnabled) {
+    throw Error("Publicação temporariamente indisponível até a homologação de segurança.");
+  }
   const { data, error } = await supabase.from("qa_tarefas")
     .update({ publica: publish, updated_at: new Date().toISOString() })
     .eq("id", taskId).eq("user_id", userId)
