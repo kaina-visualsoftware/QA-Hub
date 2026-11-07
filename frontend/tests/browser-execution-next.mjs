@@ -93,13 +93,13 @@ try {
   const pendingActions = page.getByRole("group",{name:"Resultado de Primeira pendência"});
   await page.waitForFunction(()=>
     document.activeElement?.getAttribute("data-qa-next-pending")==="true");
-  await pendingActions.getByRole("button",{name:"Funcionou"}).click();
+  await pendingActions.getByRole("button",{name:"Funcionou",exact:true}).click();
 
   await page.getByRole("alert").getByText("Simulação de rede indisponível").waitFor();
   assert.equal(mutations.length,0,"Failed save must not register an execution");
   assert.equal(scenarios[0].status,"nao_executado");
 
-  await pendingActions.getByRole("button",{name:"Funcionou"}).click();
+  await pendingActions.getByRole("button",{name:"Funcionou",exact:true}).click();
   await page.getByRole("group",{name:"Resultado de Segunda pendência"}).waitFor();
   await page.waitForFunction(() => document.activeElement?.closest('[role="group"]')
     ?.getAttribute("aria-label")==="Resultado de Segunda pendência");
@@ -109,14 +109,14 @@ try {
   assert.equal(task.status,"em_teste","Scenario execution cannot auto-approve the TF");
 
   await page.getByRole("group",{name:"Resultado de Segunda pendência"})
-    .getByRole("button",{name:"Funcionou"}).click();
+    .getByRole("button",{name:"Funcionou",exact:true}).click();
   await page.waitForFunction(() => document.activeElement?.getAttribute("data-qa-filter")==="pending");
   assert.equal(await page.getByRole("group",{name:"Resultado de Segunda pendência"}).count(),0);
   assert.equal(mutations.length,2);
 
   await page.getByRole("button",{name:"Todos",exact:true}).click();
   const priorFailure=page.getByRole("group",{name:"Resultado de Falha antiga"})
-    .getByRole("button",{name:"Funcionou"});
+    .getByRole("button",{name:"Funcionou",exact:true});
   page.once("dialog",dialog=>void dialog.dismiss());
   await priorFailure.click();
   assert.equal(mutations.length,2,"Canceling replacement must preserve the old observation");
