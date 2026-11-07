@@ -217,3 +217,47 @@ a trava de publicação por padrão.
 As requisições de login e RLS nos testes Chromium são mocks; **esse teste
 não substitui a homologação real da API/RLS do Supabase**. Os scripts de
 leitura pública e de lockdown continuam restritos ao plano de staging.
+
+
+## Contrato SQL executado em PostgreSQL descartável (07/11/2026)
+
+O workflow `.github/workflows/qa-public-sql.yml` executa os arquivos
+**reais** `supabase/qa_public_read_api.sql` e
+`supabase/qa_public_read_lockdown.sql` em um PostgreSQL 17 temporário
+do GitHub Actions. Os dados, os usuários e as políticas iniciais são
+criados do zero pela fixture `tests/sql/qa_public_fixture.sql`; **não**
+existem credenciais, acessos ou réplicas de dados do projeto Supabase real.
+
+O teste exercita as três fases:
+
+1. **Antes do corte:** demonstra que as antigas permissões permitiriam
+   consultar colunas internas de uma TF publicada, mas que as RPCs
+   retornam apenas os campos públicos, seus cenários/diagramas e nunca
+   a TF privada.
+2. **Corte adversarial:** injeta, separadamente, uma política anônima
+   adicional, uma política `SELECT` autenticada inesperada, uma regra de
+   proprietário alterada para `USING (true)`, e RLS desabilitado.
+   Cada tentativa de lockdown deve **falhar**; em seguida, o teste
+   confirma que as concessões e políticas antigas foram integralmente
+   restauradas pela transação.
+3. **Corte válido:** aplica o script original sem esses problemas;
+   verifica com os papéis `anon` e `authenticated` que leitura
+   anônima direta foi negada, usuários A/B estão isolados, as RPCs
+   continuam acessíveis e despublicar impede imediatamente a leitura
+   pública.
+
+O script de lockdown verifica as políticas de leitura remanescentes
+por **lista de nomes aprovada**: `qa_*_por_proprietario` e
+`qa_admin_*_full_access`. Ele exige que atendam apenas a
+`authenticated` e que as expressões preservem as referências
+essenciais a `auth.uid()`, `user_id` e/ou `qa_admins`. Essas
+checagens de texto são **defesa em profundidade**, não são um parser
+nem uma prova formal da autorização; cenários reais de usuário comum
+e admin devem ser testados em staging.
+
+**Limite da validação:** PostgreSQL isolado não reproduz integralmente
+Supabase Auth, PostgREST, Storage, políticas de outras tabelas, roles
+adicionais, privilégios indiretos ou o conjunto completo dos dados reais.
+O resultado verde da CI **não autoriza aplicar SQL à produção**. Ainda
+é necessária homologação controlada no ambiente de staging com as contas
+A/B/anônima e as interfaces legada e React compatíveis.
