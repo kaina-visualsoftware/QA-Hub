@@ -62,7 +62,7 @@ async function mock(route) {
       assert.ok(target,"Patch must belong to the selected QA task");
       const update=request.postDataJSON();
       assert.equal(typeof update.updated_at,"string");
-      assert.deepEqual(Object.keys(update).sort(),["status","obtido","updated_at"]);
+      assert.deepEqual(Object.keys(update).sort(),["obtido","status","updated_at"]);
       if(failOnce) {
         failOnce=false;
         return send({message:"Simulação de rede indisponível"},503);
