@@ -186,7 +186,9 @@ try {
       document.activeElement?.getAttribute("name") === "titulo");
     assert.equal(await caseTitle.evaluate((el) => el === document.activeElement), true,
       "Quick scenario creation must focus its title field");
-    await editor.getByRole("button",{name:"Cancelar"}).click();
+    const cancelCase = editor.getByRole("button",{name:"Cancelar"});
+    await cancelCase.focus();
+    await cancelCase.press("Enter");
     await editor.waitFor({state:"hidden"});
     const scenarioActions = page.getByRole("group", { name: "Resultado de Aplicar desconto na venda" });
     const failButton = scenarioActions.getByRole("button", { name: "Não funcionou" });
