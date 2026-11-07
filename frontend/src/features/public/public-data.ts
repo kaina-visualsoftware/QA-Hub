@@ -41,35 +41,23 @@ export const PUBLIC_DETAIL_COLUMNS = PUBLIC_TASK_COLUMNS +
 export const PUBLIC_SCENARIO_COLUMNS = "id,titulo,ordem,passos,esperado,obtido,observacoes,status";
 export const PUBLIC_DIAGRAM_COLUMNS = "id,titulo,conteudo";
 
+// API-side allowlist: callers cannot query private table columns using these RPCs.
+// Read functions are deliberately independent of the signed-in user's owner/admin role.
 export async function listPublishedTasks(): Promise<PublicTaskCard[]> {
-  const { data, error } = await supabase.from("qa_tarefas")
-    .select(PUBLIC_TASK_COLUMNS).eq("publica", true)
-    .order("executado_em", { ascending: false }).limit(150);
+  const { data, error } = await supabase.rpc("qa_public_tasks_v1");
   if (error) throw Error("Não foi possível consultar a biblioteca pública.");
   return z.array(publicTaskCardSchema).parse(data ?? []);
 }
 export async function loadPublishedTask(taskId: string) {
   uuid.parse(taskId);
-  // Exact opt-in filter; an administrator session must never broaden this query.
-  const task = await supabase.from("qa_tarefas")
-    .select(PUBLIC_DETAIL_COLUMNS).eq("id", taskId)
-    .eq("publica", true).maybeSingle();
-  if (task.error) throw Error("Não foi possível carregar a TF pública.");
-  if (!task.data) return null;
-  const [scenarios, diagrams] = await Promise.all([
-    supabase.from("qa_cenarios").select(PUBLIC_SCENARIO_COLUMNS)
-      .eq("tarefa_id", taskId).order("ordem", { ascending: true }).limit(300),
-    supabase.from("qa_diagramas").select(PUBLIC_DIAGRAM_COLUMNS)
-      .eq("tarefa_id", taskId).order("created_at", { ascending: true }).limit(100)
-  ]);
-  if (scenarios.error || diagrams.error) {
-    throw Error("Não foi possível carregar os itens publicados.");
-  }
-  return {
-    task: publicTaskDetailSchema.parse(task.data),
-    scenarios: z.array(publicScenarioSchema).parse(scenarios.data ?? []),
-    diagrams: z.array(publicDiagramSchema).parse(diagrams.data ?? [])
-  };
+  const { data, error } = await supabase.rpc("qa_public_task_v1", { p_task_id: taskId });
+  if (error) throw Error("Não foi possível carregar a TF pública.");
+  if (data === null) return null;
+  return z.object({
+    task: publicTaskDetailSchema,
+    scenarios: z.array(publicScenarioSchema),
+    diagrams: z.array(publicDiagramSchema)
+  }).parse(data);
 }
 export async function updatePublication(taskId: string, userId: string, publish: boolean) {
   uuid.parse(taskId);
