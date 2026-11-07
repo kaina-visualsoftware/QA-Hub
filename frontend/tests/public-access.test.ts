@@ -72,3 +72,24 @@ describe("trava de rollout de novas publicações", () => {
     await expect(updatePublication(id,id,true)).rejects.toThrow(/indisponível/);
   });
 });
+
+describe("lockdown atômico da API pública", () => {
+  it("interrompe o corte se outras políticas públicas ou grants permanecerem", () => {
+    const sql = readFileSync(new URL(
+      "../../supabase/qa_public_read_lockdown.sql", import.meta.url), "utf8");
+    expect(sql).toMatch(/begin;/i);
+    expect(sql).toMatch(/commit;/i);
+    expect(sql).toContain("qa_public_tasks_v1()");
+    expect(sql).toContain("qa_public_task_v1(uuid)");
+    expect(sql).toContain("has_table_privilege('anon'");
+    expect(sql).toContain("p.roles && array['anon','public']::name[]");
+    expect(sql).toContain("raise exception");
+  });
+  it("mantém auditoria SQL limitada a metadados", () => {
+    const sql = readFileSync(new URL(
+      "../../supabase/qa_public_read_audit.sql", import.meta.url), "utf8");
+    expect(sql).toContain("pg_catalog.pg_policies");
+    expect(sql).toContain("has_table_privilege(");
+    expect(sql).not.toMatch(/\b(update|insert|delete|alter|drop|truncate)\s+(?:table|from|into|public)/i);
+  });
+});
