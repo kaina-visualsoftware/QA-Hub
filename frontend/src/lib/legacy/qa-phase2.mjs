@@ -17,6 +17,40 @@ export function executionSummary(scenarios=[]) {
   return {total:scenarios.length,...count,finalizados:scenarios.length-count.nao_executado};
 }
 
+// "O que foi testado" is generated from human-recorded outcomes only.
+// Pending cases are deliberately excluded, even if they have steps/expectations.
+export function buildTestedSummary(scenarios=[]) {
+  if(!Array.isArray(scenarios))throw Error('A lista de cenários é inválida.');
+  const executed=scenarios.filter(s=>s&&
+    Object.hasOwn(EXECUTION_STATUSES,s.status)&&s.status!=='nao_executado');
+  if(!executed.length)
+    return 'Nenhum cenário possui execução registrada. Não há resultados de teste para resumir.';
+  return executed.map(s=>[
+    '- **'+label(s.titulo,'Sem título')+'** — '+EXECUTION_STATUSES[s.status],
+    '  - Passos previstos: '+label(s.passos,'Não registrados'),
+    '  - Resultado esperado: '+label(s.esperado),
+    '  - Resultado observado: '+label(s.obtido,
+      s.status==='aprovado'
+        ? 'Aprovação registrada pelo QA, sem descrição do observado.'
+        : 'Não informado. Confirmar com o testador.')
+  ].join('\n')).join('\n\n');
+}
+
+export function suggestedExecutionConclusion(scenarios=[]) {
+  if(!Array.isArray(scenarios))throw Error('A lista de cenários é inválida.');
+  const s=executionSummary(scenarios);
+  if(!s.finalizados)
+    return 'Não há execução registrada. A conclusão depende de testes realizados pelo QA.';
+  return [
+    s.aprovado+' aprovado(s), '+s.reprovado+' reprovado(s), '+
+      s.bloqueado+' bloqueado(s) e '+s.nao_executado+' não executado(s).',
+    s.nao_executado
+      ? 'Há cenários pendentes; não tratá-los como aprovados.'
+      : 'Todos os cenários possuem status registrado; conferir observações e evidências antes de concluir.',
+    'A situação final da TF exige confirmação manual.'
+  ].join(' ');
+}
+
 export function buildExecutionReport(task,scenarios=[],createdAt=new Date()) {
   if(!task || !value(task.titulo))throw Error('Selecione uma TF válida.');
   if(!Array.isArray(scenarios))throw Error('A lista de cenários é inválida.');
@@ -44,6 +78,16 @@ export function buildExecutionReport(task,scenarios=[],createdAt=new Date()) {
     ''
   ];
   if(!summary.total)lines.push('Nenhum cenário cadastrado nesta TF.','');
+  lines.push(
+    '## O que foi testado',
+    '',
+    buildTestedSummary(scenarios),
+    '',
+    '## Conclusão sugerida — revisar antes de usar',
+    '',
+    suggestedExecutionConclusion(scenarios),
+    ''
+  );
   for(const [index,scenario] of scenarios.entries()){
     const status=Object.hasOwn(EXECUTION_STATUSES,scenario.status)?scenario.status:'nao_executado';
     lines.push(
