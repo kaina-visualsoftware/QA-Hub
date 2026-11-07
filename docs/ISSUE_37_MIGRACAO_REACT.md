@@ -362,3 +362,23 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   benchmark de rede/memória/Core Web Vitals e RLS/Storage com
   contas reais. A verificação automática de viewport 320 px é
   uma aproximação de reflow a 400%, não prova zoom nativo.
+
+
+## Etapa de praticidade — fluxo rápido da TF
+
+- Ações prioritárias no topo: adicionar cenário, executar pendentes e
+  gerar casos com IA. Os demais recursos continuam num \`details\`
+  acessível, sem exclusão de funcionalidades.
+- Nova navegação guiada: formulário abre com foco no título, gerador
+  recebe foco em região identificada, filtro pendentes recebe foco
+  no primeiro caso ainda não executado.
+- **Nenhum resultado é gravado pela navegação**; registro de
+  falha/bloqueio mantém diálogo de confirmação e descrição do observado.
+- E2E \`browser-qa-flow.mjs\` preserva os testes da arquitetura anterior,
+  expandindo ferramentas secundárias quando necessário.
+- E2E \`browser-accessibility.mjs\` valida a criação e a execução rápida
+  e inclui a tela da TF na auditoria WCAG em 320/390/1366px.
+- Critérios de aceite, riscos e plano de validação manual detalhados
+  em \`docs/FLUXO_RAPIDO_QA_REACT.md\`.
+- **Pendente:** CI do commit de implementação, pesquisa de tempo real
+  com QAs usuários e homologação humana de acessibilidade.

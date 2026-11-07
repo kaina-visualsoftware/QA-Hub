@@ -213,3 +213,20 @@ WCAG testadas e com restituição do foco após Escape. O contraste
 do estado vazio do workspace também foi corrigido. O orçamento
 e os testes estáticos seguiram verdes. Ainda há homologação
 assistiva manual pendente conforme o checklist.
+
+
+## Fluxo rápido do QA na TF (issue #37)
+
+A tela de TF prioriza agora **Adicionar cenário**, **Testar pendentes**
+e **Gerar casos com IA** no topo. Ferramentas menos frequentes ficam em
+**Outras ferramentas**; nenhuma funcionalidade de requisitos, evidências,
+releases, documentos e diagramas foi removida.
+
+Ao abrir um formulário de cenário, o foco vai para o campo Título;
+ao escolher **Testar pendentes**, vai para o primeiro caso não executado.
+Essas ações não gravam resultados automaticamente. O E2E testa os focos
+e o fluxo completo com a seção secundária expandida. Ver também
+\`docs/FLUXO_RAPIDO_QA_REACT.md\` e o checklist de homologação assistiva.
+
+O comportamento e o desempenho ainda precisam de avaliação humana com
+QAs reais. Não inferir redução de tempo sem medir o antes/depois.
