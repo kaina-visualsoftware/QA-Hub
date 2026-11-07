@@ -87,7 +87,8 @@ e todas as configurações anteriores. Sem isso ele não executa consultas.
 | Conta A / conta B | Autenticam com `getUser()`, identidade distinta, sem papel admin |
 | TF privada A / B | Cada proprietário lê a própria; outra conta e anon não leem |
 | Cenários e diagramas privados | Proprietário encontra ao menos 1; outra conta e anon não leem |
-| TF publicada de A | A, B e anon conseguem ler; há cenário e diagrama visíveis |
+| TF publicada de A | A, B e anon acessam a projeção permitida via `qa_public_tasks_v1` e `qa_public_task_v1`; a resposta contém cenário e diagrama |
+| Consulta direta às tabelas de TF/cenário/diagrama | Anon e outra conta são barrados, **inclusive** em linhas publicadas |
 | Documentos, requisitos e fontes | Outra conta e anon não leem dados das TFs privadas e da publicada |
 | Storage privado | O proprietário lista o anexo real; outra conta e anon não listam o mesmo arquivo |
 | Colunas internas de publicação | Outra conta e anon **não** conseguem ler `user_id`, `empresa`, `base_teste`, `testador` da TF publicada pelo Data API |
@@ -130,3 +131,40 @@ Não aplicar migrações diretamente no projeto publicado.
   callback `auth.html`, publicação/despublicação e ações de escrita
   sob RLS com fixtures descartáveis e plano de limpeza/rollback.
 - Só depois considerar retirar a PR do estado draft.
+
+## Correção preparada: projeção pública com RPC e bloqueio direto
+
+**Fase A — primeiro no staging:** executar `supabase/qa_public_read_api.sql`
+com conta administrativa autorizada, verificar a assinatura das funções e o
+dono da função, e testar ambas com sessão anônima. As funções públicas
+`qa_public_tasks_v1()` e `qa_public_task_v1(uuid)` são intencionalmente
+`SECURITY DEFINER`, com `search_path` vazio, lista fixa de colunas,
+limite de registros e predicado obrigatório `publica=true`. Seus resultados
+não incluem proprietário, empresa, base de teste, testador nem identificador
+interno de vínculo. A permissão de execução é concedida exclusivamente
+a `anon` e `authenticated`, depois de revogar de `PUBLIC`.
+
+**Fase B — após atualizar os leitores:** as páginas `public.js` (legado)
+e `frontend/src/features/public/public-data.ts` (React) usam as RPCs, não
+a seleção direta das tabelas. Confirmar em navegação privada, com e sem login,
+que a listagem, o detalhe publicado, os cenários e diagramas funcionam.
+
+**Fase C — lockdown no staging:** executar
+`supabase/qa_public_read_lockdown.sql`. Ele remove as três políticas
+`*_public_read` do modelo antigo e revoga `SELECT` em três tabelas de
+`anon`, preservando as operações autenticadas existentes. Inspecionar
+também quaisquer outras políticas permissivas, grants indiretos,
+roles herdadas e privilégios de funções antes de considerar essa etapa
+segura. Verificar com A, B e anon que leitura direta de linha publicada
+fica indisponível, sem impedir a leitura via RPC. Só os proprietários
+devem continuar a ler seus dados privados.
+
+**Fase D — rollout coordenado:** não executar C isoladamente em produção,
+pois isso quebraria o leitor legado publicado até ele ser atualizado.
+Planejar janela de publicação com backup, confirmação dos leitores
+compatíveis, aplicação de SQL, repetição dos testes negativos e plano de
+retorno compatível (código + políticas), sem restaurar grants amplos
+como medida improvisada. Não executar SQL de homologação no projeto público.
+
+A implementação da branch **não executou** os scripts no banco.
+O teste com Supabase real e usuários de homologação segue obrigatório.
