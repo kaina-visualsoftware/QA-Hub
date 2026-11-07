@@ -16,7 +16,7 @@ import {
 } from "../lib/contracts";
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
-import { updatePublication } from "../features/public/public-data";
+import { publicSharingEnabled, updatePublication } from "../features/public/public-data";
 import { useModalFocus } from "../lib/useModalFocus";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
@@ -324,7 +324,7 @@ export default function TaskPage() {
         </span>
       </div>
       {task.user_id === userId ? <div className="flex flex-wrap gap-3 items-center mt-4">
-        <Button variant="secondary" isDisabled={publication.isPending}
+        <Button variant="secondary" isDisabled={publication.isPending || (!task.publica && !publicSharingEnabled)}
           onPress={() => {
             const next = !task.publica;
             const label = next
@@ -334,6 +334,9 @@ export default function TaskPage() {
           }}>
           <Share2 size={16}/> {task.publica ? "Retirar publicação" : "Publicar TF"}
         </Button>
+        {!task.publica && !publicSharingEnabled && <p role="status" className="text-sm text-muted">
+          Novas publicações desativadas até a homologação das permissões de acesso.
+        </p>}
         {task.publica && <Link to="/publicas" search={{ tf: task.id }} className="secondary-link">
           <ExternalLink size={16}/> Abrir visão pública
         </Link>}
