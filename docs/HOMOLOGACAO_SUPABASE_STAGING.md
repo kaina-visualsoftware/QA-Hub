@@ -204,3 +204,16 @@ transação, que as RPCs existem, as tabelas possuem RLS e não restam
 concessões `SELECT` a `anon` nem políticas públicas desconhecidas;
 caso contrário, lança erro e desfaz as mudanças. Esta verificação protege
 a etapa de implantação, mas não substitui o E2E com A/B/anon.
+
+### Evidência de build com trava ativa e desativa (07/11/2026)
+
+A workflow `.github/workflows/qa-react-browser.yml` inclui agora
+`browser-publication-gate.mjs` com duas compilações distintas:
+`QA_TEST_PUBLICATION_ENABLED=true` só para a build de teste sintético,
+e uma compilação padrão com `VITE_PUBLIC_SHARING_ENABLED` omitida.
+Isso evita que uma alteração em build futuro remova silenciosamente
+a trava de publicação por padrão.
+
+As requisições de login e RLS nos testes Chromium são mocks; **esse teste
+não substitui a homologação real da API/RLS do Supabase**. Os scripts de
+leitura pública e de lockdown continuam restritos ao plano de staging.
