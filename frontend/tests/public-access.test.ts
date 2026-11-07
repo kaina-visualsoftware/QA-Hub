@@ -93,3 +93,22 @@ describe("lockdown atômico da API pública", () => {
     expect(sql).not.toMatch(/\b(update|insert|delete|alter|drop|truncate)\s+(?:table|from|into|public)/i);
   });
 });
+
+describe("CI de publicação isolada", () => {
+  it("testa os dois builds, preserva despublicação e executa todas as suítes", () => {
+    const workflow = readFileSync(new URL(
+      "../../.github/workflows/qa-react-browser.yml", import.meta.url), "utf8");
+    const suites = readFileSync(new URL(
+      "./browser-suites.mjs", import.meta.url), "utf8");
+    const gate = readFileSync(new URL(
+      "./browser-publication-gate.mjs", import.meta.url), "utf8");
+    expect(workflow).toContain('VITE_PUBLIC_SHARING_ENABLED: "true"');
+    expect(workflow).toContain('QA_TEST_PUBLICATION_ENABLED: "false"');
+    expect(workflow).toContain("node tests/browser-suites.mjs");
+    expect(workflow).toContain("node tests/browser-publication-gate.mjs");
+    expect(suites).toContain('"browser-access.mjs"');
+    expect(suites).toContain('"browser-publication-gate.mjs"');
+    expect(gate).toContain("Retirar publicação");
+    expect(gate).toContain('enabled==="false"');
+  });
+});
