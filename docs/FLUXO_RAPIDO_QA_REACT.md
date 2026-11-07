@@ -109,3 +109,27 @@ O teste de navegador `frontend/tests/browser-quick-create.mjs` cobre
 submissão inválida, os dois destinos, persistência explícita, casos
 consecutivos, cancelamento, foco, refresh e tela de 390 px. Utiliza
 respostas Supabase sintéticas; permissões reais continuam pendentes.
+
+
+## Continuação de preenchimento após atualização (QF13–QF16)
+
+A nova TF agora pode guardar opcionalmente uma cópia dos seis campos
+essenciais na **aba atual**. Sem consentimento, nenhum texto é
+persistido por esse mecanismo. A recuperação é explícita e separada
+por usuário; salvar a TF, descartar a cópia, desativar a opção ou
+sair da conta apaga o rascunho. O conteúdo permanece no navegador,
+não é criptografado nem enviado ao Supabase. Para evitar reter
+informações desnecessárias, casos extraídos não são incluídos.
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF13 | Digitar TF e recarregar sem marcar a opção | Sem rascunho guardado; campos não persistem |
+| QF14 | Marcar Guardar rascunho, preencher e atualizar | Banner de recuperação; dados restaurados somente ao confirmar |
+| QF15 | Desativar guarda ou descartar rascunho | Nenhuma restauração após novo refresh |
+| QF16 | Salvar TF ou sair da conta | Cópia da aba removida; texto não reaparece para outra conta |
+
+Teste: `frontend/tests/browser-draft-recovery.mjs` e
+`frontend/tests/local-draft.test.ts`. A limpeza por logout está
+implementada no AuthProvider, mas a autenticação real ainda requer
+homologação assistida. Não confundir o rascunho local com uma TF
+já salva, um backup ou armazenamento criptografado.
