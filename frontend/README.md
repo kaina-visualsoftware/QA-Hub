@@ -269,3 +269,19 @@ sintético**; os builds normais e de release seguem com publicação desativada.
 O acesso público legado não é bloqueado por essa flag. Consulte
 `docs/HOMOLOGACAO_SUPABASE_STAGING.md` e
 `supabase/qa_public_read_audit.sql`.
+
+### Verificação real do build de publicação
+
+A CI Chromium gera **dois builds separados**. Primeiro habilita
+`VITE_PUBLIC_SHARING_ENABLED=true` somente no ambiente sintético (com
+requisições Supabase interceptadas por Playwright) para testar publicação
+e retirada de publicação. Depois executa `npm run build` sem a flag
+— equivalente ao padrão de release — e valida novamente em Chromium
+que **Publicar TF** fica desativado, nenhum PATCH de publicação é enviado e
+**Retirar publicação** permanece utilizável.
+
+O teste `frontend/tests/browser-publication-gate.mjs` usa fixtures sem
+dados reais e não exige credenciais. O executor
+`frontend/tests/browser-suites.mjs` executa cada smoke de navegador
+isoladamente e acumula falhas: um erro na IA/extrator não impede os testes
+posteriores de autorização, acessibilidade e compartilhamento.
