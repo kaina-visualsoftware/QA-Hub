@@ -17,6 +17,9 @@ import {
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
 import { publicSharingEnabled, updatePublication } from "../features/public/public-data";
+import {
+  needsObservationResetConfirmation, quickExecutionResult
+} from "../features/executions/quick-result";
 import { useModalFocus } from "../lib/useModalFocus";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
@@ -63,6 +66,7 @@ export default function TaskPage() {
   }, "textarea");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
+  const [focusNextPending, setFocusNextPending] = useState(false);
   const editorRef = useRef<HTMLElement | null>(null);
   const executionRef = useRef<HTMLElement | null>(null);
   const generatorRef = useRef<HTMLDivElement | null>(null);
@@ -185,8 +189,12 @@ export default function TaskPage() {
   const saveResult = useMutation({
     mutationFn: (input: { scenario: Scenario; status: ExecutionResult["status"]; obtido: string }) =>
       saveScenarioResult(taskId, input.scenario.id, { status: input.status, obtido: input.obtido }),
-    onSuccess: async () => {
-      setPending(null); setObserved(""); setSaved("Execução registrada. A situação da TF não foi alterada automaticamente.");
+    onSuccess: async (_result, input) => {
+      setPending(null); setObserved("");
+      setSaved("Execução registrada. A situação da TF não foi alterada automaticamente.");
+      // Only advance after a confirmed server write and a refreshed scenario list.
+      // Never treat a failed mutation as a completed execution.
+      setFocusNextPending(filter === "pending" && input.status !== "nao_executado");
       await invalidate();
     }
   });
@@ -219,6 +227,18 @@ export default function TaskPage() {
     onSuccess: async () => { setSaved("Cenário excluído."); await invalidate(); }
   });
 
+  useEffect(() => {
+    if (!focusNextPending || saveResult.isPending || scenarios.isFetching) return;
+    const target = executionRef.current?.querySelector<HTMLButtonElement>(
+      '[data-qa-next-pending="true"]'
+    ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
+      '[data-qa-filter="pending"]'
+    );
+    target?.scrollIntoView({ behavior: "auto", block: "center" });
+    target?.focus({ preventScroll: true });
+    setFocusNextPending(false);
+  }, [focusNextPending, saveResult.isPending, scenarios.isFetching, scenarios.data]);
+
   const progress = progressOf(scenarios.data || []);
   const visible = useMemo(() => (scenarios.data || []).filter((scenario) =>
     filter === "all" || filter === "pending" && scenario.status === "nao_executado" ||
@@ -231,7 +251,12 @@ export default function TaskPage() {
       setPending({ scenario, status }); setObserved(scenario.status === status ? scenario.obtido : "");
       return;
     }
-    void saveResult.mutateAsync({ scenario, status, obtido: status === "nao_executado" ? "" : scenario.obtido });
+    const result = quickExecutionResult(scenario, status);
+    if (needsObservationResetConfirmation(scenario, status) &&
+      !window.confirm("Esta ação substituirá o resultado observado anterior. Deseja continuar?")) {
+      return;
+    }
+    void saveResult.mutateAsync({ scenario, ...result });
   }
   if (tasks.isPending || role.isPending) return <p className="screen-status" role="status">Carregando TF…</p>;
   if (tasks.isError || role.isError) return <p className="notice error" role="alert">Erro ao abrir TF: {tasks.error?.message || role.error?.message}</p>;
