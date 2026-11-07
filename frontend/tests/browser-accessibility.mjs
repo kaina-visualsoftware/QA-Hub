@@ -167,6 +167,26 @@ try {
     await axeAudit(page, "formulário Nova TF", width);
     await page.goto(BASE + "#/tarefa/" + TASK);
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
+    const workflow = page.getByRole("region", { name: "Fluxo rápido de QA" });
+    const quickCreate = workflow.getByRole("button", { name: "Adicionar cenário" });
+    const runPending = workflow.getByRole("button", { name: "Testar pendentes" });
+    await runPending.click();
+    await page.locator('[data-qa-next-pending="true"]').waitFor();
+    await page.waitForFunction(() =>
+      document.activeElement?.getAttribute("data-qa-next-pending") === "true");
+    assert.equal(await page.getByRole("button",{name:"Pendentes"}).getAttribute("aria-pressed"),"true");
+    assert.equal(await page.getByRole("dialog").count(),0,
+      "Selecting pending scenarios must never record a result automatically");
+    await quickCreate.click();
+    const editor = page.getByRole("region", { name: "Novo cenário" });
+    await editor.waitFor();
+    const caseTitle = editor.getByRole("textbox", { name: "Título" });
+    await page.waitForFunction(() =>
+      document.activeElement?.getAttribute("name") === "titulo");
+    assert.equal(await caseTitle.evaluate((el) => el === document.activeElement), true,
+      "Quick scenario creation must focus its title field");
+    await editor.getByRole("button",{name:"Cancelar"}).click();
+    await editor.waitFor({state:"hidden"});
     const scenarioActions = page.getByRole("group", { name: "Resultado de Aplicar desconto na venda" });
     const failButton = scenarioActions.getByRole("button", { name: "Não funcionou" });
     await failButton.focus();
