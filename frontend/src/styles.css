@@ -168,3 +168,19 @@
   .qa-quickflow-actions>button{flex:1 1 100%;justify-content:center}
   .qa-more-tools-content>button{flex:1 1 auto}
 }
+
+
+/* TF workspace: progress and action are separate links (never nested anchors). */
+.task-list-entry{display:flex;align-items:center;gap:12px;border-top:1px solid #edf2f3;border-radius:7px}
+.task-list-entry:hover{background:#f3f9fa}
+.task-row-main{flex:1 1 auto;min-width:0;border-top:0}
+.task-progress-meta{color:#236b72!important;font-weight:700}
+.task-resume-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:9px 13px;margin-right:8px;border:1px solid #bad6d5;background:#f6fbfa;color:#17666c;border-radius:10px;font-size:.8rem;font-weight:750;min-height:42px;text-align:center}
+.task-resume-link:hover{background:#e1f4f0}
+@media(max-width:640px){
+  .task-list-entry{flex-wrap:wrap;gap:0;padding-bottom:10px}
+  .task-row-main{width:100%;flex-basis:100%;padding:12px 6px;gap:9px}
+  .task-row-main .task-initial{flex-basis:40px;min-height:38px}
+  .task-row-main .status-chip{max-width:105px;overflow:hidden;text-overflow:ellipsis}
+  .task-resume-link{margin:0 6px 0 auto;max-width:calc(100% - 12px)}
+}
