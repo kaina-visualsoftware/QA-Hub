@@ -99,8 +99,11 @@ ainda requer homologação antes do corte de produção.
 
 A biblioteca de TFs públicas está acessível pela rota da SPA `#/publicas`,
 inclusive **sem autenticação**. O detalhe `#/publicas?tf=<UUID>` carrega
-somente uma TF marcada `publica=true` e consulta apenas os campos
-explicitamente selecionados do resumo, dos cenários e dos diagramas.
+somente uma TF marcada `publica=true`. A consulta pública agora utiliza
+`qa_public_tasks_v1` e `qa_public_task_v1`, com projeção de colunas
+restrita no SQL, em vez de depender de `SELECT` protegido apenas pelo
+frontend. Os scripts correspondentes devem ser aplicados e validados primeiro
+no projeto de staging; não existe publicação automática de políticas.
 O desenho Mermaid é executado sob demanda com prévia isolada em iframe
 sandbox, sem HTML de entrada inserido no documento da aplicação.
 
