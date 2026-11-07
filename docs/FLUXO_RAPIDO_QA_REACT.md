@@ -175,3 +175,27 @@ sem confundir pendências com aprovações. O Chromium em
 `frontend/tests/browser-report-summary.mjs` valida a UX e a versão
 com Supabase inteiramente simulado. Homologação real de RLS e acesso
 a documentos continua necessária antes do corte.
+
+
+## Lista operacional com progresso e retomada — QF27 a QF32
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF27 | Abrir a lista com TF contendo 1 aprovado e 1 pendente | Mostra 1/2 executados e ação Continuar testes |
+| QF28 | Abrir TF sem cenários | Mostra 0/0 executados e Adicionar primeiro caso, sem registrar cenário vazio |
+| QF29 | Consultar TF de outra pessoa como admin | Mostra dados permitidos, mas não oferece atalho de execução |
+| QF30 | Consultar TF com mais de 500 cenários | Soma todos após paginação do PostgREST, sem subcontagem silenciosa |
+| QF31 | Clicar Continuar testes, voltar ou atualizar | Abre filtro Pendentes e foca primeiro caso; intenção consumida; nunca salva automaticamente |
+| QF32 | Forçar falha da API de progresso e procurar uma TF | Alerta de progresso indisponível; lista e navegação continuam funcionais |
+
+A UI consulta somente `qa_cenarios(tarefa_id,status)` para os IDs
+das TFs já carregadas. A própria RLS deve garantir a autorização no
+servidor: filtro de IDs no frontend **não** substitui RLS. Para
+evitar chamadas excessivas, a lista inicial limita-se a 30 TFs,
+com paginação incremental de 30. Uma alteração de execução invalida
+o progresso, que será atualizado ao retornar à lista.
+
+Testes: `frontend/tests/task-progress.test.ts` (cálculo,
+separação por TF, sem inferir execução) e
+`frontend/tests/browser-home-progress.mjs` (lotes, paginação real,
+contas fictícias, foco acessível e zero gravações no atalho).
