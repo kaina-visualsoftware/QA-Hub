@@ -150,3 +150,28 @@ com interceptação de Supabase e `frontend/tests/quick-result.test.ts`
 com exemplos de mudanças de estado. Homologar também navegação por
 teclado e leitura de status em equipamentos usados pelos QAs. As
 mudanças não substituem o histórico de auditoria do banco.
+
+
+## Conclusão sem redigitação — QF22 a QF26
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF22 | Na TF, clicar Conferir relatório | Painel de documentos abre sem mudar de TF; foco vai ao título do painel |
+| QF23 | Misturar cenários aprovados, reprovados, bloqueados e pendentes | O que foi testado mostra apenas os três estados executados; os pendentes aparecem apenas como pendências nos detalhes e contadores |
+| QF24 | Aprovar cenário sem observação escrita | Resumo identifica a aprovação registrada, sem inventar uma observação |
+| QF25 | Editar relatório manualmente e registrar outra execução | Edição fica preservada; Atualizar prévia solicita confirmação antes de substituí-la |
+| QF26 | Salvar uma versão do relatório | Documento é salvo na mesma TF; situação da TF não é alterada automaticamente |
+
+**Implementação:** reutiliza `buildExecutionReport` e
+`saveTfDocument` de `qa-phase2.mjs`; adiciona
+`buildTestedSummary` e `suggestedExecutionConclusion` à mesma
+função de composição. Nenhum conteúdo é enviado à IA por essa ação.
+Os cenários e resultados devem estar persistidos pelo backend para
+entrarem no resumo.
+
+**Testes:** `frontend/tests/execution-summary.test.ts` verifica
+seleção dos status, fidelidade dos campos e conclusão sugerida,
+sem confundir pendências com aprovações. O Chromium em
+`frontend/tests/browser-report-summary.mjs` valida a UX e a versão
+com Supabase inteiramente simulado. Homologação real de RLS e acesso
+a documentos continua necessária antes do corte.
