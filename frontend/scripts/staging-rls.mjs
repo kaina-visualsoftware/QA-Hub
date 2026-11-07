@@ -108,6 +108,8 @@ async function publicProjection(c, label) {
   assert.equal(detailed.data.task.id, cfg.publicA);
   if (!Array.isArray(detailed.data.scenarios) || !Array.isArray(detailed.data.diagrams))
     throw Error(label + ": published children must be arrays.");
+  if (!detailed.data.scenarios.length || !detailed.data.diagrams.length)
+    throw Error(label + ": published fixture must contain a scenario and diagram.");
   detailed.data.scenarios.forEach((row) =>
     exactPublicKeys(row, PUBLIC_SCENARIO_KEYS, label + " scenario"));
   detailed.data.diagrams.forEach((row) =>
