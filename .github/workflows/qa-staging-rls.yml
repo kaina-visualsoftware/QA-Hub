@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test configuration guard without credentials
-        run: node --test tests/staging-rls-guards.test.mjs
+        run: node --test tests/staging-rls-guards.node.mjs
       - name: Install pinned dependencies
         run: npm ci --no-audit --no-fund
       - name: Audit signed-in and anonymous RLS on staging without QA writes
