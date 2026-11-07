@@ -167,6 +167,7 @@ try {
     await axeAudit(page, "formulário Nova TF", width);
     await page.goto(BASE + "#/tarefa/" + TASK);
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
+    await axeAudit(page, "TF com fluxo rápido", width);
     const workflow = page.getByRole("region", { name: "Fluxo rápido de QA" });
     const quickCreate = workflow.getByRole("button", { name: "Adicionar cenário" });
     const runPending = workflow.getByRole("button", { name: "Testar pendentes" });
@@ -222,7 +223,7 @@ try {
     console.error("Falhas WCAG detectadas:", JSON.stringify(violations, null, 2));
     throw Error(violations.length + " conjuntos de violações WCAG no React.");
   }
-  console.log("WCAG AA: 21 estados em 320/390/1366 px, modal Tab/Escape/foco restaurado e IA lazy.");
+  console.log("WCAG AA: 24 estados em 320/390/1366 px, fluxo rápido, foco de modal e IA lazy.");
 } finally {
   await browser.close();
 }
