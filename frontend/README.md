@@ -248,3 +248,24 @@ e não altera status automaticamente.
 
 Teste sintético: `frontend/tests/browser-quick-create.mjs`.
 Critérios de aceite QF09–QF12 em `docs/FLUXO_RAPIDO_QA_REACT.md`.
+
+## Trava de publicação durante o rollout seguro
+
+Novas TFs públicas são **bloqueadas por padrão** no frontend React.
+O botão de publicar informa que a homologação de segurança é necessária.
+A opção de **retirar publicação** permanece disponível para o autor caso a
+TF já esteja pública. O código também recusa publicar quando a flag está
+desligada, mesmo que uma função seja acionada sem passar pelo botão.
+
+Somente após: instalar as RPCs `qa_public_tasks_v1` /
+`qa_public_task_v1`, migrar os dois leitores (React e legado), aplicar
+o lockdown das tabelas e obter testes aprovados com contas reais em
+staging, usar `VITE_PUBLIC_SHARING_ENABLED=true` no build autorizado.
+A flag do cliente é apenas uma trava operacional; o banco continua sendo
+responsável pela autorização.
+
+A CI de navegador testa publicação com flag ativada **somente no build
+sintético**; os builds normais e de release seguem com publicação desativada.
+O acesso público legado não é bloqueado por essa flag. Consulte
+`docs/HOMOLOGACAO_SUPABASE_STAGING.md` e
+`supabase/qa_public_read_audit.sql`.
