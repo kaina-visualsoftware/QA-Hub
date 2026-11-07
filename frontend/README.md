@@ -285,3 +285,35 @@ dados reais e não exige credenciais. O executor
 `frontend/tests/browser-suites.mjs` executa cada smoke de navegador
 isoladamente e acumula falhas: um erro na IA/extrator não impede os testes
 posteriores de autorização, acessibilidade e compartilhamento.
+
+
+## Recuperação opcional de rascunho de nova TF
+
+No cadastro rápido, existe a opção **Guardar rascunho somente nesta
+aba**. Ela fica **desmarcada por padrão**: não armazena
+automaticamente textos internos no navegador. Quando marcada, preserva
+o título, descrição, código, tipo, módulo e versão em
+`sessionStorage` (não `localStorage`), separadamente por ID da conta.
+Um rascunho válido pode ser **recuperado** ou **descartado**
+explicitamente após atualizar a página. O conteúdo não é restaurado
+automaticamente por cima de outro formulário.
+
+A cópia local é eliminada após salvar a TF com sucesso, ao desativar
+a opção, ao escolher Descartar rascunho, ao sair explicitamente da
+conta, ou quando expira (24 horas). Não guardamos anexos, credenciais,
+tokens, seleções de cenários extraídos nem campos avançados. O
+armazenamento pode falhar no modo privado ou por restrições do
+navegador, e o app informa a falha. O formulário confirma antes de
+descartar alterações não preservadas pelo usuário.
+
+**Privacidade:** este recurso não é criptografia. Scripts com acesso
+à mesma origem podem acessar `sessionStorage`; não use essa opção em
+dispositivos compartilhados ou para texto com segredos. Se o
+navegador encerrar a sessão da aba, a cópia pode desaparecer.
+A recuperação é conveniência local, não backup no servidor.
+
+Validação: `frontend/tests/local-draft.test.ts` (versão,
+expiração, ausência de campos extras e isolamento entre contas),
+`frontend/tests/browser-draft-recovery.mjs` (consentimento, refresh,
+restauração explícita, escrita pendente no `pagehide`, descarte
+e mobile 390px). Somente fixtures sintéticas, sem escrita no Supabase.
