@@ -166,13 +166,20 @@ export default function TaskPage() {
     onSuccess: async () => { setEditing(false); setSaved("Alterações da TF salvas."); await invalidate(); }
   });
   const createScenario = useMutation({
-    mutationFn: (draft: ScenarioDraft) => editingScenario
+    mutationFn: ({ draft }: { draft: ScenarioDraft; another: boolean }) => editingScenario
       ? editScenario(taskId, editingScenario.id, draft)
       : addScenario(taskId, userId, draft,
           Math.max(0, ...(scenarios.data ?? []).map((item) => item.ordem)) + 1),
-    onSuccess: async () => {
-      scenarioForm.reset(); setShowScenarioForm(false); setEditingScenario(null); setSaved("Cenário salvo.");
+    onSuccess: async (_result, { another }) => {
+      const keepEditing = another && !editingScenario;
+      scenarioForm.reset();
+      if (!keepEditing) { setShowScenarioForm(false); setEditingScenario(null); }
+      setSaved(keepEditing ? "Cenário salvo. Preencha o próximo." : "Cenário salvo.");
       await invalidate();
+      if (keepEditing) requestAnimationFrame(() => {
+        editorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
+          ?.focus({ preventScroll: true });
+      });
     }
   });
   const saveResult = useMutation({
@@ -406,7 +413,13 @@ export default function TaskPage() {
       aria-label={editingScenario ? "Editar cenário" : "Novo cenário"}>
       <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>{editingScenario ? "Editar cenário" : "Cadastrar cenário"}</h2></div>
         <button onClick={() => setShowScenarioForm(false)} aria-label="Fechar"><X size={18} /></button></div>
-      <form className="stack mt-4" onSubmit={scenarioForm.handleSubmit((values) => void createScenario.mutateAsync(values))}>
+      <form className="stack mt-4" onSubmit={scenarioForm.handleSubmit((values, event) => {
+        const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
+        void createScenario.mutateAsync({
+          draft: values,
+          another: !editingScenario && submitter?.getAttribute("data-next") === "another"
+        });
+      })}>
         <label className="field">Título<input placeholder="Ex.: Aplicar desconto em item desdobrado" {...scenarioForm.register("titulo")} />
           {scenarioForm.formState.errors.titulo && <small role="alert" className="text-error">{scenarioForm.formState.errors.titulo.message}</small>}</label>
         <label className="field">Passos<textarea rows={4} {...scenarioForm.register("passos")} />
@@ -416,7 +429,11 @@ export default function TaskPage() {
         <label className="field">Observações (opcional)<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onPress={() => setShowScenarioForm(false)}>Cancelar</Button>
-          <Button type="submit" isDisabled={createScenario.isPending}>{editingScenario ? "Salvar cenário" : "Adicionar cenário"}</Button>
+          {!editingScenario && <Button type="submit" variant="secondary"
+            data-next="another" isDisabled={createScenario.isPending}>Salvar e criar outro</Button>}
+          <Button type="submit" isDisabled={createScenario.isPending}>
+            {editingScenario ? "Salvar cenário" : "Adicionar cenário"}
+          </Button>
         </div>
         {createScenario.isError && <p role="alert" className="notice error">{createScenario.error.message}</p>}
       </form>
