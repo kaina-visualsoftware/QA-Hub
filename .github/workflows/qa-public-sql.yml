@@ -65,6 +65,45 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_rollback.sql
           psql -X -v ON_ERROR_STOP=1 -c \
             "drop policy qa_unexpected_anon_read on public.qa_tarefas"
+      - name: Phase B2 — reject unknown authenticated SELECT policies
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "create policy qa_unexpected_auth_read on public.qa_cenarios for select to authenticated using (true)"
+          if psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql \
+            > /tmp/qa-lockdown-auth-error.log 2>&1; then
+            echo 'ERROR: lockdown accepted an unknown authenticated SELECT policy'
+            exit 1
+          fi
+          grep -q 'Unexpected SELECT/ALL policy remains' /tmp/qa-lockdown-auth-error.log
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_rollback.sql
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "drop policy qa_unexpected_auth_read on public.qa_cenarios"
+      - name: Phase B3 — reject unexpectedly broadened owner policy
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "alter policy qa_tarefas_por_proprietario on public.qa_tarefas using (true)"
+          if psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql \
+            > /tmp/qa-lockdown-owner-error.log 2>&1; then
+            echo 'ERROR: lockdown accepted an unexpectedly broad owner policy'
+            exit 1
+          fi
+          grep -q 'Known owner/admin policy is unexpectedly broad' /tmp/qa-lockdown-owner-error.log
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_rollback.sql
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "alter policy qa_tarefas_por_proprietario on public.qa_tarefas using (user_id=(select auth.uid()))"
+      - name: Phase B4 — reject missing RLS on a protected table
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "alter table public.qa_diagramas disable row level security"
+          if psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql \
+            > /tmp/qa-lockdown-rls-error.log 2>&1; then
+            echo 'ERROR: lockdown accepted a table without RLS'
+            exit 1
+          fi
+          grep -q 'RLS missing on' /tmp/qa-lockdown-rls-error.log
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_rollback.sql
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "alter table public.qa_diagramas enable row level security"
       - name: Phase C — apply real lockdown SQL and test roles
         run: |
           psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql
