@@ -22,7 +22,7 @@ const tasks = [{
   descricao:"Regra de estoque",publica:true,executado_em:"2026-11-06",
   updated_at:"2026-11-06T12:00:00Z"
 }];
-let publicationCalls=0, adminListCalls=0, guestScenarioReads=0;
+let publicationCalls=0, adminListCalls=0, guestScenarioReads=0, publicRpcReads=0;
 const errors=[];
 const browser=await chromium.launch({headless:true});
 function responder({admin=false}={}){
@@ -44,6 +44,27 @@ function responder({admin=false}={}){
   });
   if(path.endsWith("/auth/v1/user"))return send(user);
   if(path.endsWith("/rest/v1/qa_admins"))return send(admin?{user_id:userId}:null);
+  if(path.endsWith("/rest/v1/rpc/qa_public_tasks_v1")) {
+    publicRpcReads++;
+    assert.equal(method,"POST","Public list must use the allowlisted RPC");
+    return send(tasks.filter((item)=>item.publica).map((item)=>({
+      id:item.id,titulo:item.titulo,codigo:item.codigo,
+      tipo_teste:item.tipo_teste,sistema:item.sistema,versao:item.versao,
+      executado_em:item.executado_em
+    })));
+  }
+  if(path.endsWith("/rest/v1/rpc/qa_public_task_v1")) {
+    publicRpcReads++;
+    assert.equal(method,"POST","Public detail must use the allowlisted RPC");
+    const id=req.postDataJSON()?.p_task_id;
+    const item=tasks.find((task)=>task.id===id&&task.publica);
+    if(!item)return send(null);
+    const {id:taskId,titulo,codigo,tipo_teste,sistema,versao,executado_em,
+      status,descricao,explicacao,causa,correcao,conclusao,observacoes}=item;
+    return send({task:{id:taskId,titulo,codigo,tipo_teste,sistema,versao,
+      executado_em,status,descricao,explicacao,causa,correcao,conclusao,
+      observacoes},scenarios:[],diagrams:[]});
+  }
   if(path.endsWith("/rest/v1/qa_tarefas")) {
     if(method==="PATCH"){
       publicationCalls++;
@@ -57,14 +78,8 @@ function responder({admin=false}={}){
       return send({id:ownTaskId,publica:tasks[0].publica});
     }
     const query=url.searchParams;
-    if(query.has("publica")) {
-      assert.equal(query.get("publica"),"eq.true");
-      assert.equal(query.get("select")?.includes("user_id"),false,
-        "Public SELECT must use an explicit projection");
-      const id=query.get("id")?.replace("eq.","");
-      const published=tasks.filter((item)=>item.publica && (!id || item.id===id));
-      return send(query.get("id")?published[0]??null:published);
-    }
+    assert.equal(query.has("publica"),false,
+      "Public visitors must not read base table rows with publica=true");
     const owner=query.get("user_id");
     if(owner) {
       assert.equal(owner,"eq."+userId);
@@ -104,7 +119,7 @@ try{
   await guest.getByRole("heading",{name:"Cenários de teste"}).waitFor();
   await guest.goto(origin+"#/publicas?tf="+ownTaskId);
   await guest.getByText("Esta TF não é pública ou não existe.").waitFor();
-  assert.equal(guestScenarioReads,1,"Private detail must not query scenario data");
+  assert.equal(guestScenarioReads,0,"Public API must not read direct scenario tables");
 
   const normal=await browser.newPage({viewport:{width:1366,height:768}});
   normal.on("pageerror",e=>errors.push("Normal: "+e.message));
@@ -220,6 +235,7 @@ try{
   assert.equal(await elevated.getByText("TF de outra conta").count(),0);
   await elevated.getByRole("combobox",{name:"Filtrar por autor"}).selectOption("others");
   await elevated.getByText("TF de outra conta").waitFor();
+  assert.ok(publicRpcReads>=4,"Published reads must use allowlisted RPCs");
   assert.deepEqual(errors,[]);
   console.log("E2E de acesso: visitante anônimo, publicação/despublicação explícita, usuário não-admin e administrador verificado.");
 }finally{await browser.close()}
