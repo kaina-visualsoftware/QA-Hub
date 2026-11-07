@@ -1,10 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, Plus, Share2, X, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, X, WandSparkles } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -62,6 +62,52 @@ export default function TaskPage() {
   }, "textarea");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
+  const editorRef = useRef<HTMLElement | null>(null);
+  const executionRef = useRef<HTMLElement | null>(null);
+  const generatorRef = useRef<HTMLDivElement | null>(null);
+  const pendingCount = (scenarios.data ?? []).filter((item) =>
+    item.status === "nao_executado").length;
+
+  useEffect(() => {
+    if (!showScenarioForm) return;
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      editorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
+        ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showScenarioForm, editingScenario?.id]);
+
+  useEffect(() => {
+    if (!generatorMode) return;
+    const frame = requestAnimationFrame(() => {
+      generatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      generatorRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [generatorMode]);
+
+  function startScenario() {
+    setEditingScenario(null);
+    scenarioForm.reset();
+    setShowScenarioForm(true);
+  }
+
+  function startPendingExecution() {
+    setFilter("pending");
+    setSaved(pendingCount ? "" :
+      "Não há casos pendentes. Adicione um cenário ou escolha outro filtro.");
+    requestAnimationFrame(() => {
+      const target = executionRef.current?.querySelector<HTMLButtonElement>(
+        '[data-qa-next-pending="true"]'
+      ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
+        '[data-qa-filter="pending"]'
+      );
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus({ preventScroll: true });
+    });
+  }
+
 
   const taskForm = useForm<TaskDraft>({
     resolver: zodResolver(taskDraftSchema),
@@ -180,6 +226,45 @@ export default function TaskPage() {
         <Button variant="secondary" onPress={() => setEditing((value) => !value)}>{editing ? "Fechar edição" : "Editar TF"}</Button>
       </div>
     </div>
+    <section className="qa-quickflow mt-4" aria-label="Fluxo rápido de QA">
+      <div className="qa-quickflow-heading">
+        <div>
+          <p className="eyebrow">FLUXO DE QA</p>
+          <h2>Criar, gerar e testar</h2>
+          <p className="text-muted text-sm">Ações diretas, sem alterar resultados automaticamente.</p>
+        </div>
+        <span className="count-pill">{pendingCount} pendente(s)</span>
+      </div>
+      <div className="qa-quickflow-actions">
+        <Button onPress={startScenario}><Plus size={17} /> Adicionar cenário</Button>
+        <Button variant="secondary" onPress={startPendingExecution}
+          isDisabled={scenarios.isPending}>
+          <ListChecks size={17} /> Testar pendentes
+        </Button>
+        <Button variant="secondary" onPress={() => {
+          setGeneratorMode("teste"); setShowDocuments(false);
+        }}><WandSparkles size={17} /> Gerar casos com IA</Button>
+      </div>
+      <details className="qa-more-tools">
+        <summary>Outras ferramentas: post, requisitos, evidências e diagramas</summary>
+        <div className="qa-more-tools-content">
+          <button type="button" onClick={() => {
+            setGeneratorMode("post"); setShowDocuments(false);
+          }} className="secondary-link"><WandSparkles size={16} /> Gerar post com IA</button>
+          <button type="button" onClick={() => setShowRequirements((value) => !value)}
+            className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
+          <button type="button" onClick={() => setShowEvidence((value) => !value)}
+            className="secondary-link"><ClipboardList size={16} /> {showEvidence ? "Ocultar evidências" : "Evidências e auditoria"}</button>
+          <button type="button" onClick={() => setShowLinks((value) => !value)}
+            className="secondary-link"><GitMerge size={16} /> {showLinks ? "Ocultar releases" : "Releases e referências"}</button>
+          <button type="button" onClick={() => {
+            setShowDocuments((value) => !value); setGeneratorMode(null);
+          }} className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
+          <button type="button" onClick={() => setShowDiagrams((value) => !value)}
+            className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
+        </div>
+      </details>
+    </section>
     <section className="panel mt-4" aria-label="Situação da tarefa">
       <div className="flex flex-wrap items-end gap-3">
         <label className="field" style={{ minWidth: 190 }}>Situação da TF
@@ -275,24 +360,7 @@ export default function TaskPage() {
       </form>
     </section>}
 
-    <section className="action-rail mt-5" aria-label="Próximas ações">
-      <div><p className="eyebrow">CONTINUE POR AQUI</p><h2>Execução e documentação</h2></div>
-      <Button onPress={() => { setEditingScenario(null); scenarioForm.reset(); setShowScenarioForm(true); }}><Plus size={16} /> Adicionar cenário</Button>
-      <button type="button" onClick={() => setShowRequirements((value) => !value)}
-        className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
-      <button type="button" onClick={() => setShowEvidence((value) => !value)}
-        className="secondary-link"><ClipboardList size={16} /> {showEvidence ? "Ocultar evidências" : "Evidências e auditoria"}</button>
-      <button type="button" onClick={() => setShowLinks((value) => !value)}
-        className="secondary-link"><GitMerge size={16} /> {showLinks ? "Ocultar releases" : "Releases e referências"}</button>
-      <button type="button" onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}
-        className="secondary-link"><WandSparkles size={16} /> Gerar casos com IA</button>
-      <button type="button" onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}
-        className="secondary-link"><WandSparkles size={16} /> Gerar post com IA</button>
-      <button type="button" onClick={() => { setShowDocuments((value) => !value); setGeneratorMode(null); }}
-        className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
-      <button type="button" onClick={() => setShowDiagrams((value) => !value)}
-        className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
-    </section>
+
 
     {showRequirements && <Suspense fallback={<p role="status" className="notice mt-4">Carregando requisitos…</p>}>
       <RequirementsPanel key={task.id} task={task} userId={userId}
@@ -305,17 +373,21 @@ export default function TaskPage() {
     {showLinks && <Suspense fallback={<p role="status" className="notice mt-4">Carregando releases…</p>}>
       <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)} />
     </Suspense>}
-    {generatorMode && <Suspense fallback={<p role="status" className="notice mt-4">Carregando gerador…</p>}>
-      <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
-        scenarios={scenarios.data || []} mode={generatorMode} onClose={() => setGeneratorMode(null)} />
-    </Suspense>}
+    {generatorMode && <div ref={generatorRef} tabIndex={-1}
+      role="region" aria-label="Gerador de conteúdo com IA" className="mt-4 qa-workflow-anchor">
+      <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
+        <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
+          scenarios={scenarios.data || []} mode={generatorMode} onClose={() => setGeneratorMode(null)} />
+      </Suspense>
+    </div>}
     {showDocuments && <Suspense fallback={<p role="status" className="notice mt-4">Carregando documentos…</p>}>
       <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId} />
     </Suspense>}
     {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
       <DiagramPanel taskId={taskId} userId={userId} />
     </Suspense>}
-    {showScenarioForm && <section className="panel mt-5" aria-label="Novo cenário">
+    {showScenarioForm && <section ref={editorRef} className="panel mt-5 qa-workflow-anchor"
+      aria-label={editingScenario ? "Editar cenário" : "Novo cenário"}>
       <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>{editingScenario ? "Editar cenário" : "Cadastrar cenário"}</h2></div>
         <button onClick={() => setShowScenarioForm(false)} aria-label="Fechar"><X size={18} /></button></div>
       <form className="stack mt-4" onSubmit={scenarioForm.handleSubmit((values) => void createScenario.mutateAsync(values))}>
@@ -334,13 +406,14 @@ export default function TaskPage() {
       </form>
     </section>}
 
-    <section className="panel mt-5">
+    <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2>
         <p className="text-muted">Registre somente o que foi efetivamente testado.</p></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
-          <button key={value} className={"filter-chip " + (filter === value ? "selected" : "")}
+          <button key={value} data-qa-filter={value}
+            className={"filter-chip " + (filter === value ? "selected" : "")}
             onClick={() => setFilter(value)} aria-pressed={filter === value}>{label}</button>)}
       </div>
       {scenarios.isPending && <p role="status" className="empty-state">Carregando cenários…</p>}
@@ -369,7 +442,8 @@ export default function TaskPage() {
             }}>Excluir</button>
           </div>
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
-            <button disabled={saveResult.isPending} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
+            <button data-qa-next-pending={filter === "pending" && index === 0 ? "true" : undefined}
+              disabled={saveResult.isPending} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
             <button disabled={saveResult.isPending} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
             <button disabled={saveResult.isPending} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
             <button disabled={saveResult.isPending} onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>
