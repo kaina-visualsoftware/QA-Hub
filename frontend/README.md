@@ -340,3 +340,33 @@ marcam automaticamente a TF inteira como aprovada. Há cobertura
 unitária em `frontend/tests/quick-result.test.ts` e Chromium
 sintético em `frontend/tests/browser-execution-next.mjs`, incluindo
 falha de rede, preservação de dados, avanço de teclado e layout mobile.
+
+
+## Conclusão da TF — resumo fiel de "O que foi testado"
+
+A ação **Conferir relatório** foi incluída no fluxo rápido da TF e
+abre, com foco de teclado no título, o painel de **Documentos /
+relatório** já existente. Não foi criado outro gerador nem incluída
+uma migração de banco.
+
+A seção **O que foi testado** é derivada exclusivamente dos cenários
+com status salvo `aprovado`, `reprovado` ou `bloqueado`; pendentes
+não entram no resumo e continuam identificados como não executados
+nos detalhes do relatório. São preservados título, passos previstos,
+resultado esperado e resultado observado realmente registrado.
+Uma aprovação sem descrição do resultado observado é identificada
+explicitamente como tal, sem inventar evidência.
+
+O resumo é copiável, e o relatório completo pode ser revisado,
+baixado em Markdown ou salvo como uma nova versão privada via RPC
+já existente. Quando o QA edita o texto, atualizações posteriores
+dos casos **não sobrescrevem sua edição**; o botão
+**Atualizar prévia** pede confirmação antes de substituí-la.
+Um documento vazio não é salvo. Gerar ou salvar relatório
+**não altera automaticamente o status da TF**, e as conclusões
+apresentadas são sugestões para revisão humana.
+
+Cobertura: `frontend/tests/execution-summary.test.ts` e
+`frontend/tests/browser-report-summary.mjs` (Supabase simulado:
+cópia fiel de resultados, cenário pendente, revisão manual,
+recalcular, salvar versão e viewport mobile).
