@@ -48,7 +48,7 @@ export function Workspace() {
   useEffect(() => {
     if (!showForm) return;
     const frame = requestAnimationFrame(() => {
-      taskEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      taskEditorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
       taskEditorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
         ?.focus({ preventScroll: true });
     });

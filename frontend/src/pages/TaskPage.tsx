@@ -72,7 +72,7 @@ export default function TaskPage() {
   useEffect(() => {
     if (!showScenarioForm) return;
     const frame = requestAnimationFrame(() => {
-      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      editorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
       editorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
         ?.focus({ preventScroll: true });
     });
@@ -82,7 +82,7 @@ export default function TaskPage() {
   useEffect(() => {
     if (!generatorMode) return;
     const frame = requestAnimationFrame(() => {
-      generatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      generatorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
       generatorRef.current?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
@@ -104,7 +104,7 @@ export default function TaskPage() {
       ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
         '[data-qa-filter="pending"]'
       );
-      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.scrollIntoView({ behavior: "auto", block: "center" });
       target?.focus({ preventScroll: true });
     });
   }
