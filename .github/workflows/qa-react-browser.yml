@@ -36,5 +36,6 @@ jobs:
           node tests/browser-smoke.mjs
           node tests/browser-qa-flow.mjs
           node tests/browser-access.mjs
+          node tests/browser-quick-create.mjs
           node tests/browser-auth-callback.mjs
           node tests/browser-accessibility.mjs
