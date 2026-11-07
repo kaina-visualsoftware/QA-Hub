@@ -101,6 +101,10 @@ const homeRoute = createRoute({
 const taskRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tarefa/$taskId",
+  validateSearch: (search: Record<string, unknown>): { newScenario?: boolean } => ({
+    newScenario: search.newScenario === true || search.newScenario === "1"
+      ? true : undefined
+  }),
   component: () => <Suspense fallback={<p role="status">Abrindo TF…</p>}><TaskPage /></Suspense>
 });
 const publicRoute = createRoute({

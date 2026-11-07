@@ -114,7 +114,7 @@ export function Workspace() {
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
   });
   const create = useMutation({
-    mutationFn: async (draft: TaskDraft) => {
+    mutationFn: async ({ draft, openScenario }: { draft: TaskDraft; openScenario: boolean }) => {
       const task = await createTask(userId, draft);
       let warning = "";
       const selected = extracted.filter((item) => item.selected);
@@ -122,9 +122,9 @@ export function Workspace() {
         try { await addExtractedScenarios(task.id, userId, selected); }
         catch (error) { warning = error instanceof Error ? error.message : "Falha ao salvar cenários extraídos"; }
       }
-      return { task, warning };
+      return { task, warning, openScenario };
     },
-    onSuccess: async ({ task, warning }) => {
+    onSuccess: async ({ task, warning, openScenario }) => {
       if (warning) {
         try { sessionStorage.setItem("qa-react-import-warning:" + task.id,
           "TF salva, mas os cenários extraídos não foram adicionados: " + warning); } catch {}
@@ -134,7 +134,11 @@ export function Workspace() {
       await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
       setShowForm(false);
       form.reset();
-      await navigate({ to: "/tarefa/$taskId", params: { taskId: task.id } });
+      await navigate({
+        to: "/tarefa/$taskId",
+        params: { taskId: task.id },
+        search: { newScenario: openScenario || undefined }
+      });
     }
   });
 
@@ -178,7 +182,12 @@ export function Workspace() {
           cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
         }}><X size={18} /></button>
       </div>
-      <form onSubmit={form.handleSubmit((values) => void create.mutateAsync(values))} className="stack mt-5">
+      <form onSubmit={form.handleSubmit((values, event) => {
+        const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
+        void create.mutateAsync({
+          draft: values, openScenario: submitter?.getAttribute("data-next") === "scenario"
+        });
+      })} className="stack mt-5">
         <div className="form-grid">
           <label className="field grow-2">Título da tarefa
             <input placeholder="Ex.: Validar o desconto na devolução" {...form.register("titulo")} />
@@ -300,7 +309,10 @@ export function Workspace() {
           <Button type="button" variant="secondary" onPress={() => {
             cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
           }}>Cancelar</Button>
-          <Button type="submit" isDisabled={create.isPending}>Salvar e abrir TF</Button>
+          <Button type="submit" variant="secondary" data-next="task"
+            isDisabled={create.isPending}>Salvar e abrir TF</Button>
+          <Button type="submit" data-next="scenario"
+            isDisabled={create.isPending}>Salvar e adicionar cenário</Button>
         </div>
         {create.isError && <p className="notice error" role="alert">{create.error.message}</p>}
       </form>

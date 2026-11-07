@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -28,6 +28,7 @@ const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
+  const { newScenario } = useSearch({ from: "/tarefa/$taskId" });
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const navigate = useNavigate();
@@ -117,6 +118,21 @@ export default function TaskPage() {
     resolver: zodResolver(scenarioDraftSchema),
     defaultValues: { titulo: "", passos: "", esperado: "", observacoes: "" }
   });
+
+  // The one-time next step is encoded in the route, not stored in session state.
+  // Clear it with replace so a refresh or Back cannot reopen an obsolete editor.
+  useEffect(() => {
+    if (!newScenario || !task || task.user_id !== userId) return;
+    setEditingScenario(null);
+    scenarioForm.reset();
+    setShowScenarioForm(true);
+    void navigate({
+      to: "/tarefa/$taskId",
+      params: { taskId },
+      search: { newScenario: undefined },
+      replace: true
+    });
+  }, [newScenario, task?.id, task?.user_id, userId, taskId, navigate, scenarioForm.reset]);
 
   useEffect(() => { focusTask(taskId); }, [taskId, focusTask]);
   useEffect(() => {
