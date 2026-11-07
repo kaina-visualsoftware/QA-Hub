@@ -1,0 +1,48 @@
+name: QA Hub React browser smoke
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/qa-react-browser.yml'
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install app and browser runner
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build React app (synthetic publication enabled for E2E only)
+        # Test both publication operations in mocked Supabase without enabling
+        # this feature in normal releases. The production build stays fail-closed.
+        env:
+          VITE_PUBLIC_SHARING_ENABLED: "true"
+        run: npm run build
+      - name: Browser smoke with synthetic publication opt-in
+        env:
+          QA_TEST_PUBLICATION_ENABLED: "true"
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/qa-react-preview.log 2>&1 &
+          for x in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:4173/QA-Hub/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-suites.mjs
+      - name: Build production-default React app (publication locked)
+        run: npm run build
+      - name: Chromium confirms publication locked by default
+        env:
+          QA_TEST_PUBLICATION_ENABLED: "false"
+        run: node tests/browser-publication-gate.mjs
