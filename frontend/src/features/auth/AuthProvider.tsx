@@ -8,6 +8,7 @@ import { ShieldCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, authRedirectUrl } from "../../lib/supabase";
 import { useFocus } from "../../stores/focus";
+import { discardNewTaskDraft } from "../tasks/local-draft";
 
 type AuthContextValue = {
   user: User | null;
@@ -39,7 +40,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setUser(session?.user ?? null);
       setLoading(false);
       if (event === "PASSWORD_RECOVERY") setRecovering(true);
-      if (event === "SIGNED_OUT") setRecovering(false);
+      if (event === "SIGNED_OUT") {
+        // An explicit sign-out must not leave the opt-in QA draft readable
+        // in the same tab by a subsequent account or shared-device user.
+        if (previousUserId.current) discardNewTaskDraft(previousUserId.current);
+        setRecovering(false);
+      }
     });
     void supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
