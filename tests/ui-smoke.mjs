@@ -140,6 +140,32 @@ export function createClient(){
       }
     },
     async rpc(name,args){
+      if(name==='qa_public_tasks_v1'){
+        const data=tables.qa_tarefas.filter(row=>row.publica).map(row=>({
+          id:row.id,titulo:row.titulo,codigo:row.codigo,tipo_teste:row.tipo_teste,
+          sistema:row.sistema,versao:row.versao,executado_em:row.executado_em
+        }));
+        return {data,error:null};
+      }
+      if(name==='qa_public_task_v1'){
+        const row=tables.qa_tarefas.find(x=>x.id===args?.p_task_id&&x.publica);
+        if(!row)return {data:null,error:null};
+        const task={
+          id:row.id,titulo:row.titulo,codigo:row.codigo,tipo_teste:row.tipo_teste,
+          sistema:row.sistema,versao:row.versao,executado_em:row.executado_em,
+          status:row.status,descricao:row.descricao,explicacao:row.explicacao,
+          causa:row.causa,correcao:row.correcao,conclusao:row.conclusao,
+          observacoes:row.observacoes
+        };
+        const scenarios=tables.qa_cenarios.filter(x=>x.tarefa_id===row.id).map(x=>({
+          id:x.id,titulo:x.titulo,ordem:x.ordem,passos:x.passos,
+          esperado:x.esperado,obtido:x.obtido,observacoes:x.observacoes,status:x.status
+        }));
+        const diagrams=tables.qa_diagramas.filter(x=>x.tarefa_id===row.id).map(x=>({
+          id:x.id,titulo:x.titulo,conteudo:x.conteudo
+        }));
+        return {data:{task,scenarios,diagrams},error:null};
+      }
       if(name==='qa_register_requirement_file'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         const object=storageObjects.get(args.p_path);
