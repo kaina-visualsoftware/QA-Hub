@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const suites = [
   "browser-smoke.mjs",
   "browser-qa-flow.mjs",
+  "browser-execution-next.mjs",
   "browser-access.mjs",
   "browser-quick-create.mjs",
   "browser-draft-recovery.mjs",
