@@ -133,3 +133,20 @@ Teste: `frontend/tests/browser-draft-recovery.mjs` e
 implementada no AuthProvider, mas a autenticação real ainda requer
 homologação assistida. Não confundir o rascunho local com uma TF
 já salva, um backup ou armazenamento criptografado.
+
+
+## Fluxo contínuo de pendências (QF17–QF21)
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF17 | Abrir uma TF com dois pendentes e selecionar Testar pendentes | Foco vai ao primeiro caso, sem gravar resultado |
+| QF18 | Marcar Funcionou e receber confirmação do servidor | Resultado aprovado e foco no próximo pendente |
+| QF19 | Falhar a persistência por rede/RLS | Erro visível, sem avançar ou marcar cenário executado |
+| QF20 | Registrar o último pendente | Foco retorna ao filtro Pendentes; situação da TF não muda automaticamente |
+| QF21 | Aprovar cenário previamente reprovado com observação | Pedir confirmação antes de limpar a observação antiga; cancelar preserva dados; confirmar não reaproveita texto da falha |
+
+**Execução automatizada:** `frontend/tests/browser-execution-next.mjs`
+com interceptação de Supabase e `frontend/tests/quick-result.test.ts`
+com exemplos de mudanças de estado. Homologar também navegação por
+teclado e leitura de status em equipamentos usados pelos QAs. As
+mudanças não substituem o histórico de auditoria do banco.
