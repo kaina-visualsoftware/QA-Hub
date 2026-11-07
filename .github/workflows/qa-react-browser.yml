@@ -30,16 +30,19 @@ jobs:
         env:
           VITE_PUBLIC_SHARING_ENABLED: "true"
         run: npm run build
-      - name: Browser smoke with no real account
+      - name: Browser smoke with synthetic publication opt-in
+        env:
+          QA_TEST_PUBLICATION_ENABLED: "true"
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/qa-react-preview.log 2>&1 &
           for x in 1 2 3 4 5 6 7 8 9 10; do
             if curl -fsS http://127.0.0.1:4173/QA-Hub/ > /dev/null; then break; fi
             sleep 1
           done
-          node tests/browser-smoke.mjs
-          node tests/browser-qa-flow.mjs
-          node tests/browser-access.mjs
-          node tests/browser-quick-create.mjs
-          node tests/browser-auth-callback.mjs
-          node tests/browser-accessibility.mjs
+          node tests/browser-suites.mjs
+      - name: Build production-default React app (publication locked)
+        run: npm run build
+      - name: Chromium confirms publication locked by default
+        env:
+          QA_TEST_PUBLICATION_ENABLED: "false"
+        run: node tests/browser-publication-gate.mjs
