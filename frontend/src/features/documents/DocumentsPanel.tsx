@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileCheck2, FileText } from "lucide-react";
+import { ClipboardCopy, Download, FileCheck2, FileText, RefreshCw } from "lucide-react";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import {
-  buildExecutionReport, cleanDocumentName, saveTfDocument
+  buildExecutionReport, buildTestedSummary, cleanDocumentName, executionSummary, saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import type { TfDocument } from "../../lib/legacy/qa-phase2.mjs";
 
@@ -20,11 +20,13 @@ function downloadMarkdown(content: string, name: string) {
 }
 
 export default function DocumentsPanel({
-  task, scenarios, userId
-}: { task: Task; scenarios: Scenario[]; userId: string }) {
+  task, scenarios, userId, focusOnOpen = false
+}: { task: Task; scenarios: Scenario[]; userId: string; focusOnOpen?: boolean }) {
   const queryClient = useQueryClient();
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
+  // null means live, generated from saved scenarios; "" is a real, editable empty draft.
+  const [draft, setDraft] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const docs = useQuery({
@@ -40,11 +42,22 @@ export default function DocumentsPanel({
   const selected = useMemo(() => docs.data?.find((item) => item.id === selectedId),
     [docs.data, selectedId]);
   const report = useMemo(() => buildExecutionReport(task, scenarios), [task, scenarios]);
+  const testedSummary = useMemo(() => buildTestedSummary(scenarios), [scenarios]);
+  const counts = useMemo(() => executionSummary(scenarios), [scenarios]);
+  const content = draft ?? report;
+  useEffect(() => {
+    if (!focusOnOpen) return;
+    const frame = requestAnimationFrame(() => {
+      headingRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      headingRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusOnOpen]);
   const save = useMutation({
     mutationFn: () => saveTfDocument(supabase, {
       taskId: task.id, type: "relatorio",
       title: "Relatório de execução — " + task.titulo.slice(0, 190),
-      content: draft || report, source: "execucao"
+      content, source: draft === null ? "execucao" : "manual"
     }),
     onSuccess: async (record) => {
       setNote("Relatório salvo como versão " + record.versao + ".");
@@ -58,7 +71,7 @@ export default function DocumentsPanel({
     <div className="section-heading">
       <div>
         <p className="eyebrow">HISTÓRICO VINCULADO</p>
-        <h2 id="documents-heading">Posts e relatórios</h2>
+        <h2 id="documents-heading" ref={headingRef} tabIndex={-1}>Posts e relatórios</h2>
         <p className="text-muted">Versões privadas imutáveis, consultáveis sem acessar o gerador antigo.</p>
       </div>
       <span className="count-pill">{docs.data?.length ?? 0} documento(s)</span>
@@ -70,15 +83,45 @@ export default function DocumentsPanel({
           Criado exclusivamente a partir do status e dos resultados já registrados.
           Nenhuma aprovação é inferida.
         </p>
-        <label className="field">Texto do relatório (editável antes de salvar)
-          <textarea rows={12} value={draft || report}
-            onChange={(event) => setDraft(event.target.value)} maxLength={80000} />
+        <p className="text-muted text-sm">
+          {counts.finalizados} de {counts.total} cenário(s) com execução registrada.
+          {counts.nao_executado > 0 ? " Os pendentes não aparecem em O que foi testado." : ""}
+        </p>
+        <label className="field">O que foi testado (somente resultados salvos)
+          <textarea rows={7} readOnly value={testedSummary} />
         </label>
+        <div>
+          <Button variant="secondary" onPress={() => {
+            void navigator.clipboard.writeText(testedSummary)
+              .then(() => setNote("Resumo copiado. Revise antes de utilizar."))
+              .catch(() => setError("Não foi possível copiar. Selecione o texto acima manualmente."));
+          }}>
+            <ClipboardCopy size={16} /> Copiar o que foi testado
+          </Button>
+        </div>
+        <label className="field">Relatório completo (editável antes de salvar)
+          <textarea rows={12} value={content} maxLength={80000}
+            onChange={(event) => { setDraft(event.target.value); setNote(""); }} />
+        </label>
+        {draft !== null && <div className="stack">
+          <p className="text-muted text-sm" role="status">
+            Edição manual em andamento. Mudanças posteriores nos cenários não substituem este texto.
+            Para recuperar a versão baseada nos resultados salvos, use Atualizar prévia.
+          </p>
+          <div><Button variant="secondary" onPress={() => {
+            if (draft.trim() && !window.confirm(
+              "Substituir a edição manual pela versão atual dos cenários salvos?"
+            )) return;
+            setDraft(null); setNote("");
+          }}><RefreshCw size={16} /> Atualizar prévia</Button></div>
+        </div>}
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onPress={() => downloadMarkdown(draft || report, "relatorio-" + task.codigo)}>
+          <Button variant="secondary" isDisabled={!content.trim()}
+            onPress={() => downloadMarkdown(content, "relatorio-" + task.codigo)}>
             <Download size={16} /> Baixar Markdown
           </Button>
-          <Button isDisabled={save.isPending || !scenarios.length} onPress={() => void save.mutateAsync()}>
+          <Button isDisabled={save.isPending || !scenarios.length || !content.trim() || content.length > 80000}
+            onPress={() => save.mutate()}>
             <FileCheck2 size={16} /> Salvar versão
           </Button>
         </div>
