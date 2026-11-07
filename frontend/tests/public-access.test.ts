@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PUBLIC_TASK_COLUMNS, PUBLIC_DETAIL_COLUMNS, PUBLIC_SCENARIO_COLUMNS,
   PUBLIC_DIAGRAM_COLUMNS, publicTaskCardSchema, publicTaskDetailSchema,
-  publicScenarioSchema, publicDiagramSchema
+  publicScenarioSchema, publicDiagramSchema, publicSharingEnabled, updatePublication
 } from "../src/features/public/public-data";
 
 const id = "11111111-1111-4111-8111-111111111111";
@@ -63,5 +63,12 @@ describe("contrato da projeção pública no servidor", () => {
     expect(sql).toContain("where t.publica is true");
     expect(sql).toContain("where t.id = p_task_id and t.publica is true");
     expect(sql).not.toMatch(/'user_id'\s*,|'empresa'\s*,|'base_teste'\s*,|'testador'\s*,/);
+  });
+});
+
+describe("trava de rollout de novas publicações", () => {
+  it("não publica antes do opt-in explícito e mantém a leitura pública separada", async () => {
+    expect(publicSharingEnabled).toBe(false);
+    await expect(updatePublication(id,id,true)).rejects.toThrow(/indisponível/);
   });
 });
