@@ -132,7 +132,9 @@ try {
   await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
   assert.equal(await editor.getByRole("textbox", { name: "Título" }).inputValue(), "",
     "Continuing with the next case must clear the previous draft");
-  await editor.getByRole("button", { name: "Cancelar" }).click();
+  const cancelEditor = editor.getByRole("button", { name: "Cancelar" });
+  await cancelEditor.focus();
+  await cancelEditor.press("Enter");
   assert.equal(calls.case, 2, "Cancel must not create an empty third case");
 
   await page.reload();
