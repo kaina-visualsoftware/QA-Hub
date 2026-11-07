@@ -53,6 +53,49 @@ begin
     ) then
       raise exception 'Other public SELECT policies remain on %. Abort', table_name;
     end if;
+    -- Explicitly reject unfamiliar SELECT/ALL policies for authenticated
+    -- users too. A newly added TO authenticated USING (publica = true)
+    -- would otherwise expose all columns of another user's published TF.
+    -- Existing owner and admin policies from this project are the ONLY
+    -- read-capable policies permitted after removing the public-read ones.
+    if exists (
+      select 1 from pg_catalog.pg_policies p
+      where p.schemaname = 'public' and p.tablename = table_name
+        and p.cmd in ('SELECT','ALL')
+        and p.policyname not in (
+          table_name || '_por_proprietario',
+          'qa_admin_' || substring(table_name from 4) || '_full_access'
+        )
+    ) then
+      raise exception 'Unexpected SELECT/ALL policy remains on %. Abort', table_name;
+    end if;
+    -- Check the known policies have not silently changed to permissive
+    -- SELECT rules (USING true), or been granted to a broader role.
+    -- These simple catalog guards do not replace real two-user RLS tests.
+    if exists (
+      select 1 from pg_catalog.pg_policies p
+      where p.schemaname = 'public' and p.tablename = table_name
+        and p.cmd in ('SELECT','ALL')
+        and p.policyname in (
+          table_name || '_por_proprietario',
+          'qa_admin_' || substring(table_name from 4) || '_full_access'
+        )
+        and (
+          p.roles <> array['authenticated']::name[]
+          or p.qual is null
+          or p.qual not like '%auth.uid%'
+          or (
+            p.policyname = table_name || '_por_proprietario'
+            and p.qual not like '%user_id%'
+          )
+          or (
+            p.policyname = 'qa_admin_' || substring(table_name from 4) || '_full_access'
+            and p.qual not like '%qa_admins%'
+          )
+        )
+    ) then
+      raise exception 'Known owner/admin policy is unexpectedly broad on %. Abort', table_name;
+    end if;
   end loop;
 end
 $lockdown_guard$;
