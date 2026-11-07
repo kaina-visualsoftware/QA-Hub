@@ -114,6 +114,10 @@ try {
     for (const table of ["qa_cenarios", "qa_diagramas"]) {
       await childrenVisible(reader, table, cfg.publicA, label + " published: " + table);
     }
+    for (const table of ["qa_documentos", "qa_requisito_fontes", "qa_requisitos"]) {
+      await hidden(reader, table, "tarefa_id", cfg.publicA,
+        label + " cannot read internal " + table + " for published TF");
+    }
   }
 
   if (!cfg.attachmentA || !cfg.attachmentB)
@@ -123,6 +127,14 @@ try {
 
   await noInternalMetadataLeak(anon, "Published TF internal metadata denied to guest");
   await noInternalMetadataLeak(b, "Published TF internal metadata denied to non-owner");
+  for (const table of ["qa_cenarios", "qa_diagramas"]) {
+    for (const [reader, label] of [[anon, "guest"], [b, "non-owner"]]) {
+      const raw = await rows(reader, table, "tarefa_id", cfg.publicA,
+        "id,user_id,tarefa_id");
+      mustNotSee(raw, "Published " + table + " user_id hidden from " + label);
+      done("Published " + table + " internal owner ID hidden from " + label);
+    }
+  }
 
   console.log("Staging RLS: " + passed +
     " checks passed. QA data and Storage were never modified.");
