@@ -1,0 +1,77 @@
+name: QA Hub public SQL security contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/qa_public_read_*.sql'
+      - 'tests/sql/**'
+      - '.github/workflows/qa-public-sql.yml'
+  push:
+    branches: ['feat/issue-37-react-foundation']
+
+permissions:
+  contents: read
+
+jobs:
+  public-sql:
+    name: PostgreSQL 17 ephemeral RLS + public RPC test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: qa_contract
+          POSTGRES_PASSWORD: ci-disposable-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qa_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: qa_contract
+      PGUSER: postgres
+      PGPASSWORD: ci-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+      - name: Prepare disposable Supabase-like fixture
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_fixture.sql
+      - name: Phase A — install public RPCs and test allowlist
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_api.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_pre.sql
+      - name: Phase B — reject unrecognized public policies atomically
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "create policy qa_unexpected_anon_read on public.qa_tarefas for select to anon using (true)"
+          if psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql \
+            > /tmp/qa-lockdown-expected-error.log 2>&1; then
+            echo 'ERROR: lockdown unexpectedly accepted an unrecognized public RLS policy'
+            exit 1
+          fi
+          grep -q 'Other public SELECT policies remain' /tmp/qa-lockdown-expected-error.log
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_rollback.sql
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "drop policy qa_unexpected_anon_read on public.qa_tarefas"
+      - name: Phase C — apply real lockdown SQL and test roles
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_public_read_lockdown.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_public_post.sql
+      - name: Ensure tests use no real Supabase secrets
+        run: |
+          if grep -R -n -E 'https://[a-z0-9]+\.supabase\.co|sb_secret_|service_role' tests/sql; then
+            echo 'Unexpected real Supabase address or privileged key in disposable fixtures'
+            exit 1
+          fi
