@@ -8,6 +8,7 @@ const suites = [
   "browser-qa-flow.mjs",
   "browser-access.mjs",
   "browser-quick-create.mjs",
+  "browser-draft-recovery.mjs",
   "browser-auth-callback.mjs",
   "browser-accessibility.mjs",
   "browser-publication-gate.mjs"
