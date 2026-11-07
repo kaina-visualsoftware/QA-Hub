@@ -175,7 +175,7 @@ try {
     await page.locator('[data-qa-next-pending="true"]').waitFor();
     await page.waitForFunction(() =>
       document.activeElement?.getAttribute("data-qa-next-pending") === "true");
-    assert.equal(await page.getByRole("button",{name:"Pendentes"}).getAttribute("aria-pressed"),"true");
+    assert.equal(await page.getByRole("button",{name:"Pendentes", exact:true}).getAttribute("aria-pressed"),"true");
     assert.equal(await page.getByRole("dialog").count(),0,
       "Selecting pending scenarios must never record a result automatically");
     await quickCreate.click();
