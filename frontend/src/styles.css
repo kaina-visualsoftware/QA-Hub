@@ -149,3 +149,22 @@
   margin-top:12px;color:#193b46;
 }
 .public-react-zoom{overflow-y:auto;}
+
+/* QA primary flow: the three common actions remain visible; secondary tools
+   are grouped in a native keyboard-accessible disclosure. */
+.qa-quickflow{padding:20px 22px;border:1px solid #b9dad5;background:#e9f5f1;
+  border-radius:16px;display:flex;flex-direction:column;gap:14px}
+.qa-quickflow-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.qa-quickflow-heading h2{font-weight:750;color:#163b43;font-size:1.15rem;line-height:1.4}
+.qa-quickflow-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.qa-more-tools{border-top:1px solid #c4dcd7;padding-top:13px}
+.qa-more-tools summary{cursor:pointer;color:#225968;font-size:.84rem;font-weight:700}
+.qa-more-tools summary:hover{text-decoration:underline}
+.qa-more-tools-content{display:flex;gap:9px;flex-wrap:wrap;padding:12px 0 2px}
+.qa-workflow-anchor{scroll-margin-top:22px;outline-offset:6px}
+@media(max-width:600px){
+  .qa-quickflow{padding:17px 14px}
+  .qa-quickflow-heading{flex-wrap:wrap}
+  .qa-quickflow-actions>button{flex:1 1 100%;justify-content:center}
+  .qa-more-tools-content>button{flex:1 1 auto}
+}
