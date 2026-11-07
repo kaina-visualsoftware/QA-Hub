@@ -98,6 +98,24 @@ function responder({admin=false}={}){
   return send({message:"Unexpected fixture route"},500);
  };
 }
+async function waitForReview(page, phase) {
+  try {
+    await page.getByRole("heading",{name:"Conferir campos identificados"}).waitFor({timeout:20000});
+  } catch (error) {
+    const state=await page.evaluate(()=>({
+      hash:location.hash,
+      formVisible:!!document.querySelector('textarea[name="descricao"]'),
+      descriptionLength:document.querySelector('textarea[name="descricao"]')?.value?.length ?? null,
+      notices:[...document.querySelectorAll('[role="status"],[role="alert"]')]
+        .map(element=>(element.textContent||"").trim().slice(0,180))
+        .filter(Boolean)
+        .slice(0,5)
+    }));
+    throw new Error(phase+" preview missing: "+String(error)+
+      " / state="+JSON.stringify(state));
+  }
+}
+
 try{
   const guest=await browser.newPage({viewport:{width:390,height:844}});
   guest.on("pageerror",e=>errors.push("Guest: "+e.message));
@@ -172,7 +190,7 @@ try{
     "RESULTADO ESPERADO: O desconto deve zerar."
   ].join("\n"));
   await normal.getByRole("button",{name:"Analisar texto localmente"}).click();
-  await normal.getByRole("heading",{name:"Conferir campos identificados"}).waitFor();
+  await waitForReview(normal,"Deterministic extraction");
   assert.equal(await normal.getByRole("checkbox",{name:/Remover desconto do pedido/}).isChecked(),false,
     "Extração local não pode anexar cenários por padrão");
   await normal.getByRole("button",{name:"Aplicar campos revisados"}).click();
@@ -190,7 +208,7 @@ try{
   ].join("\n"));
   await normal.getByRole("checkbox",{name:/Autorizo baixar o modelo público/}).check();
   await aiButton.click();
-  await normal.getByRole("heading",{name:"Conferir campos identificados"}).waitFor();
+  await waitForReview(normal,"Synthetic AI");
   await normal.getByText("Sugestão da IA local").waitFor();
   assert.equal(await normal.getByRole("checkbox",{name:/Validar o desconto sugerido/}).isChecked(),false,
     "A IA nunca seleciona casos automaticamente");
