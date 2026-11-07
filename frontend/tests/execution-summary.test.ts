@@ -61,7 +61,7 @@ describe("resumo de QA fiel aos resultados persistidos", () => {
     expect(report).toContain("Aguardando conclusão do testador");
   });
   it("não permite listas inválidas nem itens de status desconhecido no resumo", () => {
-    expect(() => buildTestedSummary(null)).toThrow("lista de cenários");
+    expect(() => buildTestedSummary(null as never)).toThrow("lista de cenários");
     expect(buildTestedSummary([
       {titulo:"status inválido",status:"sucesso",passos:"a",esperado:"b"},
       {titulo:"caso pendente",status:"nao_executado",passos:"c",esperado:"d"}
