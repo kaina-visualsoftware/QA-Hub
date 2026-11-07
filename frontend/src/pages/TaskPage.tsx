@@ -52,6 +52,7 @@ export default function TaskPage() {
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [focusReport, setFocusReport] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
@@ -292,6 +293,17 @@ export default function TaskPage() {
         <Button variant="secondary" onPress={() => {
           setGeneratorMode("teste"); setShowDocuments(false);
         }}><WandSparkles size={17} /> Gerar casos com IA</Button>
+        <Button variant="secondary" isDisabled={scenarios.isPending || scenarios.isError || scenarios.isFetching}
+          onPress={() => {
+            setGeneratorMode(null); setShowDocuments(true); setFocusReport(true);
+            // Already-open panels do not remount. Focus their heading directly.
+            requestAnimationFrame(() => {
+              document.getElementById("documents-heading")?.focus({ preventScroll: true });
+              document.getElementById("documents-heading")?.scrollIntoView({
+                behavior: "auto", block: "start"
+              });
+            });
+          }}><FileText size={17} /> Conferir relatório</Button>
       </div>
       <details className="qa-more-tools">
         <summary>Outras ferramentas: post, requisitos, evidências e diagramas</summary>
@@ -306,7 +318,7 @@ export default function TaskPage() {
           <button type="button" onClick={() => setShowLinks((value) => !value)}
             className="secondary-link"><GitMerge size={16} /> {showLinks ? "Ocultar releases" : "Releases e referências"}</button>
           <button type="button" onClick={() => {
-            setShowDocuments((value) => !value); setGeneratorMode(null);
+            setShowDocuments((value) => !value); setFocusReport(false); setGeneratorMode(null);
           }} className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
           <button type="button" onClick={() => setShowDiagrams((value) => !value)}
             className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
@@ -432,7 +444,8 @@ export default function TaskPage() {
       </Suspense>
     </div>}
     {showDocuments && <Suspense fallback={<p role="status" className="notice mt-4">Carregando documentos…</p>}>
-      <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId} />
+      <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId}
+        focusOnOpen={focusReport} />
     </Suspense>}
     {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
       <DiagramPanel taskId={taskId} userId={userId} />
