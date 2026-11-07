@@ -62,16 +62,16 @@ async function storage(path, ownedBy, outsider, ownerId, taskId, label) {
   done(label + " is visible to owner");
   for (const [reader, role] of [[outsider, "non-owner"], [anon, "anonymous"]]) {
     const check = await list(reader);
-    if (!check.error && check.data?.some((item) => item.name === filename))
+    if (check.error) {
+      const code = String(check.error.statusCode || check.error.status || check.error.code || "");
+      if (!["401", "403", "42501"].includes(code)) {
+        throw Error(label + ": unexpected Storage error for " + role + ".");
+      }
+    } else if (check.data?.some((item) => item.name === filename)) {
       throw Error(label + ": private object visible to " + role + ".");
+    }
     done(label + " hidden from " + role);
   }
-}
-async function noInternalMetadata(c, label) {
-  // RLS permits entire ROWS, not selective private columns: assert against
-  // the raw REST API, not the narrower React public-card SELECT.
-  await hidden(c, "qa_tarefas", "id", cfg.publicA, label,
-    "id,user_id,empresa,base_teste,testador");
 }
 async function noInternalMetadataLeak(c, label) {
   const result = await rows(c, "qa_tarefas", "id", cfg.publicA,

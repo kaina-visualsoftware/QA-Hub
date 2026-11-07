@@ -29,6 +29,8 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test
+      - name: Staging RLS safety guards (offline)
+        run: node --test tests/staging-rls-guards.test.mjs
       - name: Production bundle
         run: npm run build
       - name: Verify initial-load gzip budget and lazy imports
