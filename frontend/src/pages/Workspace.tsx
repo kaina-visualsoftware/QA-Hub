@@ -25,6 +25,7 @@ export function Workspace() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiProgress, setAiProgress] = useState("");
   const modelRef = useRef<LocalModelClient | null>(null);
+  const taskEditorRef = useRef<HTMLElement | null>(null);
   const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
@@ -44,6 +45,15 @@ export function Workspace() {
     modelRef.current?.dispose();
     modelRef.current = null;
   }, []);
+  useEffect(() => {
+    if (!showForm) return;
+    const frame = requestAnimationFrame(() => {
+      taskEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      taskEditorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
+        ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showForm]);
 
   function showReview(source: string, draft: LocalDraft, viaModel: boolean) {
     setLocalReview({ source, draft });
@@ -174,7 +184,7 @@ export function Workspace() {
       <div><span>Contexto atual</span><strong className="text-base">{focusedId ? "TF selecionada" : "Nenhuma TF"}</strong></div>
     </section>
 
-    {showForm && <section className="panel editor-panel" aria-labelledby="new-task-title">
+    {showForm && <section ref={taskEditorRef} className="panel editor-panel" aria-labelledby="new-task-title">
       <div className="section-heading">
         <div><p className="eyebrow">CADASTRO RÁPIDO</p><h2 id="new-task-title">Nova TF</h2>
           <p className="text-muted">Somente o essencial agora. Detalhe os cenários depois.</p></div>
