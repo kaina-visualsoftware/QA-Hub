@@ -317,3 +317,26 @@ expiração, ausência de campos extras e isolamento entre contas),
 `frontend/tests/browser-draft-recovery.mjs` (consentimento, refresh,
 restauração explícita, escrita pendente no `pagehide`, descarte
 e mobile 390px). Somente fixtures sintéticas, sem escrita no Supabase.
+
+
+## Execução contínua de cenários pendentes
+
+Quando o QA usa **Testar pendentes**, uma execução confirmada pelo servidor
+move o foco para o botão **Funcionou** do próximo cenário pendente.
+Ao concluir o último caso, o foco retorna ao filtro **Pendentes**.
+Se o Supabase recusar o salvamento, os cenários não avançam
+automaticamente e a falha continua visível para tentativa posterior.
+
+Ao mudar um cenário de **reprovado/bloqueado** para **aprovado**, a
+observação antiga da falha **não é reaproveitada** como se fosse
+resultado de uma aprovação. Se houver texto observado que seria
+substituído, o sistema exige uma confirmação explícita; cancelar
+mantém o registro anterior. A mesma proteção vale para desfazer a
+execução. Uma aprovação já existente conserva sua observação escrita
+manualmente se for registrada novamente como aprovação.
+
+Os testes continuam exclusivamente vinculados ao cenário; não
+marcam automaticamente a TF inteira como aprovada. Há cobertura
+unitária em `frontend/tests/quick-result.test.ts` e Chromium
+sintético em `frontend/tests/browser-execution-next.mjs`, incluindo
+falha de rede, preservação de dados, avanço de teclado e layout mobile.
