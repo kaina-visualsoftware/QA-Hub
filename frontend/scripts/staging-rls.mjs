@@ -73,6 +73,54 @@ async function storage(path, ownedBy, outsider, ownerId, taskId, label) {
     done(label + " hidden from " + role);
   }
 }
+const PUBLIC_CARD_KEYS = [
+  "id","titulo","codigo","tipo_teste","sistema","versao","executado_em"
+];
+const PUBLIC_DETAIL_KEYS = [
+  ...PUBLIC_CARD_KEYS,"status","descricao","explicacao","causa","correcao",
+  "conclusao","observacoes"
+];
+const PUBLIC_SCENARIO_KEYS = [
+  "id","titulo","ordem","passos","esperado","obtido","observacoes","status"
+];
+const PUBLIC_DIAGRAM_KEYS = ["id","titulo","conteudo"];
+function exactPublicKeys(row, keys, label) {
+  assert.ok(row && typeof row === "object" && !Array.isArray(row),
+    label + ": expected JSON object.");
+  assert.deepEqual(Object.keys(row).sort(), [...keys].sort(),
+    label + ": public data projection must expose ONLY allowlisted columns.");
+}
+async function publicProjection(c, label) {
+  const listed = await c.rpc("qa_public_tasks_v1");
+  if (listed.error || !Array.isArray(listed.data))
+    throw Error(label + ": published list RPC is unavailable.");
+  for (const item of listed.data) exactPublicKeys(item, PUBLIC_CARD_KEYS, label + " list");
+  assert.ok(listed.data.some((item) => item.id === cfg.publicA),
+    label + ": published fixture missing from public RPC.");
+  assert.ok(!listed.data.some((item) => item.id === cfg.taskA || item.id === cfg.taskB),
+    label + ": private fixture leaked in public list.");
+  done(label + " public list has allowlisted fields");
+
+  const detailed = await c.rpc("qa_public_task_v1", {p_task_id: cfg.publicA});
+  if (detailed.error || !detailed.data)
+    throw Error(label + ": published detail RPC is unavailable.");
+  exactPublicKeys(detailed.data.task, PUBLIC_DETAIL_KEYS, label + " detail");
+  assert.equal(detailed.data.task.id, cfg.publicA);
+  if (!Array.isArray(detailed.data.scenarios) || !Array.isArray(detailed.data.diagrams))
+    throw Error(label + ": published children must be arrays.");
+  detailed.data.scenarios.forEach((row) =>
+    exactPublicKeys(row, PUBLIC_SCENARIO_KEYS, label + " scenario"));
+  detailed.data.diagrams.forEach((row) =>
+    exactPublicKeys(row, PUBLIC_DIAGRAM_KEYS, label + " diagram"));
+  done(label + " public detail has allowlisted fields");
+
+  for (const privateId of [cfg.taskA, cfg.taskB]) {
+    const unseen = await c.rpc("qa_public_task_v1", {p_task_id: privateId});
+    if (unseen.error || unseen.data !== null)
+      throw Error(label + ": private TF available through published detail RPC.");
+    done(label + " cannot read private TF via RPC");
+  }
+}
 async function noInternalMetadataLeak(c, label) {
   const result = await rows(c, "qa_tarefas", "id", cfg.publicA,
     "id,user_id,empresa,base_teste,testador");
@@ -110,9 +158,12 @@ try {
   }
 
   for (const [reader, label] of [[anon, "Anonymous"], [b, "Signed-in non-owner"]]) {
-    await visible(reader, "qa_tarefas", "id", cfg.publicA, label + " published TF");
+    await publicProjection(reader, label);
+    await hidden(reader, "qa_tarefas", "id", cfg.publicA,
+      label + " cannot SELECT published TF from base table");
     for (const table of ["qa_cenarios", "qa_diagramas"]) {
-      await childrenVisible(reader, table, cfg.publicA, label + " published: " + table);
+      await hidden(reader, table, "tarefa_id", cfg.publicA,
+        label + " cannot SELECT published children from base table: " + table);
     }
     for (const table of ["qa_documentos", "qa_requisito_fontes", "qa_requisitos"]) {
       await hidden(reader, table, "tarefa_id", cfg.publicA,
