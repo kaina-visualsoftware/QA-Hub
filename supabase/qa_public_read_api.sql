@@ -64,7 +64,7 @@ as $fn$
         ) order by s.ordem, s.id
       )
       from (
-        select *
+        select id, titulo, ordem, passos, esperado, obtido, observacoes, status
         from public.qa_cenarios
         where tarefa_id = p_task_id
         order by ordem, id
