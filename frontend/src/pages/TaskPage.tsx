@@ -31,7 +31,7 @@ const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
-  const { newScenario } = useSearch({ from: "/tarefa/$taskId" });
+  const { newScenario, resume } = useSearch({ from: "/tarefa/$taskId" });
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const navigate = useNavigate();
@@ -68,6 +68,7 @@ export default function TaskPage() {
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
   const [focusNextPending, setFocusNextPending] = useState(false);
+  const [resumeFocus, setResumeFocus] = useState(false);
   const editorRef = useRef<HTMLElement | null>(null);
   const executionRef = useRef<HTMLElement | null>(null);
   const generatorRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +140,39 @@ export default function TaskPage() {
     });
   }, [newScenario, task?.id, task?.user_id, userId, taskId, navigate, scenarioForm.reset]);
 
+  // A one-shot "Continue tests" link from the workspace never executes
+  // a scenario. It only selects pending cases and focuses the first action.
+  // Consume this route intent so refresh and browser Back do not repeat it.
+  useEffect(() => {
+    if (!resume || !task || !scenarios.isSuccess || task.user_id !== userId) return;
+    setFilter("pending");
+    setResumeFocus(true);
+    setSaved(pendingCount ? "" :
+      "Não há casos pendentes nesta TF. Adicione um cenário ou consulte outros filtros.");
+    void navigate({
+      to: "/tarefa/$taskId",
+      params: { taskId },
+      search: { resume: undefined, newScenario: undefined },
+      replace: true
+    });
+  }, [resume, task?.id, task?.user_id, userId, scenarios.isSuccess, pendingCount,
+    taskId, navigate]);
+
+  useEffect(() => {
+    if (!resumeFocus || filter !== "pending" || !scenarios.isSuccess) return;
+    const frame = requestAnimationFrame(() => {
+      const target = executionRef.current?.querySelector<HTMLButtonElement>(
+        '[data-qa-next-pending="true"]'
+      ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
+        '[data-qa-filter="pending"]'
+      );
+      target?.scrollIntoView({ behavior: "auto", block: "center" });
+      target?.focus({ preventScroll: true });
+      setResumeFocus(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [resumeFocus, filter, scenarios.isSuccess, scenarios.data]);
+
   useEffect(() => { focusTask(taskId); }, [taskId, focusTask]);
   useEffect(() => {
     try {
@@ -163,7 +197,8 @@ export default function TaskPage() {
   const invalidate = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
-      queryClient.invalidateQueries({ queryKey: ["scenarios", userId, taskId] })
+      queryClient.invalidateQueries({ queryKey: ["scenarios", userId, taskId] }),
+      queryClient.invalidateQueries({ queryKey: ["task-progress", userId] })
     ]);
   };
   const saveTask = useMutation({
