@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles, X } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
+import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
@@ -39,6 +40,7 @@ export function Workspace() {
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [visibleCount, setVisibleCount] = useState(30);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const focusedId = useFocus((s) => s.taskId);
@@ -233,6 +235,14 @@ export function Workspace() {
       .some((value) => (value ?? "").toLocaleLowerCase("pt-BR").includes(needle));
     return found && (!status || task.status === status);
   }), [tasks.data, search, status]);
+  const visibleTasks = filtered.slice(0, visibleCount);
+  const progressIds = visibleTasks.map(item => item.id);
+  const progress = useQuery({
+    queryKey: ["task-progress", userId, progressIds.join(",")],
+    queryFn: () => listTaskProgress(progressIds),
+    enabled: tasks.isSuccess && progressIds.length > 0,
+    staleTime: 30000
+  });
   const pending = (tasks.data ?? []).filter((item) => item.status === "rascunho" || item.status === "em_teste").length;
   const approved = (tasks.data ?? []).filter((item) => item.status === "aprovado").length;
 
@@ -444,12 +454,15 @@ export function Workspace() {
       <div className="filter-line">
         <label className="search-box"><Search size={18} aria-hidden="true" />
           <span className="sr-only">Pesquisar por título, código, módulo ou versão</span>
-          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar código, título, sistema, versão…" />
+          <input type="search" value={search} onChange={(e) => {
+            setSearch(e.target.value); setVisibleCount(30);
+          }} placeholder="Buscar código, título, sistema, versão…" />
         </label>
         <label className="filter-select"><Filter size={17} aria-hidden="true" />
           <span className="sr-only">Filtrar situação</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select value={status} onChange={(e) => {
+            setStatus(e.target.value); setVisibleCount(30);
+          }}>
             <option value="">Todas as situações</option>
             {Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
@@ -463,18 +476,42 @@ export function Workspace() {
         <CheckCheck size={28} /><strong>Nenhuma TF neste filtro</strong>
         <p>{search || status ? "Altere os filtros para consultar outras tarefas." : "Crie a primeira TF para começar."}</p>
       </div>}
+      {progress.isError && <p className="notice error mt-3" role="alert">
+        Progresso temporariamente indisponível. As TFs ainda podem ser abertas normalmente.
+      </p>}
       <div className="task-rows">
-        {filtered.map((task) => <Link to="/tarefa/$taskId" params={{ taskId: task.id }}
-          className="task-row" key={task.id} onClick={() => setFocused(task.id)}>
-          <span className="task-initial">{(task.codigo || "TF").slice(0, 3).toUpperCase()}</span>
-          <span className="task-text"><strong>{task.titulo}</strong>
-            <small>{task.codigo || "Sem código"} · {task.tipo_teste} · {task.sistema || "Sem módulo"}
-              {task.versao ? " · " + task.versao : ""}</small>
-          </span>
-          <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
-          <ArrowRight className="row-arrow" size={18} />
-        </Link>)}
+        {visibleTasks.map((task) => {
+          const stats = progress.data?.[task.id];
+          const own = task.user_id === userId;
+          return <div className="task-list-entry" key={task.id}>
+            <Link to="/tarefa/$taskId" params={{ taskId: task.id }}
+              className="task-row task-row-main" onClick={() => setFocused(task.id)}>
+              <span className="task-initial">{(task.codigo || "TF").slice(0, 3).toUpperCase()}</span>
+              <span className="task-text"><strong>{task.titulo}</strong>
+                <small>{task.codigo || "Sem código"} · {task.tipo_teste} · {task.sistema || "Sem módulo"}
+                  {task.versao ? " · " + task.versao : ""}</small>
+                {stats && <small className="task-progress-meta">
+                  {stats.executed}/{stats.total} executados · {stats.pending} pendente(s)
+                </small>}
+              </span>
+              <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
+              <ArrowRight className="row-arrow" size={18} />
+            </Link>
+            {own && stats && (stats.pending > 0 || stats.total === 0) &&
+              <Link to="/tarefa/$taskId" params={{ taskId: task.id }}
+                search={stats.total === 0 ? { newScenario: true } : { resume: true }}
+                onClick={() => setFocused(task.id)}
+                className="task-resume-link">
+                {stats.total === 0 ? "Adicionar primeiro caso" : "Continuar testes"}
+              </Link>}
+          </div>;
+        })}
       </div>
+      {visibleCount < filtered.length && <div className="flex justify-center mt-4">
+        <Button variant="secondary" onPress={() => setVisibleCount(value => value + 30)}>
+          Mostrar mais TFs ({filtered.length - visibleCount} restantes)
+        </Button>
+      </div>}
     </section>
   </div>;
 }
