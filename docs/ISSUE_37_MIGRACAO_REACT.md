@@ -382,3 +382,20 @@ extração local PDF/DOCX já possuem smoke tests sintéticos no Chromium.
   em \`docs/FLUXO_RAPIDO_QA_REACT.md\`.
 - **Pendente:** CI do commit de implementação, pesquisa de tempo real
   com QAs usuários e homologação humana de acessibilidade.
+
+## Continuação direta do cadastro e casos consecutivos
+
+- **Salvar e abrir TF** continua abrindo somente os detalhes.
+- **Salvar e adicionar cenário** salva a TF como rascunho e abre
+  formulário para o primeiro caso, sem persistir caso vazio.
+- A rota `/tarefa/$taskId` valida `newScenario` e consome o
+  sinal com `replace`; o comportamento só se aplica ao autor.
+- Formulários de TF e cenário recebem foco inicial no título.
+- **Salvar e criar outro** mantém o editor de casos aberto após
+  gravar um cenário como `nao_executado`, limpando os campos.
+- Novo E2E `browser-quick-create.mjs` verifica validação, dois
+  destinos, casos sucessivos, cancelamento, refresh e ausência
+  de execução automática, usando Supabase simulado.
+- Critérios de aceite QF09–QF12 acrescentados ao documento
+  `docs/FLUXO_RAPIDO_QA_REACT.md`.
+- Pendente: homologação com QAs e contas reais em staging.

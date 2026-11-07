@@ -59,6 +59,10 @@ as validações, os níveis de acesso ou os campos disponíveis.
 | QF06 | Expandir Outras ferramentas e abrir cada recurso | Recursos originais funcionam, sem regressão |
 | QF07 | Abrir/fechar recurso e navegar por teclado | Ordem de foco previsível e sem perda de contexto |
 | QF08 | Abrir cenário e cancelar diálogo de falha | Nenhum resultado salvo; foco retorna ao acionador |
+| QF09 | Nova TF: Salvar e adicionar cenário | Abre a TF e o primeiro formulário sem criar caso vazio |
+| QF10 | Salvar e criar outro | Caso fica pendente; campos limpos; foco volta ao título |
+| QF11 | Nova TF: Salvar e abrir TF | Abre detalhes sem apresentar editor automaticamente |
+| QF12 | Atualizar a página após cadastro | Não duplica TF/casos nem reabre formulário |
 
 ## Evidência automatizada
 
@@ -84,3 +88,24 @@ dispositivos físicos nem RLS. Registrar uma comparação cronometrada
 Implementação isolada em \`feat/issue-37-react-foundation\`, com PR draft.
 Não fazer merge, deploy ou troca de dados/RLS antes do plano de
 homologação e autorização de rollout.
+
+## Continuação direta após criar uma TF
+
+O cadastro oferece **Salvar e abrir TF** (comportamento anterior) ou
+**Salvar e adicionar cenário**. O segundo destino abre o formulário
+do primeiro caso na TF recém-criada, com foco no título. O cadastro
+da TF não cria casos em branco nem registra execuções. A intenção
+de abrir o formulário é consumida pelo roteador com replace: atualizar
+a página ou voltar no navegador não reabre o editor. O passo é
+permitido apenas para o proprietário da TF.
+
+No editor de cenário, **Adicionar cenário** salva e fecha como antes;
+**Salvar e criar outro** grava o caso como não executado, limpa os
+campos e devolve o foco ao título sem sair da edição. **Cancelar**
+não persiste um caso vazio. Nenhuma dessas ações altera o estado
+da TF automaticamente.
+
+O teste de navegador `frontend/tests/browser-quick-create.mjs` cobre
+submissão inválida, os dois destinos, persistência explícita, casos
+consecutivos, cancelamento, foco, refresh e tela de 390 px. Utiliza
+respostas Supabase sintéticas; permissões reais continuam pendentes.

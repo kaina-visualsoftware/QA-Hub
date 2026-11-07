@@ -230,3 +230,18 @@ e o fluxo completo com a seção secundária expandida. Ver também
 
 O comportamento e o desempenho ainda precisam de avaliação humana com
 QAs reais. Não inferir redução de tempo sem medir o antes/depois.
+
+## Criar TF e continuar diretamente nos cenários
+
+O formulário de nova TF permite **Salvar e abrir TF** ou **Salvar e
+adicionar cenário**. A segunda opção abre o primeiro formulário de
+caso sem gravar um cenário vazio. O foco começa no título, e o
+parâmetro temporário de navegação é descartado após ser utilizado.
+
+Para escrever vários casos seguidos, **Salvar e criar outro**
+salva um caso pendente e mantém o editor aberto, limpo e com foco
+no título seguinte. O fluxo não aprova casos, não executa testes
+e não altera status automaticamente.
+
+Teste sintético: `frontend/tests/browser-quick-create.mjs`.
+Critérios de aceite QF09–QF12 em `docs/FLUXO_RAPIDO_QA_REACT.md`.
