@@ -370,3 +370,33 @@ Cobertura: `frontend/tests/execution-summary.test.ts` e
 `frontend/tests/browser-report-summary.mjs` (Supabase simulado:
 cópia fiel de resultados, cenário pendente, revisão manual,
 recalcular, salvar versão e viewport mobile).
+
+
+## Retomar testes direto da lista de TFs
+
+A lista operacional mostra para cada TF visível quantos **cenários
+têm resultado persistido** (`aprovado`, `reprovado`, `bloqueado`)
+e quantos estão `nao_executado`. A situação global da TF **não** é
+usada para inferir esse progresso.
+
+O progresso é consultado em lotes de até 20 IDs de TF, exclusivamente
+com as colunas `tarefa_id,status`, respeitando RLS. O cliente
+pagina resultados em blocos de 500 para não contar silenciosamente
+apenas a primeira página do PostgREST. A lista exibe inicialmente 30
+TFs e permite **Mostrar mais TFs**. Se a consulta de progresso falhar,
+as TFs continuam navegáveis e não são exibidos números estimados.
+Após salvar uma execução, a consulta de progresso é invalidada.
+
+Para TFs próprias com cenários pendentes, o atalho
+**Continuar testes** abre a mesma TF com filtro **Pendentes** e foco
+no primeiro resultado disponível. A intenção de navegação é consumida
+com `replace`, portanto atualizar a página não reinicia o fluxo.
+Para uma TF sem casos, **Adicionar primeiro caso** abre apenas
+o formulário de criação. Administradores podem consultar outras TFs,
+mas **não recebem atalhos de execução** em registros de terceiros.
+Abrir o atalho nunca grava resultados ou altera a situação da TF.
+
+Validação: `frontend/tests/task-progress.test.ts` e
+`frontend/tests/browser-home-progress.mjs` com contas/linhas
+fictícias, cenários paginados, tarefa de terceiro e viewport 390px.
+Não substitui a homologação com Auth/RLS e dados representativos.
