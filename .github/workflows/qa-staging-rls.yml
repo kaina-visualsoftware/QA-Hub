@@ -1,0 +1,47 @@
+name: QA Hub Supabase staging RLS audit
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type READ_ONLY_STAGING to verify isolated test project"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: qa-hub-staging-rls
+  cancel-in-progress: false
+jobs:
+  staging-rls:
+    if: ${{ inputs.confirm == 'READ_ONLY_STAGING' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: qa-staging
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      QA_STAGING_CONFIRM: ${{ inputs.confirm }}
+      QA_STAGING_URL: ${{ secrets.QA_STAGING_URL }}
+      QA_STAGING_EXPECTED_REF: ${{ vars.QA_STAGING_EXPECTED_REF }}
+      QA_STAGING_PUBLISHABLE_KEY: ${{ secrets.QA_STAGING_PUBLISHABLE_KEY }}
+      QA_STAGING_EMAIL_A: ${{ secrets.QA_STAGING_EMAIL_A }}
+      QA_STAGING_PASSWORD_A: ${{ secrets.QA_STAGING_PASSWORD_A }}
+      QA_STAGING_EMAIL_B: ${{ secrets.QA_STAGING_EMAIL_B }}
+      QA_STAGING_PASSWORD_B: ${{ secrets.QA_STAGING_PASSWORD_B }}
+      QA_STAGING_PRIVATE_TASK_A: ${{ vars.QA_STAGING_PRIVATE_TASK_A }}
+      QA_STAGING_PRIVATE_TASK_B: ${{ vars.QA_STAGING_PRIVATE_TASK_B }}
+      QA_STAGING_PUBLIC_TASK_A: ${{ vars.QA_STAGING_PUBLIC_TASK_A }}
+      QA_STAGING_PRIVATE_ATTACHMENT_A: ${{ vars.QA_STAGING_PRIVATE_ATTACHMENT_A }}
+      QA_STAGING_PRIVATE_ATTACHMENT_B: ${{ vars.QA_STAGING_PRIVATE_ATTACHMENT_B }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test configuration guard without credentials
+        run: node --test tests/staging-rls-guards.test.mjs
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Audit signed-in and anonymous RLS on staging without QA writes
+        run: node scripts/staging-rls.mjs
