@@ -13,11 +13,20 @@ import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
+import {
+  discardNewTaskDraft, loadNewTaskDraft, saveNewTaskDraft
+} from "../features/tasks/local-draft";
+import type { StoredNewTaskDraft } from "../features/tasks/local-draft";
 
 export function Workspace() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const [showForm, setShowForm] = useState(false);
+  const [rememberDraft, setRememberDraft] = useState(false);
+  const [recoverableDraft, setRecoverableDraft] = useState<StoredNewTaskDraft | null>(null);
+  const [draftStorageError, setDraftStorageError] = useState("");
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousDraftUserRef = useRef("");
   const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
   const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
@@ -139,6 +148,11 @@ export function Workspace() {
         try { sessionStorage.setItem("qa-react-import-warning:" + task.id,
           "TF salva, mas os cenários extraídos não foram adicionados: " + warning); } catch {}
       }
+      // A successfully persisted task is the only authoritative copy now.
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+      discardNewTaskDraft(userId);
+      setRememberDraft(false); setRecoverableDraft(null); setDraftStorageError("");
       setExtracted([]); setExtractionNotice(""); setLocalReview(null);
       setFocused(task.id);
       await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
@@ -151,6 +165,59 @@ export function Workspace() {
       });
     }
   });
+
+  // Never recover another account's draft, even when the SPA is reused
+  // without a full page load. Only the matching signed-in account can
+  // explicitly restore the tab-scoped draft.
+  useEffect(() => {
+    if (!userId) return;
+    if (previousDraftUserRef.current && previousDraftUserRef.current !== userId) {
+      form.reset();
+      setShowForm(false); setExtracted([]); setLocalReview(null);
+    }
+    previousDraftUserRef.current = userId;
+    setRememberDraft(false);
+    setDraftStorageError("");
+    setRecoverableDraft(loadNewTaskDraft(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!rememberDraft || !userId) return;
+    const persist = () => {
+      if (!saveNewTaskDraft(userId, form.getValues())) {
+        setDraftStorageError("Não foi possível guardar o rascunho nesta aba. Copie seu texto antes de sair.");
+      }
+    };
+    const subscription = form.watch(() => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = setTimeout(() => {
+        draftTimerRef.current = null;
+        persist();
+      }, 350);
+    });
+    const flush = () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+      persist();
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("pagehide", flush);
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    };
+  }, [rememberDraft, userId, form.watch, form.getValues]);
+
+  function closeDraft() {
+    if (create.isPending) return;
+    if (form.formState.isDirty && !rememberDraft &&
+      !window.confirm("Descartar os campos não salvos desta TF?")) return;
+    cancelModel();
+    setShowForm(false); setLocalReview(null); setExtracted([]);
+    setExtractionNotice("");
+    if (!rememberDraft) form.reset();
+  }
 
   useEffect(() => {
     if (newTask) setShowForm(true);
@@ -175,7 +242,10 @@ export function Workspace() {
         <h1>Suas tarefas de teste</h1>
         <p className="text-muted">Encontre uma TF, continue executando cenários ou registre uma nova em segundos.</p>
       </div>
-      <Button onPress={() => setShowForm((value) => !value)}><Plus size={17} /> Nova TF</Button>
+      <Button onPress={() => {
+        if (showForm) closeDraft();
+        else setShowForm(true);
+      }}><Plus size={17} /> Nova TF</Button>
     </div>
     <section className="stat-strip" aria-label="Resumo">
       <div><span>TFs carregadas</span><strong>{tasks.data?.length ?? 0}</strong></div>
@@ -184,13 +254,35 @@ export function Workspace() {
       <div><span>Contexto atual</span><strong className="text-base">{focusedId ? "TF selecionada" : "Nenhuma TF"}</strong></div>
     </section>
 
+    {recoverableDraft && <section className="panel mt-4" role="region"
+      aria-label="Rascunho recuperável nesta aba">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="grow">
+          <strong>Rascunho não enviado</strong>
+          <p className="text-muted text-sm mt-1">
+            Esta aba guardou campos de uma TF anterior. Você pode recuperá-los ou descartar a cópia local.
+          </p>
+        </div>
+        <Button variant="secondary" onPress={() => {
+          if (form.formState.isDirty &&
+            !window.confirm("Substituir o formulário atual pelo rascunho guardado?")) return;
+          form.reset(recoverableDraft.fields);
+          setRememberDraft(true); setRecoverableDraft(null);
+          setShowForm(true); setExtracted([]); setLocalReview(null);
+          setExtractionNotice(""); setDraftStorageError("");
+        }}>Recuperar rascunho</Button>
+        <Button variant="secondary" onPress={() => {
+          discardNewTaskDraft(userId);
+          setRecoverableDraft(null);
+        }}>Descartar rascunho</Button>
+      </div>
+    </section>}
+
     {showForm && <section ref={taskEditorRef} className="panel editor-panel" aria-labelledby="new-task-title">
       <div className="section-heading">
         <div><p className="eyebrow">CADASTRO RÁPIDO</p><h2 id="new-task-title">Nova TF</h2>
           <p className="text-muted">Somente o essencial agora. Detalhe os cenários depois.</p></div>
-        <button aria-label="Fechar cadastro" onClick={() => {
-          cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
-        }}><X size={18} /></button>
+        <button aria-label="Fechar cadastro" type="button" onClick={closeDraft}><X size={18} /></button>
       </div>
       <form onSubmit={form.handleSubmit((values, event) => {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
@@ -214,6 +306,26 @@ export function Workspace() {
           <textarea rows={6} placeholder="Cole um relatório completo ou descreva a TF. Não precisa preencher todos os campos."
             {...form.register("descricao")} />
         </label>
+        <label className="flex gap-2 items-start text-sm">
+          <input type="checkbox" checked={rememberDraft} onChange={(event) => {
+            if (event.target.checked) {
+              if (!saveNewTaskDraft(userId, form.getValues())) {
+                setDraftStorageError("O navegador não permitiu guardar o rascunho. Copie seu texto antes de sair.");
+                return;
+              }
+              setRememberDraft(true); setRecoverableDraft(null);
+              setDraftStorageError("");
+            } else {
+              setRememberDraft(false);
+              discardNewTaskDraft(userId);
+              setDraftStorageError("");
+            }
+          }} />
+          <span>Guardar rascunho somente nesta aba (opcional).
+            O texto fica neste navegador até salvar, descartar ou sair da conta.
+            Evite usar em dispositivos compartilhados.</span>
+        </label>
+        {draftStorageError && <p role="alert" className="notice error">{draftStorageError}</p>}
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="secondary" type="button" onPress={() => {
             const source = form.getValues("descricao");
@@ -316,9 +428,7 @@ export function Workspace() {
         </fieldset>}
         <div className="flex items-center gap-3 justify-end">
           <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
-          <Button type="button" variant="secondary" onPress={() => {
-            cancelModel(); setShowForm(false); setLocalReview(null); setExtracted([]);
-          }}>Cancelar</Button>
+          <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
             isDisabled={create.isPending}>Salvar e abrir TF</Button>
           <Button type="submit" data-next="scenario"
