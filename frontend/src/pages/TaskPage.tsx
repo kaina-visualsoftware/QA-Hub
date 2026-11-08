@@ -28,6 +28,8 @@ import {
 } from "../features/executions/quick-result";
 import { QAModal } from "../components/ui/QAModal";
 import {getTaskById} from "../features/tasks/task-search-data";
+import {getTaskRights} from "../features/collaboration/team-data";
+import type {TaskRights} from "../features/collaboration/team-data";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
@@ -36,6 +38,7 @@ const RequirementsPanel = lazy(() => import("../features/requirements/Requiremen
 const EvidencePanel = lazy(() => import("../features/evidence/EvidencePanel"));
 const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 const ExecutionHistoryPanel = lazy(() => import("../features/history/ExecutionHistoryPanel"));
+const TaskCollaborationPanel = lazy(() => import("../features/collaboration/TaskCollaborationPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -52,6 +55,16 @@ export default function TaskPage() {
     enabled:!!userId && role.data!==undefined
   });
   const task=tasks.data;
+  const own=task?.user_id===userId;
+  const rightsQuery=useQuery({
+    queryKey:["f5-rights",userId,taskId],
+    queryFn:()=>getTaskRights(taskId,userId,task!.user_id),
+    enabled:!!task&&!own&&!role.data,
+    staleTime:15000
+  });
+  const rights:TaskRights=own?{role:"dono",canExecute:true,canComment:true,canManage:true}:
+    rightsQuery.data??{role:"nenhum",canExecute:false,canComment:false,canManage:false};
+  const canExecute=rights.canExecute;
   const scenarios = useQuery({
     queryKey: ["scenarios", userId, taskId], queryFn: () => listScenarios(taskId),
     enabled: Boolean(task)
@@ -72,6 +85,7 @@ export default function TaskPage() {
   const [showEvidence, setShowEvidence] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [showHistory,setShowHistory]=useState(false);
+  const [showCollaboration,setShowCollaboration]=useState(false);
 
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
@@ -81,7 +95,7 @@ export default function TaskPage() {
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
-    setShowLinks(false);setShowHistory(false);
+    setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
     setEditingScenario(null);setPending(null);setObserved("");
   },[taskId]);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
@@ -117,9 +131,9 @@ export default function TaskPage() {
 
   function closeToolPanels() {
     setAiMode(null);setShowDocuments(false);setShowRequirements(false);
-    setShowEvidence(false);setShowLinks(false);setShowHistory(false);
+    setShowEvidence(false);setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
   }
-  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste"|"history") {
+  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste"|"history"|"collaboration") {
     closeToolPanels();
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     if(kind==="diagrams"||kind==="post"||kind==="teste") {
@@ -130,6 +144,7 @@ export default function TaskPage() {
     else if(kind==="evidence")setShowEvidence(true);
     else if(kind==="links")setShowLinks(true);
     else if(kind==="history")setShowHistory(true);
+    else if(kind==="collaboration")setShowCollaboration(true);
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
@@ -367,7 +382,7 @@ export default function TaskPage() {
   ), [scenarios.data, filter]);
 
   async function saveGuidedResult(scenario:Scenario, status:ExecutionResult["status"],note:string){
-    if(task?.user_id!==userId||saveResult.isPending)return false;
+    if(!canExecute||saveResult.isPending)return false;
     const quick = status==="aprovado"||status==="nao_executado";
     if(quick && needsObservationResetConfirmation(scenario,status) &&
       !window.confirm("Esta ação substituirá o resultado observado anterior. Deseja continuar?")){
@@ -380,6 +395,7 @@ export default function TaskPage() {
   }
 
   function choose(scenario: Scenario, status: ExecutionResult["status"]) {
+    if(!canExecute)return;
     setSaved("");
     if (status === "reprovado" || status === "bloqueado") {
       setPending({ scenario, status }); setObserved(scenario.status === status ? scenario.obtido : "");
@@ -443,7 +459,7 @@ export default function TaskPage() {
       className="qa-task-panel" hidden={activeTab !== "summary"}>
       <TaskOverview description={task.descricao} cause={task.causa} correction={task.correcao}
         pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
-        owner={task.user_id===userId}
+        owner={own} canRun={canExecute}
         onNewScenario={startScenario} onRun={startPendingExecution}
         onCases={()=>openTool("teste")} onDiagram={openDiagramAi}
         onDeliverables={()=>setActiveTab("deliverables")}/>
@@ -503,6 +519,14 @@ export default function TaskPage() {
         <EvidencePanel key={task.id} task={task} userId={userId}
           scenarios={scenarios.data || []}
           prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+      </Suspense>
+    </QAModal>
+    <QAModal open={showCollaboration} keepMounted title="Equipe e integrações"
+      eyebrow="COLABORAÇÃO" size="md" onClose={()=>setShowCollaboration(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando colaboração…</p>}>
+        <TaskCollaborationPanel key={task.id} task={task}
+          scenarios={scenarios.data||[]} userId={userId} rights={rights}
+          onExecuted={invalidate}/>
       </Suspense>
     </QAModal>
     <QAModal open={showHistory} keepMounted title="Histórico e comparações"
@@ -614,8 +638,8 @@ export default function TaskPage() {
           onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
       </div>
       <div hidden={executionMode!=="guided"} className="qa-guided-container">
-        <GuidedExecution key={task.id} scenarios={scenarios.data ?? []} owner={task.user_id===userId}
-          busy={saveResult.isPending} onSave={saveGuidedResult}
+        <GuidedExecution key={task.id} scenarios={scenarios.data ?? []} owner={canExecute}
+          canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
           onEvidence={openGuidedEvidence} onNewScenario={startScenario}/>
       </div>
     <section ref={executionRef} hidden={executionMode!=="list"}
@@ -665,11 +689,11 @@ export default function TaskPage() {
           </details>}
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
             <button data-qa-next-pending={filter === "pending" && index === 0 ? "true" : undefined}
-              disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
-            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
-            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
+              disabled={saveResult.isPending || !canExecute} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
+            <button disabled={saveResult.isPending || !canExecute} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
+            <button disabled={saveResult.isPending || !canExecute} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
             {scenario.status !== "nao_executado" && <button
-              disabled={saveResult.isPending || task.user_id!==userId}
+              disabled={saveResult.isPending || !canExecute}
               onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>}
           </div>
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}

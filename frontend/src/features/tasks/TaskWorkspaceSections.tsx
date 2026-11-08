@@ -2,7 +2,7 @@ import type { KeyboardEvent } from "react";
 import { Button } from "@heroui/react";
 import {
   ArrowRight, BookText, ClipboardList, FileText, GitBranchPlus, GitMerge,
-  LayoutDashboard, ListChecks, Plus, Sparkles, Workflow, History
+  LayoutDashboard, ListChecks, Plus, Sparkles, Workflow, History, Users
 } from "lucide-react";
 
 export type TaskTab = "summary" | "tests" | "deliverables";
@@ -48,10 +48,10 @@ export function TaskViewTabs({ value, onChange, scenarioCount }: {
 
 export function TaskOverview({
   description, cause, correction, pendingCount, total, owner,
-  onNewScenario, onRun, onCases, onDiagram, onDeliverables
+  onNewScenario, onRun, onCases, onDiagram, onDeliverables, canRun
 }: {
   description?: string | null; cause?: string | null; correction?: string | null;
-  pendingCount: number; total: number; owner: boolean;
+  pendingCount: number; total: number; owner: boolean; canRun?:boolean;
   onNewScenario: () => void; onRun: () => void; onCases: () => void;
   onDiagram: () => void; onDeliverables: () => void;
 }) {
@@ -74,7 +74,7 @@ export function TaskOverview({
         </div>
       </div>
       <div className="qa-primary-actions" role="group" aria-label="Ações principais da TF">
-        <Button onPress={onRun} isDisabled={!owner} aria-label="Testar pendentes">
+        <Button onPress={onRun} isDisabled={!(canRun??owner)} aria-label="Testar pendentes">
           <ListChecks size={18} aria-hidden="true"/> Testar
         </Button>
         <Button variant="secondary" onPress={onNewScenario} isDisabled={!owner}>
@@ -105,7 +105,7 @@ export function TaskOverview({
 }
 
 export type DeliverableKind =
-  | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history";
+  | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history" | "collaboration";
 
 export function TaskDeliverables({ onOpen }: {
   onOpen: (kind: DeliverableKind, primary?: boolean) => void;
@@ -146,6 +146,9 @@ export function TaskDeliverables({ onOpen }: {
         className="qa-workbench-tool"><FileText size={17}/> Relatório e documentos</button>
       <button type="button" aria-label="Histórico de execuções" onClick={() => onOpen("history")}
         className="qa-workbench-tool"><History size={17}/> Histórico de execuções</button>
+      <button type="button" aria-label="Equipe e comentários"
+        onClick={() => onOpen("collaboration")}
+        className="qa-workbench-tool"><Users size={17}/> Equipe e comentários</button>
     </div>
   </div>;
 }
