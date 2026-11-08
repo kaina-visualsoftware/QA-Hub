@@ -162,7 +162,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       <label className="qa-diagram-consent">
         <input type="checkbox" checked={consent} disabled={!own||busy||!proposal.text}
           onChange={e=>setConsent(e.target.checked)}/>
-        <span>Autorizo enviar o texto exibido à NVIDIA.</span>
+        <span>Autorizo enviar este conteúdo à NVIDIA.</span>
       </label>
       <details className="qa-diagram-payload">
         <summary>Ver dados enviados</summary>
