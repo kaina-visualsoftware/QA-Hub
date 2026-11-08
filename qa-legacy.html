@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>QA Hub · Registro de testes</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <meta name="theme-color" content="#112d39">
+  <meta name="description" content="Histórico de testes, cenários, evidências e fluxos de QA.">
+  <link rel="stylesheet" href="./qa.css">
+  <link rel="stylesheet" href="./qa-requirements-picker.css">
+  <script type="module" src="./qa.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <section id="auth-screen" class="auth-layout">
+    <div class="auth-visual" aria-hidden="true">
+      <div class="mark large">Q<span>.</span></div>
+      <p class="eyebrow">QA HUB / ÁREA DE TRABALHO</p>
+      <h1>Testes bem registrados.<br>Decisões mais claras.</h1>
+      <p>Organize cada TF, documente cenários e transforme execuções em conhecimento consultável.</p>
+      <div class="auth-decoration"><span>01 / DOCUMENTAR</span><span>02 / VALIDAR</span><span>03 / APRENDER</span></div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-box">
+        <div class="mobile-brand mark">Q<span>.</span></div>
+        <p class="eyebrow">ACESSO RESTRITO</p>
+        <h2 id="auth-title">Entrar na plataforma</h2>
+        <p class="muted">Os registros ficam associados à sua conta Supabase.</p>
+        <form id="auth-form" class="stack gap-lg">
+          <label>Email <input id="auth-email" type="email" autocomplete="email" required placeholder="voce@empresa.com"></label>
+          <label>Senha <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="Sua senha"></label>
+          <button id="auth-submit" class="btn primary full" type="submit">Entrar</button>
+        </form>
+        <button id="auth-toggle" class="text-button" type="button">Criar uma conta</button><p class="public-entry"><a href="./public.html">Consultar TFs públicas sem entrar</a></p>
+        <p class="muted fine">O cadastro pode exigir confirmação por email, conforme as regras do projeto Supabase.</p>
+        <p id="auth-warning" class="notice" hidden></p>
+        <button id="resend-confirmation" class="text-button" type="button" hidden>Reenviar email de confirmação</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="shell" class="shell" hidden>
+    <aside class="sidebar" id="sidebar" aria-label="Menu principal">
+      <a class="brand" href="#/dashboard"><span class="mark">Q<span>.</span></span><span><strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></a>
+      <p class="nav-label">ESPAÇO DE TRABALHO</p>
+      <nav aria-label="Navegação principal" class="navigation">
+        <a href="#/dashboard" data-route="dashboard"><span class="nav-symbol">◫</span> Visão geral</a>
+        <a href="#/tarefas" data-route="tarefas"><span class="nav-symbol">☷</span> Tarefas de teste</a>
+        <a href="./public.html" target="_blank" rel="noopener noreferrer"><span class="nav-symbol" aria-hidden="true">◈</span> TFs públicas</a>
+        <span class="nav-group-label">DOCUMENTAÇÃO · IA</span>
+        <a href="#/ferramentas/post" data-route="ferramentas/post"><span class="nav-symbol" aria-hidden="true">▤</span> Posts do fórum</a>
+        <span class="nav-group-label">QUALIDADE · IA</span>
+        <a href="#/ferramentas/teste" data-route="ferramentas/teste"><span class="nav-symbol" aria-hidden="true">☑</span> Roteiros de teste</a>
+        <span class="nav-group-label">FERRAMENTAS LOCAIS</span>
+        <a href="#/ferramentas/release" data-route="ferramentas/release"><span class="nav-symbol" aria-hidden="true">▣</span> Lista e comunicado</a>
+        <a href="#/ferramentas/lib" data-route="ferramentas/lib"><span class="nav-symbol" aria-hidden="true">▥</span> Informações importantes</a>
+        <a href="#/ferramentas/diff" data-route="ferramentas/diff"><span class="nav-symbol" aria-hidden="true">⇄</span> Comparar textos</a>
+        <a href="#/ferramentas/xml" data-route="ferramentas/xml"><span class="nav-symbol" aria-hidden="true">⌘</span> Comparar XML</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="signal"></span><span>Visibilidade por TF<br><small>Controle de acesso</small></span></div>
+        <div class="user-summary"><span class="avatar">QA</span><span class="user-identity"><span id="user-email" class="ellipsis"></span><small id="user-role" class="user-role">Usuário</small></span></div>
+      </div>
+    </aside>
+    <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" hidden aria-label="Fechar o menu lateral"></button>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-start"><button class="menu-button" id="menu-button" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false" type="button"><svg class="menu-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg></button><div><span class="eyebrow">QUALIDADE DE SOFTWARE</span><div class="breadcrumb" id="breadcrumb">Visão geral</div></div></div>
+        <div class="topbar-actions"><div class="context-switcher"><label for="context-task-select">TF em foco</label><select id="context-task-select" aria-label="Selecionar TF em foco"><option value="">Nenhuma TF selecionada</option></select><a id="context-task-open" href="#/tarefas" class="context-open" hidden>Abrir TF</a></div><button id="new-task" class="btn primary" type="button">+ Nova TF</button><button id="logout" class="btn soft" type="button">Sair</button></div>
+      </header>
+
+      <main class="content" id="main-content" tabindex="-1">
+        <section id="view-dashboard" class="view" aria-labelledby="dashboard-title">
+          <div class="page-heading"><div><p class="eyebrow">PAINEL DE ACOMPANHAMENTO</p><h1 id="dashboard-title">Visão geral</h1><p class="muted">Um resumo das tarefas e dos cenários registrados.</p></div><span id="dashboard-date" class="date-pill"></span></div>
+          <div class="kpi-grid">
+            <article class="kpi"><span>TFs cadastradas</span><strong id="stat-tasks">0</strong><small>Histórico de execuções</small></article>
+            <article class="kpi"><span>Cenários registrados</span><strong id="stat-scenarios">0</strong><small>Passos documentados</small></article>
+            <article class="kpi"><span>TFs aprovadas</span><strong id="stat-approved">0</strong><small>Validações concluídas</small></article>
+            <article class="kpi"><span>TFs com falha</span><strong id="stat-failed">0</strong><small>Necessitam atenção</small></article>
+          </div>
+          <div class="dashboard-grid">
+            <article class="panel"><div class="panel-head"><div><h2>Resultado por situação</h2><p class="muted">Distribuição das TFs</p></div></div><div class="chart-container"><canvas id="status-chart" role="img" aria-label="Gráfico de tarefas por situação"></canvas></div><div id="chart-summary" class="chart-summary"></div></article>
+            <article class="panel"><div class="panel-head"><div><h2>Tipos de teste</h2><p class="muted">BUILD vs. RELEASE</p></div></div><div id="types-chart" class="types-chart"></div><hr><div class="mini-help">Os indicadores consideram os registros visíveis à sua conta.</div></article>
+          </div>
+          <section class="panel qa-coverage-panel" aria-labelledby="coverage-heading">
+            <div class="panel-head"><div><h2 id="coverage-heading">Cobertura de execução</h2><p class="muted">Indicadores calculados a partir dos cenários realmente cadastrados e executados.</p></div></div>
+            <div class="qa-coverage-summary"><strong id="coverage-percent">0%</strong><div class="qa-coverage-track" role="progressbar" aria-label="Proporção de cenários executados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="coverage-progress"><span id="coverage-bar" style="width:0%"></span></div></div>
+            <p id="coverage-detail" class="muted">Nenhum cenário carregado.</p>
+            <div id="coverage-breakdown" class="qa-coverage-breakdown"></div>
+            <p class="muted fine">Cobertura mede cenários com status de execução registrado. Não comprova que a TF inteira foi aprovada.</p>
+          </section>
+          <article class="panel"><div class="panel-head"><div><h2>Últimas tarefas</h2><p class="muted">Acesse rapidamente as TFs mais recentes</p></div><a href="#/tarefas" class="subtle-link">Ver todas →</a></div><div id="recent-list" class="task-list"></div></article>
+        </section>
+
+        <section id="view-tarefas" class="view" aria-labelledby="list-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">BASE DE CONHECIMENTO</p><h1 id="list-title">Tarefas de teste</h1><p class="muted">Pesquise por código, título, sistema e versão.</p></div><button id="import-open" class="btn soft" type="button">Importar relatório</button></div>
+          <div class="panel">
+            <div class="filters"><label class="search-field"><span>Pesquisar</span><input id="task-search" placeholder="Ex.: promoção, 67866, versão 12..." type="search"></label><label><span>Situação</span><select id="filter-status"><option value="">Todas</option><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label><span>Tipo</span><select id="filter-type"><option value="">Todos</option><option>BUILD</option><option>RELEASE</option></select></label></div>
+            <div id="task-list" class="task-list"></div><div class="qa-load-more"><button class="btn soft" id="tasks-load-more" type="button" hidden>Carregar mais tarefas</button></div><p id="task-count" class="muted count-footer"></p>
+          </div>
+        </section>
+
+        <section id="view-editor" class="view" aria-labelledby="editor-title" hidden>
+          <div class="page-heading editor-heading">
+            <div>
+              <a class="back-link" href="#/tarefas">← Todas as tarefas</a>
+              <p class="eyebrow" id="editor-kicker" hidden>NOVA TF</p>
+              <h1 id="editor-title">Nova TF</h1>
+              <p class="muted" id="editor-caption" hidden></p>
+              <p id="save-status" class="save-status" role="status" hidden>Alterações não salvas</p>
+            </div>
+          </div>
+          <section id="assist-panel" class="panel assist-panel" aria-labelledby="assist-title">
+            <div class="wizard-step-bar" aria-label="Etapa 1 de 2">
+              <span class="wizard-stage current">1 <span>Descrição</span></span>
+              <span class="wizard-line"></span>
+              <span class="wizard-stage">2 <span>Revisão</span></span>
+            </div>
+            <div class="assist-heading">
+              <div><h2 id="assist-title">Comece pelo texto da tarefa</h2>
+                <p>Cole a descrição da TF. O sistema organiza os campos para você.</p></div>
+            </div>
+            <div class="assist-body">
+              <label for="assist-text">Relatório ou descrição</label>
+              <textarea id="assist-text" rows="9" maxlength="30000" placeholder="Cole aqui o problema, a análise ou o relatório de teste…"></textarea>
+              <p class="assist-help">Ao usar a IA NVIDIA, o texto é enviado para processamento.</p>
+              <div class="assist-actions">
+                <button id="assist-ai" class="btn primary" type="button">Gerar com IA</button>
+                <button id="assist-local" class="btn soft" type="button">Extrair sem IA</button>
+              </div>
+              <p id="assist-error" class="assist-error" role="alert" hidden></p>
+              <details class="assist-more">
+                <summary>Outra opção de IA</summary>
+                <div class="assist-more-content">
+                  <button id="assist-device" class="btn soft" type="button">Executar IA no dispositivo</button>
+                  <p id="assist-capability" class="muted fine" hidden></p>
+                </div>
+              </details>
+              <div class="assist-manual-choice">
+                <button id="assist-manual" class="text-button" type="button">Prefiro preencher manualmente</button>
+              </div>
+            </div>
+          </section>
+
+          <div id="editor-fields" class="editor-fields" hidden>
+          <div id="task-detail-tabs" class="tabs" role="tablist" aria-label="Detalhes da TF"><button class="tab active" id="tab-btn-resumo" type="button" data-tab="resumo" role="tab" aria-controls="tab-resumo" aria-selected="true" tabindex="0">Resumo</button><button class="tab" id="tab-btn-requisitos" type="button" data-tab="requisitos" role="tab" aria-controls="tab-requisitos" aria-selected="false" tabindex="-1">Requisitos <span id="requirements-number">0</span></button><button class="tab" id="tab-btn-cobertura" type="button" data-tab="cobertura" role="tab" aria-controls="tab-cobertura" aria-selected="false" tabindex="-1">Cobertura <span id="coverage-count">0</span></button><button class="tab" id="tab-btn-cenarios" type="button" data-tab="cenarios" role="tab" aria-controls="tab-cenarios" aria-selected="false" tabindex="-1">Cenários <span id="scenarios-number">0</span></button><button class="tab" id="tab-btn-execucao" type="button" data-tab="execucao" role="tab" aria-controls="tab-execucao" aria-selected="false" tabindex="-1">Execução</button><button class="tab" id="tab-btn-diagramas" type="button" data-tab="diagramas" role="tab" aria-controls="tab-diagramas" aria-selected="false" tabindex="-1">Diagramas <span id="diagrams-number">0</span></button><button class="tab" id="tab-btn-vinculos" type="button" data-tab="vinculos" role="tab" aria-controls="tab-vinculos" aria-selected="false" tabindex="-1">Vínculos</button><button class="tab" id="tab-btn-documentos" type="button" data-tab="documentos" role="tab" aria-controls="tab-documentos" aria-selected="false" tabindex="-1">Documentos</button><button class="tab" id="tab-btn-auditoria" type="button" data-tab="auditoria" role="tab" aria-controls="tab-auditoria" aria-selected="false" tabindex="-1">Auditoria</button><button class="tab" id="tab-btn-historico" type="button" data-tab="historico" role="tab" aria-controls="tab-historico" aria-selected="false" tabindex="-1">Histórico</button></div>
+
+          <div id="tab-resumo" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-resumo" tabindex="0">
+            <section id="qa-next-actions" class="panel qa-next-actions" aria-labelledby="qa-next-title" hidden>
+              <div class="qa-next-head"><div><h2 id="qa-next-title">Próximo passo nesta TF</h2>
+                <p id="qa-next-caption" class="muted fine">Salve a TF para gerar e executar testes sem preencher novamente os dados.</p></div>
+                <span id="qa-next-progress" class="qa-next-progress">0/0 executados</span></div>
+              <div class="qa-next-buttons">
+                <a id="qa-next-test" href="#/ferramentas/teste" class="btn primary">Gerar casos com a TF</a>
+                <button id="qa-next-execute" type="button" class="btn soft">Executar cenários</button>
+                <button id="qa-next-derive" type="button" class="btn soft">Preencher resumo dos testes</button>
+                <button id="qa-next-report" type="button" class="btn soft">Gerar relatório</button>
+              </div>
+              <details class="qa-next-more"><summary>Outras ações desta TF</summary>
+                <div class="qa-next-buttons">
+                  <a id="qa-next-post" href="#/ferramentas/post" class="btn soft">Gerar post</a>
+                  <button id="qa-next-diagram" type="button" class="btn soft">Criar diagrama</button>
+                  <button id="qa-next-evidence" type="button" class="btn soft">Registrar evidência</button>
+                </div>
+              </details>
+              <p id="qa-next-message" class="muted fine" role="status" aria-live="polite"></p>
+            </section>
+            <form id="task-form">
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Dados da TF</h2></div>
+                <div class="field-grid task-primary-fields">
+                  <label class="field-span">Título da tarefa <input name="titulo" required minlength="3" maxlength="240" placeholder="Ex.: Desconto incorreto na venda"></label>
+                  <label>Código <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
+                  <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
+                  <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
+                  <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
+                  <label class="field-span">Sistema / módulo <input name="sistema" placeholder="Ex.: Vendas · Descontos"></label><label class="field-span visibility-field">Quem pode ver esta TF? <select name="publica" id="task-visibility"><option value="false">Privada — somente minha conta e administradores</option><option value="true">Pública — qualquer pessoa com o link</option></select><small id="visibility-hint">Privada por padrão. A publicação também libera os cenários e diagramas desta TF para leitura.</small></label>
+                </div>
+                <details id="task-extra-details" class="optional-details">
+                  <summary>Mais informações <span>Ambiente, base, empresa e responsável</span></summary>
+                  <div class="field-grid">
+                    <label>Ambiente <input name="ambiente" placeholder="Ex.: Homologação"></label>
+                    <label>Base de teste <input name="base_teste" placeholder="Ex.: Base de validação"></label>
+                    <label>Empresa <input name="empresa" placeholder="Ex.: Empresa 1"></label>
+                    <label>Testador <input name="testador" placeholder="Responsável"></label>
+                    <label>Data do teste <input name="executado_em" type="date"></label>
+                  </div>
+                </details>
+              </section>
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Descrição e análise</h2></div>
+                <div class="stack">
+                  <label>Descrição da TF / O que será testado (opcional) <textarea name="descricao" rows="4" placeholder="Cole a descrição ou use Preencher resumo dos testes após executar os cenários"></textarea></label>
+                </div>
+                <details id="task-analysis-details" class="optional-details">
+                  <summary>Análise técnica <span>Funcionamento, causa e correção</span></summary>
+                  <div class="stack">
+                    <label>Como funciona? <textarea name="explicacao" rows="3" placeholder="Regras e fluxo do processo"></textarea></label>
+                    <div class="two-fields">
+                      <label>Problema e causa <textarea name="causa" rows="3" placeholder="Origem do problema"></textarea></label>
+                      <label>O que foi alterado <textarea name="correcao" rows="3" placeholder="Correção realizada"></textarea></label>
+                    </div>
+                  </div>
+                </details>
+              </section>
+              <section class="panel form-panel">
+                <div class="section-heading"><h2>Resultado</h2></div>
+                <div class="stack">
+                  <label>Conclusão <textarea name="conclusao" rows="4" placeholder="Resultado e observações da validação"></textarea></label>
+                </div>
+                <details id="task-validation-details" class="optional-details">
+                  <summary>Detalhes da validação <span>Indicadores e observações</span></summary>
+                  <div class="field-grid">
+                    <label>Erro reproduzido? <select name="erro_reproduzido"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                    <label>Funcionando corretamente? <select name="funcionando"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></select></label>
+                  </div>
+                  <label class="top-gap">Observações adicionais <textarea name="observacoes" rows="3" placeholder="Ressalvas e comportamentos conhecidos"></textarea></label>
+                </details>
+              </section>
+              <section id="draft-scenario-review" class="panel draft-scenario-review" hidden aria-labelledby="draft-scenario-title">
+                <div class="draft-scenario-header">
+                  <h2 id="draft-scenario-title">Casos de teste encontrados</h2>
+                  <p>Selecione os casos que deseja cadastrar. Eles começarão como não executados, até você registrar o resultado real.</p>
+                </div>
+                <div id="draft-scenario-list" class="draft-scenario-list" role="group" aria-label="Confirmar casos de teste"></div>
+                <p id="draft-scenario-count" class="muted fine" aria-live="polite"></p>
+              </section>
+              <div class="task-form-footer">
+                <button id="delete-task" class="btn danger" type="button" hidden>Excluir TF</button>
+                <div class="task-footer-actions">
+                  <button id="assist-back" class="btn soft" type="button">Voltar ao texto</button>
+                  <a id="task-public-link" class="btn soft" href="./public.html" target="_blank" rel="noopener noreferrer" hidden>Ver página pública</a>
+                  <span id="task-generator-links" class="task-generator-links" hidden>
+                    <a id="task-post-link" class="btn soft" href="#/ferramentas/post" data-route="ferramentas/post">Gerar post com IA</a>
+                    <a id="task-testplan-link" class="btn soft" href="#/ferramentas/teste" data-route="ferramentas/teste">Gerar roteiro com IA</a>
+                  </span>
+                  <a href="#/tarefas" class="btn soft task-cancel-link">Cancelar</a>
+                  <button id="save-task" class="btn primary" type="submit">Salvar TF</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div id="tab-requisitos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-requisitos" tabindex="0" hidden>
+            <div class="section-top">
+              <div>
+                <h2>Requisitos da TF</h2>
+                <p class="muted">Cole o texto da especificação para organizar requisitos funcionais, não funcionais, regras de negócio e critérios de aceite. Revise antes de salvar.</p>
+              </div>
+            </div>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-file-title">
+              <div class="section-heading">
+                <h3 id="requirements-file-title">Anexar especificação de requisitos</h3>
+                <p class="muted fine">Arquivos privados, com histórico de versões.</p>
+              </div>
+              <p class="muted fine">PDF com texto, DOCX, TXT ou MD — até 10 MB. A extração acontece no navegador, sem enviar o conteúdo à IA. PDFs digitalizados precisam de transcrição manual.</p>
+              <label class="qa-req-field" for="requirements-file">
+                <span>Selecionar arquivo</span>
+                <input id="requirements-file" type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown">
+              </label>
+              <div id="requirements-file-preview-wrap" class="qa-req-file-preview" hidden>
+                <label class="qa-req-field" for="requirements-file-preview">
+                  <span>Texto encontrado no arquivo (prévia)</span>
+                  <textarea id="requirements-file-preview" rows="5" readonly></textarea>
+                </label>
+                <p class="muted fine">O original será preservado integralmente. Após anexar, revise os requisitos no formulário abaixo antes de aprová-los.</p>
+              </div>
+              <div class="qa-req-actions">
+                <button id="requirements-file-save" class="btn primary" type="button" disabled>Anexar arquivo à TF</button>
+                <span class="muted fine">É necessário salvar a TF antes de anexar um arquivo.</span>
+              </div>
+              <p id="requirements-file-feedback" class="qa-req-feedback" role="status" aria-live="polite"></p>
+              <div class="section-heading qa-req-files-heading">
+                <h3>Arquivos e versões</h3>
+                <p id="requirements-file-count" class="muted fine">Nenhum arquivo anexado</p>
+              </div>
+              <div id="requirements-file-list" class="qa-req-file-list"></div>
+            </section>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-source-title">
+              <div class="section-heading"><h3 id="requirements-source-title">Adicionar requisitos a partir de texto</h3></div>
+              <p id="requirements-help" class="muted fine">Os requisitos permanecem privados e associados a esta TF. Anexe arquivos privados ou digite os requisitos. As informações extraídas sempre precisam de revisão antes de serem cadastradas.</p>
+              <label class="qa-req-field" for="requirements-source">
+                <span>Texto original dos requisitos</span>
+                <textarea id="requirements-source" rows="7" maxlength="30000" placeholder="RF001: Ao remover um desconto, o valor total do pedido deve ser recalculado.
+RN001: Não permitir percentuais negativos fora da regra definida.
+Critérios de aceite:
+- O novo total é apresentado ao operador."></textarea>
+              </label>
+              <div id="requirements-active-file" class="qa-req-active-file" hidden>
+                <span id="requirements-active-file-label"></span>
+                <button id="requirements-unlink-file" class="btn soft" type="button">Desvincular fonte</button>
+              </div>
+              <div class="qa-req-actions">
+                <button id="requirements-organize" class="btn primary" type="button">Organizar requisitos</button>
+                <span class="muted fine">A extração inicial é feita no navegador, sem enviar o texto para IA.</span>
+              </div>
+              <p id="requirements-feedback" class="qa-req-feedback" role="status" aria-live="polite"></p>
+            </section>
+            <section id="requirements-review-section" class="panel qa-req-panel" aria-labelledby="requirements-review-title" hidden>
+              <div class="section-heading"><h3 id="requirements-review-title">Revisão antes do cadastro</h3></div>
+              <p id="requirements-preview-count" class="muted fine"></p>
+              <div id="requirements-review" class="qa-req-review-list"></div>
+              <div class="qa-req-actions">
+                <button id="requirements-approve" class="btn soft" type="button">Aprovar selecionados</button>
+                <button id="requirements-save" class="btn primary" type="button">Salvar requisitos na TF</button>
+              </div>
+            </section>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-saved-title">
+              <div class="section-heading">
+                <h3 id="requirements-saved-title">Requisitos cadastrados</h3>
+                <p class="muted fine" id="requirements-count">Nenhum requisito cadastrado</p>
+              </div>
+              <div class="qa-req-filters">
+                <label class="qa-req-field">Buscar requisitos
+                  <input id="requirements-search" type="search" placeholder="Código, título ou descrição">
+                </label>
+                <label class="qa-req-field">Filtrar por situação
+                  <select id="requirements-filter">
+                    <option value="todos">Todos</option>
+                    <option value="aprovado">Aprovados</option>
+                    <option value="rascunho">Rascunhos</option>
+                    <option value="arquivado">Arquivados</option>
+                  </select>
+                </label>
+              </div>
+              <div id="requirements-list" class="qa-req-saved-list"></div>
+            </section>
+            <section class="panel qa-req-panel" aria-labelledby="requirements-usage-title">
+              <div class="section-heading">
+                <h3 id="requirements-usage-title">Requisitos utilizados nas gerações</h3>
+                <p class="muted fine">Histórico privado de posts, roteiros e diagramas.</p>
+              </div>
+              <p id="requirements-usage-status" class="muted fine" role="status" aria-live="polite">Nenhuma geração registrada.</p>
+              <div id="requirements-usage-list" class="qa-req-saved-list"></div>
+            </section>
+          </div>
+
+          <div id="tab-cobertura" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cobertura" tabindex="0" hidden>
+            <div class="section-top">
+              <div><h2>Matriz de cobertura de requisitos</h2><p class="muted">Associe requisitos aprovados a cenários reais. Cobertura estrutural não significa teste aprovado.</p></div>
+            </div>
+            <section class="panel qa-r4-panel" aria-labelledby="coverage-title">
+              <div class="section-heading"><h3 id="coverage-title">Cobertura da TF</h3></div>
+              <div id="coverage-summary" class="qa-r4-summary" aria-label="Indicadores de cobertura"></div>
+              <p id="coverage-status" class="muted fine" role="status" aria-live="polite">Salve a TF para consultar sua cobertura.</p>
+              <p id="coverage-focus" class="qa-r4-focus" aria-live="polite"></p>
+              <div class="qa-r4-toolbar">
+                <label>Buscar requisito ou cenário
+                  <input id="coverage-search" type="search" placeholder="Ex.: RF-001, orçamento, desconto">
+                </label>
+                <label>Situação
+                  <select id="coverage-filter">
+                    <option value="all">Todos</option>
+                    <option value="unlinked">Sem cobertura</option>
+                    <option value="pending">Execução pendente</option>
+                    <option value="failed">Com falha</option>
+                    <option value="blocked">Bloqueados</option>
+                    <option value="validated">Validados</option>
+                  </select>
+                </label>
+                <div class="qa-r4-toolbar-actions">
+                  <button id="coverage-refresh" class="btn soft" type="button" disabled>Atualizar</button>
+                  <button id="coverage-export" class="btn soft" type="button" disabled>Exportar CSV</button>
+                </div>
+              </div>
+              <div id="coverage-list" class="qa-r4-list"></div>
+            </section>
+          </div>
+          <div id="tab-cenarios" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-cenarios" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Testar cenários</h2><p class="muted">Registre o resultado real sem abrir um formulário para cada caso. Somente ações do QA registram execução.</p></div><button class="btn primary" id="add-scenario" type="button">+ Adicionar cenário</button></div>
+            <div class="qa-scenarios-toolbar">
+              <span id="qa-scenario-progress" class="qa-next-progress" role="status">0/0 executados</span>
+              <label>Mostrar <select id="qa-scenario-filter"><option value="all">Todos</option><option value="pending">Pendentes</option><option value="failed">Com falha</option><option value="blocked">Bloqueados</option></select></label>
+              <button id="qa-scenario-next" class="btn soft" type="button">Próximo pendente</button>
+              <a id="qa-scenario-generator" class="btn soft" href="#/ferramentas/teste">Gerar mais casos</a>
+            </div>
+            <div id="scenarios-list" class="stack gap-md"></div>
+            
+          </div>
+
+          <div id="tab-execucao" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-execucao" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Execução dos cenários</h2><p class="muted">Registre o resultado real de cada caso. Gerar um roteiro não executa nem aprova testes.</p></div></div>
+            <p class="qa-execution-summary" id="execution-summary" aria-live="polite">Nenhum cenário carregado.</p>
+            <div id="execution-list" class="qa-execution-list"></div>
+          </div>
+          <div id="tab-diagramas" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-diagramas" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Fluxos e diagramas</h2><p class="muted">Descreva um processo usando sintaxe Mermaid.</p></div><button class="btn primary" id="add-diagram" type="button">+ Novo diagrama</button></div>
+            <div id="diagrams-list" class="stack gap-md"></div>
+          </div>
+          <div id="tab-vinculos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-vinculos" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Vínculos da TF</h2><p class="muted">Releases, resultados de comparação e referências técnicas reutilizáveis, sem alterar os dados originais da tarefa.</p></div></div>
+            <div class="qa-phase3-layout">
+              <section class="panel qa-phase3-panel">
+                <h3>Releases associadas</h3>
+                <p class="muted fine">Associe uma release somente após confirmar que a TF faz parte dela. Nenhum número de tarefa é vinculado automaticamente.</p>
+                <div class="qa-phase3-inline"><label>Versão da release <input id="links-release-version" placeholder="12.10.06.0000" maxlength="40" inputmode="numeric"></label><button class="btn primary" type="button" id="links-release-save">Associar release</button></div>
+                <p id="links-release-status" role="status" class="qa-phase3-feedback"></p>
+                <div id="links-release-list" class="qa-phase3-list"></div>
+              </section>
+              <section class="panel qa-phase3-panel">
+                <h3>Comparações anexadas</h3>
+                <p class="muted fine">As comparações de texto/XML armazenam exclusivamente quantidades de diferenças; os arquivos e conteúdos originais permanecem no navegador.</p>
+                <div id="links-comparison-list" class="qa-phase3-list"></div>
+              </section>
+              <section class="panel qa-phase3-panel qa-phase3-wide">
+                <h3>Referências reutilizáveis</h3>
+                <p class="muted fine">Checklists e regras privadas à sua conta. Não inclua senhas, tokens, acessos, CPFs, CNPJs ou dados pessoais.</p>
+                <div class="qa-phase3-reference-form">
+                  <label>Categoria <select id="links-reference-category"><option value="checklist">Checklist</option><option value="regra">Regra de teste</option><option value="nota">Nota técnica</option></select></label>
+                  <label>Título <input id="links-reference-title" maxlength="160" placeholder="Ex.: Validar edição de pedido"></label>
+                  <label class="qa-phase3-wide">Conteúdo <textarea id="links-reference-content" rows="3" maxlength="2000" placeholder="Ex.: Conferir campos obrigatórios e mensagens de erro."></textarea></label>
+                  <label class="qa-phase3-wide qa-phase3-consent"><input id="links-reference-safe" type="checkbox"> Confirmo que esta referência não contém credenciais nem dados pessoais.</label>
+                  <button id="links-reference-save" class="btn primary" type="button">Salvar referência</button>
+                  <span id="links-reference-status" class="qa-phase3-feedback" role="status"></span>
+                </div>
+                <div id="links-reference-list" class="qa-phase3-list"></div>
+              </section>
+            </div>
+          </div>
+          <div id="tab-documentos" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-documentos" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Documentos da TF</h2><p class="muted">Posts e relatórios privados, com histórico de versões.</p></div><button class="btn primary" id="document-generate-report" type="button">Gerar relatório da execução</button></div>
+            <section class="panel qa-document-editor" aria-label="Editor de documento">
+              <p class="muted fine">A geração usa somente cenários salvos. Revise antes de gravar uma nova versão. Documentos não aparecem na galeria pública.</p>
+              <div class="field-grid">
+                <label>Tipo <select id="document-type"><option value="post">Post técnico</option><option value="relatorio">Relatório de execução</option></select></label>
+                <label>Título <input id="document-title" maxlength="240" placeholder="Ex.: Relatório — TF 67866"></label>
+              </div>
+              <label>Conteúdo em Markdown <textarea id="document-content" rows="13" maxlength="80000" placeholder="Gere o relatório ou redija um post e revise o texto."></textarea></label>
+              <div class="qa-document-actions">
+                <button class="btn primary" type="button" id="document-save">Salvar versão</button>
+                <button class="btn soft" type="button" id="document-copy">Copiar</button>
+                <button class="btn soft" type="button" id="document-download">Exportar .md</button>
+                <span id="document-status" role="status" aria-live="polite"></span>
+              </div>
+            </section>
+            <div class="section-top"><div><h2>Últimas versões</h2><p class="muted">Abra a versão desejada para leitura ou edição.</p></div></div>
+            <div id="documents-list" class="qa-documents-list"></div>
+          </div>
+          <div id="tab-historico" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-historico" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Histórico documental</h2><p class="muted">Todas as versões salvas de posts e relatórios. Não é uma auditoria completa de alterações da TF.</p></div></div>
+            <div id="documents-history" class="qa-documents-list"></div>
+            <section class="panel qa-phase4-panel qa-legacy-import" aria-labelledby="legacy-title">
+              <h3 id="legacy-title">Importar histórico antigo</h3>
+              <p class="muted fine">Selecione um post ou roteiro da sua conta ou deste navegador. Nada é transferido automaticamente. Execuções antigas marcadas como OK não serão importadas como resultados reais.</p>
+              <div class="qa-phase4-grid">
+                <label>Origem <select id="legacy-kind"><option value="teste">Roteiros de teste</option><option value="post">Posts</option></select></label>
+                <label>Registro <select id="legacy-record"><option value="">Selecione um histórico</option></select></label>
+              </div>
+              <label>Conteúdo para revisão <textarea id="legacy-content" rows="9" maxlength="80000" placeholder="Escolha um histórico acima."></textarea></label>
+              <div id="legacy-case-list" class="qa-phase4-case-list"></div>
+              <div class="qa-phase4-actions"><button class="btn primary" type="button" id="legacy-import-save">Importar para esta TF</button><span id="legacy-status" role="status"></span></div>
+            </section>
+          </div>
+          <div id="tab-auditoria" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-auditoria" tabindex="0" hidden>
+            <div class="section-top"><div><h2>Auditoria e evidências</h2><p class="muted">Acompanhe eventos de execução e associe evidências com rastreabilidade, sem alterar resultados anteriores.</p></div></div>
+            <section class="panel qa-phase4-panel" aria-label="Adicionar evidência">
+              <h3>Registrar evidência</h3>
+              <div class="qa-phase4-grid">
+                <label>Tipo <select id="evidence-type"><option value="observacao">Observação</option><option value="log">Log (descrição)</option><option value="captura">Captura (link)</option><option value="referencia">Referência externa</option></select></label>
+                <label>Cenário relacionado <select id="evidence-scenario"><option value="">Toda a TF</option></select></label>
+              </div>
+              <label>Resumo <textarea id="evidence-summary" rows="3" maxlength="2000" placeholder="Descreva a evidência sem incluir credenciais ou dados pessoais."></textarea></label>
+              <label>Link HTTPS (opcional) <input id="evidence-url" type="url" maxlength="1500" placeholder="https://..."></label>
+              <div class="qa-phase4-actions"><button class="btn primary" id="evidence-save" type="button">Salvar evidência</button><span id="evidence-status" role="status"></span></div>
+              <div id="evidence-list" class="qa-phase4-list"></div>
+            </section>
+            <section class="panel qa-phase4-panel" aria-label="Eventos auditados">
+              <h3>Trilha de auditoria</h3>
+              <p class="muted fine">Os eventos são gerados pelo banco para alterações de situação, novos cenários, documentos, releases e evidências. O histórico não contém o texto completo de resultados, logs ou XML.</p>
+              <div id="audit-list" class="qa-phase4-list"></div>
+              <button class="btn soft" id="audit-more" type="button" hidden>Carregar mais eventos</button>
+            </section>
+          </div>
+          </div>
+        </section>
+
+        <section id="view-ferramentas" class="view qa-tools-view" aria-labelledby="tool-view-title" hidden>
+          <div class="page-heading qa-tools-heading">
+            <div>
+              <p class="eyebrow">FERRAMENTAS · QA HUB</p>
+              <h1 id="tool-view-title">Ferramentas</h1>
+              <p class="muted" id="tool-view-description">Trabalhe sem sair da plataforma.</p>
+            </div>
+          </div>
+          <div id="native-tools" class="qa-native-tools" hidden aria-label="Ferramentas nativas"></div>
+          <iframe id="tool-frame" class="qa-tool-frame" title="Ferramentas do QA Hub" src="about:blank"></iframe>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="import-dialog" class="import-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IMPORTAÇÃO ASSISTIDA</p><h2>Importar relatório de teste</h2></div><button class="btn soft" aria-label="Fechar janela">✕</button></form><p class="muted">Cole um relatório com seções “TIPO DE TESTE”, “O QUE FOI TESTADO”, “CENÁRIO 1”, “CONCLUSÃO” e “OBS ADD”. Confira os campos antes de salvar. Nada é enviado ao banco até você confirmar.</p><label>Relatório completo <textarea id="import-text" rows="13" placeholder="Cole seu relatório de validação aqui..."></textarea></label><div class="form-actions"><button id="import-cancel" class="btn soft" type="button">Cancelar</button><button id="import-confirm" class="btn primary" type="button">Importar TF e cenários</button></div></dialog>
+<dialog id="qa-quick-result-dialog" class="qa-quick-dialog" aria-labelledby="qa-quick-title" aria-modal="true">
+  <form id="qa-quick-result-form">
+    <h2 id="qa-quick-title">Registrar resultado</h2>
+    <p id="qa-quick-intro" class="muted fine"></p>
+    <label>O que ocorreu? <textarea id="qa-quick-observed" rows="4" minlength="5" maxlength="10000" required placeholder="Descreva o erro ou o motivo do bloqueio"></textarea></label>
+    <div class="qa-quick-dialog-actions">
+      <button id="qa-quick-cancel" type="button" class="btn soft">Cancelar</button>
+      <button id="qa-quick-confirm" type="submit" class="btn primary">Salvar resultado</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="scenario-dialog" class="qa-editor-dialog qa-scenario-dialog" aria-labelledby="scenario-form-title" aria-modal="true">
+    <div class="qa-dialog-shell">
+      <form id="scenario-form" class="qa-modal-form" hidden>
+              <h3 id="scenario-form-title">Novo cenário</h3>
+              <input type="hidden" name="id">
+              <div class="field-grid"><label>Título <input name="titulo" required maxlength="240" minlength="3" placeholder="Ex.: Inclusão automática com tabela válida"></label><label>Situação <select name="status"><option value="nao_executado">Não executado</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label><label>Ordem <input name="ordem" type="number" min="0" value="1"></label></div>
+              <div class="stack top-gap"><label>Passos executados <textarea name="passos" rows="7" placeholder="- Acessado o menu...&#10;- Clicado em adicionar..."></textarea></label><label>Resultado esperado <textarea name="esperado" rows="3"></textarea></label><label>Resultado observado <textarea name="obtido" rows="3"></textarea></label><label>Observações <textarea name="observacoes" rows="2"></textarea></label></div>
+              <div class="form-actions"><button id="cancel-scenario" type="button" class="btn soft">Cancelar</button><button type="submit" class="btn primary">Salvar cenário</button></div>
+            </form>
+    </div>
+  </dialog>
+<dialog id="diagram-dialog" class="qa-editor-dialog qa-diagram-dialog" aria-labelledby="diagram-form-title" aria-modal="true">
+    <div class="qa-dialog-shell">
+      <form id="diagram-form" class="qa-modal-form" hidden>
+              <h3 id="diagram-form-title">Novo diagrama</h3>
+              <input name="id" type="hidden">
+              <label>Nome do diagrama <input name="titulo" required maxlength="160" placeholder="Ex.: Fluxo do pedido"></label>
+              <section class="diagram-ai-box" aria-labelledby="diagram-ai-heading">
+                <div class="diagram-ai-head"><h4 id="diagram-ai-heading">Criar com IA</h4><p>Gere um fluxo claro e depois ajuste o código, se necessário.</p></div>
+                <div class="diagram-source-options" role="group" aria-label="Origem do diagrama">
+                  <label><input type="radio" name="diagram-ai-origin" value="task" checked> Usar dados da TF</label>
+                  <label><input type="radio" name="diagram-ai-origin" value="text"> Escrever ou colar texto</label>
+                </div>
+                <fieldset id="diagram-scenario-wrap" class="qa-diagram-scenarios"><legend>Cenários usados no diagrama</legend><div id="diagram-scenario-list" class="qa-diagram-scenario-list"></div><p class="muted fine">Os cenários selecionados e os dados da TF serão enviados à IA somente ao gerar. Revise informações confidenciais.</p></fieldset>
+                 <label id="diagram-ai-text-wrap" hidden>Descreva o fluxo <textarea id="diagram-ai-text" rows="5" maxlength="12000" placeholder="Ex.: O usuário abre o pedido, escolhe os produtos, confirma e o sistema valida o estoque."></textarea></label>
+                <div id="diagram-requirements-picker" hidden aria-label="Selecionar requisitos para o diagrama"></div>
+                <div class="diagram-ai-actions"><button id="diagram-generate" type="button" class="btn primary">Gerar diagrama com IA</button><span id="diagram-ai-progress" role="status" aria-live="polite" hidden>Gerando diagrama…</span></div>
+                <p id="diagram-ai-error" class="diagram-ai-error" role="alert" hidden></p>
+              </section>
+              <label class="top-gap">Código Mermaid <textarea id="diagram-source" name="conteudo" rows="9" maxlength="16000" required spellcheck="false" class="code-editor" placeholder="flowchart LR&#10;  A[Início] --> B[Executar]"></textarea></label>
+              <div class="form-actions"><button type="button" class="btn soft" id="preview-diagram">Prévia</button><button type="button" class="btn soft" id="zoom-diagram-preview">Ampliar</button><button type="button" class="btn soft" id="cancel-diagram">Cancelar</button><button type="submit" class="btn primary">Salvar diagrama</button></div>
+              <div class="diagram-preview" id="diagram-preview" role="region" aria-label="Prévia do diagrama" aria-live="polite">A prévia aparece aqui.</div>
+            </form>
+    </div>
+  </dialog>
+<dialog id="record-confirm-dialog" class="qa-confirm-dialog" aria-labelledby="record-confirm-title" aria-describedby="record-confirm-description" aria-modal="true">
+    <div class="qa-confirm-body">
+      <div class="qa-confirm-symbol" aria-hidden="true">!</div>
+      <h2 id="record-confirm-title">Confirmar exclusão</h2>
+      <p id="record-confirm-description">Esta ação não pode ser desfeita.</p>
+      <div class="qa-confirm-actions">
+        <button id="record-confirm-cancel" class="btn soft" type="button">Cancelar</button>
+        <button id="record-confirm-accept" class="btn danger" type="button">Excluir</button>
+      </div>
+    </div>
+  </dialog>
+<dialog id="ai-loading-modal" class="ai-loading-modal" aria-labelledby="assist-loading-title" aria-describedby="assist-loading-description" aria-modal="true">
+    <div class="ai-loading-content" role="status" aria-live="polite">
+      <span class="ai-loading-spinner" aria-hidden="true"></span>
+      <h2 id="assist-loading-title">Gerando com IA…</h2>
+      <p id="assist-loading-description">Organizando sua tarefa.</p>
+    </div>
+  </dialog>
+<dialog id="diagram-viewer" class="diagram-viewer" aria-labelledby="diagram-viewer-title">
+    <header class="diagram-viewer-toolbar">
+      <h2 id="diagram-viewer-title">Diagrama</h2>
+      <div class="diagram-viewer-controls">
+        <button type="button" data-viewer="minus" aria-label="Reduzir zoom">−</button>
+        <span id="diagram-zoom-label" aria-live="polite">100%</span>
+        <button type="button" data-viewer="plus" aria-label="Aumentar zoom">+</button>
+        <button type="button" data-viewer="actual">100%</button>
+        <button type="button" data-viewer="fit">Ajustar</button>
+        <button type="button" data-viewer="close" aria-label="Fechar visualização">Fechar</button>
+      </div>
+    </header>
+    <div id="diagram-viewer-viewport" class="diagram-viewer-viewport" tabindex="0" aria-label="Diagrama ampliado. Arraste para mover e use a roda do mouse para aplicar zoom.">
+      <div id="diagram-viewer-art" class="diagram-viewer-art"></div>
+    </div>
+    <p class="diagram-viewer-hint">Arraste para mover · Roda do mouse ou botões para ampliar</p>
+  </dialog>
+</body>
+</html>
