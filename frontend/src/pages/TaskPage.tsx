@@ -66,6 +66,16 @@ export default function TaskPage() {
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
+  function closeSettings(){
+    if(updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending)return;
+    if(nextStatus!==task?.status && !window.confirm("Descartar a situação selecionada sem atualizar?"))return;
+    setShowSettings(false);
+  }
+  function closeResult(){
+    if(saveResult.isPending)return;
+    if(observed.trim() && !window.confirm("Descartar a observação ainda não salva?"))return;
+    setPending(null);setObserved("");
+  }
   const [focusNextPending, setFocusNextPending] = useState(false);
   const [resumeFocus, setResumeFocus] = useState(false);
   const editorRef = useRef<HTMLElement | null>(null);
@@ -547,30 +557,30 @@ export default function TaskPage() {
       </p>}
       <div className="scenarios">
         {visible.map((scenario, index) => <article className="scenario" key={scenario.id}>
-          <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(index + 1).padStart(2, "0")}</span>
+          <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(scenario.ordem).padStart(2, "0")}</span>
               <h3>{scenario.titulo}</h3></div><span className={"status-chip " + scenario.status}>
                 {scenarioStatusLabels[scenario.status]}</span></div>
-          <div className="flex gap-2 mt-3">
+          {task.user_id===userId && <div className="flex gap-2 mt-3">
             <button className="secondary-link" onClick={() => {
               setEditingScenario(scenario);
               scenarioForm.reset({
                 titulo: scenario.titulo, passos: scenario.passos,
                 esperado: scenario.esperado, observacoes: scenario.observacoes
               });
+              closeToolPanels();setEditing(false);setShowSettings(false);
               setShowScenarioForm(true);
-              window.scrollTo({ top: 280, behavior: "smooth" });
             }}>Editar cenário</button>
             <button className="secondary-link" disabled={deleteScenarioMutation.isPending} onClick={() => {
               if (window.confirm("Excluir permanentemente este cenário?"))
                 void deleteScenarioMutation.mutateAsync(scenario.id);
             }}>Excluir</button>
-          </div>
+          </div>}
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
             <button data-qa-next-pending={filter === "pending" && index === 0 ? "true" : undefined}
-              disabled={saveResult.isPending} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
-            <button disabled={saveResult.isPending} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
-            <button disabled={saveResult.isPending} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
-            <button disabled={saveResult.isPending} onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>
+              disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
+            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
+            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
+            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>
           </div>
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}
           <details className="scenario-details"><summary><CircleHelp size={16} /> Passos e resultado esperado</summary>
@@ -585,23 +595,32 @@ export default function TaskPage() {
       </p>}
     </section>
 
-    <div className="qa-task-settings-heading">
-      <p className="eyebrow">ADMINISTRAÇÃO DA TF</p>
-      <h2>Estado e compartilhamento</h2>
-      <p className="text-muted text-sm">Configurações separadas da execução para evitar mudanças acidentais.</p>
-    </div>
+    <section className="qa-settings-teaser mt-5" aria-label="Estado e compartilhamento">
+      <div>
+        <p className="eyebrow">CONTROLE DA TF</p>
+        <h2>Estado e compartilhamento</h2>
+        <p className="text-muted text-sm">Situação atual: {taskStatusLabels[task.status]} ·
+          {task.publica ? " Pública" : " Privada"}. Alterações somente com confirmação.</p>
+      </div>
+      <Button variant="secondary" onPress={() => setShowSettings(true)}>
+        <Share2 size={16}/> Configurações da TF
+      </Button>
+    </section>
+    {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"
+      eyebrow="CONFIGURAÇÕES" size="lg" onClose={closeSettings}
+      busy={updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending}>
     <section className="panel mt-4" aria-label="Situação da tarefa">
       <div className="flex flex-wrap items-end gap-3">
         <label className="field" style={{ minWidth: 190 }}>Situação da TF
-          <select value={nextStatus} onChange={(e) =>
+          <select disabled={task.user_id!==userId} value={nextStatus} onChange={(e) =>
             setNextStatus(taskStatuses.find((value) => value === e.target.value) ?? "rascunho")}>
             {taskStatuses.map((value) => <option value={value} key={value}>{taskStatusLabels[value]}</option>)}
           </select>
         </label>
         <Button variant="secondary" onPress={() => void updateStatus.mutateAsync(nextStatus)}
-          isDisabled={nextStatus === task.status || updateStatus.isPending}>Atualizar situação</Button>
+          isDisabled={nextStatus === task.status || updateStatus.isPending || task.user_id!==userId}>Atualizar situação</Button>
         <div className="ml-auto">
-          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending} onPress={() => {
+          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending || task.user_id!==userId} onPress={() => {
             if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
           }}>Excluir TF</Button>
         </div>
@@ -648,26 +667,32 @@ export default function TaskPage() {
       {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
     </section>
 
-    {pending && <div className="dialog-backdrop" role="presentation">
-      <section ref={observedModalRef} className="dialog-card" role="dialog" aria-modal="true"
-        aria-labelledby="observed-heading" tabIndex={-1}>
-        <h2 id="observed-heading">{pending.status === "reprovado" ? "Registrar falha" : "Registrar bloqueio"}</h2>
-        <p className="text-muted mt-2">{pending.scenario.titulo}. Descreva o resultado observado.</p>
-        <form className="stack mt-4" onSubmit={(event) => {
-          event.preventDefault();
-          saveResult.mutate({ scenario: pending.scenario, status: pending.status, obtido: observed });
-        }}>
-          <label className="field">Comportamento observado
-            <textarea required rows={5} value={observed} onChange={(e) => setObserved(e.target.value)}
-              placeholder="O que ocorreu durante a execução?" />
-          </label>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" isDisabled={saveResult.isPending}
-              onPress={() => setPending(null)}>Cancelar</Button>
-            <Button type="submit" isDisabled={saveResult.isPending || !observed.trim()}>Salvar resultado</Button>
-          </div>
-        </form>
-      </section>
-    </div>}
+
+    </QAModal>}
+
+    {pending && <QAModal open={Boolean(pending)}
+      title={pending.status === "reprovado"?"Registrar falha":"Registrar bloqueio"}
+      eyebrow="EXECUÇÃO DE CENÁRIO" size="sm" onClose={closeResult}
+      busy={saveResult.isPending} initialFocus="textarea"
+      description={pending.scenario.titulo+" · Registre exatamente o comportamento observado."}>
+      <form className="stack" onSubmit={(event)=>{
+        event.preventDefault();
+        if(!saveResult.isPending)saveResult.mutate({
+          scenario:pending.scenario,status:pending.status,obtido:observed
+        });
+      }}>
+        <label className="field">Comportamento observado
+          <textarea required rows={5} value={observed}
+            onChange={(e)=>setObserved(e.target.value)}
+            placeholder="O que ocorreu durante a execução?"/>
+        </label>
+        <div className="qa-modal-actions">
+          <Button type="button" variant="secondary" isDisabled={saveResult.isPending}
+            onPress={closeResult}>Cancelar</Button>
+          <Button type="submit" isDisabled={saveResult.isPending||!observed.trim()}>Salvar resultado</Button>
+        </div>
+        {saveResult.isError&&<p role="alert" className="notice error">{saveResult.error.message}</p>}
+      </form>
+    </QAModal>}
   </div>;
 }
