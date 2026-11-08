@@ -498,15 +498,24 @@ export default function TaskPage() {
         <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)}/>
       </Suspense>
     </QAModal>
-    {generatorMode && <QAModal open={Boolean(generatorMode)}
-      title={generatorMode==="post"?"Gerar post com IA":"Gerar casos com IA"}
-      eyebrow="ASSISTENTE DE IA" size="full" onClose={()=>setGeneratorMode(null)}>
+    <QAModal key={task.id+"-cases-ai"} open={generatorMode==="teste"} keepMounted
+      title="Gerar casos com IA" eyebrow="ASSISTENTE DE IA" size="full"
+      onClose={()=>setGeneratorMode(null)}>
       <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
-        <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
-          scenarios={scenarios.data || []} mode={generatorMode}
+        <GeneratorPanel key={task.id+"-teste"} task={task} userId={userId}
+          scenarios={scenarios.data || []} mode="teste"
           onClose={() => setGeneratorMode(null)} />
       </Suspense>
-    </QAModal>}
+    </QAModal>
+    <QAModal key={task.id+"-post-ai"} open={generatorMode==="post"} keepMounted
+      title="Gerar post com IA" eyebrow="ASSISTENTE DE IA" size="full"
+      onClose={()=>setGeneratorMode(null)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
+        <GeneratorPanel key={task.id+"-post"} task={task} userId={userId}
+          scenarios={scenarios.data || []} mode="post"
+          onClose={() => setGeneratorMode(null)} />
+      </Suspense>
+    </QAModal>
     <QAModal key={task.id+"-documents"} open={showDocuments} keepMounted title="Documentos e relatório"
       eyebrow="ENTREGÁVEIS" size="full" initialFocus="#documents-heading" onClose={()=>setShowDocuments(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando documentos…</p>}>
