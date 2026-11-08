@@ -62,6 +62,10 @@ function AppLayout() {
           <ExternalLink size={17} /> Abrir versão anterior
         </a>
       </nav>
+      <button type="button" className="qa-mobile-logout" aria-label="Sair"
+        onClick={() => void supabase.auth.signOut()} title="Sair">
+        <LogOut size={19} aria-hidden="true"/>
+      </button>
       <div className="sidebar-footer"><ShieldCheck size={17} /> Dados vinculados à sua conta</div>
     </aside>
     <div className="content-column">
