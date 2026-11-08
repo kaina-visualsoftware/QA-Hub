@@ -41,9 +41,8 @@ function renderList(){
   ).join(''):'<p class="public-empty">Nenhuma TF pública encontrada.</p>';
 }
 async function showList(){
-  const {data,error:failure}=await db.from('qa_tarefas')
-    .select('id,titulo,codigo,tipo_teste,sistema,versao,executado_em')
-    .eq('publica',true).order('executado_em',{ascending:false}).limit(150);
+  // Only server-projected columns are exposed to anonymous visitors.
+  const {data,error:failure}=await db.rpc('qa_public_tasks_v1');
   if(failure)throw failure;
   tasks=data||[];
   renderList();
@@ -64,24 +63,17 @@ async function drawMermaid(source,target){
   }
 }
 async function showTask(id){
-  const {data:task,error:taskError}=await db.from('qa_tarefas')
-    .select('*').eq('id',id).eq('publica',true).maybeSingle();
+  const {data:detail,error:taskError}=await db.rpc('qa_public_task_v1',{p_task_id:id});
   if(taskError)throw taskError;
-  if(!task){error('Esta TF não é pública ou não existe.');return;}
-  const [scenariosResponse,diagramsResponse]=await Promise.all([
-    db.from('qa_cenarios').select('*').eq('tarefa_id',id).order('ordem',{ascending:true}),
-    db.from('qa_diagramas').select('*').eq('tarefa_id',id).order('created_at',{ascending:true})
-  ]);
-  if(scenariosResponse.error)throw scenariosResponse.error;
-  if(diagramsResponse.error)throw diagramsResponse.error;
-  diagrams=diagramsResponse.data||[];
+  if(!detail){error('Esta TF não é pública ou não existe.');return;}
+  const {task,scenarios=[],diagrams:publishedDiagrams=[]}=detail;
+  diagrams=publishedDiagrams;
   $('#public-browse').hidden=true;
   $('#public-detail').hidden=false;
   $('#public-task-title').textContent=task.titulo;
   $('#public-task-meta').textContent=(task.codigo||'TF')+' · '+(task.sistema||'Sistema não informado');
   const facts=$('#public-summary-fields');facts.replaceChildren();
   for(const [name,label] of fieldNames)addFact(facts,label,task[name]);
-  const scenarios=scenariosResponse.data||[];
   const sc=$('#public-scenario-list');
   sc.replaceChildren();
   if(!scenarios.length)sc.textContent='Nenhum cenário publicado.';
