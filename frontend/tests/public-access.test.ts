@@ -44,16 +44,21 @@ describe("whitelist da biblioteca pública", () => {
 });
 
 describe("contrato da projeção pública no servidor", () => {
-  it("não faz SELECT de tabela para listar ou detalhar dados publicados", () => {
+  it("prepara a leitura segura no React sem ativá-la no legado ainda publicado", () => {
     const reactSource = readFileSync(new URL(
       "../src/features/public/public-data.ts", import.meta.url), "utf8");
     const legacySource = readFileSync(new URL(
       "../../public.js", import.meta.url), "utf8");
+    const releasePlan = readFileSync(new URL(
+      "../../docs/LIBERACAO_ISSUE_37.md", import.meta.url), "utf8");
     expect(reactSource).toContain('supabase.rpc("qa_public_tasks_v1")');
     expect(reactSource).toContain('supabase.rpc("qa_public_task_v1"');
-    expect(legacySource).toContain("db.rpc('qa_public_tasks_v1')");
-    expect(legacySource).toContain("db.rpc('qa_public_task_v1'");
-    expect(legacySource).not.toMatch(/db\.from\(['"]qa_(?:tarefas|cenarios|diagramas)['"]\)/);
+    // The live production project does not yet host these RPCs. This is an
+    // intentional, temporary compatibility constraint, NOT proof of security.
+    expect(legacySource).not.toContain("db.rpc('qa_public_tasks_v1')");
+    expect(legacySource).toMatch(/db\.from\(['"]qa_tarefas['"]\)/);
+    expect(releasePlan).toContain("O corte da API pública exige trabalho de segurança adicional.");
+    expect(releasePlan).toContain("não altera automaticamente");
   });
   it("restringe a função privilegiada a campos explícitos e a publica=true", () => {
     const sql = readFileSync(new URL(
