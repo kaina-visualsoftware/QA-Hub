@@ -53,12 +53,22 @@ export function cleanMermaid(source){
   if(!/-->|---|==>|-.->/.test(content))throw Error('O diagrama não contém conexões entre etapas.');
   return horizontalFlowchart(content);
 }
-export async function requestAiDiagram({db,text,onProgress=()=>{}}){
+export async function requestAiDiagram({db,text,repair=null,onProgress=()=>{}}){
   if(!db?.functions?.invoke)throw Error('Serviço de IA indisponível.');
   if(!String(text).trim())throw Error('Informe um texto para gerar o diagrama.');
   if(text.length>20000)throw Error('A descrição excede o limite de 20.000 caracteres.');
-  onProgress('Analisando as etapas do processo…');
-  const {data,error}=await db.functions.invoke('qa-ai',{body:{mode:'diagram',text},signal:AbortSignal.timeout(65000)});
+  if(repair && (typeof repair.mermaid!=='string' || !repair.mermaid.trim() ||
+    repair.mermaid.length>16000 || String(repair.syntaxError||'').length>1500))
+    throw Error('O código de correção ou erro de sintaxe excedeu o limite.');
+  onProgress(repair?'Corrigindo sintaxe Mermaid…':'Analisando as etapas do processo…');
+  const payload={mode:'diagram',text};
+  if(repair){
+    payload.mermaid=repair.mermaid;
+    payload.syntaxError=String(repair.syntaxError||'').slice(0,1500);
+  }
+  const {data,error}=await db.functions.invoke('qa-ai',{
+    body:payload,signal:AbortSignal.timeout(65000)
+  });
   if(error){
     let info={};
     try{info=await error.context?.json?.()||{};}catch{}
