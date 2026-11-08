@@ -285,6 +285,13 @@ try{
   await page.getByRole("button",{name:"Gerar post",exact:true}).click();
   const save=page.getByRole("button",{name:"Salvar post na TF"});
   await save.waitFor({timeout:20000});
+  // React renders a disabled Save button while AI is still generating.
+  // Wait for the validated, editable post instead of racing the stream.
+  await page.waitForFunction(()=>{
+    const button=[...document.querySelectorAll("button")].find(
+      node=>node.textContent?.includes("Salvar post na TF"));
+    return button && !button.disabled;
+  },null,{timeout:25000});
   assert.match(aiPayloads.at(-1).requisito,/Seja conciso/i);
   const postEditor=page.getByRole("textbox",{name:/Post formatado/});
   const originalPost=await postEditor.inputValue();
