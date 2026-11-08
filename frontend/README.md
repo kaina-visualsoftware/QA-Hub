@@ -507,3 +507,44 @@ Tabelas/buscas operacionais continuam visíveis fora dos modais,
 pois esconder a lista de TFs prejudicaria a produtividade.
 A interface administrativa não expõe ações de edição de
 cenários pertencentes a outras contas.
+
+
+## UX mobile simplificada (novembro/2026)
+
+**Objetivo:** diminuir as ações e a leitura exigidas para executar QA no
+celular, mantendo os mesmos dados e regras de autorização.
+
+A página inicial agora mostra três indicadores compactos e a lista de TFs.
+Na TF, os números da execução ficam em uma linha, os botões principais
+são **Cenário**, **Testar pendentes** e **Relatório**. As ferramentas de IA
+estão disponíveis em três acessos (Casos de teste, Post e Diagrama).
+Requisitos, releases, evidências e editor avançado ficam em
+**Mais ferramentas**. No celular há uma única navegação e um botão de
+sair sempre acessível, em vez de dois cabeçalhos.
+
+### Novo fluxo de diagrama
+
+1. Abra **Diagrama** na TF.
+2. Use **Dados da TF** (padrão) ou **Texto livre**.
+3. Confira os dados opcionais e marque a autorização para enviar à NVIDIA.
+4. Clique **Gerar fluxograma com IA**. O diagrama validado aparece na prévia.
+5. Clique **Salvar diagrama** quando estiver correto.
+
+**Personalizar conteúdo**, **Ver dados enviados**, **Editar título ou
+código Mermaid** e **Diagramas salvos** são opções recolhidas. O usuário
+não precisa conhecer Mermaid para a operação básica, mas mantém
+correção com IA, regeneração e edição manual quando necessário.
+
+A autorização continua explícita e é reiniciada quando o texto enviado
+muda. Nenhum salvamento, publicação ou conclusão de testes é automático.
+Em caso de erro do parser, o código inválido não é gravado. Os campos e
+dados continuam vinculados à conta e protegidos pelas mesmas RLS.
+
+### Evidência visual e responsividade
+
+A suíte `frontend/tests/browser-ai-workbench.mjs` testa o acesso à TF
+e ao modal de diagramas em 320, 390, 768 e 1366 pixels: detecta
+overflow horizontal, largura do modal, alvos de toque, controles
+ocultos e consentimento. Capturas PNG sintéticas, sem dados reais, são
+geradas em `frontend/artifacts/mobile-ux/` e disponibilizadas como
+artefato da Action `QA Hub React browser smoke`.

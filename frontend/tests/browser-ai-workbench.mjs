@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 
 const root="http://127.0.0.1:4173/QA-Hub/";
@@ -103,6 +104,26 @@ try {
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:task.titulo}).waitFor({timeout:20000});
+  mkdirSync("artifacts/mobile-ux",{recursive:true});
+  const sizes=[320,390,768,1366];
+  for(const width of sizes){
+    await page.setViewportSize({width,height:844});
+    const layout=await page.evaluate(()=>{
+      const shell=document.querySelector(".app-shell");
+      return {
+        overflow:document.documentElement.scrollWidth-innerWidth,
+        hero:document.querySelector(".qa-task-hero")?.getBoundingClientRect().width,
+        shell:shell?.getBoundingClientRect().width
+      };
+    });
+    assert.ok(layout.overflow<=1, "Task layout overflow at "+width+": "+JSON.stringify(layout));
+    if(width<=390){
+      assert.equal(await page.getByRole("link",{name:"TFs públicas"}).isVisible(),true);
+      assert.equal(await page.getByRole("button",{name:"Sair"}).isVisible(),true);
+    }
+    await page.screenshot({path:"artifacts/mobile-ux/tf-"+width+".png"});
+  }
+  await page.setViewportSize({width:390,height:844});
   const fast=page.getByRole("region",{name:"Fluxo rápido de QA"});
   assert.equal(await fast.getByRole("button",{name:"Gerar casos com IA"}).count(),1);
   assert.equal(await fast.getByRole("button",{name:"Gerar post com IA"}).count(),1);
@@ -117,21 +138,59 @@ try {
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
+  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
+  assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
+    "Advanced Mermaid code must stay hidden before generation");
+  for(const width of sizes){
+    await page.setViewportSize({width,height:844});
+    const layout=await page.evaluate(()=>{
+      const modal=[...document.querySelectorAll(".qa-modal")]
+        .find(element=>element.getClientRects().length>0);
+      const content=modal?.querySelector(".qa-modal-content");
+      const primary=[...modal?.querySelectorAll("button")??[]]
+        .find(element=>element.textContent?.includes("Gerar fluxograma"));
+      return {
+        documentOverflow:document.documentElement.scrollWidth-innerWidth,
+        modalOverflow:content?content.scrollWidth-content.clientWidth:999,
+        modalWidth:modal?.getBoundingClientRect().width,
+        viewport:innerWidth,
+        primaryHeight:primary?.getBoundingClientRect().height
+      };
+    });
+    assert.ok(layout.documentOverflow<=1,"Document overflow at "+width+": "+JSON.stringify(layout));
+    assert.ok(layout.modalOverflow<=1,"Modal content overflow at "+width+": "+JSON.stringify(layout));
+    assert.ok((layout.primaryHeight??0)>=44,"CTA is too small at "+width+": "+JSON.stringify(layout));
+    assert.ok((layout.modalWidth??0)<=width+1,"Modal outside viewport at "+width);
+    if(width===320||width===390||width===1366){
+      const audit=await page.evaluate(async()=>window.axe.run(document,{
+        runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
+        rules:{region:{enabled:false}}
+      }));
+      assert.deepEqual(audit.violations.map(v=>({
+        id:v.id,targets:v.nodes.slice(0,3).map(n=>n.target.join(" "))
+      })),[],"Diagram dialog violates WCAG at "+width);
+    }
+    await page.screenshot({path:"artifacts/mobile-ux/diagrama-"+width+".png"});
+  }
+  await page.setViewportSize({width:390,height:844});
 
   await page.getByRole("radio",{name:"Texto livre"}).check();
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
   assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
-  await page.getByRole("checkbox",{name:/Autorizo enviar o texto exibido à NVIDIA/}).check();
+  await page.getByRole("checkbox",{name:/Autorizo enviar este conteúdo à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
-  await page.getByRole("textbox",{name:"Código Mermaid"}).waitFor({timeout:20000});
+  await page.getByTitle("Visualização do diagrama Mermaid").waitFor({timeout:20000});
+  assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
+    "Code editor must start collapsed in the quick flow");
   await page.waitForFunction(()=>{
     const code=document.getElementById("diagram-code-editor");
     return code?.value?.includes("Validação");
   },{timeout:20000});
-  const code=await page.getByRole("textbox",{name:"Código Mermaid"}).inputValue();
+  const code=await page.locator("#diagram-code-editor").inputValue();
   assert.ok(code.startsWith("flowchart LR"),"Diagram should be normalized to horizontal layout");
   assert.equal(prompts.length,1);
   assert.equal(diagrams.length,0,"Generated diagrams must not be saved without confirmation");
+  assert.equal(await page.getByRole("button",{name:"Salvar diagrama"}).isEnabled(),true);
   assert.equal(taskWrites,0);
   assert.equal(scenarioWrites,0);
 
@@ -143,6 +202,7 @@ try {
 
   // A user may paste broken Mermaid into the editor. Such code MUST NOT be
   // persisted; expose the real parser error and offer explicit AI repair.
+  await page.getByText("Editar título ou código Mermaid").click();
   const codeEditor=page.getByRole("textbox",{name:"Código Mermaid"});
   await codeEditor.fill('flowchart LR\n A["Início"\n A --> B');
   await page.getByRole("button",{name:"Salvar diagrama"}).click();

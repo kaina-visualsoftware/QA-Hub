@@ -260,3 +260,23 @@ devem ser removidas. Nunca tratar um erro de parser como sucesso.
 **Regra:** modal de ferramenta não substitui workflow persistente. A
 página de cenários permanece o ponto de referência; `QAModal`
 não faz requisições ou escritas automaticamente.
+
+
+## Revisão mobile clean — QF57–QF65
+
+| Caso | Ação | Resultado esperado |
+|---|---|---|
+| QF57 | Abrir lista de TFs a 320px e 390px | Só três indicadores compactos, filtro e lista; sem scroll horizontal |
+| QF58 | Abrir uma TF no celular | Uma navegação visível; resumo e ações sem blocos duplicados |
+| QF59 | Abrir Mais ferramentas | Os cinco recursos avançados aparecem somente sob demanda |
+| QF60 | Abrir Diagrama | Apenas fonte, autorização, botão gerar e opções recolhidas; sem envio automático |
+| QF61 | Usar Dados da TF, autorizar e gerar | O resultado aparece em prévia sem exigir edição Mermaid |
+| QF62 | Confirmar Salvar diagrama | Somente código Mermaid validado é persistido; status TF inalterado |
+| QF63 | Tentar salvar Mermaid inválido | Parser bloqueia gravação e permite reparo, retry e edição manual |
+| QF64 | Abrir modal em 320, 390, 768 e 1366px | Modal cabe na viewport, rola internamente e CTA tem pelo menos 44px |
+| QF65 | Conferir conteúdo enviado e revogar autorização | Texto enviado está visível por opção; nova edição exige reconsentimento |
+
+Teste de regressão: `npm run typecheck && npm run lint && npm test` e
+`node tests/browser-suites.mjs` em contexto de Supabase sintético.
+As capturas visuais da CI (`qa-react-mobile-ux-screenshots`) são
+materiais de revisão, não substituem homologação manual em Android e iOS.

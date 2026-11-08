@@ -119,7 +119,7 @@ try {
   assert.equal(savedTasks[0].status, "rascunho");
 
   await page.getByRole("region", { name: "Fluxo rápido de QA" })
-    .getByRole("button", { name: "Adicionar cenário" }).click();
+    .getByRole("button", { name: "Cenário", exact: true }).click();
   await editor.waitFor();
   await editor.getByRole("textbox", { name: "Título" }).fill("Segundo cenário consecutivo");
   await editor.getByRole("textbox", { name: "Passos" }).fill("Abrir o painel de pagamentos");

@@ -238,20 +238,16 @@ export function Workspace() {
 
   return <div className="page">
     <div className="page-heading">
-      <div><p className="eyebrow">VISÃO OPERACIONAL</p>
-        <h1>Suas tarefas de teste</h1>
-        <p className="text-muted">Encontre uma TF, continue executando cenários ou registre uma nova em segundos.</p>
-      </div>
+      <div><h1>Suas tarefas de teste</h1></div>
       <Button onPress={() => {
         if (showForm) closeDraft();
         else setShowForm(true);
       }}><Plus size={17} /> Nova TF</Button>
     </div>
-    <section className="stat-strip" aria-label="Resumo">
-      <div><span>TFs carregadas</span><strong>{tasks.data?.length ?? 0}</strong></div>
-      <div><span>Em andamento</span><strong>{pending}</strong></div>
-      <div><span>Aprovadas</span><strong>{approved}</strong></div>
-      <div><span>Contexto atual</span><strong className="text-base">{focusedId ? "TF selecionada" : "Nenhuma TF"}</strong></div>
+    <section className="qa-home-metrics" aria-label="Resumo">
+      <div><strong>{tasks.data?.length ?? 0}</strong><span>TFs</span></div>
+      <div><strong>{pending}</strong><span>Em andamento</span></div>
+      <div><strong>{approved}</strong><span>Aprovadas</span></div>
     </section>
 
     {recoverableDraft && <section className="panel mt-4" role="region"
@@ -260,7 +256,7 @@ export function Workspace() {
         <div className="grow">
           <strong>Rascunho não enviado</strong>
           <p className="text-muted text-sm mt-1">
-            Esta aba guardou campos de uma TF anterior. Você pode recuperá-los ou descartar a cópia local.
+            Você tem uma TF não salva nesta aba.
           </p>
         </div>
         <Button variant="secondary" onPress={() => {
@@ -439,7 +435,7 @@ export function Workspace() {
     </QAModal>
 
     <section className="panel task-panel">
-      <div className="section-heading"><div><h2>Base de TFs</h2><p className="text-muted">Selecione um registro para executar.</p></div>
+      <div className="section-heading"><div><h2>TFs</h2></div>
         <span className="count-pill">{filtered.length} resultado(s)</span></div>
       <div className="filter-line">
         <label className="search-box"><Search size={18} aria-hidden="true" />

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, WandSparkles, FilePenLine, Workflow, Sparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, FilePenLine, Workflow } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -75,6 +75,12 @@ export default function TaskPage() {
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
+  // TanStack Router reuses TaskPage for different TF IDs. Do not display a
+  // previous task's success notice or keep its pending-focus state.
+  useEffect(()=>{
+    setSaved("");setFocusNextPending(false);setResumeFocus(false);
+    setImportWarning("");
+  },[taskId]);
   function closeSettings(){
     if(updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending)return;
     if(nextStatus!==task?.status && !window.confirm("Descartar a situação selecionada sem atualizar?"))return;
@@ -311,7 +317,6 @@ export default function TaskPage() {
   }, [focusNextPending, saveResult.isPending, scenarios.isFetching, scenarios.data]);
 
   const progress = progressOf(scenarios.data || []);
-  const passedCount = (scenarios.data ?? []).filter(s => s.status==="aprovado").length;
   const failedCount = (scenarios.data ?? []).filter(s => s.status==="reprovado").length;
   const blockedCount = (scenarios.data ?? []).filter(s => s.status==="bloqueado").length;
   const progressPercent = progress.total ? Math.round(progress.executed/progress.total*100) : 0;
@@ -359,16 +364,12 @@ export default function TaskPage() {
           </Button>
         </div>
       </div>
-      <div className="qa-task-snapshot" aria-label="Indicadores da execução">
-        <div><strong>{progress.executed}<span>/{progress.total}</span></strong><small>Executados</small></div>
-        <div><strong>{pendingCount}</strong><small>Pendentes</small></div>
-        <div><strong>{passedCount}</strong><small>Aprovados</small></div>
-        <div><strong>{failedCount + blockedCount}</strong><small>Falha ou bloqueio</small></div>
+      <div className="qa-task-snapshot qa-task-compact-status" aria-label="Indicadores da execução">
+        <span><strong>{progress.executed}/{progress.total}</strong> executados</span>
+        <span><strong>{pendingCount}</strong> pendentes</span>
+        {(failedCount+blockedCount)>0&&<span><strong>{failedCount+blockedCount}</strong> com problema</span>}
       </div>
       <div className="qa-task-hero-progress">
-        <div className="qa-task-progress-label">
-          <span>Andamento da validação</span><strong>{progressPercent}%</strong>
-        </div>
         <div className="qa-task-hero-meter" role="progressbar"
           aria-label="Cenários executados" aria-valuemin={0} aria-valuemax={100}
           aria-valuenow={progressPercent}>
@@ -376,65 +377,58 @@ export default function TaskPage() {
         </div>
       </div>
     </header>
-    <section className="qa-quickflow mt-4" aria-label="Fluxo rápido de QA">
+    <section className="qa-quickflow qa-quickflow-clean mt-4" aria-label="Fluxo rápido de QA">
       <div className="qa-quickflow-heading">
-        <div>
-          <p className="eyebrow">ÁREA DE TRABALHO</p>
-          <h2>Da TF ao resultado, sem etapas desnecessárias</h2>
-          <p className="text-muted text-sm">Crie ou gere conteúdo, execute os casos e registre somente resultados reais.</p>
-        </div>
-        <span className="count-pill">{pendingCount} pendente(s)</span>
+        <h2>Ações rápidas</h2>
       </div>
       <div className="qa-action-strip">
-        <Button onPress={startScenario} isDisabled={task.user_id!==userId}><Plus size={17} /> Adicionar cenário</Button>
-        <Button variant="secondary" onPress={startPendingExecution} isDisabled={scenarios.isPending}>
-          <ListChecks size={17} /> Testar pendentes
+        <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
+          <Plus size={17}/> Cenário
         </Button>
-        <Button variant="secondary" isDisabled={scenarios.isPending || scenarios.isError || scenarios.isFetching}
-          onPress={() => {setFocusReport(true);openTool("documents");}}><FileText size={17} /> Conferir relatório</Button>
+        <Button variant="secondary" onPress={startPendingExecution}
+          aria-label="Testar pendentes"
+          isDisabled={scenarios.isPending}><ListChecks size={17}/> Pendentes</Button>
+        <Button variant="secondary"
+          isDisabled={scenarios.isPending||scenarios.isError||scenarios.isFetching}
+          onPress={()=>{setFocusReport(true);openTool("documents");}}>
+          <FileText size={17}/> Relatório
+        </Button>
       </div>
       <div className="qa-ai-section-heading">
-        <p className="eyebrow">GERAÇÃO ASSISTIDA</p>
-        <p>Escolha o que criar com a IA, utilizando os dados desta TF.</p>
+        <h3>Gerar com IA</h3>
       </div>
       <div className="qa-ai-action-grid" role="group" aria-label="Ferramentas de IA">
-        <button type="button" className="qa-ai-action" 
-          onClick={() => openTool("teste")}>
-          <span className="qa-ai-icon"><ListChecks size={19} /></span>
-          <span><strong>Gerar casos com IA</strong><small>Roteiro e cenários revisáveis para executar</small></span>
-          <WandSparkles size={17} className="qa-ai-arrow" />
+        <button type="button" className="qa-ai-action" aria-label="Gerar casos com IA"
+          onClick={()=>openTool("teste")}>
+          <span className="qa-ai-icon"><ListChecks size={19}/></span>
+          <span><strong>Casos</strong></span>
         </button>
-        <button type="button" className="qa-ai-action" 
-          onClick={() => openTool("post")}>
-          <span className="qa-ai-icon"><FileText size={19} /></span>
-          <span><strong>Gerar post com IA</strong><small>Comunicado no padrão e versão na TF</small></span>
-          <WandSparkles size={17} className="qa-ai-arrow" />
+        <button type="button" className="qa-ai-action" aria-label="Gerar post com IA"
+          onClick={()=>openTool("post")}>
+          <span className="qa-ai-icon"><FileText size={19}/></span>
+          <span><strong>Post</strong></span>
         </button>
-        <button type="button" className="qa-ai-action" 
+        <button type="button" className="qa-ai-action" aria-label="Gerar diagrama com IA"
           onClick={openDiagramAi}>
-          <span className="qa-ai-icon"><Workflow size={19} /></span>
-          <span><strong>Gerar diagrama com IA</strong><small>Fluxograma Mermaid com prévia e edição</small></span>
-          <Sparkles size={17} className="qa-ai-arrow" />
+          <span className="qa-ai-icon"><Workflow size={19}/></span>
+          <span><strong>Diagrama</strong></span>
         </button>
       </div>
-      <div className="qa-workbench-tools" role="group" aria-label="Ferramentas da TF">
-        <div className="qa-workbench-tools-heading">
-          <p className="eyebrow">OUTRAS FERRAMENTAS</p>
-          <p className="text-muted text-sm">Abra somente a ferramenta que precisa, sem sair da execução.</p>
+      <details className="qa-tool-drawer">
+        <summary>Mais ferramentas</summary>
+        <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
+          <button type="button" onClick={()=>openTool("requirements")}
+            className="qa-workbench-tool"><BookText size={17}/> Requisitos e cobertura</button>
+          <button type="button" onClick={()=>openTool("evidence")}
+            className="qa-workbench-tool"><ClipboardList size={17}/> Evidências e auditoria</button>
+          <button type="button" onClick={()=>openTool("links")}
+            className="qa-workbench-tool"><GitMerge size={17}/> Releases e referências</button>
+          <button type="button" onClick={()=>{setFocusReport(false);openTool("documents");}}
+            className="qa-workbench-tool"><FileText size={17}/> Documentos / relatório</button>
+          <button type="button" onClick={()=>{setFocusDiagramAi(false);openTool("diagrams");}}
+            className="qa-workbench-tool"><GitBranchPlus size={17}/> Editor de diagramas</button>
         </div>
-        <div className="qa-workbench-tools-grid">
-          <button type="button" onClick={() => openTool("requirements")}
-            className="qa-workbench-tool"><BookText size={17} /> Requisitos e cobertura</button>
-          <button type="button" onClick={() => openTool("evidence")}
-            className="qa-workbench-tool"><ClipboardList size={17} /> Evidências e auditoria</button>
-          <button type="button" onClick={() => openTool("links")}
-            className="qa-workbench-tool"><GitMerge size={17} /> Releases e referências</button>
-          <button type="button" onClick={() => {setFocusReport(false);openTool("documents");}}
-            className="qa-workbench-tool"><FileText size={17} /> Documentos / relatório</button>
-          <button type="button" onClick={() => {setFocusDiagramAi(false);openTool("diagrams");}}
-            className="qa-workbench-tool"><GitBranchPlus size={17} /> Editor de diagramas</button>
-        </div>
-      </div>
+      </details>
     </section>
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
     {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
@@ -524,7 +518,7 @@ export default function TaskPage() {
       </Suspense>
     </QAModal>
     <QAModal key={task.id+"-diagrams"} open={showDiagrams} keepMounted title="Diagramas da TF"
-      eyebrow="DOCUMENTAÇÃO VISUAL" size="full" initialFocus="#diagram-ai-heading" onClose={()=>setShowDiagrams(false)}>
+      eyebrow="DOCUMENTAÇÃO VISUAL" size="md" initialFocus="#diagram-ai-heading" onClose={()=>setShowDiagrams(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando editor de diagramas…</p>}>
         <DiagramPanel key={task.id} task={task} scenarios={scenarios.data || []} userId={userId}
           focusAi={focusDiagramAi}/>
@@ -563,8 +557,7 @@ export default function TaskPage() {
     </QAModal>}
 
     <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
-      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2>
-        <p className="text-muted">Registre somente o que foi efetivamente testado.</p></div>
+      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
