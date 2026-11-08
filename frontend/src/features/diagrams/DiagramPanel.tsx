@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitBranchPlus, Eye, Pencil, Trash2 } from "lucide-react";
@@ -22,6 +22,16 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
   const [previewError, setPreviewError] = useState("");
   const [busyPreview, setBusyPreview] = useState(false);
   const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (!focusAi) return;
+    const frame=requestAnimationFrame(() => {
+      const heading=document.getElementById("diagram-ai-heading");
+      heading?.scrollIntoView({behavior:"auto",block:"start"});
+      heading?.focus({preventScroll:true});
+    });
+    return () => cancelAnimationFrame(frame);
+  },[focusAi]);
+
   const diagrams = useQuery({
     queryKey: ["diagrams", userId, taskId], queryFn: () => listDiagrams(taskId)
   });
@@ -95,7 +105,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
         event.preventDefault();
         const result = diagramDraftSchema.safeParse({ titulo: title, conteudo: code });
         if (!result.success) { setPreviewError(result.error.issues[0]?.message || "Revise os campos."); return; }
-        void save.mutateAsync();
+        save.mutate();
       }}>
         <label className="field">Título<input maxLength={160} value={title}
           onChange={(e) => setTitle(e.target.value)} placeholder="Fluxo de validação" /></label>
