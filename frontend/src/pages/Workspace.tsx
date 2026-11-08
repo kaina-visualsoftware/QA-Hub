@@ -9,7 +9,8 @@ import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
 import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
 import { listTaskProgress } from "../lib/task-progress";
-import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
+import { extractLocalDraft, normalizeDraft } from "../lib/legacy/qa-assistant.mjs";
+import { supabase } from "../lib/supabase";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
@@ -35,6 +36,9 @@ export function Workspace() {
   const [allowModel, setAllowModel] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiProgress, setAiProgress] = useState("");
+  const [onlineBusy, setOnlineBusy] = useState(false);
+  const [onlineConsentText, setOnlineConsentText] = useState<string|null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
   const modelRef = useRef<LocalModelClient | null>(null);
   const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
@@ -56,7 +60,7 @@ export function Workspace() {
     modelRef.current?.dispose();
     modelRef.current = null;
   }, []);
-  function showReview(source: string, draft: LocalDraft, viaModel: boolean) {
+  function showReview(source: string, draft: LocalDraft, viaModel: boolean | "online") {
     setLocalReview({ source, draft });
     setExtracted(draft.cenarios
       .filter((item) => item.titulo.trim().length >= 3 &&
@@ -66,9 +70,11 @@ export function Workspace() {
         esperado: item.esperado.slice(0,20000),
         observacoes: item.observacoes.slice(0,20000), selected: false
       })));
-    setExtractionNotice(viaModel
-      ? "Sugestão de IA preparada no seu dispositivo. Confira cada campo: a IA pode errar ou inventar informações."
-      : "Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
+    setExtractionNotice(viaModel === "online"
+      ? "Prévia da IA NVIDIA pronta para revisão. Confira cada campo: a IA pode errar ou inventar informações."
+      : viaModel
+        ? "Sugestão de IA preparada no seu dispositivo. Confira cada campo: a IA pode errar ou inventar informações."
+        : "Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
   }
 
   async function analyzeWithModel() {
@@ -110,6 +116,67 @@ export function Workspace() {
       activeClient?.dispose();
       if (modelRef.current === activeClient) modelRef.current = null;
     }
+  }
+
+  async function importReport(file:File | undefined){
+    if(!file)return;
+    setFileBusy(true);setExtractionNotice("");
+    try{
+      if(file.size===0||file.size>10*1024*1024)
+        throw Error("O arquivo deve ter até 10 MB e conter texto.");
+      const extension=file.name.split(".").pop()?.toLowerCase();
+      let extracted="";
+      let warning="";
+      if(extension==="txt"||extension==="md"){
+        extracted=(await file.text()).replace(/\\r\\n?/g,"\\n").trim();
+        if(extracted.length>30000){
+          extracted=extracted.slice(0,30000);
+          warning="Texto limitado a 30.000 caracteres; confira o trecho importado.";
+        }
+      }else if(extension==="pdf"||extension==="docx"){
+        const {extractDocumentText}=await import("../features/requirements/read-document-text");
+        const result=await extractDocumentText(new Uint8Array(await file.arrayBuffer()),extension);
+        extracted=result.text;warning=result.warning;
+      }else throw Error("Use um relatório TXT, MD, PDF ou DOCX.");
+      if(!extracted)throw Error(warning||"O arquivo não contém texto selecionável.");
+      if(form.getValues("descricao").trim() &&
+         !window.confirm("Substituir a descrição existente pelo texto do arquivo?")) return;
+      form.setValue("descricao",extracted,{shouldDirty:true,shouldValidate:true});
+      setLocalReview(null);setExtracted([]);setOnlineConsentText(null);
+      setExtractionNotice("Relatório carregado localmente. Revise antes de salvar. "+warning);
+    }catch(reason){
+      setExtractionNotice(reason instanceof Error?reason.message:"Não foi possível ler o relatório.");
+    }finally{setFileBusy(false);}
+  }
+
+  async function analyzeOnline(){
+    const source=form.getValues("descricao");
+    if(!source.trim()||source.length>20000||onlineConsentText!==source||onlineBusy)return;
+    setOnlineBusy(true);setExtractionNotice("");setLocalReview(null);setExtracted([]);
+    try{
+      const {data,error}=await supabase.functions.invoke("qa-ai",{
+        body:{text:source},signal:AbortSignal.timeout(65000)
+      });
+      if(error){
+        let detail: {message?:string}={};
+        try{detail=await error.context?.json?.()??{};}catch{}
+        throw Error(detail.message||"Falha ao analisar a TF com IA online.");
+      }
+      if(form.getValues("descricao")!==source){
+        setExtractionNotice("O texto mudou durante a análise. Gere uma nova prévia antes de aplicar.");
+        return;
+      }
+      const raw=data?.draft;
+      const local=extractLocalDraft(source);
+      const suggestion=raw&&typeof raw==="object"&&!Array.isArray(raw)
+        ? normalizeDraft({...local.fields,...raw,
+            cenarios:Array.isArray(raw.cenarios)?raw.cenarios:local.cenarios}) : local;
+      showReview(source,suggestion,"online");
+      if(data?.fallback||!raw||!Object.keys(raw).length)
+        setExtractionNotice("A IA não retornou campos utilizáveis; foi preparada uma prévia local para revisão.");
+    }catch(reason){
+      setExtractionNotice(reason instanceof Error?reason.message:"A IA online está indisponível. Use a análise local.");
+    }finally{setOnlineBusy(false);setOnlineConsentText(null);}
   }
 
   function cancelModel() {
@@ -335,8 +402,43 @@ export function Workspace() {
               setExtractionNotice(error instanceof Error ? error.message : "Falha na análise local.");
             }
           }}>Analisar texto localmente</Button>
-          <span className="text-muted text-sm">Extração determinística no navegador, sem IA e sem envio externo.</span>
+          <span className="text-muted text-sm">Extração local sem envio externo.</span>
         </div>
+        <details className="generator-context qa-task-assist">
+          <summary>Importar relatório ou usar IA online (opcional)</summary>
+          <div className="stack mt-3">
+            <label className="field">Importar relatório (TXT, MD, PDF ou DOCX)
+              <input type="file" accept=".txt,.md,.pdf,.docx"
+                disabled={fileBusy||onlineBusy||create.isPending}
+                onChange={event=>{
+                  const file=event.target.files?.[0];
+                  void importReport(file);
+                  event.target.value="";
+                }}/>
+            </label>
+            <p className="text-muted text-sm">O arquivo é lido somente neste navegador.
+              Revise a descrição antes de extrair os campos.</p>
+            <label className="flex gap-2 items-start text-sm">
+              <input type="checkbox" checked={onlineConsentText!==null&&
+                onlineConsentText===form.watch("descricao")}
+                disabled={onlineBusy||!form.watch("descricao").trim()}
+                onChange={event=>setOnlineConsentText(event.target.checked
+                  ?form.getValues("descricao"):null)}/>
+              Autorizo enviar o texto atual da TF à NVIDIA para gerar uma prévia de campos e cenários.
+            </label>
+            <details className="generator-context">
+              <summary>Ver conteúdo que será enviado</summary>
+              <textarea rows={4} readOnly aria-label="Texto enviado à IA online"
+                value={form.watch("descricao")}/>
+            </details>
+            <div><Button type="button" variant="secondary"
+              isDisabled={onlineBusy||onlineConsentText!==form.watch("descricao")||
+                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
+              onPress={()=>void analyzeOnline()}>
+              <Sparkles size={16}/> {onlineBusy?"Analisando…":"Gerar campos com IA online"}
+            </Button></div>
+          </div>
+        </details>
         <details className="generator-context qa-task-assist">
           <summary>Assistente local avançado (opcional)</summary>
           <div className="stack mt-4" aria-label="Assistente generativo no navegador">

@@ -24,9 +24,10 @@ function validateXmlInput(value: string, label: string) {
   }
 }
 
-export default function ComparisonTool({ task, userId }: { task: Task; userId: string }) {
+export default function ComparisonTool({ task, userId = "", initialMode = "text" }:
+  { task?: Task; userId?: string; initialMode?: "text" | "xml" }) {
   const client = useQueryClient();
-  const [mode, setMode] = useState<"text" | "xml">("text");
+  const [mode, setMode] = useState<"text" | "xml">(initialMode);
   const [original, setOriginal] = useState("");
   const [updated, setUpdated] = useState("");
   const [ignoreSpaces, setIgnoreSpaces] = useState(true);
@@ -37,7 +38,7 @@ export default function ComparisonTool({ task, userId }: { task: Task; userId: s
   const [saved, setSaved] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const owner = task.user_id === userId;
+  const owner = Boolean(task && task.user_id === userId);
 
   const rows = result?.kind === "text"
     ? result.output.changes.map(([prefix, line]) => ({
@@ -92,7 +93,7 @@ export default function ComparisonTool({ task, userId }: { task: Task; userId: s
     } catch { setError("Cópia indisponível neste navegador. Selecione o texto manualmente."); }
   }
   async function saveCounters() {
-    if (!result || !owner || saving || saved) return;
+    if (!result || !task || !owner || saving || saved) return;
     if (!window.confirm("Salvar somente as contagens na TF? Os textos e XML não serão enviados.")) return;
     setSaving(true); setError(""); setMessage("");
     try {
@@ -111,7 +112,7 @@ export default function ComparisonTool({ task, userId }: { task: Task; userId: s
     <div>
       <h3 id="comparison-tool-title" className="font-semibold">Comparação local de texto e XML</h3>
       <p className="text-muted text-sm mt-2">Nenhum conteúdo digitado é transmitido ou salvo.
-        Registre apenas as contagens se desejar incluí-las no histórico da TF.</p>
+        {task ? " Opcionalmente, registre somente as contagens na TF." : " A comparação é local e não precisa de TF."}</p>
     </div>
     <div className="flex flex-wrap gap-2">
       <button type="button" className={"filter-chip " + (mode === "text" ? "selected" : "")}
@@ -184,9 +185,9 @@ export default function ComparisonTool({ task, userId }: { task: Task; userId: s
         <Button variant="secondary" onPress={() => void copyReport()}>
           <ClipboardCopy size={16}/> Copiar relatório local
         </Button>
-        <Button isDisabled={!owner || saving || saved} onPress={() => void saveCounters()}>
+        {task && <Button isDisabled={!owner || saving || saved} onPress={() => void saveCounters()}>
           <Database size={16}/> {saved ? "Indicadores registrados" : "Salvar somente contagens na TF"}
-        </Button>
+        </Button>}
       </div>
       <p className="text-muted text-sm flex items-center gap-2">
         <EyeOff size={16}/> Os valores originais não integram o registro.

@@ -10,7 +10,8 @@ const INPUT_LIMIT = 100000;
 type Organized = ReturnType<typeof organizeRelease>;
 type Reviewed = ReturnType<typeof reviewRelease>;
 
-export default function ReleaseOrganizer({ task, version }: { task: Task; version: string }) {
+export default function ReleaseOrganizer({ task, version, expanded = false }:
+  { task?: Task; version: string; expanded?: boolean }) {
   const [raw, setRaw] = useState("");
   const [team, setTeam] = useState("");
   const [defaultStatus, setDefaultStatus] = useState<"11"|"12">("12");
@@ -22,7 +23,7 @@ export default function ReleaseOrganizer({ task, version }: { task: Task; versio
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const matches = organized?.numbers.some((item) =>
-    String(item) === String(task.codigo ?? "").trim().replace(/^#/, ""));
+    String(item) === String(task?.codigo ?? "").trim().replace(/^#/, ""));
 
   function clearResults() {
     setOrganized(null); setReviewed(null); setError(""); setMessage("");
@@ -52,12 +53,13 @@ export default function ReleaseOrganizer({ task, version }: { task: Task; versio
       setError("A cópia não está disponível. Selecione o texto manualmente.");
     }
   }
-  return <details className="generator-context" aria-label="Organizador local de releases">
+  return <details className="generator-context" open={expanded ? true : undefined}
+    aria-label="Organizador local de releases">
     <summary>Organizar lista e revisar comunicado de release (local)</summary>
     <div className="stack mt-4">
       <p className="text-muted text-sm">
-        O processamento ocorre somente neste navegador, sem IA. Para associar a TF à release,
-        use o botão separado de confirmação acima.
+        O processamento ocorre somente neste navegador, sem IA.
+        {task ? " O vínculo com a TF exige confirmação separada." : " Nenhuma TF será vinculada."}
       </p>
       <label className="field">Lista autorizada de tarefas
         <textarea rows={7} maxLength={INPUT_LIMIT} spellCheck={false}
@@ -88,11 +90,11 @@ export default function ReleaseOrganizer({ task, version }: { task: Task; versio
           <span><strong>{organized.numbers.length}</strong> tarefas localizadas</span>
           <span><strong>{organized.warnings.length}</strong> alertas de revisão</span>
         </div>
-        <p className={"text-sm " + (matches ? "" : "text-muted")}>
+        {task && <p className={"text-sm " + (matches ? "" : "text-muted")}>
           {matches
             ? "A TF em foco aparece na lista pelo número exato. Confirme o vínculo na ação acima."
             : "A TF em foco não foi encontrada na lista pelo número exato. Não há associação automática."}
-        </p>
+        </p>}
         <label className="field">Lista organizada (somente leitura)
           <textarea rows={10} readOnly value={organized.text} />
         </label>
