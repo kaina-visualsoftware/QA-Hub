@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
@@ -37,6 +38,7 @@ async function fakeBackend(route) {
     user: sessionUser
   });
   if (path.endsWith("/auth/v1/user")) return json(route, sessionUser);
+  if(await mockF4Rpc(route,savedTasks,savedCases))return;
   if (path.endsWith("/rest/v1/qa_admins")) return json(route, null);
   if (path.endsWith("/rest/v1/qa_tarefas")) {
     if (method === "POST") {

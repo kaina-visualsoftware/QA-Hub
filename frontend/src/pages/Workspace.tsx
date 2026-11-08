@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +7,11 @@ import { useForm } from "react-hook-form";
 import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
-import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
+import { createTask, getAdminRole, addExtractedScenarios } from "../lib/data";
+import {
+  searchTasksPage,taskStatistics,listSavedFilters,saveFilter,
+  deleteFilter,normalizeTaskFilters
+} from "../features/tasks/task-search-data";
 import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft, normalizeDraft } from "../lib/legacy/qa-assistant.mjs";
 import { supabase } from "../lib/supabase";
@@ -44,17 +48,62 @@ export function Workspace() {
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-  const [visibleCount, setVisibleCount] = useState(30);
+  const [type,setType]=useState("");
+  const [debouncedSearch,setDebouncedSearch]=useState("");
+  const [filterName,setFilterName]=useState("");
+  const [filterNotice,setFilterNotice]=useState("");
+  useEffect(()=>{
+    const timeout=setTimeout(()=>setDebouncedSearch(search),280);
+    return ()=>clearTimeout(timeout);
+  },[search]);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const focusedId = useFocus((s) => s.taskId);
   const setFocused = useFocus((s) => s.setTask);
   const role = useQuery({ queryKey: ["role", userId], queryFn: () => getAdminRole(userId), enabled: !!userId });
-  const tasks = useQuery({
-    queryKey: ["tasks", userId, role.data],
-    queryFn: () => listTasks(userId, role.data ?? false),
-    enabled: !!userId && role.data !== undefined
+  const filters=useMemo(()=>normalizeTaskFilters({
+    search:debouncedSearch,status,type
+  }),[debouncedSearch,status,type]);
+  const tasks=useInfiniteQuery({
+    queryKey:["task-search",userId,role.data,filters],
+    queryFn:({pageParam})=>searchTasksPage(filters,pageParam),
+    initialPageParam:0,
+    getNextPageParam:(last,all)=>{
+      const loaded=all.reduce((count,page)=>count+page.items.length,0);
+      return loaded<last.total ? all.length : undefined;
+    },
+    enabled:!!userId && role.data!==undefined,
+    staleTime:20000
   });
+  const stats=useQuery({
+    queryKey:["task-stats",userId,role.data],
+    queryFn:taskStatistics,
+    enabled:!!userId && role.data!==undefined,
+    staleTime:20000
+  });
+  const savedFilters=useQuery({
+    queryKey:["task-saved-filters",userId],
+    queryFn:()=>listSavedFilters(userId),
+    enabled:!!userId
+  });
+  const saveSavedFilter=useMutation({
+    mutationFn:()=>saveFilter(userId,filterName,{search,status,type}),
+    onSuccess:async()=>{
+      setFilterName("");setFilterNotice("Filtro salvo para esta conta.");
+      await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
+    },
+    onError:(err)=>setFilterNotice(err.message)
+  });
+  const removeSavedFilter=useMutation({
+    mutationFn:(id:string)=>deleteFilter(userId,id),
+    onSuccess:async()=>{
+      setFilterNotice("Filtro removido.");
+      await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
+    },
+    onError:(err)=>setFilterNotice(err.message)
+  });
+  const visibleTasks=useMemo(()=>
+    tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
+  const total=tasks.data?.pages[0]?.total??0;
   useEffect(() => () => {
     aiRunRef.current++;
     modelRef.current?.dispose();
@@ -214,7 +263,10 @@ export function Workspace() {
       setRememberDraft(false); setRecoverableDraft(null); setDraftStorageError("");
       setExtracted([]); setExtractionNotice(""); setLocalReview(null);
       setFocused(task.id);
-      await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
+      await Promise.all([
+        queryClient.invalidateQueries({queryKey:["task-search",userId]}),
+        queryClient.invalidateQueries({queryKey:["task-stats",userId]})
+      ]);
       setShowForm(false);
       form.reset();
       await navigate({
@@ -282,26 +334,24 @@ export function Workspace() {
     if (newTask) setShowForm(true);
   }, [newTask]);
 
-  useEffect(() => {
-    if (focusedId && tasks.data && !tasks.data.some((task) => task.id === focusedId)) setFocused(null);
-  }, [focusedId, tasks.data, setFocused]);
-
-  const filtered = useMemo(() => (tasks.data ?? []).filter((task) => {
-    const needle = search.toLocaleLowerCase("pt-BR").trim();
-    const found = !needle || [task.titulo, task.codigo, task.sistema, task.versao, task.descricao]
-      .some((value) => (value ?? "").toLocaleLowerCase("pt-BR").includes(needle));
-    return found && (!status || task.status === status);
-  }), [tasks.data, search, status]);
-  const visibleTasks = filtered.slice(0, visibleCount);
-  const progressIds = visibleTasks.map(item => item.id);
-  const progress = useQuery({
-    queryKey: ["task-progress", userId, progressIds.join(",")],
-    queryFn: () => listTaskProgress(progressIds),
-    enabled: tasks.isSuccess && progressIds.length > 0,
-    staleTime: 30000
+  // Do not clear a focused task simply because it is on a different page.
+  // One independent progress query per fetched page. Loading page 4
+  // never refetches earlier pages or crosses listTaskProgress's 80-ID cap.
+  const progressPages=useQueries({
+    queries:(tasks.data?.pages??[]).map(page=>{
+      const ids=page.items.map(task=>task.id);
+      return {
+        queryKey:["task-progress",userId,ids.join(",")],
+        queryFn:()=>listTaskProgress(ids),
+        enabled:ids.length>0,
+        staleTime:30000
+      };
+    })
   });
-  const pending = (tasks.data ?? []).filter((item) => item.status === "rascunho" || item.status === "em_teste").length;
-  const approved = (tasks.data ?? []).filter((item) => item.status === "aprovado").length;
+  const progress=Object.assign({},...progressPages.map(page=>page.data??{}));
+  const progressError=progressPages.find(page=>page.isError);
+  const pending=stats.data?.pending??0;
+  const approved=stats.data?.approved??0;
 
   return <div className="page">
     <div className="page-heading">
@@ -312,7 +362,7 @@ export function Workspace() {
       }}><Plus size={17} /> Nova TF</Button>
     </div>
     <section className="qa-home-metrics" aria-label="Resumo">
-      <div><strong>{tasks.data?.length ?? 0}</strong><span>TFs</span></div>
+      <div><strong>{stats.data?.total??0}</strong><span>TFs</span></div>
       <div><strong>{pending}</strong><span>Em andamento</span></div>
       <div><strong>{approved}</strong><span>Aprovadas</span></div>
     </section>
@@ -543,38 +593,81 @@ export function Workspace() {
 
     <section className="panel task-panel">
       <div className="section-heading"><div><h2>TFs</h2></div>
-        <span className="count-pill">{filtered.length} resultado(s)</span></div>
+        <span className="count-pill">{total} resultado(s)</span></div>
       <div className="filter-line">
         <label className="search-box"><Search size={18} aria-hidden="true" />
           <span className="sr-only">Pesquisar por título, código, módulo ou versão</span>
           <input type="search" value={search} onChange={(e) => {
-            setSearch(e.target.value); setVisibleCount(30);
+            setSearch(e.target.value);
           }} placeholder="Buscar código, título, sistema, versão…" />
         </label>
         <label className="filter-select"><Filter size={17} aria-hidden="true" />
           <span className="sr-only">Filtrar situação</span>
           <select value={status} onChange={(e) => {
-            setStatus(e.target.value); setVisibleCount(30);
+            setStatus(e.target.value);
           }}>
             <option value="">Todas as situações</option>
             {Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
+        <label className="filter-select">
+          <span className="sr-only">Filtrar tipo</span>
+          <select value={type} onChange={e=>setType(e.target.value)}
+            aria-label="Filtrar tipo">
+            <option value="">Todos os tipos</option>
+            <option value="BUILD">BUILD</option>
+            <option value="RELEASE">RELEASE</option>
+          </select>
+        </label>
       </div>
+      <details className="qa-saved-filter-controls">
+        <summary>Filtros salvos</summary>
+        <div className="qa-saved-filters-content">
+          <div className="qa-saved-filter-input">
+            <label className="field">Nome do filtro
+              <input value={filterName} maxLength={60}
+                placeholder="Ex.: Releases do financeiro"
+                onChange={e=>setFilterName(e.target.value)}/>
+            </label>
+            <Button variant="secondary" isDisabled={saveSavedFilter.isPending||
+              filterName.trim().length<2}
+              onPress={()=>saveSavedFilter.mutate()}>Salvar filtro atual</Button>
+          </div>
+          {savedFilters.isPending&&<p role="status" className="text-muted text-sm">Carregando filtros…</p>}
+          {savedFilters.isError&&<p role="alert" className="notice error">
+            {savedFilters.error.message}</p>}
+          {savedFilters.data?.length===0&&<p className="text-muted text-sm">
+            Nenhum filtro salvo nesta conta.</p>}
+          {savedFilters.data?.map(saved=><div className="qa-saved-filter-item" key={saved.id}>
+            <button type="button" onClick={()=>{
+              setSearch(saved.pesquisa);setDebouncedSearch(saved.pesquisa);
+              setStatus(saved.situacao);setType(saved.tipo);
+              setFilterNotice("Filtro aplicado: "+saved.nome);
+            }}>{saved.nome}</button>
+            <button type="button" className="qa-saved-filter-remove"
+              disabled={removeSavedFilter.isPending}
+              onClick={()=>{
+                if(window.confirm("Excluir este filtro salvo?"))
+                  removeSavedFilter.mutate(saved.id);
+              }}>Excluir</button>
+          </div>)}
+          {filterNotice&&<p role="status" className="text-muted text-sm">{filterNotice}</p>}
+        </div>
+      </details>
       {(role.isPending || tasks.isPending) && <p className="empty-state" role="status">Carregando tarefas…</p>}
       {(role.isError || tasks.isError) && <p className="notice error mt-4" role="alert">
         Não foi possível consultar o Supabase: {role.error?.message || tasks.error?.message}
       </p>}
-      {tasks.isSuccess && filtered.length === 0 && <div className="empty-state">
+      {tasks.isSuccess && total === 0 && <div className="empty-state">
         <CheckCheck size={28} /><strong>Nenhuma TF neste filtro</strong>
-        <p>{search || status ? "Altere os filtros para consultar outras tarefas." : "Crie a primeira TF para começar."}</p>
+        <p>{search || status || type ? "Altere os filtros para consultar outras tarefas." : "Crie a primeira TF para começar."}</p>
       </div>}
-      {progress.isError && <p className="notice error mt-3" role="alert">
+      {progressError && <p className="notice error mt-3" role="alert">
         Progresso temporariamente indisponível. As TFs ainda podem ser abertas normalmente.
       </p>}
       <div className="task-rows">
         {visibleTasks.map((task) => {
-          const stats = progress.data?.[task.id];
+          const stats = progress[task.id];
           const own = task.user_id === userId;
           return <div className="task-list-entry" key={task.id}>
             <Link to="/tarefa/$taskId" params={{ taskId: task.id }}
@@ -600,11 +693,16 @@ export function Workspace() {
           </div>;
         })}
       </div>
-      {visibleCount < filtered.length && <div className="flex justify-center mt-4">
-        <Button variant="secondary" onPress={() => setVisibleCount(value => value + 30)}>
-          Mostrar mais TFs ({filtered.length - visibleCount} restantes)
+      {tasks.hasNextPage&&<div className="qa-task-more">
+        <p className="text-muted text-sm">Exibindo {visibleTasks.length} de {total} TFs</p>
+        <Button variant="secondary" isDisabled={tasks.isFetchingNextPage}
+          onPress={()=>void tasks.fetchNextPage()}>
+          {tasks.isFetchingNextPage?"Carregando…":
+            "Mostrar mais TFs ("+(total-visibleTasks.length)+" restantes)"}
         </Button>
       </div>}
+      {tasks.isFetchNextPageError&&<p role="alert" className="notice error">
+        Falha ao carregar mais TFs. Tente novamente.</p>}
     </section>
   </div>;
 }

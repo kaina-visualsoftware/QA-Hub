@@ -14,7 +14,7 @@ import { AiStudioTabs } from "../features/generators/AiStudioTabs";
 import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
-  addScenario, getAdminRole, listScenarios, listTasks, saveScenarioResult, updateTask,
+  addScenario, getAdminRole, listScenarios, saveScenarioResult, updateTask,
   editScenario, removeScenario, removeTask, setTaskStatus
 } from "../lib/data";
 import {
@@ -27,6 +27,7 @@ import {
   needsObservationResetConfirmation, quickExecutionResult
 } from "../features/executions/quick-result";
 import { QAModal } from "../components/ui/QAModal";
+import {getTaskById} from "../features/tasks/task-search-data";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
@@ -34,6 +35,7 @@ const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel")
 const RequirementsPanel = lazy(() => import("../features/requirements/RequirementsPanel"));
 const EvidencePanel = lazy(() => import("../features/evidence/EvidencePanel"));
 const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
+const ExecutionHistoryPanel = lazy(() => import("../features/history/ExecutionHistoryPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -44,12 +46,12 @@ export default function TaskPage() {
   const focusTask = useFocus((s) => s.setTask);
   const queryClient = useQueryClient();
   const role = useQuery({ queryKey: ["role", userId], queryFn: () => getAdminRole(userId), enabled: !!userId });
-  const tasks = useQuery({
-    queryKey: ["tasks", userId, role.data],
-    queryFn: () => listTasks(userId, role.data ?? false),
-    enabled: !!userId && role.data !== undefined
+  const tasks=useQuery({
+    queryKey:["task",userId,taskId],
+    queryFn:()=>getTaskById(taskId,userId,role.data??false),
+    enabled:!!userId && role.data!==undefined
   });
-  const task = tasks.data?.find((record) => record.id === taskId);
+  const task=tasks.data;
   const scenarios = useQuery({
     queryKey: ["scenarios", userId, taskId], queryFn: () => listScenarios(taskId),
     enabled: Boolean(task)
@@ -69,6 +71,7 @@ export default function TaskPage() {
   const [showRequirements, setShowRequirements] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
+  const [showHistory,setShowHistory]=useState(false);
 
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
@@ -78,7 +81,7 @@ export default function TaskPage() {
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
-    setShowLinks(false);
+    setShowLinks(false);setShowHistory(false);
     setEditingScenario(null);setPending(null);setObserved("");
   },[taskId]);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
@@ -114,9 +117,9 @@ export default function TaskPage() {
 
   function closeToolPanels() {
     setAiMode(null);setShowDocuments(false);setShowRequirements(false);
-    setShowEvidence(false);setShowLinks(false);
+    setShowEvidence(false);setShowLinks(false);setShowHistory(false);
   }
-  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste") {
+  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste"|"history") {
     closeToolPanels();
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     if(kind==="diagrams"||kind==="post"||kind==="teste") {
@@ -126,6 +129,7 @@ export default function TaskPage() {
     else if(kind==="requirements")setShowRequirements(true);
     else if(kind==="evidence")setShowEvidence(true);
     else if(kind==="links")setShowLinks(true);
+    else if(kind==="history")setShowHistory(true);
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
@@ -262,9 +266,14 @@ export default function TaskPage() {
 
   const invalidate = async () => {
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["task", userId, taskId] }),
+      queryClient.invalidateQueries({ queryKey: ["task-search", userId] }),
+      queryClient.invalidateQueries({ queryKey: ["task-stats", userId] }),
       queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
       queryClient.invalidateQueries({ queryKey: ["scenarios", userId, taskId] }),
-      queryClient.invalidateQueries({ queryKey: ["task-progress", userId] })
+      queryClient.invalidateQueries({ queryKey: ["task-progress", userId] }),
+      queryClient.invalidateQueries({ queryKey: ["execution-history", userId, taskId] }),
+      queryClient.invalidateQueries({ queryKey: ["task-change-history", userId, taskId] })
     ]);
   };
   const saveTask = useMutation({
@@ -311,7 +320,9 @@ export default function TaskPage() {
     onSuccess: async (published) => {
       setSaved(published ? "TF publicada por sua confirmação." : "Publicação desativada.");
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["task", userId, taskId] }),
+        queryClient.invalidateQueries({ queryKey: ["task-search", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["task-stats", userId] }),
         queryClient.invalidateQueries({ queryKey: ["public-tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["public-task", taskId] })
       ]);
@@ -321,7 +332,11 @@ export default function TaskPage() {
     mutationFn: () => removeTask(taskId),
     onSuccess: async () => {
       focusTask(null);
-      await queryClient.invalidateQueries({ queryKey: ["tasks", userId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["task-search", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["task-stats", userId] })
+      ]);
       await navigate({ to: "/" });
     }
   });
@@ -488,6 +503,13 @@ export default function TaskPage() {
         <EvidencePanel key={task.id} task={task} userId={userId}
           scenarios={scenarios.data || []}
           prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+      </Suspense>
+    </QAModal>
+    <QAModal open={showHistory} keepMounted title="Histórico e comparações"
+      eyebrow="RASTREABILIDADE" size="full" onClose={()=>setShowHistory(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando histórico…</p>}>
+        <ExecutionHistoryPanel key={task.id} task={task}
+          scenarios={scenarios.data||[]} userId={userId}/>
       </Suspense>
     </QAModal>
     <QAModal open={showLinks} keepMounted title="Releases e referências"

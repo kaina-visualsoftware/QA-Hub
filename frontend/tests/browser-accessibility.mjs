@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
@@ -34,7 +35,7 @@ const exceptions = [];
 const loadedAssets = [];
 const browser = await chromium.launch({ headless: true });
 
-function respond(route) {
+async function respond(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
@@ -54,6 +55,7 @@ function respond(route) {
     expires_at: Math.floor(Date.now()/1000) + 3600, user: person
   });
   if (path.endsWith("/auth/v1/user")) return send(person);
+  if(await mockF4Rpc(route,[task],[scenario]))return;
   if (path.endsWith("/rest/v1/qa_admins")) return send(null);
   if (path.endsWith("/rest/v1/rpc/qa_public_tasks_v1")) {
     assert.equal(method,"POST");

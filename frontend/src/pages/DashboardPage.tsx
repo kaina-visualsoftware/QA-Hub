@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDashed, ClipboardList, Plus } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
-import { getAdminRole, listTasks } from "../lib/data";
-import { listTaskProgress } from "../lib/task-progress";
+import {getAdminRole} from "../lib/data";
+import {taskStatistics} from "../features/tasks/task-search-data";
 import { taskStatusLabels } from "../lib/contracts";
 import type { Task } from "../lib/contracts";
 
@@ -12,21 +12,20 @@ export default function DashboardPage(){
   const {user}=useAuth();
   const userId=user?.id??"";
   const role=useQuery({queryKey:["role",userId],queryFn:()=>getAdminRole(userId),enabled:!!userId});
-  const tasks=useQuery({queryKey:["tasks",userId,role.data],
-    queryFn:()=>listTasks(userId,role.data??false),enabled:!!userId&&role.data!==undefined});
-  const all=tasks.data??[];
-  const summary=all.reduce((acc,task)=>{
-    acc[task.status]=(acc[task.status]||0)+1;return acc;
-  },{} as Record<Task["status"],number>);
-  const recent=all.slice(0,5);
-  const taskIds=all.slice(0,30).map(t=>t.id);
-  const progress=useQuery({queryKey:["task-progress",userId,taskIds.join(",")],
-    queryFn:()=>listTaskProgress(taskIds),enabled:tasks.isSuccess&&taskIds.length>0});
-  const totals=Object.values(progress.data??{}).reduce((acc,item)=>({
-    scenarios:acc.scenarios+item.total,
-    executed:acc.executed+item.executed,
-    pending:acc.pending+item.pending
-  }),{scenarios:0,executed:0,pending:0});
+  const tasks=useQuery({
+    queryKey:["task-stats",userId,role.data],
+    queryFn:taskStatistics,
+    enabled:!!userId&&role.data!==undefined,
+    staleTime:20000
+  });
+  const allCount=tasks.data?.total??0;
+  const summary=tasks.data?.statuses??{} as Record<Task["status"],number>;
+  const recent=tasks.data?.recent??[];
+  const totals={
+    scenarios:tasks.data?.scenarios??0,
+    executed:tasks.data?.executed??0,
+    pending:(tasks.data?.scenarios??0)-(tasks.data?.executed??0)
+  };
   return <div className="page qa-dashboard">
     <div className="page-heading"><div><p className="eyebrow">ACOMPANHAMENTO</p>
       <h1>Visão geral</h1></div>
@@ -37,7 +36,7 @@ export default function DashboardPage(){
     {tasks.isPending&&<p role="status">Carregando indicadores…</p>}
     {tasks.isError&&<p className="notice error" role="alert">{tasks.error.message}</p>}
     <section className="qa-dashboard-metrics" aria-label="Indicadores das tarefas">
-      <article><ClipboardList size={18}/><span>TFs</span><strong>{all.length}</strong></article>
+      <article><ClipboardList size={18}/><span>TFs</span><strong>{allCount}</strong></article>
       <article><CircleDashed size={18}/><span>Em andamento</span>
         <strong>{(summary.rascunho||0)+(summary.em_teste||0)}</strong></article>
       <article><CircleCheck size={18}/><span>Aprovadas</span><strong>{summary.aprovado||0}</strong></article>
@@ -51,7 +50,7 @@ export default function DashboardPage(){
           {(Object.entries(taskStatusLabels) as [Task["status"],string][]).map(([key,label])=>
             <div key={key} className="qa-dashboard-barrow">
               <div><span>{label}</span><strong>{summary[key]||0}</strong></div>
-              <div className="qa-dashboard-track"><span style={{width:percentage(summary[key]||0,all.length)+"%"}}/></div>
+              <div className="qa-dashboard-track"><span style={{width:percentage(summary[key]||0,allCount)+"%"}}/></div>
             </div>)}
         </div>
         <p className="text-muted text-sm">Baseado nas TFs acessíveis à sua conta.</p>
@@ -68,10 +67,9 @@ export default function DashboardPage(){
           <span style={{width:percentage(totals.executed,totals.scenarios)+"%"}}/>
         </div>
         <p className="text-muted text-sm">{totals.executed} executados · {totals.pending} pendentes
-          {progress.isPending?" · Consultando…":""}</p>
-        <small className="text-muted">A cobertura considera até 30 TFs recentes, com base nos
-          resultados realmente gravados. Execução não equivale à aprovação da TF.</small>
-        {progress.isError&&<p role="alert" className="notice error">Não foi possível consultar a cobertura.</p>}
+          {tasks.isPending?" · Consultando…":""}</p>
+        <small className="text-muted">Cobertura calculada no banco a partir dos resultados gravados.
+          Execução não equivale à aprovação da TF.</small>
       </section>
     </div>
     <section className="panel qa-dashboard-recents">

@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
@@ -54,6 +55,7 @@ async function fakeBackend(route){
     expires_at:Math.floor(Date.now()/1000)+3600,user
   });
   if(path.endsWith("/auth/v1/user"))return send(user);
+  if(await mockF4Rpc(route,tasks,scenarios))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send({user_id:owner});
   if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET"){
     assert.equal(url.searchParams.has("user_id"),false,
