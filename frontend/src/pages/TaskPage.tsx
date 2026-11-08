@@ -486,7 +486,7 @@ export default function TaskPage() {
       eyebrow="REGISTROS" size="full" onClose={()=>setShowEvidence(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando evidências…</p>}>
         <EvidencePanel key={task.id} task={task} userId={userId}
-          scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)}
+          scenarios={scenarios.data || []}
           prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
       </Suspense>
     </QAModal>

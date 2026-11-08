@@ -52,6 +52,7 @@ async function mock(route){
   if(path.endsWith("/rest/v1/qa_documentos"))return send([]);
   if(path.endsWith("/rest/v1/qa_requisitos"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencias"))return send([]);
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   if(path.endsWith("/rest/v1/qa_eventos"))return send([]);
   if(method!=="GET")writes.push(method+" "+path);
   errors.push(method+" "+path);
