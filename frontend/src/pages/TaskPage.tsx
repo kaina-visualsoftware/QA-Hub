@@ -416,8 +416,9 @@ export default function TaskPage() {
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
     {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
 
-    {editing && <section className="panel mt-5">
-      <div className="section-heading"><h2>Editar dados da TF</h2><button onClick={() => setEditing(false)} aria-label="Fechar edição"><X size={18} /></button></div>
+    {editing && <QAModal open={editing} title="Editar TF" eyebrow="DADOS DO REGISTRO"
+      description="Atualize os dados do chamado sem sair da execução." size="lg"
+      busy={saveTask.isPending} initialFocus={'input[name="titulo"]'} onClose={closeTaskEditor}>
       <form onSubmit={taskForm.handleSubmit((values) => void saveTask.mutateAsync(values))} className="stack mt-4">
         <div className="form-grid">
           <label className="field grow-2">Título<input {...taskForm.register("titulo")} />
@@ -444,43 +445,64 @@ export default function TaskPage() {
             <label className="field">Observações<textarea rows={3} {...taskForm.register("observacoes")} /></label>
           </div>
         </details>
-        <Button type="submit" isDisabled={saveTask.isPending}>Salvar alterações</Button>
+        <div className="qa-modal-actions">
+          <Button type="button" variant="secondary" onPress={closeTaskEditor}>Cancelar</Button>
+          <Button type="submit" isDisabled={saveTask.isPending||task.user_id!==userId}>Salvar alterações</Button>
+        </div>
         {saveTask.isError && <p className="notice error" role="alert">{saveTask.error.message}</p>}
       </form>
-    </section>}
+    </QAModal>}
 
 
 
-    {showRequirements && <Suspense fallback={<p role="status" className="notice mt-4">Carregando requisitos…</p>}>
-      <RequirementsPanel key={task.id} task={task} userId={userId}
-        scenarios={scenarios.data || []} onClose={() => setShowRequirements(false)} />
-    </Suspense>}
-    {showEvidence && <Suspense fallback={<p role="status" className="notice mt-4">Carregando evidências…</p>}>
-      <EvidencePanel key={task.id} task={task} userId={userId}
-        scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)} />
-    </Suspense>}
-    {showLinks && <Suspense fallback={<p role="status" className="notice mt-4">Carregando releases…</p>}>
-      <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)} />
-    </Suspense>}
-    {generatorMode && <div ref={generatorRef} tabIndex={-1}
-      role="region" aria-label="Gerador de conteúdo com IA" className="mt-4 qa-workflow-anchor">
+    {showRequirements && <QAModal open={showRequirements} title="Requisitos e cobertura"
+      eyebrow="RASTREABILIDADE" size="full" onClose={()=>setShowRequirements(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando requisitos…</p>}>
+        <RequirementsPanel key={task.id} task={task} userId={userId}
+          scenarios={scenarios.data || []} onClose={() => setShowRequirements(false)}/>
+      </Suspense>
+    </QAModal>}
+    {showEvidence && <QAModal open={showEvidence} title="Evidências e auditoria"
+      eyebrow="REGISTROS" size="full" onClose={()=>setShowEvidence(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando evidências…</p>}>
+        <EvidencePanel key={task.id} task={task} userId={userId}
+          scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)}/>
+      </Suspense>
+    </QAModal>}
+    {showLinks && <QAModal open={showLinks} title="Releases e referências"
+      eyebrow="VÍNCULOS" size="full" onClose={()=>setShowLinks(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando releases…</p>}>
+        <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)}/>
+      </Suspense>
+    </QAModal>}
+    {generatorMode && <QAModal open={Boolean(generatorMode)}
+      title={generatorMode==="post"?"Gerar post com IA":"Gerar casos com IA"}
+      eyebrow="ASSISTENTE DE IA" size="full" onClose={()=>setGeneratorMode(null)}>
       <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
         <GeneratorPanel key={task.id + generatorMode} task={task} userId={userId}
-          scenarios={scenarios.data || []} mode={generatorMode} onClose={() => setGeneratorMode(null)} />
+          scenarios={scenarios.data || []} mode={generatorMode}
+          onClose={() => setGeneratorMode(null)} />
       </Suspense>
-    </div>}
-    {showDocuments && <Suspense fallback={<p role="status" className="notice mt-4">Carregando documentos…</p>}>
-      <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId}
-        focusOnOpen={focusReport} />
-    </Suspense>}
-    {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
-      <DiagramPanel task={task} scenarios={scenarios.data || []} userId={userId}
-        focusAi={focusDiagramAi} />
-    </Suspense>}
-    {showScenarioForm && <section ref={editorRef} className="panel mt-5 qa-workflow-anchor"
-      aria-label={editingScenario ? "Editar cenário" : "Novo cenário"}>
-      <div className="section-heading"><div><p className="eyebrow">NOVO CASO</p><h2>{editingScenario ? "Editar cenário" : "Cadastrar cenário"}</h2></div>
-        <button onClick={() => setShowScenarioForm(false)} aria-label="Fechar"><X size={18} /></button></div>
+    </QAModal>}
+    {showDocuments && <QAModal open={showDocuments} title="Documentos e relatório"
+      eyebrow="ENTREGÁVEIS" size="full" onClose={()=>setShowDocuments(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando documentos…</p>}>
+        <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId}
+          focusOnOpen={focusReport}/>
+      </Suspense>
+    </QAModal>}
+    {showDiagrams && <QAModal open={showDiagrams} title="Diagramas da TF"
+      eyebrow="DOCUMENTAÇÃO VISUAL" size="full" onClose={()=>setShowDiagrams(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando editor de diagramas…</p>}>
+        <DiagramPanel task={task} scenarios={scenarios.data || []} userId={userId}
+          focusAi={focusDiagramAi}/>
+      </Suspense>
+    </QAModal>}
+    {showScenarioForm && <QAModal open={showScenarioForm}
+      title={editingScenario?"Editar cenário":"Cadastrar cenário"} eyebrow="CASOS DE TESTE"
+      description="Documente os passos e o resultado esperado; a execução fica separada."
+      initialFocus={'input[name="titulo"]'} busy={createScenario.isPending} onClose={closeScenarioEditor}>
+      <section ref={editorRef} className="qa-modal-editor">
       <form className="stack mt-4" onSubmit={scenarioForm.handleSubmit((values, event) => {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void createScenario.mutateAsync({
@@ -495,8 +517,8 @@ export default function TaskPage() {
         <label className="field">Resultado esperado<textarea rows={3} {...scenarioForm.register("esperado")} />
           {scenarioForm.formState.errors.esperado && <small role="alert" className="text-error">{scenarioForm.formState.errors.esperado.message}</small>}</label>
         <label className="field">Observações (opcional)<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onPress={() => setShowScenarioForm(false)}>Cancelar</Button>
+        <div className="qa-modal-actions">
+          <Button type="button" variant="secondary" onPress={closeScenarioEditor}>Cancelar</Button>
           {!editingScenario && <Button type="submit" variant="secondary"
             data-next="another" isDisabled={createScenario.isPending}>Salvar e criar outro</Button>}
           <Button type="submit" isDisabled={createScenario.isPending}>
@@ -505,7 +527,8 @@ export default function TaskPage() {
         </div>
         {createScenario.isError && <p role="alert" className="notice error">{createScenario.error.message}</p>}
       </form>
-    </section>}
+      </section>
+    </QAModal>}
 
     <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2>
