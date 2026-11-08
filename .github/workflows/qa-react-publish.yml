@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies and verify React contracts
         working-directory: frontend
         run: |
-          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
           npm run typecheck
           npm run lint
           npm test
