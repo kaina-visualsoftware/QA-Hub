@@ -363,18 +363,12 @@ export default function TaskPage() {
         <span className="count-pill">{pendingCount} pendente(s)</span>
       </div>
       <div className="qa-action-strip">
-        <Button onPress={startScenario}><Plus size={17} /> Adicionar cenário</Button>
+        <Button onPress={startScenario} isDisabled={task.user_id!==userId}><Plus size={17} /> Adicionar cenário</Button>
         <Button variant="secondary" onPress={startPendingExecution} isDisabled={scenarios.isPending}>
           <ListChecks size={17} /> Testar pendentes
         </Button>
         <Button variant="secondary" isDisabled={scenarios.isPending || scenarios.isError || scenarios.isFetching}
-          onPress={() => {
-            setGeneratorMode(null); setShowDocuments(true); setFocusReport(true);
-            requestAnimationFrame(() => {
-              document.getElementById("documents-heading")?.focus({ preventScroll: true });
-              document.getElementById("documents-heading")?.scrollIntoView({ behavior:"auto", block:"start" });
-            });
-          }}><FileText size={17} /> Conferir relatório</Button>
+          onPress={() => {setFocusReport(true);openTool("documents");}}><FileText size={17} /> Conferir relatório</Button>
       </div>
       <div className="qa-ai-section-heading">
         <p className="eyebrow">GERAÇÃO ASSISTIDA</p>
@@ -382,13 +376,13 @@ export default function TaskPage() {
       </div>
       <div className="qa-ai-action-grid" role="group" aria-label="Ferramentas de IA">
         <button type="button" className="qa-ai-action" 
-          onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}>
+          onClick={() => openTool("teste")}>
           <span className="qa-ai-icon"><ListChecks size={19} /></span>
           <span><strong>Gerar casos com IA</strong><small>Roteiro e cenários revisáveis para executar</small></span>
           <WandSparkles size={17} className="qa-ai-arrow" />
         </button>
         <button type="button" className="qa-ai-action" 
-          onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}>
+          onClick={() => openTool("post")}>
           <span className="qa-ai-icon"><FileText size={19} /></span>
           <span><strong>Gerar post com IA</strong><small>Comunicado no padrão e versão na TF</small></span>
           <WandSparkles size={17} className="qa-ai-arrow" />
@@ -400,28 +394,24 @@ export default function TaskPage() {
           <Sparkles size={17} className="qa-ai-arrow" />
         </button>
       </div>
-      <details className="qa-more-tools">
-        <summary>Requisitos, evidências, diagramas e outras ferramentas</summary>
-        <div className="qa-more-tools-content">
-          <button type="button" onClick={() => setShowRequirements((value) => !value)}
-            className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
-          <button type="button" onClick={() => setShowEvidence((value) => !value)}
-            className="secondary-link"><ClipboardList size={16} /> {showEvidence ? "Ocultar evidências" : "Evidências e auditoria"}</button>
-          <button type="button" onClick={() => setShowLinks((value) => !value)}
-            className="secondary-link"><GitMerge size={16} /> {showLinks ? "Ocultar releases" : "Releases e referências"}</button>
-          <button type="button" onClick={() => {
-            setShowDocuments((value) => !value); setFocusReport(false); setGeneratorMode(null);
-          }} className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
-          <button type="button" onClick={() => {
-            setShowDiagrams((value) => !value); setFocusDiagramAi(false);
-          }} className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Editor de diagramas"}</button>
+      <div className="qa-workbench-tools" role="group" aria-label="Ferramentas da TF">
+        <div className="qa-workbench-tools-heading">
+          <p className="eyebrow">OUTRAS FERRAMENTAS</p>
+          <p className="text-muted text-sm">Abra somente a ferramenta que precisa, sem sair da execução.</p>
         </div>
-      </details>
-    </section>
-    <section className="progress-panel mt-4" aria-label="Progresso da execução">
-      <div><strong>{progress.executed}/{progress.total}</strong><span>cenários executados</span></div>
-      <div className="progress-meter"><span style={{ width: progress.total ? (progress.executed / progress.total * 100) + "%" : "0%" }} /></div>
-      <small>Somente resultados salvos contam como executados.</small>
+        <div className="qa-workbench-tools-grid">
+          <button type="button" onClick={() => openTool("requirements")}
+            className="qa-workbench-tool"><BookText size={17} /> Requisitos e cobertura</button>
+          <button type="button" onClick={() => openTool("evidence")}
+            className="qa-workbench-tool"><ClipboardList size={17} /> Evidências e auditoria</button>
+          <button type="button" onClick={() => openTool("links")}
+            className="qa-workbench-tool"><GitMerge size={17} /> Releases e referências</button>
+          <button type="button" onClick={() => {setFocusReport(false);openTool("documents");}}
+            className="qa-workbench-tool"><FileText size={17} /> Documentos / relatório</button>
+          <button type="button" onClick={() => {setFocusDiagramAi(false);openTool("diagrams");}}
+            className="qa-workbench-tool"><GitBranchPlus size={17} /> Editor de diagramas</button>
+        </div>
+      </div>
     </section>
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
     {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
