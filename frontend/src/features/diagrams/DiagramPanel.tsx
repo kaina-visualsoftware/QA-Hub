@@ -2,12 +2,18 @@ import { useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitBranchPlus, Eye, Pencil, Trash2 } from "lucide-react";
+import type { Scenario, Task } from "../../lib/contracts";
+import { DiagramAiPanel } from "./DiagramAiPanel";
 import {
   diagramDraftSchema, listDiagrams, removeDiagram, saveDiagram
 } from "../../lib/data";
 import type { Diagram } from "../../lib/data";
 
-export default function DiagramPanel({ taskId, userId }: { taskId: string; userId: string }) {
+export default function DiagramPanel({ task, scenarios, userId, focusAi = false }: {
+  task:Task; scenarios:Scenario[]; userId:string; focusAi?:boolean
+}) {
+  const taskId=task.id;
+  const own=task.user_id===userId;
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | undefined>();
   const [title, setTitle] = useState("");
@@ -30,6 +36,23 @@ export default function DiagramPanel({ taskId, userId }: { taskId: string; userI
     mutationFn: (id: string) => removeDiagram(taskId, id),
     onSuccess: async () => { setMessage("Diagrama excluído."); await invalidate(); }
   });
+
+  // Generated Mermaid is only a local draft until the human explicitly saves it.
+  function applyAiDraft(generated:string){
+    if ((editingId || title.trim() || code !== "flowchart LR\\n  A[Início] --> B[Processo] --> C[Fim]") &&
+      !window.confirm("Substituir o texto atual do editor por este fluxograma sugerido pela IA?")) return false;
+    setEditingId(undefined);
+    setTitle("Fluxo — " + task.titulo.slice(0,130));
+    setCode(generated);setSvg(null);setMessage("");setPreviewError("");
+    void preview(generated);
+    requestAnimationFrame(() => {
+      document.getElementById("diagram-code-editor")?.scrollIntoView({
+        behavior:"auto",block:"center"
+      });
+      document.getElementById("diagram-code-editor")?.focus({preventScroll:true});
+    });
+    return true;
+  }
 
   function edit(record: Diagram) {
     setEditingId(record.id);
@@ -57,13 +80,17 @@ export default function DiagramPanel({ taskId, userId }: { taskId: string; userI
     } finally { setBusyPreview(false); }
   }
 
-  return <section className="panel mt-5" aria-labelledby="diagram-heading">
+  return <section className="panel mt-5 qa-workflow-anchor" aria-labelledby="diagram-heading">
     <div className="section-heading"><div><p className="eyebrow">DOCUMENTAÇÃO VISUAL</p>
       <h2 id="diagram-heading">Diagramas Mermaid</h2>
       <p className="text-muted">Edite o código e visualize sem executar scripts não confiáveis.</p></div>
       <span className="count-pill">{diagrams.data?.length ?? 0} diagrama(s)</span>
     </div>
-    <div className="diagram-layout mt-5">
+    <div className={focusAi ? "qa-diagram-ai-focus" : ""}>
+      <DiagramAiPanel task={task} scenarios={scenarios} userId={userId}
+        onDraft={applyAiDraft}/>
+    </div>
+    <div className="diagram-layout mt-5" id="diagram-editor">
       <form className="stack" onSubmit={(event) => {
         event.preventDefault();
         const result = diagramDraftSchema.safeParse({ titulo: title, conteudo: code });
@@ -72,13 +99,13 @@ export default function DiagramPanel({ taskId, userId }: { taskId: string; userI
       }}>
         <label className="field">Título<input maxLength={160} value={title}
           onChange={(e) => setTitle(e.target.value)} placeholder="Fluxo de validação" /></label>
-        <label className="field">Código Mermaid<textarea rows={12} maxLength={16000}
+        <label className="field">Código Mermaid<textarea id="diagram-code-editor" rows={12} maxLength={16000}
           value={code} onChange={(e) => { setCode(e.target.value); setSvg(null); }} /></label>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" isDisabled={busyPreview} onPress={() => void preview(code)}>
             <Eye size={16} /> {busyPreview ? "Validando…" : "Prévia"}
           </Button>
-          <Button type="submit" isDisabled={save.isPending}>Salvar diagrama</Button>
+          <Button type="submit" isDisabled={save.isPending || !own}>Salvar diagrama</Button>
           {editingId && <Button type="button" variant="secondary" onPress={() => {
             setEditingId(undefined); setTitle(""); setSvg(null); setMessage("");
           }}>Novo diagrama</Button>}
@@ -105,16 +132,16 @@ export default function DiagramPanel({ taskId, userId }: { taskId: string; userI
         <strong>{diagram.titulo}</strong>
         <div className="diagram-item-actions">
           <button className="secondary-link" onClick={() => void preview(diagram.conteudo)}><Eye size={15} /> Visualizar</button>
-          <button className="secondary-link" onClick={() => edit(diagram)}><Pencil size={15} /> Editar</button>
-          <button className="secondary-link" disabled={remove.isPending} onClick={() => {
-            if (window.confirm("Excluir este diagrama?")) void remove.mutateAsync(diagram.id);
-          }}><Trash2 size={15} /> Excluir</button>
+          {own && <button className="secondary-link" onClick={() => edit(diagram)}><Pencil size={15} /> Editar</button>}
+          {own && <button className="secondary-link" disabled={remove.isPending} onClick={() => {
+            if (window.confirm("Excluir este diagrama?")) remove.mutate(diagram.id);
+          }}><Trash2 size={15} /> Excluir</button>}
         </div>
       </div>)}
       {remove.isError && <p role="alert" className="notice error">{remove.error.message}</p>}
     </div>
     <p className="text-muted mt-4 text-xs flex gap-2 items-center">
-      <GitBranchPlus size={16} /> Para geração de diagramas por IA, use temporariamente a ferramenta da versão anterior.
+      <GitBranchPlus size={16} /> O fluxograma gerado pela IA é editável. Só é gravado ao clicar em Salvar diagrama.
     </p>
   </section>;
 }
