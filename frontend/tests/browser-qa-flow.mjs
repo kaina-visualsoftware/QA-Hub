@@ -209,9 +209,8 @@ try{
   assert.equal(scenarios.length,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
-  // Posts are now a visible primary AI action; secondary tools remain in disclosure.
-  const extraTools = page.getByText("Requisitos, evidências, diagramas e outras ferramentas");
-  await extraTools.click();
+  // One focused tool at a time: close the generator before opening posts.
+  await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
   await page.getByRole("button",{name:/Gerar post com IA/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
@@ -222,9 +221,9 @@ try{
   await page.getByText(/Post salvo em Documentos/).waitFor();
   assert.equal(postSaves,1);
   assert.equal(aiCalls,2);
-
+  await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
-  await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
+  await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();
   const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
   if (!(await sourceField.isVisible())) {
     await page.getByText("Importar requisitos de texto (prévia e revisão)").click();
@@ -248,6 +247,7 @@ try{
   assert.equal(requirementLinks[0].cenario_id,scenarios[0].id);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await page.getByRole("button",{name:"Fechar Requisitos e cobertura"}).click();
   await page.getByRole("button",{name:/Evidências e auditoria/}).click();
   await page.getByRole("heading",{name:"Evidências e auditoria"}).waitFor();
   await page.getByLabel(/Resumo do que foi observado/).fill("Desconto removido com o comportamento esperado.");
@@ -259,6 +259,7 @@ try{
   assert.equal(evidenceRows[0].tipo,"observacao");
   await page.getByRole("tab",{name:"Auditoria"}).click();
   await page.getByText("Nenhum evento encontrado.").waitFor();
+  await page.getByRole("button",{name:"Fechar Evidências e auditoria"}).click();
   await page.getByRole("button",{name:/Releases e referências/}).click();
   const linkPanel=page.locator("section[aria-labelledby='links-heading']");
   await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
@@ -301,6 +302,8 @@ try{
   assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await page.getByRole("button",{name:"Fechar Releases e referências"}).click();
+  await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   const reqPanel=page.locator("section[aria-labelledby='requirements-heading']");
   await reqPanel.getByRole("tab",{name:"Fontes e anexos"}).click();
   const fileInput=reqPanel.locator('input[type="file"]');
