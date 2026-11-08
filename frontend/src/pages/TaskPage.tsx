@@ -69,6 +69,7 @@ export default function TaskPage() {
   function closeSettings(){
     if(updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending)return;
     if(nextStatus!==task?.status && !window.confirm("Descartar a situação selecionada sem atualizar?"))return;
+    if(task)setNextStatus(task.status);
     setShowSettings(false);
   }
   function closeResult(){
@@ -99,7 +100,10 @@ export default function TaskPage() {
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
-    if(taskForm.formState.isDirty&&!window.confirm("Descartar as alterações não salvas da TF?"))return;
+    if(taskForm.formState.isDirty){
+      if(!window.confirm("Descartar as alterações não salvas da TF?"))return;
+      taskForm.reset();
+    }
     setEditing(false);
   }
   function closeScenarioEditor(){
@@ -338,7 +342,7 @@ export default function TaskPage() {
         </div>
         <div className="qa-task-hero-controls">
           <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
-          <Button variant="secondary" onPress={() => {
+          <Button variant="secondary" isDisabled={task.user_id!==userId} onPress={() => {
             closeToolPanels();setShowScenarioForm(false);setShowSettings(false);
             setEditing(true);
           }}>
