@@ -4,62 +4,69 @@ import { readFileSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 const root = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const qa = readFileSync(new URL('../qa.html', import.meta.url), 'utf8');
+const callbackGateway = readFileSync(new URL('../qa.html', import.meta.url), 'utf8');
+const legacy = readFileSync(new URL('../qa-legacy.html', import.meta.url), 'utf8');
+const react = readFileSync(new URL('../react/index.html', import.meta.url), 'utf8');
 const config = readFileSync(new URL('../qa-config.js', import.meta.url), 'utf8');
-const redirectCode = root.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+const origin = 'https://kaina-visualsoftware.github.io/QA-Hub/';
 
-function redirectFrom(url) {
+function redirectFrom(url, html = root) {
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script, 'A entrada deve preservar um redirecionamento explícito');
   const location = {
     href: url,
     search: new URL(url).search,
     hash: new URL(url).hash,
     replace(next) { this.destination = next; }
   };
-  assert.ok(redirectCode, 'The root page must have a redirect script');
-  runInNewContext(redirectCode, { window: {location}, URL });
+  runInNewContext(script, { window: { location }, URL });
   return location.destination;
 }
 
-test('GitHub Pages root opens QA without showing another homepage', () => {
-  assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/'),
-    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html'
-  );
-  assert.doesNotMatch(root, /pastaConfig|renderizarCards|HubTarefas|tailwindcss/i);
+test('entrada principal abre React versionado, mantendo fallback legado', () => {
+  assert.equal(redirectFrom(origin), origin + 'react/#/');
+  assert.match(root, /href="\.\/react\/"/);
+  assert.match(root, /href="\.\/qa-legacy\.html"/);
+  assert.match(react, /<div id="root"><\/div>/);
+  assert.match(react, /\/QA-Hub\/react\/assets\//);
 });
 
-test('root preserves search and hash for auth callbacks and deep links', () => {
-  assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/?next=home#access_token=example&type=signup'),
-    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html?next=home#access_token=example&type=signup'
-  );
-  assert.equal(
-    redirectFrom('https://kaina-visualsoftware.github.io/QA-Hub/index.html#/tarefas'),
-    'https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/tarefas'
-  );
+test('tokens de autenticação e recuperação são repassados ao callback isolado', () => {
+  for (const gateway of [root, callbackGateway]) {
+    assert.equal(
+      redirectFrom(origin + 'qa.html?code=synthetic', gateway),
+      origin + 'react/auth.html?code=synthetic'
+    );
+    assert.equal(
+      redirectFrom(origin + '?type=recovery#access_token=synthetic&type=recovery', gateway),
+      origin + 'react/auth.html?type=recovery#access_token=synthetic&type=recovery'
+    );
+    assert.equal(
+      redirectFrom(origin + 'index.html#/tarefas', gateway),
+      origin + 'react/#/'
+    );
+  }
 });
 
-test('canonical and Auth production URLs use renamed QA-Hub Pages path', () => {
-  const origin='https://kaina-visualsoftware.github.io/QA-Hub/';
-  assert.match(root, /rel="canonical" href="https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/qa\.html"/);
-  assert.ok(config.includes(origin+'qa.html'));
-  assert.equal(redirectFrom(origin+'?source=login#/tarefas'),origin+'qa.html?source=login#/tarefas');
-  assert.doesNotMatch(root+config,/github\.io\/Tarefas/);
+test('URLs públicas e allowlist legada não são confundidas com segredos', () => {
+  assert.match(root, /rel="canonical" href="https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/react\/"/);
+  assert.ok(config.includes(origin + 'qa.html'));
+  assert.equal(redirectFrom(origin + '?source=login#/tarefas'), origin + 'react/#/');
+  assert.doesNotMatch(root + config, /github\.io\/Tarefas/);
 });
 
-test('single QA UI has no legacy-home navigation', () => {
-  assert.doesNotMatch(qa, /href=["']\.\/index\.html["']/i);
-  assert.doesNotMatch(qa, /Hub anterior|Voltar ao Hub de Tarefas/i);
-  assert.match(qa, /id="auth-form"/);
-  assert.match(qa, /id="view-dashboard"/);
+test('fallback legado mantém módulos e autenticação visíveis', () => {
+  assert.doesNotMatch(legacy, /href=["']\.\/index\.html["']/i);
+  assert.match(legacy, /id="auth-form"/);
+  assert.match(legacy, /id="view-dashboard"/);
+  assert.match(legacy, /id="view-ferramentas"/);
   assert.match(config, /authRedirectUrl:\s*'https:\/\/kaina-visualsoftware\.github\.io\/QA-Hub\/qa\.html'/);
   assert.equal(existsSync(new URL('../184728/page.html', import.meta.url)), false);
 });
 
-
-test('both entrypoints provide the QA Hub favicon', () => {
+test('root e fallback legado mantêm favicon do QA Hub', () => {
   const svg = readFileSync(new URL('../favicon.svg', import.meta.url), 'utf8');
-  for(const html of [root,qa]){
+  for (const html of [root, legacy]) {
     assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg">/);
   }
   assert.match(svg, /<svg\b[^>]*viewBox="0 0 64 64"/);
@@ -67,8 +74,8 @@ test('both entrypoints provide the QA Hub favicon', () => {
   assert.match(svg, /#1eb8a3/);
 });
 
-test('mobile menu uses an accessible SVG instead of a faint text glyph', () => {
-  assert.match(qa, /<button class="menu-button"[^>]*aria-label="Abrir menu"[^>]*aria-expanded="false"/);
-  assert.match(qa, /<svg class="menu-icon"[^>]*stroke="currentColor"/);
-  assert.doesNotMatch(qa, /type="button">☰<\/button>/);
+test('menu da versão legada permanece acessível para rollback', () => {
+  assert.match(legacy, /<button class="menu-button"[^>]*aria-label="Abrir menu"[^>]*aria-expanded="false"/);
+  assert.match(legacy, /<svg class="menu-icon"[^>]*stroke="currentColor"/);
+  assert.doesNotMatch(legacy, /type="button">☰<\/button>/);
 });
