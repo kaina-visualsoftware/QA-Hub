@@ -512,7 +512,7 @@ export default function TaskPage() {
       </Suspense>
     </QAModal>
     <QAModal key={task.id+"-diagrams"} open={showDiagrams} keepMounted title="Diagramas da TF"
-      eyebrow="DOCUMENTAÇÃO VISUAL" size="full" initialFocus="#diagram-ai-heading" onClose={()=>setShowDiagrams(false)}>
+      eyebrow="DOCUMENTAÇÃO VISUAL" size="md" initialFocus="#diagram-ai-heading" onClose={()=>setShowDiagrams(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando editor de diagramas…</p>}>
         <DiagramPanel key={task.id} task={task} scenarios={scenarios.data || []} userId={userId}
           focusAi={focusDiagramAi}/>
