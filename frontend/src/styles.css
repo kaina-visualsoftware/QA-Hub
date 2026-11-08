@@ -511,7 +511,7 @@
 .qa-diagram-quick .qa-diagram-consent{display:flex;align-items:center;gap:10px;
   font-size:.8rem;line-height:1.5;color:#334f58;font-weight:600}
 .qa-diagram-quick .qa-diagram-consent input{height:19px;width:19px;flex:0 0 19px;accent-color:#147a76}
-.qa-diagram-payload{min-width:0;width:100%;color:#6b7f86;font-size:.74rem}
+.qa-diagram-payload{min-width:0;width:100%;color:#435f68;font-size:.78rem}
 .qa-diagram-payload>summary{cursor:pointer;display:list-item;list-style-position:inside;
   padding:5px 2px;min-height:32px}
 .qa-diagram-payload textarea{display:block;width:100%;margin:9px 0;min-height:85px;
