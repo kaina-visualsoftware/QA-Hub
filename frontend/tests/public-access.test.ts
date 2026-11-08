@@ -57,8 +57,8 @@ describe("contrato da projeção pública no servidor", () => {
     // intentional, temporary compatibility constraint, NOT proof of security.
     expect(legacySource).not.toContain("db.rpc('qa_public_tasks_v1')");
     expect(legacySource).toMatch(/db\.from\(['"]qa_tarefas['"]\)/);
-    expect(releasePlan).toContain("O corte da API pública exige trabalho de segurança adicional.");
-    expect(releasePlan).toContain("não altera automaticamente");
+    expect(releasePlan).toContain("sem alterar o QA Hub legado publicado");
+    expect(releasePlan).toContain("ainda possui políticas públicas de leitura");
   });
   it("restringe a função privilegiada a campos explícitos e a publica=true", () => {
     const sql = readFileSync(new URL(
