@@ -75,6 +75,12 @@ export default function TaskPage() {
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
+  // TanStack Router reuses TaskPage for different TF IDs. Do not display a
+  // previous task's success notice or keep its pending-focus state.
+  useEffect(()=>{
+    setSaved("");setFocusNextPending(false);setResumeFocus(false);
+    setImportWarning("");
+  },[taskId]);
   function closeSettings(){
     if(updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending)return;
     if(nextStatus!==task?.status && !window.confirm("Descartar a situação selecionada sem atualizar?"))return;
