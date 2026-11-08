@@ -10,5 +10,6 @@ export function cleanMermaid(source:string):string;
 export function requestAiDiagram(options:{
   db: Pick<SupabaseClient,"functions">;
   text:string;
+  repair?: {mermaid:string;syntaxError:string}|null;
   onProgress?:(message:string)=>void;
 }):Promise<{code:string;fallback:boolean}>;

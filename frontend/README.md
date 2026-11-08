@@ -443,3 +443,33 @@ limites de contexto, privacidade e Mermaid seguro;
 `frontend/tests/browser-ai-workbench.mjs` para consentimento,
 botões visíveis, revisão, salvamento explícito e responsividade
 em 390px. Os testes Chromium usam fixtures sintéticas.
+
+
+## Recuperação de erros de sintaxe Mermaid
+
+A geração de diagramas pela Edge Function `qa-ai` usa um prompt com
+gramática mínima validada contra Mermaid v12: `flowchart LR`,
+IDs alfabéticos únicos, nós separados das arestas, textos de nós
+entre aspas, uma seta por linha e sem HTML, estilos, subgrafos ou
+instruções executáveis. O contexto original é tratado como dado.
+
+O React passa o resultado por `mermaid.parse()` antes de colocá-lo
+no editor. Se o parser rejeitar a sintaxe, a tela **não salva**
+automaticamente: preserva o código e a mensagem de erro para revisão,
+oferece **Corrigir com IA** (reenvia código rejeitado e diagnóstico)
+e **Gerar novamente** (nova tentativa a partir do contexto original).
+Também é possível editar o código manualmente.
+
+O botão `Salvar diagrama` valida novamente a sintaxe no navegador;
+Mermaid inválido não é gravado. Corrigir e regenerar são chamadas
+novas à `qa-ai`, sujeitas à autenticação, consentimento explícito
+e quota existente. O botão de correção não roda sozinho, e a
+atualização do editor continua pedindo confirmação antes de substituir
+um rascunho. Não há alteração em dados, tabelas ou políticas RLS.
+
+Fonte do prompt e backend: `supabase/functions/qa-ai/`. As
+alterações de prompt devem ser implantadas explicitamente como nova
+versão da função. As suítes de regressão incluem
+`tests/qa-ai-diagram-prompt.test.mjs`,
+`frontend/tests/mermaid-validation.test.ts` e o browser
+`frontend/tests/browser-ai-workbench.mjs`.
