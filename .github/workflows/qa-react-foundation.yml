@@ -35,10 +35,34 @@ jobs:
         run: npm run build
       - name: Verify initial-load gzip budget and lazy imports
         run: node scripts/check-bundle-budget.mjs
-      - name: Preview artifact (not deployment)
+      # Do not distribute a preview pointing to the live Supabase project.
+      # This is a static release-candidate bundle for code review only;
+      # functional Auth/RLS tests require a separately configured staging build.
+      - name: Build isolated release candidate (production DB disabled)
+        if: success()
+        env:
+          VITE_SUPABASE_URL: https://qa-hub-preview.invalid
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_qa_preview_inert
+          VITE_AUTH_REDIRECT_URL: https://qa-hub-preview.invalid/auth.html
+          VITE_PUBLIC_SHARING_ENABLED: 'false'
+        run: |
+          npm run build
+          if grep -R -lE 'pqadmlhcsimlcclpkyov|sb_publishable_3Duz2dETsyYNPtfY-8Mxjw_pGBvCUP9' dist; then
+            echo "ERROR: release-candidate preview contains production Supabase configuration"
+            exit 1
+          fi
+          cat > dist/PREVIEW-ISOLADO.txt <<'EOF'
+          QA HUB REACT - PREVIA ISOLADA (SEM BACKEND)
+          Artefato de revisao de codigo e assets. NAO e publicacao de producao.
+          Este pacote foi compilado com URL Supabase .invalid e chave inerte.
+          Login, CRUD, IA conectada e RLS reais NAO funcionam neste pacote.
+          Para testes de contas reais, configure Supabase staging separado e
+          recompile com credenciais publicas de staging. Nao use dados reais.
+          EOF
+      - name: Publish isolated preview artifact (no deployment)
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-hub-react-preview
+          name: qa-hub-react-rc-isolado
           path: frontend/dist/
           retention-days: 7
