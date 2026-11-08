@@ -59,6 +59,15 @@ export default function TaskPage() {
   const [showEvidence, setShowEvidence] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
   const [generatorMode, setGeneratorMode] = useState<GeneratorMode | null>(null);
+  // TanStack Router reuses this page instance when navigating from one TF to
+  // another. Never carry an open tool (or another TF's draft) to the new task.
+  useEffect(()=>{
+    setEditing(false);setShowScenarioForm(false);setShowSettings(false);
+    setShowDiagrams(false);setFocusDiagramAi(false);setShowDocuments(false);
+    setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
+    setShowLinks(false);setGeneratorMode(null);
+    setEditingScenario(null);setPending(null);setObserved("");
+  },[taskId]);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [nextStatus, setNextStatus] = useState<(typeof taskStatuses)[number]>("rascunho");
   const [importWarning, setImportWarning] = useState("");
