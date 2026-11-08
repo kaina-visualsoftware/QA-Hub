@@ -1348,3 +1348,68 @@
   .qa-history-controls,.qa-history-compare-selects{grid-template-columns:1fr}
   .qa-history-list,.qa-history-task-changes,.qa-history-compare{padding:11px}
 }
+/* F5 — collaboration: compact, mobile-first tools kept behind a single modal. */
+.qa-f5-profile-teams{display:flex;flex-direction:column;align-items:flex-start;gap:13px;
+  min-width:0;margin-top:15px}
+.qa-f5-profile-teams>.qa-f5-teams{border:0;box-shadow:none;width:100%;
+  padding:12px 0 0;border-top:1px solid #dce7e9;border-radius:0}
+.qa-f5-teams,.qa-f5-collab{display:flex;flex-direction:column;gap:15px;min-width:0}
+.qa-f5-teams h3,.qa-f5-tab h3{font-size:.93rem;font-weight:760;
+  color:#284e59;display:flex;align-items:center;gap:7px}
+.qa-f5-create,.qa-f5-invite-form,.qa-f5-team-details,.qa-f5-invites,
+.qa-f5-members{display:flex;flex-direction:column;gap:10px;min-width:0}
+.qa-f5-invites,.qa-f5-members,.qa-f5-invite-form,.qa-f5-team-details{
+  border:1px solid #dbe8e9;border-radius:11px;padding:12px}
+.qa-f5-create{display:flex;flex-direction:row;align-items:end;flex-wrap:wrap}
+.qa-f5-create>.field{flex:1 1 205px;min-width:0}
+.qa-f5-create button{flex-shrink:0;min-height:43px}
+.qa-f5-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qa-f5-actions>.field{flex:1 1 130px}
+.qa-f5-item{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:9px;border:1px solid #e0e9eb;border-radius:9px;
+  min-width:0;font-size:.83rem}
+.qa-f5-item>span{display:flex;flex-direction:column;gap:4px;
+  min-width:0;overflow-wrap:anywhere}
+.qa-f5-item small{font-size:.75rem;color:#567784}
+.qa-f5-item .qa-f5-actions{justify-content:flex-end}
+.qa-f5-item select,.qa-f5-actions select{min-height:40px;border:1px solid #d5e1e4;
+  border-radius:7px;max-width:130px;padding:6px}
+.qa-f5-tabs{display:flex;gap:5px;padding:4px;background:#eaf1f2;border-radius:12px;
+  overflow-x:auto;max-width:100%}
+.qa-f5-tabs button{display:flex;align-items:center;justify-content:center;
+  gap:7px;white-space:nowrap;min-height:42px;padding:9px 12px;
+  color:#3f6571;border-radius:8px;font-size:.82rem;font-weight:750;flex:1}
+.qa-f5-tabs button.selected{background:white;color:#164b57;
+  box-shadow:0 1px 5px rgba(18,54,62,.09)}
+.qa-f5-tabs button:focus-visible{outline:3px solid #16828d;outline-offset:2px}
+.qa-f5-tab{display:flex;flex-direction:column;gap:13px;min-width:0}
+.qa-f5-tab .field{min-width:0}
+.qa-f5-team-attached,.qa-f5-import-row,.qa-f5-comment{
+  background:#fff;border:1px solid #dce7e9;border-radius:11px;
+  padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.qa-f5-team-attached p,.qa-f5-import-row small{font-size:.8rem;color:#53727b}
+.qa-f5-comment>div{display:flex;justify-content:space-between;gap:12px;
+  flex-wrap:wrap;font-size:.81rem}
+.qa-f5-comment time{font-size:.73rem;color:#5d7680}
+.qa-f5-comment p,.qa-f5-observed{font-size:.85rem;white-space:pre-wrap;
+  overflow-wrap:anywhere;color:#3c5e69}
+.qa-f5-rights{font-size:.8rem;color:#546f79}
+.qa-f5-divider{border-top:1px solid #dbe6e8;margin:4px 0}
+.qa-f5-import-row>strong{font-size:.84rem;overflow-wrap:anywhere}
+.qa-f5-import-row>button{align-self:flex-start}
+.qa-f5-tab>.secondary-link{align-self:flex-start}
+@media(max-width:560px){
+ .qa-f5-tabs{gap:2px}
+ .qa-f5-tabs button{font-size:.75rem;padding:7px 9px;gap:4px}
+ .qa-f5-tabs button svg{width:15px}
+ .qa-f5-item{align-items:flex-start;flex-direction:column}
+ .qa-f5-item .qa-f5-actions{justify-content:flex-start;width:100%}
+ .qa-f5-create{flex-direction:column;align-items:stretch}
+ .qa-f5-create>.field{flex:auto}
+ .qa-f5-create button{align-self:stretch}
+}
+.qa-f5-invites-history{border:1px solid #e2ecee;border-radius:10px;padding:8px 11px}
+.qa-f5-invites-history>summary{cursor:pointer;font-size:.81rem;font-weight:720;
+  min-height:38px;display:flex;align-items:center;color:#326473}
+.qa-f5-invites-history>p{margin-bottom:10px}
+.qa-f5-invites-history>.qa-f5-item{margin:6px 0}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { Check, RotateCcw, Save, Settings2, ShieldCheck } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
@@ -8,6 +8,7 @@ import {
   navigationFromMetadata, optionalMenuIds
 } from "./navigation-preferences";
 import type { NavigationPreferences, OptionalMenuId } from "./navigation-preferences";
+const TeamsSettings=lazy(()=>import("../collaboration/TeamsSettings"));
 
 export default function ProfilePage({isAdmin}: {isAdmin:boolean}){
   const {user} = useAuth();
@@ -16,6 +17,7 @@ export default function ProfilePage({isAdmin}: {isAdmin:boolean}){
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [error,setError] = useState("");
+  const [showTeams,setShowTeams]=useState(false);
   useEffect(() => {
     setSelection(navigationFromMetadata(user?.user_metadata));
   }, [user?.id, user?.user_metadata]);
@@ -93,5 +95,20 @@ export default function ProfilePage({isAdmin}: {isAdmin:boolean}){
         {error&&<p className="notice error" role="alert">{error}</p>}
       </section>
     </div>
+    <section className="panel qa-f5-profile-teams" aria-label="Gerenciar equipes">
+      <div className="qa-profile-title">
+        <Settings2 size={20} aria-hidden="true"/>
+        <div><h2>Equipes e colaboração</h2>
+          <p className="text-muted text-sm">Convites, permissões e integrantes.</p>
+        </div>
+      </div>
+      <Button variant="secondary" onPress={()=>setShowTeams(value=>!value)}
+        aria-expanded={showTeams}>
+        {showTeams?"Fechar equipes":"Gerenciar equipes"}
+      </Button>
+      {showTeams&&user?.id&&<Suspense fallback={<p role="status">Carregando equipes…</p>}>
+        <TeamsSettings userId={user.id}/>
+      </Suspense>}
+    </section>
   </div>;
 }

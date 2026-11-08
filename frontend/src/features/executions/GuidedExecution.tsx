@@ -9,10 +9,11 @@ type ResultStatus = ExecutionResult["status"];
 type GuidedDraft = "reprovado" | "bloqueado" | null;
 
 export default function GuidedExecution({
-  scenarios, owner, busy, onSave, onEvidence, onNewScenario
+  scenarios, owner, canCreateScenario=owner, busy, onSave, onEvidence, onNewScenario
 }: {
   scenarios: Scenario[];
   owner: boolean;
+  canCreateScenario?:boolean;
   busy: boolean;
   onSave: (scenario: Scenario, status: ResultStatus, observed: string) => Promise<boolean>;
   onEvidence: (scenario: Scenario) => void;
@@ -116,7 +117,7 @@ export default function GuidedExecution({
         "Sem cenários pendentes"}</h4>
       <p>{scenarios.length===0?"Cadastre ou gere casos para começar.":
         "Não há mais pendências nesta TF. Confira os resultados antes de alterar a situação da tarefa."}</p>
-      {scenarios.length===0&&<button type="button" disabled={!owner} onClick={onNewScenario}>
+      {scenarios.length===0&&<button type="button" disabled={!canCreateScenario} onClick={onNewScenario}>
         <FilePlus2 size={16} aria-hidden="true"/> Cadastrar cenário
       </button>}
       {scenarios.length>0&&<button type="button" onClick={()=>selectScope("all")}>

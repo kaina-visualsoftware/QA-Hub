@@ -64,7 +64,14 @@ export async function getTaskById(id:string,userId:string,isAdmin:boolean):Promi
     .limit(1);
   if(error)throw error;
   const row=(data??[]).find(item=>item.id===uuid);
-  return row?taskSchema.parse(row):null;
+  if(row)return taskSchema.parse(row);
+  if(isAdmin)return null;
+  // A team member can read a TF shared through RLS even when they are not
+  // its owner. Query that single ID only; never enumerate another account.
+  const shared=await supabase.from("qa_tarefas").select("*").eq("id",uuid).limit(1);
+  if(shared.error)throw shared.error;
+  const sharedRow=(shared.data??[]).find(item=>item.id===uuid);
+  return sharedRow?taskSchema.parse(sharedRow):null;
 }
 export async function listSavedFilters(userId:string):Promise<SavedTaskFilter[]>{
   z.uuid().parse(userId);
