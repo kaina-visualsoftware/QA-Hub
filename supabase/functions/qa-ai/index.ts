@@ -100,6 +100,14 @@ Deno.serve(async req => {
   }
   const text=typeof (body as {text?:unknown})?.text==="string" ? (body as {text:string}).text.trim():"";
   const diagramMode=(body as {mode?:unknown})?.mode==="diagram";
+  const previousMermaid=typeof (body as {mermaid?:unknown})?.mermaid==="string"
+    ? (body as {mermaid:string}).mermaid.trim():"";
+  const syntaxError=typeof (body as {syntaxError?:unknown})?.syntaxError==="string"
+    ? (body as {syntaxError:string}).syntaxError.trim():"";
+  if((previousMermaid||syntaxError)&&(!diagramMode||!previousMermaid||
+     previousMermaid.length>16000||syntaxError.length>1500)){
+    return respond(origin,400,{error:"invalid_repair",message:"Código ou erro de sintaxe inválido para correção."});
+  }
   if(!text || text.length>MAX_REPORT_CHARS) {
     return respond(origin,400,{error:"too_long",message:"Informe um texto entre 1 e 20.000 caracteres."});
   }
@@ -138,7 +146,7 @@ Deno.serve(async req => {
         },
         body:JSON.stringify({
           model,
-          messages:diagramMode?diagramMessages(text):promptForReport(text),
+          messages:diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):promptForReport(text),
           temperature:0.1,
           max_tokens:diagramMode?2400:4800,
           stream:false,
