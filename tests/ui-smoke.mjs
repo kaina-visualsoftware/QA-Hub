@@ -140,32 +140,6 @@ export function createClient(){
       }
     },
     async rpc(name,args){
-      if(name==='qa_public_tasks_v1'){
-        const data=tables.qa_tarefas.filter(row=>row.publica).map(row=>({
-          id:row.id,titulo:row.titulo,codigo:row.codigo,tipo_teste:row.tipo_teste,
-          sistema:row.sistema,versao:row.versao,executado_em:row.executado_em
-        }));
-        return {data,error:null};
-      }
-      if(name==='qa_public_task_v1'){
-        const row=tables.qa_tarefas.find(x=>x.id===args?.p_task_id&&x.publica);
-        if(!row)return {data:null,error:null};
-        const task={
-          id:row.id,titulo:row.titulo,codigo:row.codigo,tipo_teste:row.tipo_teste,
-          sistema:row.sistema,versao:row.versao,executado_em:row.executado_em,
-          status:row.status,descricao:row.descricao,explicacao:row.explicacao,
-          causa:row.causa,correcao:row.correcao,conclusao:row.conclusao,
-          observacoes:row.observacoes
-        };
-        const scenarios=tables.qa_cenarios.filter(x=>x.tarefa_id===row.id).map(x=>({
-          id:x.id,titulo:x.titulo,ordem:x.ordem,passos:x.passos,
-          esperado:x.esperado,obtido:x.obtido,observacoes:x.observacoes,status:x.status
-        }));
-        const diagrams=tables.qa_diagramas.filter(x=>x.tarefa_id===row.id).map(x=>({
-          id:x.id,titulo:x.titulo,conteudo:x.conteudo
-        }));
-        return {data:{task,scenarios,diagrams},error:null};
-      }
       if(name==='qa_register_requirement_file'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         const object=storageObjects.get(args.p_path);
@@ -496,24 +470,8 @@ try {
     await page.screenshot({path:'artifacts/ui/qa-native-release-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
     await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
-    const expectedDraft='QA Hub mantém o conteúdo ao alternar ferramentas';
-    const restoredDraft=await tool.locator('#t').inputValue();
-    const currentSource=await page.locator('#tool-frame').getAttribute('src');
-    if(restoredDraft!==expectedDraft || currentSource!==source){
-      const details=await page.evaluate(()=>{
-        const frame=document.querySelector('#tool-frame');
-        return {
-          hash:location.hash,
-          src:frame?.src,
-          initialized:frame?.dataset.initialized,
-          documentState:frame?.contentDocument?.readyState,
-          toolTitle:document.querySelector('#tool-view-title')?.textContent,
-          toolVisible:!frame?.hidden
-        };
-      });
-      assert.fail('Generator draft/context changed on tool switch at '+width+
-        ': '+JSON.stringify({restoredDraft,currentSource,source,details}));
-    }
+    assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
+    assert.equal(await page.locator('#tool-frame').getAttribute('src'),source,'Tool changes should not reload the module');
     overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     assert.ok(overflow<=1,'Integrated tools horizontal overflow at '+width+': '+overflow);
     await page.locator('#sidebar .navigation a[data-route="dashboard"]').evaluate(el=>el.click());
