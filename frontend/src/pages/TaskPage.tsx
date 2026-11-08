@@ -380,7 +380,8 @@ export default function TaskPage() {
           <Plus size={17}/> Cenário
         </Button>
         <Button variant="secondary" onPress={startPendingExecution}
-          isDisabled={scenarios.isPending}><ListChecks size={17}/> Testar pendentes</Button>
+          aria-label="Testar pendentes"
+          isDisabled={scenarios.isPending}><ListChecks size={17}/> Pendentes</Button>
         <Button variant="secondary"
           isDisabled={scenarios.isPending||scenarios.isError||scenarios.isFetching}
           onPress={()=>{setFocusReport(true);openTool("documents");}}>
