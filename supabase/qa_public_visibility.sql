@@ -1,3 +1,9 @@
+-- SECURITY WARNING (issue #37): LEGACY / NOT SAFE AS A PUBLIC DATA API.
+-- Row-level SELECT and table-wide grants below do NOT mask private columns
+-- (user_id, empresa, base_teste, testador etc.) in published records.
+-- DO NOT reapply this file as a current security fix. See:
+-- supabase/qa_public_read_api.sql and qa_public_read_lockdown.sql
+-- for a staged, controlled migration and independent RLS verification.
 -- Public QA sharing is OPT-IN. All existing TFs remain private.
 alter table public.qa_tarefas
   add column if not exists publica boolean not null default false;

@@ -1,0 +1,159 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@heroui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClipboardCopy, Download, FileCheck2, FileText, RefreshCw } from "lucide-react";
+import type { Task, Scenario } from "../../lib/contracts";
+import { supabase } from "../../lib/supabase";
+import {
+  buildExecutionReport, buildTestedSummary, cleanDocumentName, executionSummary, saveTfDocument
+} from "../../lib/legacy/qa-phase2.mjs";
+import type { TfDocument } from "../../lib/legacy/qa-phase2.mjs";
+
+function downloadMarkdown(content: string, name: string) {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = cleanDocumentName(name);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export default function DocumentsPanel({
+  task, scenarios, userId, focusOnOpen = false
+}: { task: Task; scenarios: Scenario[]; userId: string; focusOnOpen?: boolean }) {
+  const queryClient = useQueryClient();
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // null means live, generated from saved scenarios; "" is a real, editable empty draft.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  const docs = useQuery({
+    queryKey: ["documents", userId, task.id],
+    queryFn: async () => {
+      const { data, error: queryError } = await supabase.from("qa_documentos")
+        .select("id,tarefa_id,tipo,titulo,conteudo,versao,created_at")
+        .eq("tarefa_id", task.id).order("created_at", { ascending: false }).limit(100);
+      if (queryError) throw queryError;
+      return (data ?? []) as TfDocument[];
+    }
+  });
+  const selected = useMemo(() => docs.data?.find((item) => item.id === selectedId),
+    [docs.data, selectedId]);
+  const report = useMemo(() => buildExecutionReport(task, scenarios), [task, scenarios]);
+  const testedSummary = useMemo(() => buildTestedSummary(scenarios), [scenarios]);
+  const counts = useMemo(() => executionSummary(scenarios), [scenarios]);
+  const content = draft ?? report;
+  useEffect(() => {
+    if (!focusOnOpen) return;
+    const frame = requestAnimationFrame(() => {
+      headingRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+      headingRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusOnOpen]);
+  const save = useMutation({
+    mutationFn: () => saveTfDocument(supabase, {
+      taskId: task.id, type: "relatorio",
+      title: "Relatório de execução — " + task.titulo.slice(0, 190),
+      content, source: draft === null ? "execucao" : "manual"
+    }),
+    onSuccess: async (record) => {
+      setNote("Relatório salvo como versão " + record.versao + ".");
+      setError("");
+      await queryClient.invalidateQueries({ queryKey: ["documents", userId, task.id] });
+    },
+    onError: (e) => setError(e.message)
+  });
+
+  return <section className="panel mt-5" aria-labelledby="documents-heading">
+    <div className="section-heading">
+      <div>
+        <p className="eyebrow">HISTÓRICO VINCULADO</p>
+        <h2 id="documents-heading" ref={headingRef} tabIndex={-1}>Posts e relatórios</h2>
+        <p className="text-muted">Versões privadas imutáveis, consultáveis sem acessar o gerador antigo.</p>
+      </div>
+      <span className="count-pill">{docs.data?.length ?? 0} documento(s)</span>
+    </div>
+    <div className="generator-docs mt-5">
+      <div className="stack">
+        <h3 className="font-semibold">Gerar relatório de execução</h3>
+        <p className="text-muted text-sm">
+          Criado exclusivamente a partir do status e dos resultados já registrados.
+          Nenhuma aprovação é inferida.
+        </p>
+        <p className="text-muted text-sm">
+          {counts.finalizados} de {counts.total} cenário(s) com execução registrada.
+          {counts.nao_executado > 0 ? " Os pendentes não aparecem em O que foi testado." : ""}
+        </p>
+        <label className="field">O que foi testado (somente resultados salvos)
+          <textarea rows={7} readOnly value={testedSummary} />
+        </label>
+        <div>
+          <Button variant="secondary" onPress={() => {
+            void navigator.clipboard.writeText(testedSummary)
+              .then(() => setNote("Resumo copiado. Revise antes de utilizar."))
+              .catch(() => setError("Não foi possível copiar. Selecione o texto acima manualmente."));
+          }}>
+            <ClipboardCopy size={16} /> Copiar o que foi testado
+          </Button>
+        </div>
+        <label className="field">Relatório completo (editável antes de salvar)
+          <textarea rows={12} value={content} maxLength={80000}
+            onChange={(event) => { setDraft(event.target.value); setNote(""); }} />
+        </label>
+        {draft !== null && <div className="stack">
+          <p className="text-muted text-sm" role="status">
+            Edição manual em andamento. Mudanças posteriores nos cenários não substituem este texto.
+            Para recuperar a versão baseada nos resultados salvos, use Atualizar prévia.
+          </p>
+          <div><Button variant="secondary" onPress={() => {
+            if (draft.trim() && !window.confirm(
+              "Substituir a edição manual pela versão atual dos cenários salvos?"
+            )) return;
+            setDraft(null); setNote("");
+          }}><RefreshCw size={16} /> Atualizar prévia</Button></div>
+        </div>}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" isDisabled={!content.trim()}
+            onPress={() => downloadMarkdown(content, "relatorio-" + task.codigo)}>
+            <Download size={16} /> Baixar Markdown
+          </Button>
+          <Button isDisabled={save.isPending || !scenarios.length || !content.trim() || content.length > 80000}
+            onPress={() => save.mutate()}>
+            <FileCheck2 size={16} /> Salvar versão
+          </Button>
+        </div>
+        {note && <p className="notice" role="status">{note}</p>}
+        {error && <p className="notice error" role="alert">{error}</p>}
+      </div>
+      <div>
+        <h3 className="font-semibold">Versões existentes</h3>
+        {docs.isPending && <p className="text-muted mt-3" role="status">Carregando documentos…</p>}
+        {docs.isError && <p className="notice error mt-3" role="alert">{docs.error.message}</p>}
+        {docs.isSuccess && docs.data.length === 0 &&
+          <p className="text-muted mt-3 text-sm">Nenhum post ou relatório salvo nesta TF.</p>}
+        <div className="stack mt-3">
+          {docs.data?.map((item) => <button key={item.id}
+            className={"document-choice " + (item.id === selectedId ? "selected" : "")}
+            onClick={() => setSelectedId((id) => id === item.id ? null : item.id)}>
+            <FileText size={18} />
+            <span><strong>{item.titulo}</strong>
+              <small>{item.tipo === "post" ? "Post" : "Relatório"} · versão {item.versao} ·
+                {" " + new Date(item.created_at).toLocaleDateString("pt-BR")}</small>
+            </span>
+          </button>)}
+        </div>
+      </div>
+    </div>
+    {selected && <div className="stack mt-6">
+      <h3 className="font-semibold">{selected.titulo} — versão {selected.versao}</h3>
+      <textarea className="readonly-doc" readOnly rows={14} value={selected.conteudo}
+        aria-label="Conteúdo do documento selecionado" />
+      <div><Button variant="secondary" onPress={() => downloadMarkdown(selected.conteudo, selected.titulo)}>
+        <Download size={16} /> Baixar esta versão
+      </Button></div>
+    </div>}
+  </section>;
+}

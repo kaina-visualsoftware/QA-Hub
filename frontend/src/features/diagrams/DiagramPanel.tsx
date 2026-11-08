@@ -1,0 +1,120 @@
+import { useState } from "react";
+import { Button } from "@heroui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { GitBranchPlus, Eye, Pencil, Trash2 } from "lucide-react";
+import {
+  diagramDraftSchema, listDiagrams, removeDiagram, saveDiagram
+} from "../../lib/data";
+import type { Diagram } from "../../lib/data";
+
+export default function DiagramPanel({ taskId, userId }: { taskId: string; userId: string }) {
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | undefined>();
+  const [title, setTitle] = useState("");
+  const [code, setCode] = useState("flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]");
+  const [svg, setSvg] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [busyPreview, setBusyPreview] = useState(false);
+  const [message, setMessage] = useState("");
+  const diagrams = useQuery({
+    queryKey: ["diagrams", userId, taskId], queryFn: () => listDiagrams(taskId)
+  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["diagrams", userId, taskId] });
+  const save = useMutation({
+    mutationFn: () => saveDiagram(taskId, userId, { titulo: title, conteudo: code }, editingId),
+    onSuccess: async () => {
+      setEditingId(undefined); setMessage("Diagrama salvo."); await invalidate();
+    }
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => removeDiagram(taskId, id),
+    onSuccess: async () => { setMessage("Diagrama excluído."); await invalidate(); }
+  });
+
+  function edit(record: Diagram) {
+    setEditingId(record.id);
+    setTitle(record.titulo); setCode(record.conteudo); setSvg(null); setPreviewError("");
+  }
+
+  async function preview(value: string) {
+    setPreviewError(""); setSvg(null);
+    if (!value.trim() || value.length > 16000) {
+      setPreviewError("O código Mermaid deve ter entre 1 e 16.000 caracteres.");
+      return;
+    }
+    setBusyPreview(true);
+    try {
+      // Lazy: not included in the initial task list bundle.
+      const { default: mermaid } = await import("mermaid");
+      mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: "neutral", maxTextSize: 16000 });
+      await mermaid.parse(value);
+      const { svg: rendered } = await mermaid.render("qa-diagram-" + crypto.randomUUID().replaceAll("-", ""), value);
+      // The rendered SVG is displayed inside a no-permissions sandboxed document;
+      // never inject untrusted SVG into the application's DOM.
+      setSvg(rendered);
+    } catch (error) {
+      setPreviewError("Mermaid inválido: " + (error instanceof Error ? error.message : "erro de sintaxe"));
+    } finally { setBusyPreview(false); }
+  }
+
+  return <section className="panel mt-5" aria-labelledby="diagram-heading">
+    <div className="section-heading"><div><p className="eyebrow">DOCUMENTAÇÃO VISUAL</p>
+      <h2 id="diagram-heading">Diagramas Mermaid</h2>
+      <p className="text-muted">Edite o código e visualize sem executar scripts não confiáveis.</p></div>
+      <span className="count-pill">{diagrams.data?.length ?? 0} diagrama(s)</span>
+    </div>
+    <div className="diagram-layout mt-5">
+      <form className="stack" onSubmit={(event) => {
+        event.preventDefault();
+        const result = diagramDraftSchema.safeParse({ titulo: title, conteudo: code });
+        if (!result.success) { setPreviewError(result.error.issues[0]?.message || "Revise os campos."); return; }
+        void save.mutateAsync();
+      }}>
+        <label className="field">Título<input maxLength={160} value={title}
+          onChange={(e) => setTitle(e.target.value)} placeholder="Fluxo de validação" /></label>
+        <label className="field">Código Mermaid<textarea rows={12} maxLength={16000}
+          value={code} onChange={(e) => { setCode(e.target.value); setSvg(null); }} /></label>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" isDisabled={busyPreview} onPress={() => void preview(code)}>
+            <Eye size={16} /> {busyPreview ? "Validando…" : "Prévia"}
+          </Button>
+          <Button type="submit" isDisabled={save.isPending}>Salvar diagrama</Button>
+          {editingId && <Button type="button" variant="secondary" onPress={() => {
+            setEditingId(undefined); setTitle(""); setSvg(null); setMessage("");
+          }}>Novo diagrama</Button>}
+        </div>
+        {previewError && <p role="alert" className="notice error">{previewError}</p>}
+        {save.isError && <p role="alert" className="notice error">{save.error.message}</p>}
+        {message && <p role="status" className="notice">{message}</p>}
+      </form>
+      <div>
+        <p className="field mb-3">Prévia isolada</p>
+        {svg ? <iframe title="Visualização do diagrama Mermaid" className="diagram-preview"
+          sandbox="" referrerPolicy="no-referrer" srcDoc={svg} /> :
+          <div className="diagram-preview-placeholder">Clique em Prévia para renderizar o fluxo.</div>}
+        <p className="text-muted text-xs mt-2">A prévia usa sandbox restritivo. O código só é salvo após sua confirmação.</p>
+      </div>
+    </div>
+    <div className="mt-6">
+      <h3 className="font-semibold mb-3">Diagramas cadastrados</h3>
+      {diagrams.isPending && <p role="status">Carregando diagramas…</p>}
+      {diagrams.isError && <p className="notice error" role="alert">{diagrams.error.message}</p>}
+      {diagrams.isSuccess && diagrams.data.length === 0 &&
+        <p className="text-muted text-sm">Nenhum diagrama cadastrado nesta TF.</p>}
+      {diagrams.data?.map((diagram) => <div className="diagram-item" key={diagram.id}>
+        <strong>{diagram.titulo}</strong>
+        <div className="diagram-item-actions">
+          <button className="secondary-link" onClick={() => void preview(diagram.conteudo)}><Eye size={15} /> Visualizar</button>
+          <button className="secondary-link" onClick={() => edit(diagram)}><Pencil size={15} /> Editar</button>
+          <button className="secondary-link" disabled={remove.isPending} onClick={() => {
+            if (window.confirm("Excluir este diagrama?")) void remove.mutateAsync(diagram.id);
+          }}><Trash2 size={15} /> Excluir</button>
+        </div>
+      </div>)}
+      {remove.isError && <p role="alert" className="notice error">{remove.error.message}</p>}
+    </div>
+    <p className="text-muted mt-4 text-xs flex gap-2 items-center">
+      <GitBranchPlus size={16} /> Para geração de diagramas por IA, use temporariamente a ferramenta da versão anterior.
+    </p>
+  </section>;
+}
