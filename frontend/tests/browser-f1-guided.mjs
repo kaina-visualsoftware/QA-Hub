@@ -74,6 +74,7 @@ async function mock(route){
     }
   }
   if(path.endsWith("/rest/v1/qa_evidencias") && method==="GET")return send([]);
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
   unexpected.push(method+" "+path);
   return send({message:"Unexpected synthetic request"},500);
 }

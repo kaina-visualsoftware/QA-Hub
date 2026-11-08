@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCopy, Download, FileCheck2, FileText, RefreshCw } from "lucide-react";
+import { listEvidenceFiles } from "../evidence/evidence-files";
+import { buildQaReportPdf } from "./qa-report-pdf";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import {
@@ -29,6 +31,7 @@ export default function DocumentsPanel({
   const [draft, setDraft] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [busyPdf,setBusyPdf]=useState(false);
   const docs = useQuery({
     queryKey: ["documents", userId, task.id],
     queryFn: async () => {
@@ -38,6 +41,11 @@ export default function DocumentsPanel({
       if (queryError) throw queryError;
       return (data ?? []) as TfDocument[];
     }
+  });
+  const evidenceFiles = useQuery({
+    queryKey:["evidence-files",userId,task.id],
+    queryFn:()=>listEvidenceFiles(supabase,task.id),
+    enabled:task.user_id===userId
   });
   const selected = useMemo(() => docs.data?.find((item) => item.id === selectedId),
     [docs.data, selectedId]);
@@ -53,6 +61,25 @@ export default function DocumentsPanel({
     });
     return () => cancelAnimationFrame(frame);
   }, [focusOnOpen]);
+  async function downloadPdf(text:string,name:string){
+    if(busyPdf||!text.trim())return;
+    setError("");setBusyPdf(true);
+    try{
+      const data=await buildQaReportPdf({
+        task,scenarios,content:text,files:evidenceFiles.data??[]
+      });
+      const blob=new Blob([new Uint8Array(data)],{type:"application/pdf"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");link.href=url;
+      link.download=cleanDocumentName(name,"pdf");
+      document.body.append(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),15000);
+      setNote("PDF gerado localmente. O relatório e a TF não foram modificados.");
+    }catch(reason){
+      setError(reason instanceof Error?reason.message:"Não foi possível exportar PDF.");
+    }finally{setBusyPdf(false);}
+  }
+
   const save = useMutation({
     mutationFn: () => saveTfDocument(supabase, {
       taskId: task.id, type: "relatorio",
@@ -87,20 +114,22 @@ export default function DocumentsPanel({
           {counts.finalizados} de {counts.total} cenário(s) com execução registrada.
           {counts.nao_executado > 0 ? " Os pendentes não aparecem em O que foi testado." : ""}
         </p>
-        <label className="field">O que foi testado (somente resultados salvos)
-          <textarea rows={7} readOnly value={testedSummary} />
-        </label>
-        <div>
+        <details className="qa-report-summary-details">
+          <summary>Consultar o que foi testado</summary>
+          <label className="field mt-3">O que foi testado (somente resultados salvos)
+            <textarea rows={7} readOnly value={testedSummary}/>
+          </label>
           <Button variant="secondary" onPress={() => {
             void navigator.clipboard.writeText(testedSummary)
               .then(() => setNote("Resumo copiado. Revise antes de utilizar."))
               .catch(() => setError("Não foi possível copiar. Selecione o texto acima manualmente."));
           }}>
-            <ClipboardCopy size={16} /> Copiar o que foi testado
+            <ClipboardCopy size={16}/> Copiar o que foi testado
           </Button>
-        </div>
-        <label className="field">Relatório completo (editável antes de salvar)
-          <textarea rows={12} value={content} maxLength={80000}
+        </details>
+
+        <label className="field">Prévia do relatório (editável antes de salvar)
+          <textarea rows={9} value={content} maxLength={80000}
             onChange={(event) => { setDraft(event.target.value); setNote(""); }} />
         </label>
         {draft !== null && <div className="stack">
@@ -116,6 +145,10 @@ export default function DocumentsPanel({
           }}><RefreshCw size={16} /> Atualizar prévia</Button></div>
         </div>}
         <div className="flex flex-wrap gap-2">
+          <Button isDisabled={!content.trim()||busyPdf}
+            onPress={()=>void downloadPdf(content,"relatorio-"+(task.codigo||task.id))}>
+            <Download size={16}/>{busyPdf?"Gerando PDF…":"Exportar PDF"}
+          </Button>
           <Button variant="secondary" isDisabled={!content.trim()}
             onPress={() => downloadMarkdown(content, "relatorio-" + task.codigo)}>
             <Download size={16} /> Baixar Markdown
@@ -125,6 +158,9 @@ export default function DocumentsPanel({
             <FileCheck2 size={16} /> Salvar versão
           </Button>
         </div>
+        {evidenceFiles.isError&&<p className="notice error" role="alert">
+          A relação de anexos não foi carregada. O PDF poderá ser exportado sem ela.
+        </p>}
         {note && <p className="notice" role="status">{note}</p>}
         {error && <p className="notice error" role="alert">{error}</p>}
       </div>
@@ -151,9 +187,14 @@ export default function DocumentsPanel({
       <h3 className="font-semibold">{selected.titulo} — versão {selected.versao}</h3>
       <textarea className="readonly-doc" readOnly rows={14} value={selected.conteudo}
         aria-label="Conteúdo do documento selecionado" />
-      <div><Button variant="secondary" onPress={() => downloadMarkdown(selected.conteudo, selected.titulo)}>
-        <Download size={16} /> Baixar esta versão
-      </Button></div>
+      <div className="flex flex-wrap gap-2">
+        <Button isDisabled={busyPdf} onPress={()=>void downloadPdf(selected.conteudo,selected.titulo)}>
+          <Download size={16}/> Exportar versão em PDF
+        </Button>
+        <Button variant="secondary" onPress={() => downloadMarkdown(selected.conteudo, selected.titulo)}>
+          <Download size={16} /> Baixar Markdown
+        </Button>
+      </div>
     </div>}
   </section>;
 }

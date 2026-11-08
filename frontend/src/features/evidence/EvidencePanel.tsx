@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, ClipboardList, FilePlus2, Link2, X } from "lucide-react";
+import { Activity, ClipboardList, FilePlus2, Link2 } from "lucide-react";
 import { z } from "zod";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import { validateEvidence, auditDetails, auditLabel } from "../../lib/legacy/qa-phase4.mjs";
+import { EvidenceFilesPanel } from "./EvidenceFilesPanel";
 
 const uuid = z.uuid();
 const evidenceType = z.enum(["observacao", "log", "captura", "referencia"]);
@@ -40,8 +41,8 @@ async function listAudit(taskId: string, page: number): Promise<AuditEvent[]> {
 }
 
 export default function EvidencePanel({
-  task, userId, scenarios, onClose, prefillScenarioId, prefillRequest
-}: { task: Task; userId: string; scenarios: Scenario[]; onClose: () => void;
+  task, userId, scenarios, prefillScenarioId, prefillRequest
+}: { task: Task; userId: string; scenarios: Scenario[];
   prefillScenarioId?: string|null; prefillRequest?: number }) {
   const client = useQueryClient();
   const owner = task.user_id === userId;
@@ -94,14 +95,7 @@ export default function EvidencePanel({
   });
   const scenarioName = (id: string | null | undefined) =>
     scenarios.find((item) => item.id === id)?.titulo || "TF geral";
-  return <section className="panel mt-5" aria-labelledby="evidence-heading">
-    <div className="section-heading">
-      <div><p className="eyebrow">REGISTROS DO QA</p>
-        <h2 id="evidence-heading">Evidências e auditoria</h2>
-        <p className="text-muted">Anexe observações ou referências HTTPS. Consulte ações registradas pelo banco.</p>
-      </div>
-      <button type="button" aria-label="Fechar evidências" onClick={onClose}><X size={18} /></button>
-    </div>
+  return <section className="qa-evidence-workspace" aria-label="Evidências e auditoria da TF">
     {!owner ? <p role="alert" className="notice error mt-4">
       O registro de evidências está disponível somente para o proprietário da TF.
     </p> : <>
@@ -116,6 +110,18 @@ export default function EvidencePanel({
         </button>
       </div>
       {tab === "evidence" && <div role="tabpanel" className="stack mt-5">
+        <label className="field qa-evidence-scenario-picker">Cenário relacionado (opcional)
+          <select value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
+            <option value="">TF geral</option>
+            {scenarios.map(item=><option value={item.id} key={item.id}>
+              {item.titulo}
+            </option>)}
+          </select>
+        </label>
+        <EvidenceFilesPanel task={task} userId={userId} scenarios={scenarios}
+          scenarioId={scenarioId||null}/>
+        <details className="qa-evidence-text-details">
+          <summary>Adicionar observação ou link <span>Opcional</span></summary>
         <form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault();
           void save.mutateAsync();
@@ -129,14 +135,7 @@ export default function EvidencePanel({
               <option value="captura">Captura (link)</option>
               <option value="referencia">Referência</option>
             </select></label>
-            <label className="field grow-2">Cenário relacionado (opcional)
-              <select value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
-                <option value="">TF geral</option>
-                {scenarios.map((item) => <option value={item.id} key={item.id}>
-                  {item.titulo}
-                </option>)}
-              </select>
-            </label>
+
           </div>
           <label className="field mt-3">Resumo do que foi observado (3–2.000 caracteres)
             <textarea rows={3} maxLength={2000} value={summary}
@@ -156,7 +155,8 @@ export default function EvidencePanel({
           {save.isError && <p className="notice error mt-3" role="alert">{save.error.message}</p>}
           {message && <p className="notice mt-3" role="status">{message}</p>}
         </form>
-        <h3 className="font-semibold mt-4">Evidências anteriores</h3>
+        </details>
+        <h3 className="font-semibold mt-4">Observações e referências anteriores</h3>
         {evidence.isPending && <p role="status">Carregando evidências…</p>}
         {evidence.isError && <p role="alert" className="notice error">{evidence.error.message}</p>}
         {evidence.isSuccess && !evidence.data.length &&

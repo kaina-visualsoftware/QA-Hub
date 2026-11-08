@@ -55,6 +55,7 @@ async function fakeBackend(route){
   if(path.endsWith("/rest/v1/qa_requisitos")||
     path.endsWith("/rest/v1/qa_documentos")||
     path.endsWith("/rest/v1/qa_evidencias")||
+    path.endsWith("/rest/v1/qa_evidencia_arquivos")||
     path.endsWith("/rest/v1/qa_eventos")||
     path.endsWith("/rest/v1/qa_requisito_revisoes")||
     path.endsWith("/rest/v1/qa_requisito_fontes"))return send([]);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import {mkdirSync} from "node:fs";
 import JSZip from "jszip";
 
 // Small synthetic PDF built locally; no production document is used.
@@ -47,7 +48,9 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   sistema:"Financeiro",versao:"12.00",causa:"Filtro omitia valores negativos",
   correcao:"Critério corrigido",conclusao:"",observacoes:"",publica:false,
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
-const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],releases=[],releaseLinks=[],referenceRows=[],comparisonRows=[];
+const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],evidenceFiles=[],releases=[],releaseLinks=[],referenceRows=[],comparisonRows=[];
+const samplePng=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAOa2nx0AAAAASUVORK5CYII=","base64");
+let uploadedBytes=0,fileSaves=0;
 let requirementImports=0,coverageSaves=0,evidenceSaves=0,releaseSaves=0,referenceSaves=0,comparisonSaves=0;
 let aiCalls=0,attachCalls=0,postSaves=0,failNextGenerator=false;
 const aiPayloads=[];
@@ -111,6 +114,31 @@ async function mock(route){
       created_at:"2026-11-06T12:40:00.000Z"});
     releaseLinks.push({release_id:releaseId,tarefa_id:taskId});
     return send(releaseId);
+  }
+  if(p.startsWith("/storage/v1/object/")){
+    if(m==="POST"){
+      assert.match(p,/qa-evidence-private\/11111111-1111-4111-8111-111111111111\/22222222-2222-4222-8222-222222222222/);
+      uploadedBytes++;
+      return send({Key:p});
+    }
+    if(m==="GET"&&p.includes("/qa-evidence-private/")){
+      return route.fulfill({status:200,headers:cors,
+        contentType:"image/png",body:samplePng});
+    }
+    if(m==="DELETE")return send([]);
+  }
+  if(p.endsWith("/rest/v1/qa_evidencia_arquivos")){
+    if(m==="POST"){
+      fileSaves++;
+      const payload=req.postDataJSON();
+      assert.equal(payload.tarefa_id,taskId);
+      assert.equal(payload.user_id,userId);
+      assert.match(payload.objeto_path,/^11111111-1111-4111-8111-111111111111\/22222222-2222-4222-8222-222222222222\//);
+      const record={...payload,created_at:"2026-11-08T12:30:00Z"};
+      evidenceFiles.push(record);
+      return send(record,201);
+    }
+    return send(evidenceFiles);
   }
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
   if(p.endsWith("/rest/v1/qa_evidencias")){
@@ -299,6 +327,45 @@ try{
   await page.getByRole("button",{name:"Fechar Requisitos e cobertura"}).click();
   await page.getByRole("button",{name:/Evidências e auditoria/}).click();
   await page.getByRole("heading",{name:"Evidências e auditoria"}).waitFor();
+  mkdirSync("artifacts/f3-evidence",{recursive:true});
+  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
+  for(const width of [320,390,768,1366]){
+    await page.setViewportSize({width,height:844});
+    const widths=await page.evaluate(()=>{
+      const modal=[...document.querySelectorAll(".qa-modal")]
+        .find(element=>element.getClientRects().length>0);
+      const content=modal?.querySelector(".qa-modal-content");
+      return {document:document.documentElement.scrollWidth-innerWidth,
+        modal:content?content.scrollWidth-content.clientWidth:999};
+    });
+    assert.ok(widths.document<=1&&widths.modal<=1,
+      "F3 evidence overflow at "+width+": "+JSON.stringify(widths));
+    const audit=await page.evaluate(async()=>window.axe.run(document,{
+      runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
+      rules:{region:{enabled:false}}
+    }));
+    assert.deepEqual(audit.violations.map(v=>({
+      id:v.id,targets:v.nodes.slice(0,3).map(n=>n.target.join(" "))
+    })),[],"F3 evidence WCAG at "+width);
+    await page.screenshot({path:"artifacts/f3-evidence/evidence-"+width+".png"});
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole("textbox",{name:"Descrição (opcional)"}).fill("Captura sintética do pedido");
+  await page.getByLabel("Selecionar arquivo").setInputFiles({
+    name:"captura.png",mimeType:"image/png",buffer:samplePng
+  });
+  await page.getByRole("button",{name:"Anexar arquivo"}).click();
+  await page.getByText(/Anexo privado registrado/).waitFor();
+  assert.equal(uploadedBytes,1);
+  assert.equal(fileSaves,1);
+  assert.equal(evidenceFiles[0].mime_type,"image/png");
+  assert.equal(evidenceFiles[0].tamanho_bytes,samplePng.length);
+  assert.equal(evidenceFiles[0].descricao,"Captura sintética do pedido");
+  assert.equal(tasks[0].status,"rascunho","Anexar arquivo não aprova a TF.");
+  await page.getByRole("button",{name:"Visualizar"}).click();
+  await page.getByRole("region",{name:"Prévia do anexo privado"}).waitFor({timeout:8000});
+  await page.getByRole("button",{name:"Fechar prévia do arquivo"}).click();
+  await page.getByText("Adicionar observação ou link").click();
   await page.getByLabel(/Resumo do que foi observado/).fill("Desconto removido com o comportamento esperado.");
   await page.getByRole("button",{name:"Salvar evidência"}).click();
   await page.getByText(/Evidência registrada/).waitFor();

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import {readFile} from "node:fs/promises";
 
 // Synthetic E2E only: all Supabase calls are intercepted. This fixture does
 // not contain real accounts, task content or private documents.
@@ -69,6 +70,7 @@ async function mock(route){
       return send({id});
     }
   }
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   if(path.endsWith("/rest/v1/qa_documentos")){
     assert.equal(method,"GET","Reports list is read-only");
     return send(documents);
@@ -113,6 +115,7 @@ try{
   await heading.waitFor({timeout:20000});
   await page.waitForFunction(()=>document.activeElement?.id==="documents-heading");
 
+  await page.getByText("Consultar o que foi testado").click();
   const summary=page.getByRole("textbox",{name:"O que foi testado (somente resultados salvos)"});
   const original=await summary.inputValue();
   assert.match(original,/Venda aprovada/);
@@ -121,7 +124,7 @@ try{
   assert.match(original,/sem descrição do observado/i);
   assert.doesNotMatch(original,/Caso pendente/,"Pending cases must not be represented as tested");
 
-  const full=page.getByRole("textbox",{name:"Relatório completo (editável antes de salvar)"});
+  const full=page.getByRole("textbox",{name:"Prévia do relatório (editável antes de salvar)"});
   assert.match(await full.inputValue(),/## O que foi testado/);
   assert.match(await full.inputValue(),/Não executados: 1/);
   assert.equal(reportSaves,0,"Opening a report may not save or approve anything");
@@ -155,6 +158,18 @@ try{
   assert.match(await full.inputValue(),/Caso pendente/);
   assert.match(await full.inputValue(),/Não executados: 0/);
   assert.equal(task.status,"em_teste","A generated report must not close or approve the TF");
+
+  // File export happens entirely in the browser and never saves/approves a TF.
+  const [pdfDownload]=await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button",{name:"Exportar PDF",exact:true}).click()
+  ]);
+  assert.match(pdfDownload.suggestedFilename(),/\.pdf$/);
+  const bytes=await readFile(await pdfDownload.path());
+  assert.equal(bytes.subarray(0,5).toString(),"%PDF-");
+  assert.ok(bytes.length>1500);
+  assert.equal(taskWrites,0);
+  assert.equal(reportSaves,0,"Export is not a document-version save");
 
   await page.getByRole("button",{name:"Salvar versão"}).click();
   await page.getByText("Relatório salvo como versão 1.").waitFor();
