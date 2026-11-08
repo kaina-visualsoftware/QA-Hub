@@ -177,7 +177,7 @@ try {
   await page.getByRole("radio",{name:"Texto livre"}).check();
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
   assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
-  await page.getByRole("checkbox",{name:/Autorizo enviar o texto exibido à NVIDIA/}).check();
+  await page.getByRole("checkbox",{name:/Autorizo enviar este conteúdo à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
   await page.getByTitle("Visualização do diagrama Mermaid").waitFor({timeout:20000});
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
