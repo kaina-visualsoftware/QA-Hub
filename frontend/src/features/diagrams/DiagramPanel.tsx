@@ -119,6 +119,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
     <DiagramAiPanel task={task} scenarios={scenarios} userId={userId}
       repairRequest={repairRequest} onRepairHandled={()=>setRepairRequest(null)}
       onDraft={applyAiDraft}/>
+    {(title.trim()||svg||showEditor) ?
     <form className="qa-diagram-result" id="diagram-editor"
       onSubmit={event=>{event.preventDefault();void validateAndSave();}}>
       {svg&&<div className="qa-diagram-rendered">
@@ -172,7 +173,9 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
       </div>
       {save.isError&&<p role="alert" className="notice error">{save.error.message}</p>}
       {message&&<p role="status" className="qa-diagram-success">{message}</p>}
-    </form>
+    </form> :
+    <button type="button" className="qa-diagram-manual-toggle"
+      onClick={()=>setShowEditor(true)}>Criar manualmente com Mermaid</button>}
     {(diagrams.isPending||diagrams.isError)&&<p className="text-muted text-sm"
       role={diagrams.isError?"alert":"status"}>
       {diagrams.isPending?"Carregando diagramas…":"Não foi possível carregar diagramas."}
