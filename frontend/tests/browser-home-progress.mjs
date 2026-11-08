@@ -135,6 +135,9 @@ try{
 
   await page.reload();
   await page.getByRole("heading",{name:"Validar desconto"}).waitFor();
+  assert.equal(await page.getByRole("tab",{name:"Resumo"}).getAttribute("aria-selected"),"true",
+    "Refresh must return to the overview without replaying the resume intent");
+  await page.getByRole("tab",{name:/Testes/}).click();
   assert.equal(await page.getByRole("button",{name:"Todos",exact:true})
     .getAttribute("aria-pressed"),"true",
     "The one-shot resume intent must not auto-run again on refresh");

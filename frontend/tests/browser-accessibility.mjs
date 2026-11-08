@@ -194,7 +194,8 @@ try {
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
     await axeAudit(page, "TF com fluxo rápido", width);
     const workflow = page.getByRole("region", { name: "Fluxo rápido de QA" });
-    const quickCreate = workflow.getByRole("button", { name: "Cenário", exact: true });
+    const quickCreate = page.getByRole("tabpanel", { name: /Testes/ })
+      .getByRole("button", { name: "Cenário", exact: true });
     const runPending = workflow.getByRole("button", { name: "Testar pendentes" });
     await runPending.click();
     await page.locator('[data-qa-next-pending="true"]').waitFor();

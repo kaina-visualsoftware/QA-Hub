@@ -7,6 +7,7 @@ const suites = [
   "browser-smoke.mjs",
   "browser-qa-flow.mjs",
   "browser-ai-workbench.mjs",
+  "browser-f0-workspace.mjs",
   "browser-profile-utilities.mjs",
   "browser-execution-next.mjs",
   "browser-home-progress.mjs",

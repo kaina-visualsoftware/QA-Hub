@@ -880,3 +880,155 @@
 }
 .qa-modal-content .qa-task-assist>summary{min-height:58px;padding:17px 10px;
   margin:4px 0;line-height:1.6}
+
+/* F0 2026-11 — the task is a focused workspace with three distinct areas. */
+.qa-task-hero{
+  padding:22px 24px;background:#fff;color:#234650;box-shadow:none;
+  border:1px solid #dce7e8;border-top:3px solid #26777b;border-radius:15px
+}
+.qa-task-hero h1{font-size:clamp(1.35rem,2.3vw,1.86rem);
+  margin:5px 0 12px;color:#183d47;line-height:1.27;letter-spacing:-.028em}
+.qa-task-eyebrow{color:#327983;font-size:.66rem;letter-spacing:.095em}
+.qa-task-meta span{background:#f0f6f6;border:1px solid #deebec;color:#41636e;
+  font-size:.71rem;padding:5px 9px}
+.qa-task-hero-controls .status-chip{background:#eff7f5;color:#194f59;border-color:#d2e9e7}
+.qa-task-hero-controls button:not(.qa-task-config-button){
+  background:#fff!important;color:#2c5964!important;border:1px solid #d4e1e3!important;
+  min-height:42px
+}
+.qa-task-config-button{height:42px;width:42px;display:grid;place-items:center;
+  flex:0 0 42px;border:1px solid #d4e1e3;border-radius:10px;
+  background:#fff;color:#285865}
+.qa-task-config-button:hover,.qa-task-hero-controls button:hover{
+  background:#eef7f6!important}
+.qa-task-compact-status{margin-top:16px;gap:8px 19px}
+.qa-task-compact-status span{color:#496a73;font-size:.76rem}
+.qa-task-compact-status strong{color:#1c4d58;font-size:.94rem}
+.qa-task-hero .qa-task-hero-progress{margin-top:12px}
+.qa-task-hero-meter{height:5px;background:#e6f0f0}
+.qa-task-hero-meter span{background:#1c8b84}
+.qa-task-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;border-bottom:1px solid #dce6e7;margin-top:18px;padding:0 3px}
+.qa-task-tab{position:relative;display:flex;align-items:center;justify-content:center;
+  gap:9px;min-height:50px;padding:10px 13px 12px;
+  background:transparent;color:#59727a;font-size:.85rem;font-weight:690;
+  border:0;border-radius:9px 9px 0 0;white-space:nowrap}
+.qa-task-tab svg{flex-shrink:0}
+.qa-task-tab:hover{background:#eff6f6;color:#1c5660}
+.qa-task-tab.selected{color:#145968;font-weight:800}
+.qa-task-tab.selected:after{content:"";position:absolute;height:3px;
+  background:#20887e;border-radius:3px 3px 0 0;bottom:-1px;left:10px;right:10px}
+.qa-task-tab-count{display:inline-grid;place-items:center;min-width:23px;height:23px;
+  padding:0 5px;background:#e8f2f2;color:#1c646b;
+  font-size:.71rem;border-radius:99px}
+.qa-task-tab:focus-visible{outline:3px solid #228a93;outline-offset:-3px}
+.qa-task-panel[hidden]{display:none!important}
+.qa-task-panel{min-width:0;padding-top:16px}
+.qa-task-overview{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.9fr);
+  gap:15px;align-items:start}
+.qa-task-overview .qa-quickflow-clean{margin:0;padding:22px;
+  border:1px solid #dee8e9;border-radius:15px;box-shadow:none}
+.qa-overview-intro{margin-bottom:16px}
+.qa-overview-intro h2{color:#183e49;font-size:1.1rem;font-weight:770;margin:4px 0 6px}
+.qa-overview-intro p:last-child{color:#4b6670;font-size:.79rem;line-height:1.5}
+.qa-task-overview .qa-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.qa-task-overview .qa-primary-actions>button{min-height:49px;font-size:.81rem}
+.qa-overview-more{display:flex;align-items:center;justify-content:space-between;gap:9px;
+  width:100%;margin-top:15px;padding:11px 0 0;text-align:left;
+  border:0;border-top:1px solid #e4eced;background:transparent;
+  color:#256870;font-size:.82rem;font-weight:760;min-height:45px}
+.qa-overview-more:hover{text-decoration:underline;text-underline-offset:4px}
+.qa-task-description{min-width:0;padding:21px 22px;box-shadow:none;border-radius:15px;
+  border-color:#dee8e9}
+.qa-task-description h2{font-size:1.03rem;font-weight:770;color:#21444e;margin:0 0 12px}
+.qa-task-excerpt,.qa-task-full-text p{font-size:.83rem;color:#4b6871;
+  line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.qa-task-full-text{margin-top:12px;padding-top:12px;border-top:1px solid #e5eff0}
+.qa-task-full-text summary{display:list-item;cursor:pointer;min-height:34px;
+  color:#246e74;font-size:.81rem;font-weight:740}
+.qa-task-full-text p{margin-top:9px}
+.qa-task-full-text p strong{display:block;color:#234c55;margin-bottom:4px}
+.qa-task-section-heading{display:flex;gap:12px;justify-content:space-between;
+  align-items:center;min-width:0;margin:0 0 15px}
+.qa-task-section-heading h2{font-size:1.12rem;font-weight:790;color:#1a414b}
+.qa-task-section-heading p{font-size:.79rem;color:#4d6973;line-height:1.5;margin-top:3px}
+.qa-tests-tools{display:flex;gap:8px;flex-wrap:wrap}
+.qa-tests-tools button{min-height:43px;font-size:.8rem}
+.qa-task-panel .qa-workflow-anchor{margin-top:0}
+.qa-task-panel .qa-workflow-anchor>.section-heading .eyebrow{display:none}
+.qa-task-panel .qa-workflow-anchor>.section-heading h2{font-size:.92rem}
+.qa-task-panel .qa-workflow-anchor{box-shadow:none;border-color:#e0e9ea}
+.qa-task-panel .scenario{padding:17px 0}
+.qa-task-panel .scenario-heading h3{font-size:.94rem;line-height:1.45}
+.qa-scenario-more{margin-top:7px;position:relative;font-size:.78rem}
+.qa-scenario-more>summary{display:inline-flex;align-items:center;cursor:pointer;
+  min-height:35px;color:#39707a;font-weight:690}
+.qa-scenario-menu{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:4px 0 8px}
+.qa-scenario-menu button{border:1px solid #dbe7e8;border-radius:8px;
+  background:#fafdfd;color:#315d68;min-height:39px;
+  font-size:.77rem;font-weight:680;padding:7px 12px}
+.qa-scenario-menu button:hover{background:#eaf6f4}
+.qa-task-panel .scenario-result-actions{margin-top:12px;gap:7px}
+.qa-task-panel .scenario-result-actions button{min-height:44px}
+.qa-task-deliverables{border:1px solid #dee8e9;border-radius:15px;
+  background:#fff;padding:22px;min-width:0}
+.qa-task-deliverables>.qa-task-section-heading{margin-bottom:19px}
+.qa-deliverables-group{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.qa-deliverable-action{display:flex;align-items:center;gap:11px;padding:16px 13px;
+  text-align:left;border:1px solid #d5e6e6;border-radius:12px;min-width:0;
+  background:#f8fbfb;color:#234c55;min-height:89px}
+.qa-deliverable-action:hover{background:#e9f7f4;border-color:#8abcb7}
+.qa-deliverable-action:focus-visible,.qa-workbench-tool:focus-visible,
+.qa-overview-more:focus-visible,.qa-scenario-more button:focus-visible{
+  outline:3px solid #258d9a;outline-offset:2px}
+.qa-deliverable-icon{display:grid;place-items:center;flex:0 0 38px;width:38px;
+  height:38px;border-radius:10px;background:#e0f1ee;color:#217a77}
+.qa-deliverable-action>span:nth-child(2){min-width:0;flex:1}
+.qa-deliverable-action strong,.qa-deliverable-action small{display:block}
+.qa-deliverable-action strong{font-size:.82rem;font-weight:760;line-height:1.35}
+.qa-deliverable-action small{font-size:.71rem;color:#496670;margin-top:4px;line-height:1.35}
+.qa-deliverable-arrow{flex-shrink:0;color:#668b92}
+.qa-deliverables-subtitle{font-size:.8rem;font-weight:750;color:#516f79;
+  margin:23px 0 11px}
+.qa-task-deliverables .qa-workbench-tools-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.qa-task-deliverables .qa-workbench-tool{min-height:48px}
+@media(max-width:1100px){
+  .qa-task-overview{grid-template-columns:1fr}
+  .qa-deliverables-group{grid-template-columns:1fr}
+  .qa-deliverable-action{min-height:72px}
+  .qa-task-deliverables .qa-workbench-tools-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .qa-task-hero{padding:17px 15px;border-radius:13px}
+  .qa-task-hero-top{gap:12px}
+  .qa-task-hero-controls{justify-content:flex-start;gap:7px}
+  .qa-task-hero-controls>.status-chip{margin-right:auto;order:-1}
+  .qa-task-meta span{font-size:.67rem}
+  .qa-task-compact-status{gap:6px 14px}
+  .qa-task-tabs{gap:2px;margin-top:12px}
+  .qa-task-tab{gap:5px;font-size:.76rem;padding:9px 4px 12px;min-height:50px}
+  .qa-task-tab svg{width:16px;height:16px}
+  .qa-task-tab-count{height:20px;min-width:20px;padding:0 4px;font-size:.66rem}
+  .qa-task-panel{padding-top:12px}
+  .qa-task-overview{gap:12px}
+  .qa-task-overview .qa-quickflow-clean,.qa-task-description,
+  .qa-task-deliverables{padding:15px}
+  .qa-task-overview .qa-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa-task-section-heading{align-items:flex-start;flex-direction:column;gap:12px}
+  .qa-tests-tools{width:100%}
+  .qa-tests-tools button{flex:1 1 auto;justify-content:center}
+  .qa-task-deliverables .qa-workbench-tools-grid{grid-template-columns:1fr}
+  .qa-deliverable-action{min-height:65px;padding:11px}
+  .qa-task-panel .qa-workflow-anchor{padding:14px 12px}
+  .qa-task-panel .scenario-heading{gap:9px}
+  .qa-task-panel .scenario-result-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .qa-task-panel .scenario-result-actions button{justify-content:center;min-width:0;
+    padding:8px 5px;font-size:.7rem;white-space:normal;line-height:1.25}
+  .qa-task-panel .scenario-result-actions button:nth-child(4){grid-column:1/-1}
+}
+@media(max-width:360px){
+  .qa-task-tab{font-size:.72rem;gap:4px}
+  .qa-task-hero-controls button{font-size:.72rem}
+  .qa-task-panel .scenario-result-actions button{font-size:.67rem}
+}

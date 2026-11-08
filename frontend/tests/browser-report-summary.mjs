@@ -107,7 +107,7 @@ try{
   await page.getByRole("heading",{name:"Descontos em homologação"}).waitFor();
 
   await page.getByText("Mais ferramentas").click();
-  await page.getByRole("region",{name:"Fluxo rápido de QA"})
+  await page.getByRole("tabpanel",{name:"Entregáveis"})
     .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
   const heading=page.getByRole("heading",{name:"Posts e relatórios"});
   await heading.waitFor({timeout:20000});
@@ -131,9 +131,11 @@ try{
   // The document stays mounted while its modal is closed: a manually edited
   // report survives continuing tests, and its derived summary refreshes.
   await page.getByRole("button",{name:"Fechar Documentos e relatório"}).click();
+  await page.getByRole("tab",{name:/Testes/}).click();
   await page.getByRole("group",{name:"Resultado de Caso pendente"})
     .getByRole("button",{name:"Funcionou",exact:true}).click();
-  await page.getByRole("region",{name:"Fluxo rápido de QA"})
+  await page.getByRole("tab",{name:"Entregáveis"}).click();
+  await page.getByRole("tabpanel",{name:"Entregáveis"})
     .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('textarea[readonly]')]
     .some(el=>el.value?.includes("Caso pendente")));
