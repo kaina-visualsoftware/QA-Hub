@@ -197,6 +197,7 @@ try{
   assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),
     "Atualização de descontos negativos");
   assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  await normal.getByText("Assistente local avançado (opcional)").click();
   const aiButton=normal.getByRole("button",{name:"Analisar com IA local"});
   assert.equal(await aiButton.isDisabled(),true,"Model must require explicit opt-in");
   await normal.getByLabel("Descrição / problema").fill([
@@ -221,6 +222,7 @@ try{
   await normal.getByRole("heading",{name:"Acesso restrito"}).waitFor();
   await normal.goto(origin+"#/tarefa/"+ownTaskId);
   await normal.getByRole("heading",{name:"Revisão de pagamentos"}).waitFor();
+  await normal.getByRole("button",{name:"Configurações da TF"}).click();
   const publish=normal.getByRole("button",{name:"Publicar TF"});
   assert.equal(publicationCalls,0);
   normal.once("dialog",d=>void d.accept());
@@ -231,6 +233,7 @@ try{
   await normal.getByRole("link",{name:"Abrir visão pública"}).click();
   await normal.getByRole("heading",{name:"Revisão de pagamentos"}).waitFor();
   await normal.goto(origin+"#/tarefa/"+ownTaskId);
+  await normal.getByRole("button",{name:"Configurações da TF"}).click();
   const unpublish=normal.getByRole("button",{name:"Retirar publicação"});
   normal.once("dialog",d=>void d.accept());
   await unpublish.click();
