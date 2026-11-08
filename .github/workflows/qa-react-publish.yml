@@ -80,7 +80,21 @@ jobs:
             echo 'No React bundle changes to publish.'
             exit 0
           fi
-          git commit -m 'build: publicar bundle React em react/ (sem trocar a entrada principal)'
-          # Do not force-push or silently rewrite new commits from other users.
-          git push origin HEAD:main
-          echo 'React bundle committed. Existing index.html/qa.html remain unchanged.'
+          git commit -m 'build: publicar bundle React em react/ com publicação segura'
+          # Other legitimate commits may land on main during a large build.
+          # Replay the generated bundle on top of the current head; never force.
+          pushed=0
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              pushed=1
+              break
+            fi
+            echo "Another commit landed during push attempt ${attempt}; retrying safely."
+          done
+          if [ "$pushed" -ne 1 ]; then
+            echo 'ERROR: Could not publish generated assets without overwriting another commit.'
+            exit 1
+          fi
+          echo 'React bundle committed. Source and legacy fallback preserved.'
