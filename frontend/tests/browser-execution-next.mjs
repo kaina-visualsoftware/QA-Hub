@@ -52,7 +52,11 @@ async function mock(route) {
   if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET")return send([task]);
   if(path.endsWith("/rest/v1/qa_cenarios")) {
     if(method==="GET"){
-      assert.equal(url.searchParams.get("tarefa_id"),"eq."+taskId);
+      // Both the TaskPage scenario list (eq) and the home-page progress
+      // query (in) may complete during route navigation.
+      const constraint=url.searchParams.get("tarefa_id");
+      assert.ok(constraint==="eq."+taskId||constraint==="in.("+taskId+")",
+        "GET must remain scoped to the selected QA task: "+constraint);
       return send(scenarios);
     }
     if(method==="PATCH"){
