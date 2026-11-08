@@ -101,7 +101,7 @@ try {
   await page.getByLabel("Descrição / problema").fill("Conferir criação e execução manual.");
   await page.getByRole("button", { name: "Salvar e adicionar cenário" }).click();
   await page.getByRole("heading", { name: "Nova TF com primeiro caso" }).waitFor();
-  const editor = page.getByRole("region", { name: "Novo cenário" });
+  const editor = page.getByRole("dialog", { name: "Cadastrar cenário" });
   await editor.waitFor({ timeout: 20000 });
   await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
   assert.equal(calls.task, 1);
@@ -139,7 +139,7 @@ try {
 
   await page.reload();
   await page.getByRole("heading", { name: "Nova TF com primeiro caso" }).waitFor();
-  assert.equal(await page.getByRole("region", { name: "Novo cenário" }).count(), 0,
+  assert.equal(await page.getByRole("dialog", { name: "Cadastrar cenário" }).count(), 0,
     "One-time creation intent must not persist after refresh");
   assert.equal(calls.task, 1, "Refreshing the task must not recreate it");
 
@@ -149,7 +149,7 @@ try {
   await page.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
   await page.getByRole("button", { name: "Salvar e abrir TF" }).click();
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();
-  assert.equal(await page.getByRole("region", { name: "Novo cenário" }).count(), 0);
+  assert.equal(await page.getByRole("dialog", { name: "Cadastrar cenário" }).count(), 0);
   assert.equal(calls.task, 2);
   assert.equal(calls.case, 2);
 
