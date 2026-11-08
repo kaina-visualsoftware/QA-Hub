@@ -1,5 +1,13 @@
 # QA Hub — Gestão de testes de software
 
+> **Transição React (#37):** o código React/TypeScript, as suítes de CI e o
+> build de prévia isolado estão em `frontend/`. A interface publicada ainda
+> é o QA Hub legado em `qa.html`; **não** aponte o GitHub Pages para
+> `frontend/dist` antes da homologação de Supabase Auth/RLS/Storage.
+> As funções de leitura pública RPC não estão instaladas no Supabase de
+> produção. O plano de integração do código, staging, corte e rollback
+> está em [docs/LIBERACAO_ISSUE_37.md](docs/LIBERACAO_ISSUE_37.md).
+
 Plataforma web para documentar tarefas de teste (TFs), cenários, resultados, explicações, diagramas Mermaid e indicadores. O QA Hub é a **única interface** publicada neste repositório.
 
 ## Como abrir
