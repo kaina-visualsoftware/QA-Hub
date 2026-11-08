@@ -56,13 +56,10 @@ function AppLayout() {
             <ShieldCheck size={18} /> Administração
           </Link>}
       </nav>
-      <div className="sidebar-section mt-8">RECURSOS EXISTENTES</div>
-      <nav aria-label="Ferramentas na versão atual">
-        <a className="nav-link" href="https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/ferramentas/post">
-          <ExternalLink size={17} /> Posts e relatórios
-        </a>
-        <a className="nav-link" href="https://kaina-visualsoftware.github.io/QA-Hub/qa.html#/ferramentas/teste">
-          <ExternalLink size={17} /> Gerar casos com IA
+      <div className="sidebar-section mt-8">COMPATIBILIDADE</div>
+      <nav aria-label="Versão anterior">
+        <a className="nav-link" href="/QA-Hub/qa-legacy.html">
+          <ExternalLink size={17} /> Abrir versão anterior
         </a>
       </nav>
       <div className="sidebar-footer"><ShieldCheck size={17} /> Dados vinculados à sua conta</div>
