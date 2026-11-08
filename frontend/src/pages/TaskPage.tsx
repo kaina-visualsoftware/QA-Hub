@@ -493,7 +493,7 @@ export default function TaskPage() {
           scenarios={scenarios.data || []} mode={generatorMode}
           onClose={() => setGeneratorMode(null)} />
       </Suspense>
-    </QAModal>
+    </QAModal>}
     <QAModal open={showDocuments} keepMounted title="Documentos e relatório"
       eyebrow="ENTREGÁVEIS" size="full" initialFocus="#documents-heading" onClose={()=>setShowDocuments(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando documentos…</p>}>
@@ -507,7 +507,7 @@ export default function TaskPage() {
         <DiagramPanel task={task} scenarios={scenarios.data || []} userId={userId}
           focusAi={focusDiagramAi}/>
       </Suspense>
-    </QAModal>}
+    </QAModal>
     {showScenarioForm && <QAModal open={showScenarioForm}
       title={editingScenario?"Editar cenário":"Cadastrar cenário"} eyebrow="CASOS DE TESTE"
       description="Documente os passos e o resultado esperado; a execução fica separada."
