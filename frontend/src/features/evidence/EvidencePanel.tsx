@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, ClipboardList, FilePlus2, Link2, X } from "lucide-react";
@@ -40,8 +40,9 @@ async function listAudit(taskId: string, page: number): Promise<AuditEvent[]> {
 }
 
 export default function EvidencePanel({
-  task, userId, scenarios, onClose
-}: { task: Task; userId: string; scenarios: Scenario[]; onClose: () => void }) {
+  task, userId, scenarios, onClose, prefillScenarioId, prefillRequest
+}: { task: Task; userId: string; scenarios: Scenario[]; onClose: () => void;
+  prefillScenarioId?: string|null; prefillRequest?: number }) {
   const client = useQueryClient();
   const owner = task.user_id === userId;
   const [tab, setTab] = useState<"evidence" | "audit">("evidence");
@@ -49,6 +50,12 @@ export default function EvidencePanel({
   const [summary, setSummary] = useState("");
   const [url, setUrl] = useState("");
   const [scenarioId, setScenarioId] = useState("");
+  useEffect(()=>{
+    if(prefillScenarioId && scenarios.some(item=>item.id===prefillScenarioId)){
+      setScenarioId(prefillScenarioId);
+      setTab("evidence");
+    }
+  },[prefillScenarioId,prefillRequest,task.id]);
   const [page, setPage] = useState(0);
   const [message, setMessage] = useState("");
   const evidence = useQuery({

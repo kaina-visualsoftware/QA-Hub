@@ -1032,3 +1032,140 @@
   .qa-task-hero-controls button{font-size:.72rem}
   .qa-task-panel .scenario-result-actions button{font-size:.67rem}
 }
+
+/* F1: single-case guided execution with in-context outcome recording. */
+.qa-execution-switch{display:flex;gap:4px;background:#eff5f5;border:1px solid #dae7e7;
+  border-radius:12px;padding:4px;align-self:center}
+.qa-execution-switch button{min-height:41px;display:inline-flex;align-items:center;
+  justify-content:center;gap:7px;padding:9px 13px;border-radius:9px;font-size:.79rem;
+  font-weight:720;background:transparent;color:#58737a}
+.qa-execution-switch button.selected{background:#fff;color:#165e68;
+  box-shadow:0 1px 5px #21495116}
+.qa-execution-switch button:focus-visible{outline:3px solid #188998;outline-offset:2px}
+.qa-guided{border:1px solid #d8e7e7;border-radius:16px;background:white;
+  padding:20px;min-width:0}
+.qa-guided-toolbar{display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:14px}
+.qa-guided-toolbar h3{font-weight:800;font-size:1.08rem;color:#1a444e;margin-top:4px}
+.qa-guided-scope{display:inline-flex;gap:4px;border:1px solid #d8e6e7;
+  background:#f4f8f8;border-radius:11px;padding:4px}
+.qa-guided-scope button{font-weight:700;color:#52717a;font-size:.79rem;
+  border-radius:8px;padding:8px 12px;min-height:40px;white-space:nowrap}
+.qa-guided-scope button.selected{background:#fff;color:#176473;box-shadow:0 1px 5px #234a5515}
+.qa-guided-scope button:focus-visible{outline:3px solid #26858e;outline-offset:2px}
+.qa-guided-progress-row{display:flex;align-items:center;gap:7px;margin-top:18px;
+  font-size:.76rem;color:#536f79}
+.qa-guided-progress-row strong{font-size:.9rem;color:#1a5360}
+.qa-guided-progress-row>span{margin-left:auto}
+.qa-guided-meter{height:6px;background:#e7f0f0;border-radius:99px;overflow:hidden;margin-top:9px}
+.qa-guided-meter span{display:block;background:#248d83;height:100%;border-radius:99px;
+  transition:width .18s ease}
+.qa-guided-card{margin-top:21px;border:1px solid #e0eaeb;border-radius:13px;
+  padding:21px;min-width:0}
+.qa-guided-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.qa-guided-heading>div{min-width:0}
+.qa-guided-heading h4{margin:8px 0 0;font-weight:810;font-size:1.23rem;
+  color:#173f48;line-height:1.36;overflow-wrap:anywhere}
+.qa-guided-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+  margin-top:19px}
+.qa-guided-details>div{min-width:0;background:#f5f9f9;border:1px solid #e2ebec;
+  border-radius:11px;padding:14px}
+.qa-guided-details h5{font-size:.77rem;font-weight:780;color:#285c66;margin-bottom:9px}
+.qa-guided-details p{font-size:.85rem;line-height:1.6;color:#395964;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.qa-guided-observed{background:#fff8ed!important;border-color:#ecdab7!important;
+  grid-column:1/-1}
+.qa-guided-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;margin-top:20px}
+.qa-guided-actions button{display:inline-flex;align-items:center;justify-content:center;
+  gap:8px;min-height:53px;padding:10px 8px;border:1px solid transparent;
+  border-radius:11px;font-size:.83rem;font-weight:760;line-height:1.35;text-align:center;
+  white-space:normal}
+.qa-guided-actions button:disabled{cursor:not-allowed;opacity:.58}
+.qa-guided-pass{background:#dff3e9;color:#18633f;border-color:#b6e1c9!important}
+.qa-guided-pass:hover:enabled{background:#cbeddb}
+.qa-guided-fail{background:#fff0f1;color:#932f3e;border-color:#edcbd1!important}
+.qa-guided-fail:hover:enabled{background:#ffe2e7}
+.qa-guided-block{background:#fff4df;color:#80540c;border-color:#ead8b5!important}
+.qa-guided-block:hover:enabled{background:#ffebc4}
+.qa-guided-actions button:focus-visible,.qa-guided-navigation button:focus-visible,
+.qa-guided-utility button:focus-visible,.qa-guided-note button:focus-visible{
+  outline:3px solid #167c90;outline-offset:3px}
+.qa-guided-note{padding:15px;margin-top:14px;border:1px solid #d6e6e5;
+  border-radius:12px;background:#fbfdfd}
+.qa-guided-note .field{font-weight:730}
+.qa-guided-note textarea{width:100%;resize:vertical}
+.qa-guided-note-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+.qa-guided-note-actions button{min-height:44px;padding:9px 15px;border-radius:9px;
+  font-size:.8rem;font-weight:740}
+.qa-guided-text-btn{color:#416a73;background:#e9f1f2}
+.qa-guided-submit{color:white;background:#126578}
+.qa-guided-submit:disabled{opacity:.55;cursor:not-allowed}
+.qa-guided-utility{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.qa-guided-utility button{display:inline-flex;align-items:center;gap:7px;
+  background:transparent;border:0;padding:8px 2px;min-height:41px;
+  color:#236975;font-size:.79rem;font-weight:700}
+.qa-guided-utility button:disabled{opacity:.55;cursor:not-allowed}
+.qa-guided-navigation{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;border-top:1px solid #e6eeee;margin-top:14px;padding-top:15px}
+.qa-guided-navigation button{display:inline-flex;align-items:center;justify-content:center;
+  gap:6px;border:1px solid #d5e4e4;border-radius:9px;padding:9px 13px;
+  font-weight:730;color:#275966;background:white;font-size:.79rem;min-height:44px}
+.qa-guided-navigation button:disabled{color:#899da3;cursor:not-allowed}
+.qa-guided-navigation span{color:#496670;font-size:.75rem;white-space:nowrap}
+.qa-guided-feedback{margin-top:14px;font-size:.82rem;color:#285d68}
+.qa-guided-disclaimer{display:flex;align-items:flex-start;gap:7px;margin-top:16px;
+  line-height:1.5;font-size:.74rem;color:#516c75}
+.qa-guided-disclaimer svg{flex-shrink:0;margin-top:2px}
+.qa-guided-complete{text-align:center;padding:42px 20px 30px;display:flex;
+  align-items:center;flex-direction:column;gap:12px;color:#316774}
+.qa-guided-complete h4{font-size:1.17rem;font-weight:800;color:#174f5c}
+.qa-guided-complete p{max-width:44ch;color:#526d76;font-size:.85rem;line-height:1.6}
+.qa-guided-complete button{display:inline-flex;align-items:center;gap:8px;
+  min-height:44px;padding:10px 16px;border:1px solid #b7d8d5;
+  border-radius:10px;background:#eaf6f2;color:#216d69;font-weight:750}
+@media(max-width:700px){
+  .qa-guided{padding:13px;border-radius:12px}
+  .qa-guided-toolbar{align-items:flex-start;gap:12px}
+  .qa-guided-scope{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .qa-guided-scope button{white-space:normal;padding:8px 4px}
+  .qa-guided-card{padding:14px;margin-top:15px}
+  .qa-guided-heading{flex-wrap:wrap;gap:10px}
+  .qa-guided-heading h4{font-size:1.08rem}
+  .qa-guided-details{grid-template-columns:1fr;gap:9px;margin-top:13px}
+  .qa-guided-details>div{padding:12px}
+  .qa-guided-actions{gap:6px;margin-top:14px}
+  .qa-guided-actions button{font-size:.73rem;min-height:52px;gap:4px;padding:8px 4px}
+  .qa-guided-actions button svg{width:16px;height:16px;flex-shrink:0}
+  .qa-guided-navigation button{padding:8px 9px}
+  .qa-execution-switch{width:100%}
+  .qa-execution-switch button{flex:1}
+}
+@media(max-width:360px){
+  .qa-guided-actions button{font-size:.69rem;flex-direction:column}
+  .qa-guided-navigation span{font-size:.69rem}
+}
+@media(prefers-reduced-motion:reduce){.qa-guided-meter span{transition:none}}
+.qa-task-panel .qa-execution-switch{margin:0 0 14px}
+.qa-guided-container[hidden],.qa-task-panel .qa-workflow-anchor[hidden]{display:none!important}
+.qa-guided-container{min-width:0}
+@media(max-width:700px){.qa-task-panel .qa-execution-switch{margin:0 0 11px}}
+@media(max-width:420px){
+  .qa-guided-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .qa-guided-navigation span{grid-column:1/-1;grid-row:1;justify-self:center}
+  .qa-guided-navigation button{grid-row:2;min-width:0;padding:9px 5px}
+}
+/* Guided mode is for execution: suppress unrelated creation actions until List is selected. */
+.qa-guided-active .qa-tests-tools{display:none}
+.qa-guided-active .qa-tests-heading{margin-bottom:9px}
+.qa-guided-active .qa-tests-heading>div>p{display:none}
+@media(max-width:700px){
+  .qa-guided-active .qa-task-hero{padding:13px 14px}
+  .qa-guided-active .qa-task-hero h1{font-size:1.25rem;margin:3px 0 5px}
+  .qa-guided-active .qa-task-meta,
+  .qa-guided-active .qa-task-compact-status,
+  .qa-guided-active .qa-task-hero-progress{display:none}
+  .qa-guided-active .qa-task-hero-controls{margin-top:4px}
+  .qa-guided-active .qa-tests-heading h2{font-size:1rem}
+  .qa-guided-active .qa-guided-toolbar h3{font-size:1.02rem}
+}

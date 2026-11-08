@@ -128,7 +128,7 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
   await page.getByRole("link",{name:"Continuar testes"}).click();
   await page.getByRole("tab",{name:/Testes/}).waitFor({state:"visible"});
-  await page.waitForFunction(()=>document.activeElement?.getAttribute("data-qa-next-pending")==="true");
+  await page.waitForFunction(()=>document.activeElement?.getAttribute("data-qa-guided-primary")==="true");
   assert.equal(await page.getByRole("tab",{name:/Testes/}).getAttribute("aria-selected"),"true");
   assert.equal(writes.length,0,"Resume must not execute scenarios");
   assert.deepEqual(errors,[]);

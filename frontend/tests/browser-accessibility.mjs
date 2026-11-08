@@ -198,6 +198,8 @@ try {
       .getByRole("button", { name: "Cenário", exact: true });
     const runPending = workflow.getByRole("button", { name: "Testar pendentes" });
     await runPending.click();
+    await page.getByRole("button",{name:"Lista",exact:true}).click();
+    await page.getByRole("button",{name:"Pendentes",exact:true}).click();
     await page.locator('[data-qa-next-pending="true"]').waitFor();
     await page.waitForFunction(() =>
       document.activeElement?.getAttribute("data-qa-next-pending") === "true");
