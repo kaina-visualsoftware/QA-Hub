@@ -49,7 +49,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
 
   // Generated Mermaid is only a local draft until the human explicitly saves it.
   function applyAiDraft(generated:string){
-    if ((editingId || title.trim() || code !== "flowchart LR\\n  A[Início] --> B[Processo] --> C[Fim]") &&
+    if ((editingId || title.trim() || code !== "flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]") &&
       !window.confirm("Substituir o texto atual do editor por este fluxograma sugerido pela IA?")) return false;
     setEditingId(undefined);
     setTitle("Fluxo — " + task.titulo.slice(0,130));
