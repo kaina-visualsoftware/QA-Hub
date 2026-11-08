@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
@@ -43,6 +44,7 @@ async function fakeBackend(route){
     expires_at:Math.floor(Date.now()/1000)+3600,user
   });
   if(path.endsWith("/auth/v1/user"))return send(user);
+  if(await mockF4Rpc(route,[task],[scenario]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
   if(path.endsWith("/rest/v1/qa_tarefas")){
     if(method!=="GET")taskWrites++;

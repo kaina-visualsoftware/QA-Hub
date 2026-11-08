@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import {chromium} from "playwright";
 import {mkdirSync} from "node:fs";
@@ -45,6 +46,7 @@ async function mock(route){
     }
     return send(user);
   }
+  if(await mockF4Rpc(route,[task],[scenario]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
   if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET")return send([task]);
   if(path.endsWith("/rest/v1/qa_cenarios")&&method==="GET"){

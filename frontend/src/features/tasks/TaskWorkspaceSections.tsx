@@ -2,7 +2,7 @@ import type { KeyboardEvent } from "react";
 import { Button } from "@heroui/react";
 import {
   ArrowRight, BookText, ClipboardList, FileText, GitBranchPlus, GitMerge,
-  LayoutDashboard, ListChecks, Plus, Sparkles, Workflow
+  LayoutDashboard, ListChecks, Plus, Sparkles, Workflow, History
 } from "lucide-react";
 
 export type TaskTab = "summary" | "tests" | "deliverables";
@@ -105,7 +105,7 @@ export function TaskOverview({
 }
 
 export type DeliverableKind =
-  | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links";
+  | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history";
 
 export function TaskDeliverables({ onOpen }: {
   onOpen: (kind: DeliverableKind, primary?: boolean) => void;
@@ -144,6 +144,8 @@ export function TaskDeliverables({ onOpen }: {
         className="qa-workbench-tool"><GitBranchPlus size={17}/> Diagramas salvos / editor</button>
       <button type="button" aria-label="Relatório e documentos" onClick={() => onOpen("documents")}
         className="qa-workbench-tool"><FileText size={17}/> Relatório e documentos</button>
+      <button type="button" aria-label="Histórico de execuções" onClick={() => onOpen("history")}
+        className="qa-workbench-tool"><History size={17}/> Histórico de execuções</button>
     </div>
   </div>;
 }

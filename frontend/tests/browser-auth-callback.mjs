@@ -1,3 +1,4 @@
+import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
@@ -50,6 +51,7 @@ try{
       access_token:jwt,refresh_token:"fake-refresh",token_type:"bearer",
       expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user
     });
+    if(await mockF4Rpc(route,[],[]))return;
     if(url.pathname.endsWith("/rest/v1/qa_admins"))return send(null);
     if(url.pathname.endsWith("/rest/v1/qa_tarefas"))return send([]);
     failures.push("Unexpected callback API "+method+" "+url.pathname);
