@@ -224,3 +224,19 @@ O comportamento de acesso de outras contas continua read-only.
 Supabase/Edge Functions simulados. Validar manualmente uma
 geração real em conta proprietária, consentimento, revisão e
 gravação em TF da própria conta antes de encerrar o item.
+
+
+## Mermaid — sintaxe inválida e reparo assistido (QF41–QF46)
+
+| Caso | Ação | Esperado |
+|---|---|---|
+| QF41 | Gerar Mermaid válido | Parser valida antes do código entrar no editor |
+| QF42 | A IA retorna Mermaid com sintaxe inválida | Código e erro preservados; não é salvo automaticamente |
+| QF43 | Escolher Corrigir com IA após erro | Solicita consentimento e envia o Mermaid incorreto junto com a mensagem real do parser |
+| QF44 | Escolher Gerar novamente | Faz nova tentativa com a origem original, sem incluir código inválido de tentativa anterior |
+| QF45 | Editar manualmente um código inválido e clicar Salvar | Gravação bloqueada; erro explicado e atalho para correção disponível |
+| QF46 | Corrigir código, visualizar e salvar | Somente a versão sintaticamente válida entra em `qa_diagramas`; status da TF não muda |
+
+**Cotas:** cada tentativa de correção ou regeneração requer uma
+nova chamada à função `qa-ai`; as regras de rate limit não
+devem ser removidas. Nunca tratar um erro de parser como sucesso.
