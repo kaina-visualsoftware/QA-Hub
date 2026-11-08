@@ -94,6 +94,9 @@ try {
 
   await page.getByRole("region",{name:"Fluxo rápido de QA"})
     .getByRole("button",{name:"Testar pendentes"}).click();
+  // The historical list is still available for bulk review.
+  await page.getByRole("button",{name:"Lista",exact:true}).click();
+  await page.getByRole("button",{name:"Pendentes",exact:true}).click();
   const pendingActions = page.getByRole("group",{name:"Resultado de Primeira pendência"});
   await page.waitForFunction(()=>
     document.activeElement?.getAttribute("data-qa-next-pending")==="true");

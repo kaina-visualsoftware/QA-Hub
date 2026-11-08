@@ -122,14 +122,14 @@ try{
 
   await ownerRow.getByRole("link",{name:"Continuar testes"}).click();
   await page.getByRole("heading",{name:"Validar desconto"}).waitFor();
-  await page.getByRole("button",{name:"Pendentes",exact:true})
-    .waitFor({timeout:20000});
+  await page.getByRole("group",{name:"Cenários na execução guiada"})
+    .getByRole("button",{name:/Pendentes/}).waitFor({timeout:20000});
   await page.waitForFunction(()=>
-    document.activeElement?.getAttribute("data-qa-next-pending")==="true");
-  assert.equal(await page.getByRole("button",{name:"Pendentes",exact:true})
+    document.activeElement?.getAttribute("data-qa-guided-primary")==="true");
+  assert.equal(await page.getByRole("button",{name:"Guiado",exact:true})
     .getAttribute("aria-pressed"),"true");
-  assert.equal(await page.getByRole("group",{name:"Resultado de Caso executado"}).count(),0);
-  assert.equal(await page.getByRole("group",{name:"Resultado de Caso pendente"}).count(),1);
+  assert.equal(await page.getByRole("group",{name:"Registrar resultado de Caso executado"}).count(),0);
+  assert.equal(await page.getByRole("group",{name:"Registrar resultado de Caso pendente"}).count(),1);
   await page.waitForFunction(()=>!location.hash.includes("resume"));
   assert.equal(writes.length,0,"Opening pending cases must never save or execute a case");
 

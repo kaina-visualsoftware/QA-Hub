@@ -4,7 +4,8 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2 } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye } from "lucide-react";
+import GuidedExecution from "../features/executions/GuidedExecution";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables
 } from "../features/tasks/TaskWorkspaceSections";
@@ -53,6 +54,9 @@ export default function TaskPage() {
     enabled: Boolean(task)
   });
   const [activeTab, setActiveTab] = useState<TaskTab>("summary");
+  const [executionMode, setExecutionMode] = useState<"list"|"guided">("list");
+  const [evidenceTarget, setEvidenceTarget] = useState<string|null>(null);
+  const [evidenceRequest, setEvidenceRequest] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings,setShowSettings]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
@@ -67,7 +71,8 @@ export default function TaskPage() {
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
   useEffect(()=>{
-    setActiveTab("summary");
+    setActiveTab("summary");setExecutionMode("list");
+    setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     setShowDiagrams(false);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
@@ -159,18 +164,16 @@ export default function TaskPage() {
 
   function startPendingExecution() {
     setActiveTab("tests");
-    setFilter("pending");
+    setExecutionMode("guided");
     setSaved(pendingCount ? "" :
-      "Não há casos pendentes. Adicione um cenário ou escolha outro filtro.");
-    requestAnimationFrame(() => {
-      const target = executionRef.current?.querySelector<HTMLButtonElement>(
-        '[data-qa-next-pending="true"]'
-      ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
-        '[data-qa-filter="pending"]'
-      );
-      target?.scrollIntoView({ behavior: "auto", block: "center" });
-      target?.focus({ preventScroll: true });
-    });
+      "Não há casos pendentes. Adicione um cenário ou consulte os resultados registrados.");
+  }
+
+  function openGuidedEvidence(scenario: Scenario) {
+    if(task?.user_id!==userId)return;
+    setEvidenceTarget(scenario.id);
+    setEvidenceRequest(n=>n+1);
+    openTool("evidence");
   }
 
 
@@ -205,6 +208,7 @@ export default function TaskPage() {
   useEffect(() => {
     if (!resume || !task || !scenarios.isSuccess || task.user_id !== userId) return;
     setActiveTab("tests");
+    setExecutionMode("guided");
     setFilter("pending");
     setResumeFocus(true);
     setSaved(pendingCount ? "" :
@@ -219,19 +223,18 @@ export default function TaskPage() {
     taskId, navigate]);
 
   useEffect(() => {
-    if (!resumeFocus || activeTab !== "tests" || filter !== "pending" || !scenarios.isSuccess) return;
+    if (!resumeFocus || activeTab !== "tests" || !scenarios.isSuccess) return;
     const frame = requestAnimationFrame(() => {
-      const target = executionRef.current?.querySelector<HTMLButtonElement>(
-        '[data-qa-next-pending="true"]'
-      ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
-        '[data-qa-filter="pending"]'
-      );
+      const target = executionMode==="guided"
+        ? document.querySelector<HTMLButtonElement>('[data-qa-guided-primary="true"]')
+        : executionRef.current?.querySelector<HTMLButtonElement>('[data-qa-next-pending="true"]')
+          ?? executionRef.current?.querySelector<HTMLButtonElement>('[data-qa-filter="pending"]');
       target?.scrollIntoView({ behavior: "auto", block: "center" });
       target?.focus({ preventScroll: true });
       setResumeFocus(false);
     });
     return () => cancelAnimationFrame(frame);
-  }, [resumeFocus, activeTab, filter, scenarios.isSuccess, scenarios.data]);
+  }, [resumeFocus, activeTab, filter, executionMode, scenarios.isSuccess, scenarios.data]);
 
   useEffect(() => { focusTask(taskId); }, [taskId, focusTask]);
   useEffect(() => {
@@ -290,7 +293,8 @@ export default function TaskPage() {
       setSaved("Execução registrada. A situação da TF não foi alterada automaticamente.");
       // Only advance after a confirmed server write and a refreshed scenario list.
       // Never treat a failed mutation as a completed execution.
-      setFocusNextPending(filter === "pending" && input.status !== "nao_executado");
+      setFocusNextPending(executionMode === "list" && filter === "pending" &&
+        input.status !== "nao_executado");
       await invalidate();
     }
   });
@@ -344,6 +348,19 @@ export default function TaskPage() {
     filter === "failed" && (scenario.status === "reprovado" || scenario.status === "bloqueado")
   ), [scenarios.data, filter]);
 
+  async function saveGuidedResult(scenario:Scenario, status:ExecutionResult["status"],note:string){
+    if(task?.user_id!==userId||saveResult.isPending)return false;
+    const quick = status==="aprovado"||status==="nao_executado";
+    if(quick && needsObservationResetConfirmation(scenario,status) &&
+      !window.confirm("Esta ação substituirá o resultado observado anterior. Deseja continuar?")){
+      return false;
+    }
+    const obtained=quick ? quickExecutionResult(scenario,status).obtido : note.trim();
+    if(!quick && obtained.length<3)return false;
+    await saveResult.mutateAsync({scenario,status,obtido:obtained});
+    return true;
+  }
+
   function choose(scenario: Scenario, status: ExecutionResult["status"]) {
     setSaved("");
     if (status === "reprovado" || status === "bloqueado") {
@@ -361,7 +378,8 @@ export default function TaskPage() {
   if (tasks.isError || role.isError) return <p className="notice error" role="alert">Erro ao abrir TF: {tasks.error?.message || role.error?.message}</p>;
   if (!task) return <div className="empty-state"><h1>TF não encontrada ou sem acesso</h1><Link to="/">Voltar</Link></div>;
 
-  return <div className="page">
+  return <div className={"page"+(activeTab==="tests" && executionMode==="guided"
+    ? " qa-guided-active":"")}>
     <Link to="/" className="back-link"><ArrowLeft size={16} /> Todas as TFs</Link>
     <header className="qa-task-hero mt-4" aria-label="Resumo da TF">
       <div className="qa-task-hero-top">
@@ -465,7 +483,8 @@ export default function TaskPage() {
       eyebrow="REGISTROS" size="full" onClose={()=>setShowEvidence(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando evidências…</p>}>
         <EvidencePanel key={task.id} task={task} userId={userId}
-          scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)}/>
+          scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)}
+          prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
       </Suspense>
     </QAModal>
     <QAModal open={showLinks} keepMounted title="Releases e referências"
@@ -541,7 +560,7 @@ export default function TaskPage() {
     <section id="qa-task-panel-tests" role="tabpanel" aria-labelledby="qa-task-tab-tests"
       className="qa-task-panel" hidden={activeTab !== "tests"}>
       <div className="qa-task-section-heading qa-tests-heading">
-        <div><h2>Testes da TF</h2><p>Execute os cenários e registre o resultado de cada um.</p></div>
+        <div><h2>Testes da TF</h2><p>Registre cada resultado no modo guiado ou consulte a lista.</p></div>
         <div className="qa-tests-tools">
           <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
             <Plus size={16} aria-hidden="true"/> Cenário
@@ -551,14 +570,35 @@ export default function TaskPage() {
           </Button>
         </div>
       </div>
-    <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
+      <div className="qa-execution-switch" role="group" aria-label="Modo de execução">
+        <button type="button" aria-pressed={executionMode==="guided"}
+          className={executionMode==="guided"?"selected":""}
+          onClick={()=>setExecutionMode("guided")}><ScanEye size={16} aria-hidden="true"/> Guiado</button>
+        <button type="button" aria-pressed={executionMode==="list"}
+          className={executionMode==="list"?"selected":""}
+          onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
+      </div>
+      <div hidden={executionMode!=="guided"} className="qa-guided-container">
+        <GuidedExecution key={task.id} scenarios={scenarios.data ?? []} owner={task.user_id===userId}
+          busy={saveResult.isPending} onSave={saveGuidedResult}
+          onEvidence={openGuidedEvidence} onNewScenario={startScenario}/>
+      </div>
+    <section ref={executionRef} hidden={executionMode!=="list"}
+      className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
           <button key={value} data-qa-filter={value}
             className={"filter-chip " + (filter === value ? "selected" : "")}
-            onClick={() => setFilter(value)} aria-pressed={filter === value}>{label}</button>)}
+            onClick={() => {
+              setFilter(value);
+              if(value === "pending") requestAnimationFrame(() => {
+                const next = executionRef.current?.querySelector<HTMLButtonElement>(
+                  '[data-qa-next-pending="true"]');
+                next?.focus({preventScroll:true});
+              });
+            }} aria-pressed={filter === value}>{label}</button>)}
       </div>
       {scenarios.isPending && <p role="status" className="empty-state">Carregando cenários…</p>}
       {scenarios.isError && <p role="alert" className="notice error">{scenarios.error.message}</p>}
