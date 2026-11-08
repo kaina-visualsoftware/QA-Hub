@@ -1,23 +1,46 @@
 # QA Hub — Gestão de testes de software
 
-> **Transição React (#37):** o código React/TypeScript, as suítes de CI e o
-> build de prévia isolado estão em `frontend/`. A interface publicada ainda
-> é o QA Hub legado em `qa.html`; **não** aponte o GitHub Pages para
-> `frontend/dist` antes da homologação de Supabase Auth/RLS/Storage.
-> As funções de leitura pública RPC não estão instaladas no Supabase de
-> produção. O plano de integração do código, staging, corte e rollback
-> está em [docs/LIBERACAO_ISSUE_37.md](docs/LIBERACAO_ISSUE_37.md).
-
-Plataforma web para documentar tarefas de teste (TFs), cenários, resultados, explicações, diagramas Mermaid e indicadores. O QA Hub é a **única interface** publicada neste repositório.
+**Versão principal: React 19 + TypeScript + Vite.** A entrada no
+[QA Hub](https://kaina-visualsoftware.github.io/QA-Hub/) redireciona
+para `/QA-Hub/react/`, com dados no Supabase e URLs GitHub Pages.
 
 ## Como abrir
 
-- `index.html`: redireciona automaticamente para o QA Hub, preservando parâmetros e fragmentos da URL.
-- `qa.html`: interface única do sistema; o endereço permanece para compatibilidade com os callbacks de confirmação do Supabase.
-- O hub estático anterior e a página legada `184728/page.html` foram retirados da versão atual. Permanecem recuperáveis no histórico Git.
-- Requer servidor HTTP (GitHub Pages ou desenvolvimento local), pois `qa.js` usa módulos ES.
+- **[Aplicação React](https://kaina-visualsoftware.github.io/QA-Hub/react/):**
+  interface principal para tarefas, cenários, relatórios, diagramas,
+  requisitos e evidências.
+- **[Versão anterior](https://kaina-visualsoftware.github.io/QA-Hub/qa-legacy.html):**
+  disponível para contingência e comparação funcional.
+- `index.html`: redireciona para a versão React sem apagar a anterior.
+- `qa.html`: mantém a URL de callback já permitida no Supabase Auth,
+  encaminhando códigos e fragmentos para `react/auth.html` antes do
+  roteamento por hash da SPA.
+- `public.html`: página pública antiga, mantida para compatibilidade
+  com links compartilhados e **migrada para as RPCs públicas limitadas**.
+  O React também possui `#/publicas`.
 
-Site: `https://kaina-visualsoftware.github.io/QA-Hub/` (abre o QA automaticamente). Para executar localmente, use `python -m http.server 8080` e acesse `http://localhost:8080/`. O aplicativo usa módulos ES e CDNs versionadas, sem etapa de build Node obrigatória.
+A fonte React fica em `frontend/`. O workflow
+`.github/workflows/qa-react-publish.yml` executa testes e compila
+`frontend/dist` para `react/` na branch `main`, usando somente a
+chave publicável do Supabase. **Não edite o conteúdo gerado de `react/`.**
+O GitHub Pages continua sendo publicado a partir do repositório.
+
+### Segurança da leitura pública
+
+Em 07/11/2026 foram aplicadas no Supabase **SIA** as migrações
+`qa_public_read_api_v1_allowlist` e `qa_public_read_lockdown_v1`.
+A leitura pública direta das tabelas operacionais `qa_tarefas`,
+`qa_cenarios` e `qa_diagramas` foi revogada de `anon`; somente
+as RPCs `qa_public_tasks_v1` e `qa_public_task_v1` expõem
+colunas selecionadas de registros publicados. As duas TFs públicas
+existentes foram preservadas durante a mudança.
+
+A autorização das operações de usuários autenticados continua
+dependendo das políticas RLS. Os testes Chromium com Supabase
+simulado foram aprovados; **homologação manual de Auth, RLS entre
+contas reais, upload/download Storage e acessibilidade assistiva
+ainda é necessária**. O plano operacional e o fallback estão em
+[docs/LIBERACAO_ISSUE_37.md](docs/LIBERACAO_ISSUE_37.md).
 
 ## Configurar Supabase
 
@@ -26,7 +49,7 @@ Site: `https://kaina-visualsoftware.github.io/QA-Hub/` (abre o QA automaticament
 3. Configure **Authentication > Providers > Email**. Se o projeto exigir confirmação de email, confirme a conta antes de entrar.
 4. Verifique em **Data API** que o schema `public` está exposto e que as tabelas `qa_*` respondem para o usuário autenticado.
 5. A configuração pública do cliente está em `qa-config.js`. A `publishable key` pode estar no frontend; **não** coloque senha PostgreSQL, `service_role` ou secret key nesse arquivo.
-6. Abra `qa.html`, crie uma conta e faça login.
+6. Abra a [aplicação React](https://kaina-visualsoftware.github.io/QA-Hub/react/), crie uma conta e faça login.
 
 As migrações de base e administrador foram aplicadas no projeto Supabase **SIA** pela conexão **SPA**. Ainda precisam de validação real de fluxos de navegação, CRUD e isolamento entre contas. Não execute a migração inicial novamente em um projeto que já possua as políticas.
 
