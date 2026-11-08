@@ -394,7 +394,7 @@ export default function TaskPage() {
         <button type="button" className="qa-ai-action" aria-label="Gerar casos com IA"
           onClick={()=>openTool("teste")}>
           <span className="qa-ai-icon"><ListChecks size={19}/></span>
-          <span><strong>Casos de teste</strong></span>
+          <span><strong>Casos</strong></span>
         </button>
         <button type="button" className="qa-ai-action" aria-label="Gerar post com IA"
           onClick={()=>openTool("post")}>
