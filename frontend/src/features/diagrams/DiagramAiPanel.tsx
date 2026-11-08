@@ -13,7 +13,7 @@ type Props = {
   task:Task;
   scenarios:Scenario[];
   userId:string;
-  onDraft:(code:string,mode:DiagramInputMode)=>void;
+  onDraft:(code:string,mode:DiagramInputMode)=>boolean;
 };
 const errorMessage=(reason:unknown)=>reason instanceof Error ? reason.message : "Não foi possível gerar o diagrama.";
 
@@ -60,7 +60,10 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft}:Props){
       const result=await requestAiDiagram({db:supabase,text:proposal.text});
       // The model output is untrusted data, never JavaScript or HTML.
       const code=cleanMermaid(result.code);
-      onDraft(code,mode);
+      if (!onDraft(code,mode)) {
+        setMessage("Geração concluída; a edição atual foi mantida.");
+        return;
+      }
       setMessage(result.fallback
         ? "A NVIDIA não retornou um fluxo utilizável. Um fluxograma local foi preparado. Revise e salve manualmente."
         : "Fluxograma gerado. Confira a prévia e revise o código antes de salvar na TF.");
