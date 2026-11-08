@@ -496,7 +496,7 @@
   padding:13px 0;cursor:pointer;color:#355e68;font-size:.81rem;font-weight:710;
   overflow-wrap:anywhere;min-height:43px
 }
-.qa-diagram-options>summary span{font-weight:500;color:#6b8187;margin-left:6px}
+.qa-diagram-options>summary span{font-weight:600;color:#47646b;margin-left:6px}
 .qa-diagram-options-content,.qa-diagram-code-fields{padding:3px 0 14px}
 .qa-diagram-nested{border-top:1px solid #e7edef;padding-top:9px}
 .qa-diagram-nested>summary{padding:3px 0 9px;cursor:pointer;font-size:.8rem;font-weight:670}
