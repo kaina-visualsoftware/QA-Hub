@@ -551,8 +551,7 @@ export default function TaskPage() {
     </QAModal>}
 
     <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
-      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2>
-        <p className="text-muted">Registre somente o que foi efetivamente testado.</p></div>
+      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
