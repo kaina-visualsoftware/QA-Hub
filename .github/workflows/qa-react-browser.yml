@@ -46,3 +46,11 @@ jobs:
         env:
           QA_TEST_PUBLICATION_ENABLED: "false"
         run: node tests/browser-publication-gate.mjs
+      - name: Attach mobile UX screenshots (320, 390, 768, 1366)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-react-mobile-ux-screenshots
+          path: frontend/artifacts/mobile-ux/
+          if-no-files-found: ignore
+          retention-days: 7
