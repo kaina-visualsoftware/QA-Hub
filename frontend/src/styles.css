@@ -621,3 +621,84 @@
   .qa-quickflow-clean .qa-action-strip button{font-size:.72rem}
   .qa-home-metrics span{font-size:.65rem}
 }
+
+
+/* Visual QA refinement from actual 320px and 390px Chromium screenshots:
+   remove double separators, shorten the mobile navigation and hide unused
+   diagram editor actions until the user generates or opens manual mode. */
+.qa-diagram-quick{
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+  margin:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.qa-diagram-manual-toggle{
+  background:transparent;border:0;padding:7px 2px;
+  color:#426b73;font-size:.78rem;font-weight:650;
+  text-decoration:underline;text-underline-offset:3px;
+  align-self:flex-start;text-align:left;min-height:42px;
+}
+.qa-diagram-manual-toggle:hover{color:#155d69}
+.qa-quickflow-clean .qa-action-strip{
+  border:0;
+  margin:0 0 6px;
+  padding:0;
+  gap:8px;
+}
+.qa-quickflow-clean .qa-ai-section-heading{
+  border-top:1px solid #e5eeee;
+  padding:10px 0 8px;
+  margin:7px 0 0;
+}
+.qa-quickflow-clean .qa-quickflow-heading{margin-bottom:8px}
+.qa-tool-drawer{margin-top:8px}
+.qa-quickflow-clean .qa-ai-action{min-height:58px}
+@media(max-width:800px){
+  .sidebar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;
+    gap:3px 6px;padding:9px 12px 8px}
+  .sidebar .brand{order:0;flex:1 1 calc(100% - 52px);padding:0 2px 4px}
+  .sidebar .qa-mobile-logout{order:1;flex:0 0 40px;width:40px;height:40px}
+  .sidebar nav:first-of-type,.sidebar nav:nth-of-type(2){
+    order:2;display:flex;grid-row:auto;grid-column:auto;flex:0 1 auto;
+    gap:4px;flex-wrap:wrap;max-width:100%;
+  }
+  .sidebar .nav-link{padding:7px 9px;min-height:38px}
+}
+@media(max-width:640px){
+  .qa-quickflow-clean{padding:13px 12px}
+  .qa-quickflow-clean .qa-quickflow-heading{margin-bottom:8px}
+  .qa-quickflow-clean .qa-action-strip{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  }
+  .qa-quickflow-clean .qa-action-strip button{
+    grid-column:auto!important;min-height:49px;
+    padding:8px 5px;gap:5px;
+    font-size:.74rem;line-height:1.2;
+    justify-content:center;white-space:normal;
+  }
+  .qa-quickflow-clean .qa-ai-action{
+    min-height:67px;gap:4px;padding:7px 4px;
+  }
+  .qa-quickflow-clean .qa-ai-section-heading{
+    margin-top:4px;padding:10px 0 7px;
+  }
+  .qa-task-hero{padding:14px 12px}
+  .qa-task-hero h1{font-size:1.38rem;margin:4px 0 8px}
+  .qa-task-hero-top{gap:11px}
+  .qa-task-meta{gap:5px}
+  .qa-task-meta span{font-size:.7rem;padding:4px 8px}
+  .qa-task-hero-controls{gap:6px}
+  .qa-task-hero-controls button{min-height:38px}
+  .qa-task-compact-status{margin-top:10px}
+  .qa-task-hero .qa-task-hero-progress{margin-top:10px}
+  .qa-diagram-quick-heading h3{font-size:.98rem}
+}
+@media(max-width:360px){
+  .sidebar .nav-link{padding:7px 6px;font-size:.7rem}
+  .qa-quickflow-clean .qa-action-strip button{
+    flex-direction:column;min-height:55px;gap:2px;font-size:.71rem;
+  }
+  .qa-quickflow-clean .qa-action-strip button svg{width:16px;height:16px}
+}
