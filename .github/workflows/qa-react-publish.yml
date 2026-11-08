@@ -1,0 +1,85 @@
+name: QA Hub React - publicar bundle versionado
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/qa-react-publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qa-hub-react-pages-bundle
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies and verify React contracts
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run lint
+          npm test
+      - name: Build production React under /QA-Hub/react/
+        working-directory: frontend
+        env:
+          QA_VITE_BASE: /QA-Hub/react/
+          VITE_SUPABASE_URL: https://pqadmlhcsimlcclpkyov.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_3Duz2dETsyYNPtfY-8Mxjw_pGBvCUP9
+          # qa.html is already authorized in Supabase Auth; its compatibility
+          # redirect sends callback tokens to React's standalone auth.html.
+          VITE_AUTH_REDIRECT_URL: https://kaina-visualsoftware.github.io/QA-Hub/qa.html
+          # Re-enable ONLY after server-side public SELECT lockdown is verified.
+          VITE_PUBLIC_SHARING_ENABLED: 'false'
+        run: |
+          npm run build
+          node scripts/check-bundle-budget.mjs
+          test -s dist/index.html
+          test -s dist/auth.html
+          test -d dist/assets
+          grep -q '/QA-Hub/react/assets/' dist/index.html
+      - name: Commit generated React bundle to GitHub Pages source
+        shell: bash
+        run: |
+          set -euo pipefail
+          # react/ is an Actions-owned output tree; never delete arbitrary files.
+          if [ -e react ] && [ ! -f react/.qa-react-generated ]; then
+            echo 'Refusing to replace an unmanaged react/ directory.'
+            exit 1
+          fi
+          rm -rf react
+          mkdir -p react
+          cp -a frontend/dist/. react/
+          touch react/.nojekyll
+          cat > react/.qa-react-generated <<'EOF'
+          Generated React build managed by .github/workflows/qa-react-publish.yml.
+          Do not edit generated assets directly; edit frontend/ and publish again.
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A react
+          if git diff --cached --quiet; then
+            echo 'No React bundle changes to publish.'
+            exit 0
+          fi
+          git commit -m 'build: publicar bundle React em react/ (sem trocar a entrada principal)'
+          # Do not force-push or silently rewrite new commits from other users.
+          git push origin HEAD:main
+          echo 'React bundle committed. Existing index.html/qa.html remain unchanged.'
