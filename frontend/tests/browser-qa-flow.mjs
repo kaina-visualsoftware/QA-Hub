@@ -49,7 +49,8 @@ const tasks=[{id:taskId,user_id:userId,titulo:"Validação de descontos",codigo:
   created_at:"2026-11-06T10:00:00.000Z",executado_em:"2026-11-06"}];
 const scenarios=[],documents=[],failures=[],requirements=[],requirementLinks=[],evidenceRows=[],releases=[],releaseLinks=[],referenceRows=[],comparisonRows=[];
 let requirementImports=0,coverageSaves=0,evidenceSaves=0,releaseSaves=0,referenceSaves=0,comparisonSaves=0;
-let aiCalls=0,attachCalls=0,postSaves=0;
+let aiCalls=0,attachCalls=0,postSaves=0,failNextGenerator=false;
+const aiPayloads=[];
 const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
   "Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"};
@@ -171,7 +172,12 @@ async function mock(route){
   if(p.endsWith("/functions/v1/qa-generators")){
     aiCalls++;
     const payload=req.postDataJSON();
+    aiPayloads.push(payload);
     assert.equal(payload.tarefa.includes("Validação de descontos"),true);
+    if(failNextGenerator){
+      failNextGenerator=false;
+      return send({message:"IA indisponível na simulação"},503);
+    }
     const text=payload.mode==="teste"
       ? "# ROTEIRO\n## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n"
       : "# DESCONTO EM PAGAMENTOS\n\nFoi implementada correção do desconto.\n\nAnteriormente, descontos negativos eram ignorados. Agora, são processados.\n\n**Caminho de acesso:**\nFinanceiro >> Pagamentos >> Remover desconto\n\n[Imagem: captura-do-desconto.png]\n\n**Comportamento detalhado**\n1. **Desconto**\n   A operação remove o desconto corretamente.\n\n**TAREFA:** 78912\n**JUSTIFICATIVA:** Corrigir divergência relatada.";
@@ -196,6 +202,11 @@ try{
   await page.getByRole("heading",{name:"Validação de descontos"}).waitFor({timeout:20000});
   await page.getByRole("button",{name:/Gerar casos com IA/}).click();
   await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
+  const studio=page.getByRole("navigation",{name:"Ferramentas da central de IA"});
+  assert.equal(await studio.getByRole("button",{name:"Casos"}).count(),1);
+  assert.equal(await studio.getByRole("button",{name:"Post"}).count(),1);
+  assert.equal(await studio.getByRole("button",{name:"Diagrama"}).count(),1);
+  await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("regressao");
   const generate=page.getByRole("button",{name:"Gerar roteiro",exact:true});
   assert.equal(await generate.isDisabled(),true);
   assert.equal(aiCalls,0);
@@ -203,7 +214,32 @@ try{
   await generate.click();
   const attach=page.getByRole("button",{name:/Anexar 1 caso/});
   await attach.waitFor({timeout:20000});
+  assert.match(aiPayloads[0].requisito,/casos de regressão/i);
   assert.equal(attachCalls,0,"IA não pode persistir execução automaticamente");
+  const caseReview=page.locator(".qa-ai-case-review").first();
+  await caseReview.getByText("Editar cenário").click();
+  const caseTitle=caseReview.getByRole("textbox",{name:"Título"});
+  await caseTitle.fill("Versão revisada manualmente");
+  await studio.getByRole("button",{name:"Post"}).click();
+  await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
+  await studio.getByRole("button",{name:"Casos"}).click();
+  assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
+    "Trocar o tipo de IA não pode descartar um rascunho de casos.");
+  page.once("dialog",dialog=>void dialog.dismiss());
+  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  assert.equal(aiCalls,1,"Cancelar regeneração não envia outro pedido.");
+  assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente");
+  failNextGenerator=true;
+  page.once("dialog",dialog=>void dialog.accept());
+  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  await page.getByText(/IA indisponível na simulação/).waitFor();
+  assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
+    "Falha da IA deve manter o rascunho editado.");
+  page.once("dialog",dialog=>void dialog.accept());
+  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  await page.getByRole("button",{name:/Anexar 1 caso/}).waitFor();
+  assert.equal(aiCalls,3);
+  assert.equal(attachCalls,0);
   await attach.click();
   await page.getByText(/1 cenário\(s\) anexado/).waitFor();
   assert.equal(scenarios.length,1);
@@ -214,14 +250,23 @@ try{
   await page.getByText("Mais ferramentas").click();
   await page.getByRole("button",{name:/^Gerar post/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
+  await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("objetivo");
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
   await page.getByRole("button",{name:"Gerar post",exact:true}).click();
   const save=page.getByRole("button",{name:"Salvar post na TF"});
   await save.waitFor({timeout:20000});
+  assert.match(aiPayloads.at(-1).requisito,/Seja conciso/i);
+  const postEditor=page.getByRole("textbox",{name:/Post formatado/});
+  const originalPost=await postEditor.inputValue();
+  await postEditor.fill("Rascunho revisto pelo usuário");
+  await studio.getByRole("button",{name:"Casos"}).click();
+  await studio.getByRole("button",{name:"Post"}).click();
+  assert.equal(await postEditor.inputValue(),"Rascunho revisto pelo usuário");
+  await postEditor.fill(originalPost);
   await save.click();
   await page.getByText(/Post salvo em Documentos/).waitFor();
   assert.equal(postSaves,1);
-  assert.equal(aiCalls,2);
+  assert.equal(aiCalls,4);
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();

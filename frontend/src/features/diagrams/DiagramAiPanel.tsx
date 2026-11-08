@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
 import { Check, WandSparkles, Wrench } from "lucide-react";
+import { diagramPresets, diagramPresetInstruction } from "../generators/ai-presets";
 import type { Scenario, Task } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import { loadApprovedRequirements } from "../../lib/legacy/qa-requirements-context.mjs";
@@ -23,6 +24,7 @@ const errorMessage=(reason:unknown)=>reason instanceof Error ? reason.message : 
 export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRepairHandled}:Props){
   const own=task.user_id===userId;
   const [mode,setMode]=useState<DiagramInputMode>("task");
+  const [preset,setPreset]=useState("processo");
   const [manual,setManual]=useState("");
   const [scenarioIds,setScenarioIds]=useState<string[]>(()=>
     scenarios.filter(s=>s.tarefa_id===task.id).slice(0,18).map(s=>s.id));
@@ -46,12 +48,13 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       return {text:buildDiagramPrompt({
         mode,task,scenarios,selectedScenarioIds:scenarioIds,
         requirements:requirements.data ?? [],
-        selectedRequirementIds:requirementIds,manual
+        selectedRequirementIds:requirementIds,manual,
+        styleInstruction:diagramPresetInstruction(preset)
       }),error:""};
     } catch(e){
       return {text:"",error:errorMessage(e)};
     }
-  },[mode,task,scenarios,scenarioIds,requirements.data,requirementIds,manual]);
+  },[mode,task,scenarios,scenarioIds,requirements.data,requirementIds,manual,preset]);
   useEffect(()=>{
     setConsent(false);setMessage("");setInvalidGenerated(null);setAttempts(0);
   },[proposal.text]);
@@ -116,6 +119,13 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       <label><input type="radio" name="diagram-input-mode" checked={mode==="text"}
         onChange={()=>setMode("text")}/> Texto livre</label>
     </fieldset>
+    <label className="field qa-ai-diagram-model">Modelo do diagrama
+      <select value={preset} disabled={!own||busy}
+        onChange={event=>setPreset(event.target.value)}>
+        {diagramPresets.map(option=>
+          <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+    </label>
     {mode==="text"?
       <label className="field qa-diagram-description">Descreva o processo
         <textarea rows={4} value={manual} maxLength={20000} disabled={!own||busy}

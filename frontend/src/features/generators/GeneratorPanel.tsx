@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clipboard, FileCheck2, Send, WandSparkles, X } from "lucide-react";
+import { Clipboard, FileCheck2, Send, WandSparkles, RotateCcw } from "lucide-react";
+import {combinedInstructions,generatorPresets} from "./ai-presets";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import {
@@ -33,7 +34,6 @@ type Props = {
   userId: string;
   scenarios: Scenario[];
   mode: GeneratorMode;
-  onClose: () => void;
 };
 
 function messageOf(error: unknown) {
@@ -47,9 +47,10 @@ function editableCopy(items: GeneratedCase[]) {
   }));
 }
 
-export default function GeneratorPanel({ task, userId, scenarios, mode, onClose }: Props) {
+export default function GeneratorPanel({ task, userId, scenarios, mode }: Props) {
   const client = useQueryClient();
   const [extra, setExtra] = useState("");
+  const [preset, setPreset] = useState("essencial");
   const [selected, setSelected] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [partialConsent, setPartialConsent] = useState(false);
@@ -84,6 +85,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
   }, []);
   useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setConsent(false);
+    setPreset("essencial");setExtra("");
     setMessage(""); setError(""); setDirtyOutput(false);
   }, [task.id, mode]);
 
@@ -92,17 +94,21 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
     try {
       const taskContext = composeFullTaskContext(task, support.data, { limit: 30000 });
       const approved = composeRequirementContext(
-        requirements.data, selected, sanitizeAiContext(extra),
+        requirements.data, selected, sanitizeAiContext(combinedInstructions(mode,preset,extra)),
         { taskId: task.id, limit: 20000 }
       );
       return { kind: "ready", taskContext, approved };
     } catch (reason) {
       return { kind: "error", error: messageOf(reason) };
     }
-  }, [support.data, requirements.data, task, selected, extra]);
+  }, [support.data, requirements.data, task, selected, extra, mode, preset]);
   const generationError = assembly?.kind === "error" ? assembly.error : "";
   const context = assembly?.kind === "ready" ? assembly : null;
   const missingSources = context?.taskContext.failedSources ?? [];
+  useEffect(()=>{
+    setConsent(false);
+    setPartialConsent(false);
+  },[context?.taskContext.text,context?.approved.text]);
   const canSend = formOwn && !generating && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
@@ -115,16 +121,20 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
     ? validatePostStructure(content) : [];
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
+    setDirtyOutput(true);
     setCases((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
   }
 
   async function generate() {
     if (!canSend || !context) return;
+    // Never discard human-edited drafts just because the user requests another answer.
+    if (dirtyOutput && (content.trim() || cases.length) &&
+      !window.confirm("Substituir a versão editada? As alterações manuais serão perdidas se a nova geração for concluída.")) return;
     const nextId = crypto.randomUUID();
-    setGenerationId(nextId);
+    const previousRaw = raw;
+    const previousTruncated=truncated;
     setGenerating(true); setError(""); setMessage("");
-    setRaw(""); setContent(""); setCases([]);
-    setDirtyOutput(false); setTruncated(false);
+    setRaw(""); setTruncated(false);
     const abort = new AbortController();
     controller.current = abort;
     try {
@@ -134,7 +144,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
         mode, context.taskContext.text, context.approved.text,
         (chunk) => setRaw((previous) => previous + chunk), abort.signal
       );
+      setGenerationId(nextId);
       setTruncated(response.truncated);
+      setDirtyOutput(false);
       if (mode === "post") {
         const formatted = formatGeneratedPost(response.text, {
           taskText: context.taskContext.text
@@ -151,7 +163,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
           ? "Roteiro gerado. Revise os cenários antes de anexá-los."
           : "Post gerado e formatado. Revise os campos antes de salvar.");
     } catch (cause) {
-      setError(abort.signal.aborted ? "Geração cancelada." : messageOf(cause));
+      setRaw(previousRaw);setTruncated(previousTruncated);
+      setError(abort.signal.aborted
+        ? "Geração cancelada. A versão anterior foi preservada."
+        : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
     } finally {
       setGenerating(false); controller.current = null;
     }
@@ -226,12 +241,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
   }
 
   return <section className="panel mt-5" aria-labelledby="generator-title">
-    <div className="section-heading">
-      <div><p className="eyebrow">GERADOR NATIVO · NVIDIA</p>
-        <h2 id="generator-title">{mode === "post" ? "Gerar post técnico" : "Gerar casos de teste"}</h2>
-        <p className="text-muted">Contexto completo da TF em foco, requisitos aprovados e revisão antes de salvar.</p>
-      </div>
-      <button type="button" onClick={onClose} aria-label="Fechar gerador"><X size={18} /></button>
+    <div className="qa-ai-generator-intro">
+      <h2 id="generator-title" className="sr-only">
+        {mode === "post" ? "Gerar post técnico" : "Gerar casos de teste"}
+      </h2>
+      <p className="text-muted text-sm">Escolha um modelo, confira os dados enviados e
+        revise a prévia antes de salvar na TF.</p>
     </div>
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
@@ -243,21 +258,44 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
     {context && <div className="stack mt-5">
-      <div className="generator-stats">
-        <span>Cenários: <strong>{context.taskContext.sourceCounts.scenarios}</strong></span>
-        <span>Documentos: <strong>{context.taskContext.sourceCounts.documents}</strong></span>
-        <span>Evidências: <strong>{context.taskContext.sourceCounts.evidence}</strong></span>
-        <span>Eventos: <strong>{context.taskContext.sourceCounts.events}</strong></span>
-        <span>Requisitos selecionados: <strong>{selected.length}</strong></span>
+      <div className="qa-ai-setup">
+        <label className="field">Modelo de geração
+          <select value={preset} disabled={generating||busySave}
+            onChange={event=>setPreset(event.target.value)}>
+            {generatorPresets[mode].map(option=>
+              <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        <details className="qa-ai-extra-options">
+          <summary>Personalizar dados e instruções <span>Opcional</span></summary>
+          <div className="qa-ai-options-content">
+            <div className="generator-stats" aria-label="Fontes no contexto">
+              <span>Cenários: <strong>{context.taskContext.sourceCounts.scenarios}</strong></span>
+              <span>Documentos: <strong>{context.taskContext.sourceCounts.documents}</strong></span>
+              <span>Evidências: <strong>{context.taskContext.sourceCounts.evidence}</strong></span>
+              <span>Eventos: <strong>{context.taskContext.sourceCounts.events}</strong></span>
+              <span>Requisitos: <strong>{selected.length}</strong></span>
+            </div>
+            {requirements.data && requirements.data.length > 0 && <fieldset className="extracted-cases">
+              <legend className="font-semibold">Requisitos aprovados para incluir</legend>
+              {requirements.data.map(item=><label className="extracted-case" key={item.id}>
+                <input type="checkbox" checked={selected.includes(item.id)}
+                  disabled={generating||busySave}
+                  onChange={event=>setSelected(prev=>event.target.checked
+                    ? [...prev,item.id] : prev.filter(id=>id!==item.id))}/>
+                <span><strong>{item.codigo} · {item.titulo}</strong>
+                  <small>{item.descricao.slice(0,180)}</small></span>
+              </label>)}
+            </fieldset>}
+            <label className="field">Instruções adicionais (opcional)
+              <textarea rows={3} value={extra} maxLength={18000}
+                disabled={generating||busySave}
+                onChange={event=>setExtra(event.target.value)}
+                placeholder="Ex.: cobrir o cenário de estorno ou destacar o antes/depois"/>
+            </label>
+          </div>
+        </details>
       </div>
-      {requirements.data && requirements.data.length > 0 && <fieldset className="extracted-cases">
-        <legend className="font-semibold">Requisitos aprovados para incluir</legend>
-        {requirements.data.map((item) => <label className="extracted-case" key={item.id}>
-          <input type="checkbox" checked={selected.includes(item.id)} onChange={(event) =>
-            setSelected((prev) => event.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id))} />
-          <span><strong>{item.codigo} · {item.titulo}</strong><small>{item.descricao.slice(0, 180)}</small></span>
-        </label>)}
-      </fieldset>}
       {missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
@@ -266,22 +304,20 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
           Estou ciente de que este contexto está incompleto e desejo continuar.
         </label>
       </div>}
-      <label className="field">Complemento opcional (máximo 20 mil caracteres no total de requisitos)
-        <textarea rows={3} value={extra} maxLength={18000} onChange={(e) => setExtra(e.target.value)}
-          placeholder="Observações adicionais, desde que não contenham dados sensíveis" />
-      </label>
       <details className="generator-context">
-        <summary>Conferir exatamente o que será enviado à IA</summary>
+        <summary>Ver dados enviados à IA</summary>
         <label className="field mt-3">Contexto da TF<textarea readOnly rows={9} value={context.taskContext.text} /></label>
         <label className="field mt-3">Requisitos e complemento<textarea readOnly rows={5} value={context.approved.text} /></label>
       </details>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-        Autorizo enviar os textos exibidos acima à NVIDIA para gerar o conteúdo desta TF. Dados identificáveis são ocultados automaticamente quando reconhecidos.
+        Autorizo enviar os textos exibidos à NVIDIA para gerar este conteúdo. A ocultação automática de dados sensíveis pode falhar; revise antes de enviar.
       </label>
       <div className="flex gap-2 flex-wrap">
         <Button isDisabled={!canSend} onPress={() => void generate()}>
-          <WandSparkles size={16} /> {generating ? "Gerando…" : mode === "post" ? "Gerar post" : "Gerar roteiro"}
+          {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
+          {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
+            : mode === "post" ? "Gerar post" : "Gerar roteiro"}
         </Button>
         {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
           Cancelar geração
@@ -289,14 +325,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
       </div>
     </div>}
 
-    {(generating || raw) && <section className="mt-6" aria-label="Resultado da IA">
+    {(generating || raw || content || cases.length>0) && <section className="mt-6" aria-label="Resultado da IA">
       <p className="eyebrow">RESULTADO</p>
       <h3 className="font-semibold mt-1">Conteúdo produzido</h3>
-      {generating && <p role="status" className="text-muted text-sm mt-2">Recebendo texto em tempo real…</p>}
+      {generating && <p role="status" className="text-muted text-sm mt-2">
+        Gerando uma nova versão. A prévia anterior permanece até a conclusão.
+      </p>}
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={content || raw}
+          <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
             onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); }} />
         </label>
         {postIssues.length > 0 && <p className="notice error" role="alert">
@@ -316,22 +354,31 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onClose 
         {reviewed.length === 0 && !generating && <p className="notice error">
           O modelo não produziu cenários no formato esperado. Consulte o roteiro acima e tente novamente; não serão cadastrados casos automaticamente.
         </p>}
-        {reviewed.map((item, index) => <article key={String(item.source_index) + index} className="generator-case">
+        <p className="qa-ai-case-count">{chosen.length} de {reviewed.length} casos selecionados</p>
+        {reviewed.map((item, index) => <article key={String(item.source_index) + index} className="generator-case qa-ai-case-review">
           <label className="flex gap-2 items-center text-sm font-semibold">
             <input type="checkbox" disabled={item.duplicate} checked={item.selected && !item.duplicate}
               onChange={(event) => replaceCase(index, { selected: event.target.checked })} />
             Caso {index + 1} {item.duplicate ? "· Duplicado, não anexar" : ""}
           </label>
-          <div className="stack mt-3">
-            <label className="field">Título<input value={item.titulo} maxLength={240}
-              onChange={(e) => replaceCase(index, { titulo: e.target.value })} /></label>
-            <label className="field">Passos<textarea rows={3} value={item.passos} maxLength={20000}
-              onChange={(e) => replaceCase(index, { passos: e.target.value })} /></label>
-            <label className="field">Resultado esperado<textarea rows={3} value={item.esperado} maxLength={20000}
-              onChange={(e) => replaceCase(index, { esperado: e.target.value })} /></label>
-            <label className="field">Observações<textarea rows={2} value={item.observacoes} maxLength={20000}
-              onChange={(e) => replaceCase(index, { observacoes: e.target.value })} /></label>
+          <div className="qa-ai-case-preview">
+            <strong>{item.titulo}</strong>
+            <p><b>Passos:</b> {item.passos.slice(0,240)}{item.passos.length>240?"…":""}</p>
+            <p><b>Esperado:</b> {item.esperado.slice(0,240)}{item.esperado.length>240?"…":""}</p>
           </div>
+          <details className="qa-ai-case-edit">
+            <summary>Editar cenário</summary>
+            <div className="stack mt-3">
+              <label className="field">Título<input value={item.titulo} maxLength={240}
+                onChange={(e) => replaceCase(index, { titulo: e.target.value })} /></label>
+              <label className="field">Passos<textarea rows={3} value={item.passos} maxLength={20000}
+                onChange={(e) => replaceCase(index, { passos: e.target.value })} /></label>
+              <label className="field">Resultado esperado<textarea rows={3} value={item.esperado} maxLength={20000}
+                onChange={(e) => replaceCase(index, { esperado: e.target.value })} /></label>
+              <label className="field">Observações<textarea rows={2} value={item.observacoes} maxLength={20000}
+                onChange={(e) => replaceCase(index, { observacoes: e.target.value })} /></label>
+            </div>
+          </details>
         </article>)}
         <Button isDisabled={!chosen.length || busySave || generating} onPress={() => void attachCases()}>
           <Send size={16} /> Anexar {chosen.length} caso(s) à TF

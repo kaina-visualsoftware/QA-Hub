@@ -131,6 +131,36 @@ try {
   assert.equal(await deliverables.getByRole("button",{name:/^Gerar post/}).count(),1);
   await deliverables.getByRole("button",{name:/^Gerar post/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor({timeout:20000});
+  const studio=page.getByRole("navigation",{name:"Ferramentas da central de IA"});
+  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
+  for(const mode of ["Post","Casos"]){
+    await studio.getByRole("button",{name:mode,exact:true}).click();
+    for(const width of [320,390,768,1366]){
+      await page.setViewportSize({width,height:844});
+      const layout=await page.evaluate(()=>{
+        const modal=[...document.querySelectorAll(".qa-modal")]
+          .find(element=>element.getClientRects().length>0);
+        const content=modal?.querySelector(".qa-modal-content");
+        return {
+          page:document.documentElement.scrollWidth-innerWidth,
+          content:content?.scrollWidth-content?.clientWidth
+        };
+      });
+      assert.ok(layout.page<=1&&layout.content<=1,
+        "AI "+mode+" overflows at "+width+": "+JSON.stringify(layout));
+      if(width===320||width===390||width===1366){
+        const audit=await page.evaluate(async()=>window.axe.run(document,{
+          runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
+          rules:{region:{enabled:false}}
+        }));
+        assert.deepEqual(audit.violations.map(v=>({
+          id:v.id,targets:v.nodes.slice(0,3).map(n=>n.target.join(" "))
+        })),[],"AI "+mode+" WCAG at "+width);
+      }
+      await page.screenshot({path:"artifacts/mobile-ux/f2-"+mode+"-"+width+".png"});
+    }
+  }
+  await studio.getByRole("button",{name:"Post"}).click();
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("tab",{name:"Resumo"}).click();
   await fast.getByRole("button",{name:"Gerar casos com IA"}).click();
@@ -140,7 +170,6 @@ try {
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
-  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
     "Advanced Mermaid code must stay hidden before generation");
   for(const width of sizes){
@@ -178,6 +207,7 @@ try {
 
   await page.getByRole("radio",{name:"Texto livre"}).check();
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
+  await page.getByRole("combobox",{name:"Modelo do diagrama"}).selectOption("decisoes");
   assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
   await page.getByRole("checkbox",{name:/Autorizo enviar este conteúdo à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
@@ -191,6 +221,7 @@ try {
   const code=await page.locator("#diagram-code-editor").inputValue();
   assert.ok(code.startsWith("flowchart LR"),"Diagram should be normalized to horizontal layout");
   assert.equal(prompts.length,1);
+  assert.match(prompts[0].text,/Destaque condições, decisões e caminhos alternativos/i);
   assert.equal(diagrams.length,0,"Generated diagrams must not be saved without confirmation");
   assert.equal(await page.getByRole("button",{name:"Salvar diagrama"}).isEnabled(),true);
   assert.equal(taskWrites,0);
