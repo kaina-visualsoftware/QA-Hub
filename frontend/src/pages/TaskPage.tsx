@@ -10,7 +10,8 @@ import {
   TaskViewTabs, TaskOverview, TaskDeliverables
 } from "../features/tasks/TaskWorkspaceSections";
 import type { TaskTab, DeliverableKind } from "../features/tasks/TaskWorkspaceSections";
-import type { GeneratorMode } from "../features/generators/stream";
+import { AiStudioTabs } from "../features/generators/AiStudioTabs";
+import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
   addScenario, getAdminRole, listScenarios, listTasks, saveScenarioResult, updateTask,
@@ -60,23 +61,24 @@ export default function TaskPage() {
   const [editing, setEditing] = useState(false);
   const [showSettings,setShowSettings]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
-  const [showDiagrams, setShowDiagrams] = useState(false);
+  const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
+  const [visitedAi, setVisitedAi] = useState<AiStudioMode[]>([]);
   const [focusDiagramAi, setFocusDiagramAi] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
   const [focusReport, setFocusReport] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
-  const [generatorMode, setGeneratorMode] = useState<GeneratorMode | null>(null);
+
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
   useEffect(()=>{
     setActiveTab("summary");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
-    setShowDiagrams(false);setFocusDiagramAi(false);setShowDocuments(false);
+    setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
-    setShowLinks(false);setGeneratorMode(null);
+    setShowLinks(false);
     setEditingScenario(null);setPending(null);setObserved("");
   },[taskId]);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
@@ -111,18 +113,19 @@ export default function TaskPage() {
     item.status === "nao_executado").length;
 
   function closeToolPanels() {
-    setShowDiagrams(false);setShowDocuments(false);setShowRequirements(false);
-    setShowEvidence(false);setShowLinks(false);setGeneratorMode(null);
+    setAiMode(null);setShowDocuments(false);setShowRequirements(false);
+    setShowEvidence(false);setShowLinks(false);
   }
   function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste") {
     closeToolPanels();
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
-    if(kind==="diagrams")setShowDiagrams(true);
-    else if(kind==="documents")setShowDocuments(true);
+    if(kind==="diagrams"||kind==="post"||kind==="teste") {
+      setAiMode(kind);
+      setVisitedAi(previous=>previous.includes(kind)?previous:[...previous,kind]);
+    } else if(kind==="documents")setShowDocuments(true);
     else if(kind==="requirements")setShowRequirements(true);
     else if(kind==="evidence")setShowEvidence(true);
     else if(kind==="links")setShowLinks(true);
-    else setGeneratorMode(kind);
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
@@ -493,36 +496,46 @@ export default function TaskPage() {
         <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)}/>
       </Suspense>
     </QAModal>
-    <QAModal key={task.id+"-cases-ai"} open={generatorMode==="teste"} keepMounted
-      title="Gerar casos com IA" eyebrow="ASSISTENTE DE IA" size="full"
-      onClose={()=>setGeneratorMode(null)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
-        <GeneratorPanel key={task.id+"-teste"} task={task} userId={userId}
-          scenarios={scenarios.data || []} mode="teste"
-          onClose={() => setGeneratorMode(null)} />
-      </Suspense>
-    </QAModal>
-    <QAModal key={task.id+"-post-ai"} open={generatorMode==="post"} keepMounted
-      title="Gerar post com IA" eyebrow="ASSISTENTE DE IA" size="full"
-      onClose={()=>setGeneratorMode(null)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando gerador…</p>}>
-        <GeneratorPanel key={task.id+"-post"} task={task} userId={userId}
-          scenarios={scenarios.data || []} mode="post"
-          onClose={() => setGeneratorMode(null)} />
-      </Suspense>
+    <QAModal key={task.id+"-ai-studio"} open={aiMode!==null} keepMounted
+      title={aiMode==="post"?"Gerar post com IA":
+        aiMode==="diagrams"?"Diagramas da TF":"Gerar casos com IA"}
+      eyebrow="CENTRAL DE IA" size={aiMode==="diagrams"?"lg":"full"}
+      initialFocus={aiMode==="diagrams"?"#diagram-ai-heading":undefined}
+      onClose={()=>setAiMode(null)}>
+      <AiStudioTabs active={aiMode??"teste"} onChange={mode=>{
+        setAiMode(mode);
+        setVisitedAi(previous=>previous.includes(mode)?previous:[...previous,mode]);
+        setFocusDiagramAi(mode==="diagrams");
+      }}/>
+      {visitedAi.includes("teste")&&<div hidden={aiMode!=="teste"}
+        className="qa-ai-studio-panel">
+        <Suspense fallback={<p role="status" className="notice">Carregando casos…</p>}>
+          <GeneratorPanel key={task.id+"-teste"} task={task} userId={userId}
+            scenarios={scenarios.data||[]} mode="teste"
+            />
+        </Suspense>
+      </div>}
+      {visitedAi.includes("post")&&<div hidden={aiMode!=="post"}
+        className="qa-ai-studio-panel">
+        <Suspense fallback={<p role="status" className="notice">Carregando post…</p>}>
+          <GeneratorPanel key={task.id+"-post"} task={task} userId={userId}
+            scenarios={scenarios.data||[]} mode="post"
+            />
+        </Suspense>
+      </div>}
+      {visitedAi.includes("diagrams")&&<div hidden={aiMode!=="diagrams"}
+        className="qa-ai-studio-panel">
+        <Suspense fallback={<p role="status" className="notice">Carregando diagramas…</p>}>
+          <DiagramPanel key={task.id} task={task} scenarios={scenarios.data||[]}
+            userId={userId} focusAi={aiMode==="diagrams"&&focusDiagramAi}/>
+        </Suspense>
+      </div>}
     </QAModal>
     <QAModal key={task.id+"-documents"} open={showDocuments} keepMounted title="Documentos e relatório"
       eyebrow="ENTREGÁVEIS" size="full" initialFocus="#documents-heading" onClose={()=>setShowDocuments(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando documentos…</p>}>
         <DocumentsPanel key={task.id} task={task} scenarios={scenarios.data || []} userId={userId}
           focusOnOpen={focusReport}/>
-      </Suspense>
-    </QAModal>
-    <QAModal key={task.id+"-diagrams"} open={showDiagrams} keepMounted title="Diagramas da TF"
-      eyebrow="DOCUMENTAÇÃO VISUAL" size="md" initialFocus="#diagram-ai-heading" onClose={()=>setShowDiagrams(false)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando editor de diagramas…</p>}>
-        <DiagramPanel key={task.id} task={task} scenarios={scenarios.data || []} userId={userId}
-          focusAi={focusDiagramAi}/>
       </Suspense>
     </QAModal>
     {showScenarioForm && <QAModal open={showScenarioForm}

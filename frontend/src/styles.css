@@ -1169,3 +1169,49 @@
   .qa-guided-active .qa-tests-heading h2{font-size:1rem}
   .qa-guided-active .qa-guided-toolbar h3{font-size:1.02rem}
 }
+/* F2: a single context-aware IA workspace across cases, posts and diagrams. */
+.qa-ai-studio-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;
+  padding:5px;border:1px solid #d6e5e7;border-radius:12px;background:#f0f6f5;margin-bottom:11px}
+.qa-ai-studio-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;
+  min-height:45px;padding:10px;border-radius:9px;font-size:.85rem;font-weight:740;
+  color:#456973}
+.qa-ai-studio-tabs button.selected{background:#fff;color:#135b64;
+  box-shadow:0 1px 5px #1644511b}
+.qa-ai-studio-tabs button:focus-visible{outline:3px solid #147d8c;outline-offset:1px}
+.qa-ai-studio-panel[hidden]{display:none!important}
+.qa-ai-studio-panel>.panel{margin:0;box-shadow:none;border:none;padding:8px 2px}
+.qa-ai-studio-panel .section-heading{margin-bottom:10px}
+.qa-ai-studio-panel .qa-diagram-workspace{padding:0}
+@media(max-width:560px){
+  .qa-ai-studio-tabs button{font-size:.78rem;gap:6px;padding:10px 4px}
+  .qa-ai-studio-tabs button svg{width:16px;height:16px}
+}
+/* F2: compact intent-first generation and edit-on-demand case review. */
+.qa-ai-setup{display:flex;flex-direction:column;gap:10px}
+.qa-ai-setup>.field{max-width:550px}
+.qa-ai-extra-options{border:1px solid #d9e7e8;border-radius:11px;background:#f9fcfc}
+.qa-ai-extra-options>summary{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:12px 14px;cursor:pointer;min-height:44px;
+  font-weight:740;font-size:.82rem;color:#2c626d}
+.qa-ai-extra-options>summary>span{font-size:.72rem;color:#506e78;font-weight:500}
+.qa-ai-extra-options[open]>summary{border-bottom:1px solid #e1e9ea}
+.qa-ai-options-content{display:flex;flex-direction:column;gap:13px;padding:14px}
+.qa-ai-options-content .generator-stats span{padding:6px 10px}
+.qa-ai-case-count{font-size:.81rem;font-weight:760;color:#30636d}
+.qa-ai-case-review{padding:12px 14px}
+.qa-ai-case-preview{margin-top:9px;min-width:0}
+.qa-ai-case-preview strong{display:block;font-size:.87rem;color:#1c4651;overflow-wrap:anywhere}
+.qa-ai-case-preview p{font-size:.78rem;color:#466b74;line-height:1.55;margin-top:5px;
+  overflow-wrap:anywhere;white-space:pre-wrap}
+.qa-ai-case-edit{margin-top:12px}
+.qa-ai-case-edit>summary{cursor:pointer;font-weight:720;font-size:.77rem;
+  color:#246d76;min-height:40px;display:flex;align-items:center}
+.qa-ai-diagram-model{max-width:520px}
+.qa-ai-studio-panel .generator-context>summary{min-height:44px}
+@media(max-width:600px){
+  .qa-ai-studio-panel>.panel{padding:5px 0}
+  .qa-ai-options-content{padding:10px}
+  .qa-ai-case-review{padding:11px}
+}
+.qa-ai-generator-intro{margin:0 0 15px}
+.qa-ai-generator-intro p{line-height:1.5;color:#496c74}
