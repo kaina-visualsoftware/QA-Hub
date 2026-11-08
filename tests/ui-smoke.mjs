@@ -140,6 +140,29 @@ export function createClient(){
       }
     },
     async rpc(name,args){
+      if(name==='qa_public_tasks_v1'){
+        // Simulate the server-side projection: private columns never arrive.
+        return {data:tables.qa_tarefas.filter(t=>t.publica===true).map(t=>({
+          id:t.id,titulo:t.titulo,codigo:t.codigo,tipo_teste:t.tipo_teste,
+          sistema:t.sistema,versao:t.versao,executado_em:t.executado_em
+        })),error:null};
+      }
+      if(name==='qa_public_task_v1'){
+        const t=tables.qa_tarefas.find(t=>t.id===args?.p_task_id&&t.publica===true);
+        if(!t)return {data:null,error:null};
+        return {data:{
+          task:Object.fromEntries(['id','titulo','codigo','tipo_teste','sistema','versao',
+            'executado_em','status','descricao','explicacao','causa','correcao',
+            'conclusao','observacoes'].map(key=>[key,t[key]??null])),
+          scenarios:tables.qa_cenarios.filter(s=>s.tarefa_id===t.id).map(s=>({
+            id:s.id,titulo:s.titulo,ordem:s.ordem,passos:s.passos,esperado:s.esperado,
+            obtido:s.obtido,observacoes:s.observacoes,status:s.status
+          })),
+          diagrams:tables.qa_diagramas.filter(d=>d.tarefa_id===t.id).map(d=>({
+            id:d.id,titulo:d.titulo,conteudo:d.conteudo
+          }))
+        },error:null};
+      }
       if(name==='qa_register_requirement_file'){
         const task=tables.qa_tarefas.find(t=>t.id===args.p_tarefa_id);
         const object=storageObjects.get(args.p_path);
@@ -341,8 +364,9 @@ try {
       await route.fulfill({status:200,contentType:'application/javascript',
         headers:{'access-control-allow-origin':'*'},body:source});
     });
-    await page.goto(site, {waitUntil:'load'});
-    await page.waitForURL('**/qa.html');
+    // React is now the default; keep smoke coverage of the legacy fallback.
+    await page.goto(site+'qa-legacy.html', {waitUntil:'load'});
+    await page.waitForURL('**/qa-legacy.html');
     await page.waitForLoadState('load');
     await page.locator('#auth-screen').waitFor({state:'visible'});
     assert.equal(await page.locator('#auth-screen').isVisible(),true);
