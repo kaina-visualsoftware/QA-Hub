@@ -311,7 +311,6 @@ export default function TaskPage() {
   }, [focusNextPending, saveResult.isPending, scenarios.isFetching, scenarios.data]);
 
   const progress = progressOf(scenarios.data || []);
-  const passedCount = (scenarios.data ?? []).filter(s => s.status==="aprovado").length;
   const failedCount = (scenarios.data ?? []).filter(s => s.status==="reprovado").length;
   const blockedCount = (scenarios.data ?? []).filter(s => s.status==="bloqueado").length;
   const progressPercent = progress.total ? Math.round(progress.executed/progress.total*100) : 0;
