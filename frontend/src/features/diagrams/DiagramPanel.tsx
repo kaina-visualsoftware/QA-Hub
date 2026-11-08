@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2, WandSparkles } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { DiagramAiPanel } from "./DiagramAiPanel";
 import { ensureMermaidSyntax, mermaidErrorMessage } from "./mermaid-validation";
@@ -19,6 +19,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
   const [editingId, setEditingId] = useState<string | undefined>();
   const [showEditor,setShowEditor]=useState(false);
   const [showSaved,setShowSaved]=useState(false);
+  const [showComposer,setShowComposer]=useState(true);
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]");
   const [svg, setSvg] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
     setEditingId(undefined);
     setTitle("Fluxo — " + task.titulo.slice(0,130));
     setCode(generated);setSvg(null);setMessage("");setPreviewError("");setRepairRequest(null);
-    setShowEditor(false);
+    setShowEditor(false);setShowComposer(false);
     void preview(generated);
     requestAnimationFrame(()=>{
       document.getElementById("diagram-save-action")?.focus({preventScroll:true});
@@ -70,14 +71,14 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
   function edit(record: Diagram) {
     setEditingId(record.id);
     setTitle(record.titulo);setCode(record.conteudo);setSvg(null);
-    setShowEditor(true);setPreviewError("");setRepairRequest(null);
+    setShowEditor(true);setShowComposer(false);setPreviewError("");setRepairRequest(null);
     void preview(record.conteudo);
   }
 
   function showMermaidError(value:string,reason:unknown){
     const diagnosis=mermaidErrorMessage(reason);
     setPreviewError("Mermaid inválido: "+diagnosis);
-    setShowEditor(true);
+    setShowEditor(true);setShowComposer(true);
     setRepairRequest(value.trim()?{code:value,error:diagnosis}:null);
   }
   async function preview(value:string){
@@ -116,9 +117,16 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
 
   return <section className="qa-diagram-workspace" aria-labelledby="diagram-heading">
     <h2 id="diagram-heading" className="sr-only">Diagramas Mermaid</h2>
-    <DiagramAiPanel task={task} scenarios={scenarios} userId={userId}
-      repairRequest={repairRequest} onRepairHandled={()=>setRepairRequest(null)}
-      onDraft={applyAiDraft}/>
+    <div className="qa-diagram-composer" hidden={!showComposer}>
+      <DiagramAiPanel task={task} scenarios={scenarios} userId={userId}
+        repairRequest={repairRequest} onRepairHandled={()=>setRepairRequest(null)}
+        onDraft={applyAiDraft}/>
+    </div>
+    {!showComposer&&own&&<button type="button" className="qa-diagram-regenerate"
+      onClick={()=>{setShowComposer(true);requestAnimationFrame(()=>
+        document.getElementById("diagram-ai-heading")?.focus({preventScroll:true}));}}>
+      <WandSparkles size={16} aria-hidden="true"/> Alterar ou gerar novamente
+    </button>}
     {(title.trim()||svg||showEditor) ?
     <form className="qa-diagram-result" id="diagram-editor"
       onSubmit={event=>{event.preventDefault();void validateAndSave();}}>
@@ -150,8 +158,11 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
         <p role="alert" className="notice error">{previewError}</p>
         {repairRequest&&own&&<button className="secondary-link" type="button"
           onClick={()=>{
-            document.getElementById("diagram-ai-heading")?.focus({preventScroll:true});
-            document.getElementById("diagram-ai-heading")?.scrollIntoView({block:"start"});
+            setShowComposer(true);
+            requestAnimationFrame(()=>{
+              document.getElementById("diagram-ai-heading")?.focus({preventScroll:true});
+              document.getElementById("diagram-ai-heading")?.scrollIntoView({block:"start"});
+            });
           }}>Ir para Corrigir com IA</button>}
       </div>}
       <div className="qa-diagram-savebar">

@@ -215,6 +215,7 @@ try{
     "A IA nunca seleciona casos automaticamente");
   await normal.getByRole("button",{name:"Aplicar campos revisados"}).click();
   assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  await normal.getByText("Informações adicionais (opcional)").click();
   assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"12.08.08.0000");
   assert.equal(await normal.evaluate(()=>window.__syntheticAIWorkerCount),1);
   await normal.getByRole("button",{name:"Cancelar",exact:true}).click();

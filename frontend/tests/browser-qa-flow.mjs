@@ -211,6 +211,7 @@ try{
   assert.equal(tasks[0].status,"rascunho");
   // One focused tool at a time: close the generator before opening posts.
   await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
+  await page.getByText("Mais ferramentas").click();
   await page.getByRole("button",{name:/Gerar post com IA/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
@@ -222,7 +223,6 @@ try{
   assert.equal(postSaves,1);
   assert.equal(aiCalls,2);
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
-  await page.getByText("Mais ferramentas").click();
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();
   const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");

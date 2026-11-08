@@ -702,3 +702,65 @@
   }
   .qa-quickflow-clean .qa-action-strip button svg{width:16px;height:16px}
 }
+
+/* Mobile usability pass: one compact action surface instead of competing grids. */
+.qa-quickflow-clean{background:#fff;border:1px solid #dce8e9;gap:0;padding:14px 16px}
+.qa-primary-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;min-width:0}
+.qa-primary-actions>button{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-width:0;min-height:48px;border-radius:11px;padding:10px 8px;font-size:.82rem;
+  font-weight:720;white-space:normal;text-align:center;line-height:1.3}
+.qa-primary-actions>button svg{flex-shrink:0}
+.qa-primary-tool{border:1px solid #ccdedf;background:#f3f9f9;color:#245665}
+.qa-primary-tool:hover{background:#e7f3f2;border-color:#82b4b5}
+.qa-quickflow-clean .qa-tool-drawer{margin-top:12px;border-top:1px solid #e7edef}
+.qa-quickflow-clean .qa-tool-drawer>summary{padding:11px 2px 3px}
+.qa-diagram-composer[hidden]{display:none}
+.qa-diagram-regenerate{display:inline-flex;align-items:center;gap:8px;
+  align-self:flex-start;min-height:42px;padding:8px 2px;font-size:.81rem;
+  background:transparent;border:0;color:#216773;font-weight:740}
+.qa-diagram-regenerate:hover{text-decoration:underline;text-underline-offset:3px}
+.qa-task-optional{border:1px solid #e1e9ea;border-radius:10px;padding:0 12px;background:#fbfdfd}
+.qa-task-optional>summary{min-height:44px;padding:12px 0;font-size:.82rem;
+  font-weight:710;color:#325966;cursor:pointer}
+.qa-task-optional>div{padding-bottom:14px}
+@media(max-width:800px){
+  /* The home screen already has a New TF action; don't repeat it in the mobile nav. */
+  .sidebar nav:first-of-type .nav-link:nth-child(2){display:none}
+  .sidebar{padding:8px 12px 6px}
+  .sidebar nav:first-of-type,.sidebar nav:nth-of-type(2){gap:4px}
+  .sidebar .nav-link{min-height:38px}
+}
+@media(max-width:640px){
+  .qa-quickflow-clean{padding:12px;border-radius:12px}
+  .qa-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .qa-primary-actions>button{min-height:52px;font-size:.81rem;gap:6px}
+  .qa-primary-actions>button svg{width:17px;height:17px}
+  .qa-task-meta{gap:5px}
+  .qa-modal-heading .eyebrow{display:none}
+  .qa-modal-heading h2{margin-top:0}
+  .qa-modal-content :is(.generator-context,.diagram-item,.qa-diagram-workspace,.requirement-row){
+    overflow-wrap:anywhere;min-width:0}
+}
+@media(max-width:360px){
+  .qa-primary-actions>button{font-size:.75rem}
+}
+
+/* Evidence from real 320/390px screenshots: segmented filters must not become
+   three full-width rows, and all four quick actions need equal footprints. */
+.qa-primary-actions>button{width:100%}
+.qa-settings-compact{padding:14px 17px;box-shadow:none}
+.qa-settings-compact p{margin:0}
+@media(max-width:640px){
+  .qa-settings-compact{gap:10px;padding:13px}
+  .qa-settings-compact button{min-height:44px}
+  .qa-workflow-anchor .filter-line{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;margin-top:13px;
+  }
+  .qa-workflow-anchor .filter-line .filter-chip{
+    width:100%;min-height:45px;min-width:0;
+    display:flex;align-items:center;justify-content:center;
+    padding:7px 4px;text-align:center;font-size:.72rem;
+    line-height:1.3;white-space:normal;
+  }
+}
