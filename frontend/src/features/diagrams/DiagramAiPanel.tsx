@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
-import { Check, GitBranchPlus, WandSparkles, Wrench } from "lucide-react";
+import { Check, WandSparkles, Wrench } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
 import { loadApprovedRequirements } from "../../lib/legacy/qa-requirements-context.mjs";
@@ -55,8 +55,9 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   useEffect(()=>{
     setConsent(false);setMessage("");setInvalidGenerated(null);setAttempts(0);
   },[proposal.text]);
-  const canGenerate=own&&!busy&&consent&&!proposal.error&&
-    (mode==="text"||(!requirements.isPending&&!requirements.isError));
+  // Requirements are optional context; a temporary lookup failure must
+  // not block a diagram based on the TF and its scenarios.
+  const canGenerate=own&&!busy&&consent&&!proposal.error;
 
   const repairCandidate=repairRequest ?? invalidGenerated;
   async function generate(repair=false){
@@ -79,7 +80,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       } catch(reason){
         const diagnosis=mermaidErrorMessage(reason);
         setInvalidGenerated({code,error:diagnosis});
-        setError("O fluxograma retornou com erro de sintaxe. Escolha Corrigir com IA ou Gerar novamente.");
+        setError("A IA retornou um diagrama inválido. Você pode corrigir ou gerar novamente.");
         return;
       }
       if(!onDraft(code,mode)){
@@ -89,104 +90,117 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       setInvalidGenerated(null);
       onRepairHandled?.();
       setMessage(result.fallback
-        ? "A NVIDIA não retornou um fluxo utilizável. Fluxograma local validado: revise antes de salvar."
-        : repair
-          ? "Sintaxe corrigida e validada. Confira a prévia e salve o diagrama quando estiver correto."
-          : "Fluxograma validado pelo Mermaid. Confira a prévia antes de salvar na TF.");
+        ? "A IA não retornou um resultado utilizável; foi criada uma sugestão local."
+        : repair ? "Diagrama corrigido." : "Diagrama pronto para revisão.");
     } catch(cause){
       setError(errorMessage(cause));
     } finally{setBusy(false);}
   }
+
   const selected=new Set(scenarioIds);
   const selectedRequirements=new Set(requirementIds);
-  return <section className="qa-diagram-ai" aria-labelledby="diagram-ai-heading">
-    <div className="section-heading">
+  const taskScenarios=scenarios.filter(s=>s.tarefa_id===task.id);
+  return <section className="qa-diagram-ai qa-diagram-quick" aria-labelledby="diagram-ai-heading">
+    <div className="qa-diagram-quick-heading">
+      <span className="qa-diagram-quick-icon"><WandSparkles size={20} aria-hidden="true"/></span>
       <div>
-        <p className="eyebrow">ASSISTENTE DE FLUXOGRAMAS</p>
-        <h3 id="diagram-ai-heading" tabIndex={-1} className="font-semibold">Criar diagrama com IA</h3>
-        <p className="text-muted text-sm">Use a TF ou descreva o processo. Revise o Mermaid antes de salvar.</p>
+        <h3 id="diagram-ai-heading" tabIndex={-1}>Criar diagrama com IA</h3>
+        <p className="text-muted text-sm">Escolha a origem e gere o fluxo.</p>
       </div>
-      <WandSparkles size={21} aria-hidden="true" />
     </div>
-    {!own && <p role="alert" className="notice error mt-3">A geração com IA é restrita ao autor da TF. A consulta administrativa permanece somente leitura.</p>}
-    <fieldset className="qa-diagram-mode mt-4" disabled={!own||busy}>
-      <legend>Origem do fluxograma</legend>
+    {!own&&<p role="alert" className="notice error">Somente o autor da TF pode gerar diagramas.</p>}
+    <fieldset className="qa-diagram-mode qa-diagram-quick-modes" disabled={!own||busy}>
+      <legend className="sr-only">Origem do fluxograma</legend>
       <label><input type="radio" name="diagram-input-mode" checked={mode==="task"}
-        onChange={()=>setMode("task")} /> Dados da TF</label>
+        onChange={()=>setMode("task")}/> Dados da TF</label>
       <label><input type="radio" name="diagram-input-mode" checked={mode==="text"}
-        onChange={()=>setMode("text")} /> Texto livre</label>
+        onChange={()=>setMode("text")}/> Texto livre</label>
     </fieldset>
-    {mode==="task" && <>
-      <details className="generator-context mt-3" open={false}>
-        <summary>Cenários incluídos ({scenarioIds.length})</summary>
-        <div className="qa-diagram-picks mt-3">
-          {scenarios.filter(s=>s.tarefa_id===task.id).map(s=>
-            <label key={s.id}><input type="checkbox" checked={selected.has(s.id)} disabled={!own||busy}
-              onChange={e=>setScenarioIds(curr=>e.target.checked
-                ? [...curr,s.id] : curr.filter(id=>id!==s.id))}/>
-              {s.titulo}</label>)}
-          {!scenarios.length && <p className="text-muted text-sm">Sem cenários cadastrados; a IA utilizará os campos da TF.</p>}
-        </div>
-        <p className="text-muted text-xs mt-2">Máximo de 18 cenários por diagrama. Desmarque os que não fazem parte do fluxo.</p>
-      </details>
-      {requirements.isError && <p className="notice error mt-3" role="alert">Não foi possível carregar requisitos. Verifique o acesso antes de gerar.</p>}
-      {(requirements.data?.length ?? 0)>0 && <details className="generator-context mt-3">
-        <summary>Requisitos aprovados incluídos ({requirementIds.length})</summary>
-        <div className="qa-diagram-picks mt-3">
-          {requirements.data?.map(r=><label key={r.id}>
-            <input type="checkbox" checked={selectedRequirements.has(r.id)} disabled={!own||busy}
-              onChange={e=>setRequirementIds(curr=>e.target.checked
-                ? [...curr,r.id]:curr.filter(id=>id!==r.id))}/>
-            {r.codigo} — {r.titulo}</label>)}
+    {mode==="text"?
+      <label className="field qa-diagram-description">Descreva o processo
+        <textarea rows={4} value={manual} maxLength={20000} disabled={!own||busy}
+          placeholder="Ex.: Receber pedido, validar valores e emitir nota"
+          onChange={e=>setManual(e.target.value)}/>
+      </label>
+      :<details className="qa-diagram-options">
+        <summary>Personalizar conteúdo <span>Opcional</span></summary>
+        <div className="stack qa-diagram-options-content">
+          <label className="field">Instruções adicionais
+            <textarea rows={2} value={manual} maxLength={20000} disabled={!own||busy}
+              placeholder="Ex.: destacar a etapa de aprovação"
+              onChange={e=>setManual(e.target.value)}/>
+          </label>
+          {taskScenarios.length>0&&<details className="qa-diagram-nested">
+            <summary>Cenários ({scenarioIds.length} selecionados)</summary>
+            <div className="qa-diagram-picks">
+              {taskScenarios.map(s=><label key={s.id}>
+                <input type="checkbox" checked={selected.has(s.id)} disabled={!own||busy}
+                  onChange={e=>setScenarioIds(curr=>e.target.checked?
+                    [...curr,s.id]:curr.filter(id=>id!==s.id))}/>
+                {s.titulo}
+              </label>)}
+            </div>
+          </details>}
+          {(requirements.data?.length??0)>0&&<details className="qa-diagram-nested">
+            <summary>Requisitos ({requirementIds.length} selecionados)</summary>
+            <div className="qa-diagram-picks">
+              {requirements.data?.map(req=><label key={req.id}>
+                <input type="checkbox" checked={selectedRequirements.has(req.id)}
+                  disabled={!own||busy} onChange={e=>setRequirementIds(curr=>
+                    e.target.checked?[...curr,req.id]:curr.filter(id=>id!==req.id))}/>
+                {req.codigo} — {req.titulo}
+              </label>)}
+            </div>
+          </details>}
+          {requirements.isError&&<p className="text-muted text-sm" role="status">
+            Requisitos indisponíveis. A TF e os cenários ainda podem ser usados.
+          </p>}
         </div>
       </details>}
-    </>}
-    <label className="field mt-4">{mode==="task" ? "Complemento opcional" : "Descreva o processo"}
-      <textarea rows={4} value={manual} maxLength={20000} disabled={!own||busy}
-        placeholder={mode==="task"?"Detalhes adicionais do fluxo que deseja representar…":"Descreva as etapas, decisões e caminhos alternativos…"}
-        onChange={e=>setManual(e.target.value)}/>
-    </label>
-    {proposal.error && <p role="alert" className="notice error mt-3">{proposal.error}</p>}
-    {proposal.text && <details className="generator-context mt-3">
-      <summary>Conferir o texto que será enviado à IA ({proposal.text.length} caracteres)</summary>
-      <textarea readOnly className="w-full mt-3" rows={7} value={proposal.text}/>
-    </details>}
-    <label className="qa-diagram-consent mt-3">
-      <input type="checkbox" checked={consent} disabled={!own||busy||!proposal.text}
-        onChange={e=>setConsent(e.target.checked)}/>
-      <span>Autorizo enviar o texto exibido à NVIDIA. Ao solicitar correção, o código Mermaid e o diagnóstico de sintaxe também serão enviados. Revise os dados antes de confirmar.</span>
-    </label>
-    <div className="flex flex-wrap gap-3 items-center mt-4">
+    {proposal.error&&<p role="alert" className="notice error">{proposal.error}</p>}
+    <div className="qa-diagram-privacy">
+      <label className="qa-diagram-consent">
+        <input type="checkbox" checked={consent} disabled={!own||busy||!proposal.text}
+          onChange={e=>setConsent(e.target.checked)}/>
+        <span>Autorizo enviar o texto exibido à NVIDIA.</span>
+      </label>
+      <details className="qa-diagram-payload">
+        <summary>Ver dados enviados</summary>
+        <p className="text-muted text-xs">A IA recebe o contexto abaixo. Ao corrigir um erro,
+          também recebe o Mermaid rejeitado e o diagnóstico do parser.</p>
+        <textarea readOnly aria-label="Contexto enviado à IA" rows={5}
+          value={proposal.text}/>
+      </details>
+    </div>
+    <div className="qa-diagram-quick-actions">
       <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
-        <WandSparkles size={16}/>
-        {busy?"Consultando a IA…":attempts?"Gerar novamente":"Gerar fluxograma com IA"}
+        <WandSparkles size={17} aria-hidden="true"/>
+        {busy?"Gerando…":attempts?"Gerar novamente":"Gerar fluxograma com IA"}
       </Button>
-      {repairCandidate && <Button variant="secondary" isDisabled={!canGenerate}
+      {repairCandidate&&<Button variant="secondary" isDisabled={!canGenerate}
         onPress={()=>void generate(true)}>
         <Wrench size={16}/> Corrigir com IA
       </Button>}
-      <span className="text-muted text-xs"><GitBranchPlus size={14} className="inline-block"/> Só salva após sua confirmação</span>
     </div>
-    {invalidGenerated && <div className="qa-diagram-error-details mt-4">
-      <p className="font-semibold">Código recebido com erro de sintaxe</p>
-      <p className="text-muted text-sm mt-2">Use Corrigir com IA, Gerar novamente ou abra o código para ajustes manuais. Nada foi salvo.</p>
-      <pre className="qa-mermaid-diagnostic mt-3">{invalidGenerated.error}</pre>
-      <details className="generator-context mt-3">
-        <summary>Consultar código Mermaid com erro</summary>
-        <textarea className="w-full mt-3" rows={8} readOnly value={invalidGenerated.code}/>
+    {invalidGenerated&&<div className="qa-diagram-error-details">
+      <details className="qa-diagram-options">
+        <summary>Detalhes do erro de sintaxe</summary>
+        <pre className="qa-mermaid-diagnostic">{invalidGenerated.error}</pre>
+        <textarea rows={5} readOnly value={invalidGenerated.code}
+          aria-label="Código Mermaid inválido"/>
       </details>
-      <button className="secondary-link mt-3" type="button" disabled={!own||busy}
-        onClick={()=>{if(onDraft(invalidGenerated.code,mode)){
-          setMessage("Código transferido para o editor. Corrija a sintaxe antes de salvar.");
-        }}}>
-        Editar código manualmente
-      </button>
+      <button type="button" className="secondary-link"
+        disabled={!own||busy} onClick={()=>{
+          if(onDraft(invalidGenerated.code,mode))
+            setMessage("Código transferido ao editor para ajuste.");
+        }}>Editar código manualmente</button>
     </div>}
-    {repairRequest && !invalidGenerated && <p className="text-muted text-sm mt-3" role="status">
-      O editor identificou um erro de sintaxe. Autorize o envio para corrigi-lo com IA ou altere o Mermaid manualmente.
+    {repairRequest&&!invalidGenerated&&<p role="status" className="text-muted text-sm">
+      Código com erro. Use Corrigir com IA ou ajuste manualmente.
     </p>}
-    {busy && <p role="status" className="mt-3 text-muted text-sm">Consultando a IA. O diagrama será preparado no editor, sem salvar automaticamente.</p>}
-    {error && <p role="alert" className="notice error mt-3">{error}</p>}
-    {message && <p role="status" className="notice mt-3 flex gap-2"><Check size={16}/>{message}</p>}
+    {error&&<p role="alert" className="notice error">{error}</p>}
+    {message&&<p role="status" className="qa-diagram-success">
+      <Check size={16} aria-hidden="true"/>{message}
+    </p>}
   </section>;
 }
