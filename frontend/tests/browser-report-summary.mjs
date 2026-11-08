@@ -127,8 +127,13 @@ try{
   await full.fill("Texto manual em revisão — não sobrescrever");
   assert.equal(await full.inputValue(),"Texto manual em revisão — não sobrescrever");
 
+  // The document stays mounted while its modal is closed: a manually edited
+  // report survives continuing tests, and its derived summary refreshes.
+  await page.getByRole("button",{name:"Fechar Documentos e relatório"}).click();
   await page.getByRole("group",{name:"Resultado de Caso pendente"})
     .getByRole("button",{name:"Funcionou",exact:true}).click();
+  await page.getByRole("region",{name:"Fluxo rápido de QA"})
+    .getByRole("button",{name:"Conferir relatório"}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('textarea[readonly]')]
     .some(el=>el.value?.includes("Caso pendente")));
   const newSummary=await summary.inputValue();
