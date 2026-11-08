@@ -465,26 +465,26 @@ export default function TaskPage() {
 
 
 
-    {showRequirements && <QAModal open={showRequirements} title="Requisitos e cobertura"
+    <QAModal open={showRequirements} keepMounted title="Requisitos e cobertura"
       eyebrow="RASTREABILIDADE" size="full" onClose={()=>setShowRequirements(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando requisitos…</p>}>
         <RequirementsPanel key={task.id} task={task} userId={userId}
           scenarios={scenarios.data || []} onClose={() => setShowRequirements(false)}/>
       </Suspense>
-    </QAModal>}
-    {showEvidence && <QAModal open={showEvidence} title="Evidências e auditoria"
+    </QAModal>
+    <QAModal open={showEvidence} keepMounted title="Evidências e auditoria"
       eyebrow="REGISTROS" size="full" onClose={()=>setShowEvidence(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando evidências…</p>}>
         <EvidencePanel key={task.id} task={task} userId={userId}
           scenarios={scenarios.data || []} onClose={() => setShowEvidence(false)}/>
       </Suspense>
-    </QAModal>}
-    {showLinks && <QAModal open={showLinks} title="Releases e referências"
+    </QAModal>
+    <QAModal open={showLinks} keepMounted title="Releases e referências"
       eyebrow="VÍNCULOS" size="full" onClose={()=>setShowLinks(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando releases…</p>}>
         <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)}/>
       </Suspense>
-    </QAModal>}
+    </QAModal>
     {generatorMode && <QAModal open={Boolean(generatorMode)}
       title={generatorMode==="post"?"Gerar post com IA":"Gerar casos com IA"}
       eyebrow="ASSISTENTE DE IA" size="full" onClose={()=>setGeneratorMode(null)}>
@@ -493,15 +493,15 @@ export default function TaskPage() {
           scenarios={scenarios.data || []} mode={generatorMode}
           onClose={() => setGeneratorMode(null)} />
       </Suspense>
-    </QAModal>}
-    {showDocuments && <QAModal open={showDocuments} title="Documentos e relatório"
+    </QAModal>
+    <QAModal open={showDocuments} keepMounted title="Documentos e relatório"
       eyebrow="ENTREGÁVEIS" size="full" onClose={()=>setShowDocuments(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando documentos…</p>}>
         <DocumentsPanel task={task} scenarios={scenarios.data || []} userId={userId}
           focusOnOpen={focusReport}/>
       </Suspense>
-    </QAModal>}
-    {showDiagrams && <QAModal open={showDiagrams} title="Diagramas da TF"
+    </QAModal>
+    <QAModal open={showDiagrams} keepMounted title="Diagramas da TF"
       eyebrow="DOCUMENTAÇÃO VISUAL" size="full" onClose={()=>setShowDiagrams(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando editor de diagramas…</p>}>
         <DiagramPanel task={task} scenarios={scenarios.data || []} userId={userId}
