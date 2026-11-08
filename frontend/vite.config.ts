@@ -3,7 +3,9 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  base: "/QA-Hub/",
+  // Main build retains the historical base for CI; the release workflow
+  // builds the React SPA under /QA-Hub/react/ without replacing legacy assets.
+  base: process.env.QA_VITE_BASE || "/QA-Hub/",
   server: { host: "localhost", port: 8765, strictPort: true },
   plugins: [react(), tailwindcss()],
   build: {
