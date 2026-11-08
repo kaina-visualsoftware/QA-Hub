@@ -222,6 +222,7 @@ try{
   assert.equal(postSaves,1);
   assert.equal(aiCalls,2);
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
+  await page.getByText("Mais ferramentas").click();
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();
   const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
