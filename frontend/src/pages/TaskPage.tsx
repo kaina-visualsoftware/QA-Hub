@@ -359,7 +359,7 @@ export default function TaskPage() {
         <span className="count-pill">{pendingCount} pendente(s)</span>
       </div>
       <div className="qa-action-strip">
-        <Button onPress={startScenario}><Plus size={17} /> Novo cenário</Button>
+        <Button onPress={startScenario}><Plus size={17} /> Adicionar cenário</Button>
         <Button variant="secondary" onPress={startPendingExecution} isDisabled={scenarios.isPending}>
           <ListChecks size={17} /> Testar pendentes
         </Button>
