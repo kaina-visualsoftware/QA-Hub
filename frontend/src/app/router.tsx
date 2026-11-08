@@ -39,8 +39,9 @@ function AppLayout() {
         <strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></Link>
       <div className="sidebar-section">WORKSPACE</div>
       <nav aria-label="Navegação">
-        <Link to="/" activeProps={{ className: "nav-link active" }} className="nav-link">
-          <LayoutList size={18} /> Tarefas de teste
+        <Link to="/" activeProps={{ className: "nav-link active" }}
+          aria-label="Tarefas de teste" className="nav-link">
+          <LayoutList size={18} /> Tarefas
         </Link>
         <Link to="/" search={{ newTask: true }} className="nav-link">
           <Plus size={18} /> Nova TF
@@ -48,8 +49,8 @@ function AppLayout() {
       </nav>
       <div className="sidebar-section mt-8">CONSULTAS</div>
       <nav aria-label="Biblioteca e administração">
-        <Link to="/publicas" search={{}} className="nav-link">
-          <BookOpen size={18} /> TFs públicas
+        <Link to="/publicas" search={{}} aria-label="TFs públicas" className="nav-link">
+          <BookOpen size={18} /> Públicas
         </Link>
         {adminRole.data === true &&
           <Link to="/admin" className="nav-link">
