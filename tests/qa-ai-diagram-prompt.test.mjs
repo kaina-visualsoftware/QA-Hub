@@ -10,7 +10,7 @@ test("Mermaid generation prompt enforces minimal v12 grammar and data-only input
   assert.match(system.content,/uma conexão por linha/i);
   assert.match(system.content,/IDs ASCII simples e únicos/);
   assert.match(system.content,/Não use subgraph, direction/);
-  assert.match(system.content,/NUNCA invente regras/i);
+  assert.match(system.content,/Não invente regras/i);
   assert.match(user.content,/Pedido 67866/);
   assert.doesNotMatch(user.content,/<ERRO>/);
 });
