@@ -4,7 +4,11 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, FilePenLine, Workflow } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2 } from "lucide-react";
+import {
+  TaskViewTabs, TaskOverview, TaskDeliverables
+} from "../features/tasks/TaskWorkspaceSections";
+import type { TaskTab, DeliverableKind } from "../features/tasks/TaskWorkspaceSections";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -48,6 +52,7 @@ export default function TaskPage() {
     queryKey: ["scenarios", userId, taskId], queryFn: () => listScenarios(taskId),
     enabled: Boolean(task)
   });
+  const [activeTab, setActiveTab] = useState<TaskTab>("summary");
   const [editing, setEditing] = useState(false);
   const [showSettings,setShowSettings]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
@@ -62,6 +67,7 @@ export default function TaskPage() {
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
   useEffect(()=>{
+    setActiveTab("summary");
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     setShowDiagrams(false);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
@@ -139,8 +145,20 @@ export default function TaskPage() {
   function openDiagramAi() {
     setFocusDiagramAi(true);openTool("diagrams");
   }
+  function openDeliverable(kind: DeliverableKind, primary = false) {
+    if (kind === "diagrams") {
+      setFocusDiagramAi(primary);
+      openTool("diagrams");
+    } else if (kind === "documents") {
+      setFocusReport(true);
+      openTool("documents");
+    } else {
+      openTool(kind);
+    }
+  }
 
   function startPendingExecution() {
+    setActiveTab("tests");
     setFilter("pending");
     setSaved(pendingCount ? "" :
       "Não há casos pendentes. Adicione um cenário ou escolha outro filtro.");
@@ -186,6 +204,7 @@ export default function TaskPage() {
   // Consume this route intent so refresh and browser Back do not repeat it.
   useEffect(() => {
     if (!resume || !task || !scenarios.isSuccess || task.user_id !== userId) return;
+    setActiveTab("tests");
     setFilter("pending");
     setResumeFocus(true);
     setSaved(pendingCount ? "" :
@@ -200,7 +219,7 @@ export default function TaskPage() {
     taskId, navigate]);
 
   useEffect(() => {
-    if (!resumeFocus || filter !== "pending" || !scenarios.isSuccess) return;
+    if (!resumeFocus || activeTab !== "tests" || filter !== "pending" || !scenarios.isSuccess) return;
     const frame = requestAnimationFrame(() => {
       const target = executionRef.current?.querySelector<HTMLButtonElement>(
         '[data-qa-next-pending="true"]'
@@ -212,7 +231,7 @@ export default function TaskPage() {
       setResumeFocus(false);
     });
     return () => cancelAnimationFrame(frame);
-  }, [resumeFocus, filter, scenarios.isSuccess, scenarios.data]);
+  }, [resumeFocus, activeTab, filter, scenarios.isSuccess, scenarios.data]);
 
   useEffect(() => { focusTask(taskId); }, [taskId, focusTask]);
   useEffect(() => {
@@ -305,7 +324,7 @@ export default function TaskPage() {
   });
 
   useEffect(() => {
-    if (!focusNextPending || saveResult.isPending || scenarios.isFetching) return;
+    if (!focusNextPending || activeTab !== "tests" || saveResult.isPending || scenarios.isFetching) return;
     const target = executionRef.current?.querySelector<HTMLButtonElement>(
       '[data-qa-next-pending="true"]'
     ) ?? executionRef.current?.querySelector<HTMLButtonElement>(
@@ -314,7 +333,7 @@ export default function TaskPage() {
     target?.scrollIntoView({ behavior: "auto", block: "center" });
     target?.focus({ preventScroll: true });
     setFocusNextPending(false);
-  }, [focusNextPending, saveResult.isPending, scenarios.isFetching, scenarios.data]);
+  }, [focusNextPending, activeTab, saveResult.isPending, scenarios.isFetching, scenarios.data]);
 
   const progress = progressOf(scenarios.data || []);
   const failedCount = (scenarios.data ?? []).filter(s => s.status==="reprovado").length;
@@ -362,6 +381,11 @@ export default function TaskPage() {
           }}>
             <FilePenLine size={16} /> Editar TF
           </Button>
+          <button type="button" className="qa-task-config-button"
+            aria-label="Configurações da TF" title="Configurações da TF"
+            onClick={() => setShowSettings(true)}>
+            <Settings2 size={17} aria-hidden="true"/>
+          </button>
         </div>
       </div>
       <div className="qa-task-snapshot qa-task-compact-status" aria-label="Indicadores da execução">
@@ -377,42 +401,16 @@ export default function TaskPage() {
         </div>
       </div>
     </header>
-    <section className="qa-quickflow qa-quickflow-clean mt-4" aria-label="Fluxo rápido de QA">
-      <h2 className="sr-only">Ações rápidas</h2>
-      <div className="qa-primary-actions" role="group" aria-label="Ações principais da TF">
-        <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
-          <Plus size={18} aria-hidden="true"/> Cenário
-        </Button>
-        <Button variant="secondary" onPress={startPendingExecution}
-          aria-label="Testar pendentes" isDisabled={scenarios.isPending}>
-          <ListChecks size={18} aria-hidden="true"/> Testar
-        </Button>
-        <button type="button" className="qa-primary-tool" aria-label="Gerar casos com IA"
-          onClick={()=>openTool("teste")}>
-          <ListChecks size={18} aria-hidden="true"/> Gerar casos
-        </button>
-        <button type="button" className="qa-primary-tool" aria-label="Gerar diagrama com IA"
-          onClick={openDiagramAi}>
-          <Workflow size={18} aria-hidden="true"/> Diagrama
-        </button>
-      </div>
-      <details className="qa-tool-drawer">
-        <summary>Mais ferramentas</summary>
-        <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
-          <button type="button" aria-label="Gerar post com IA" onClick={()=>openTool("post")}
-            className="qa-workbench-tool"><FileText size={17}/> Gerar post</button>
-          <button type="button" onClick={()=>{setFocusReport(true);openTool("documents");}}
-            className="qa-workbench-tool"><FileText size={17}/> Relatório e documentos</button>
-          <button type="button" onClick={()=>openTool("requirements")}
-            className="qa-workbench-tool"><BookText size={17}/> Requisitos e cobertura</button>
-          <button type="button" onClick={()=>openTool("evidence")}
-            className="qa-workbench-tool"><ClipboardList size={17}/> Evidências e auditoria</button>
-          <button type="button" onClick={()=>openTool("links")}
-            className="qa-workbench-tool"><GitMerge size={17}/> Releases e referências</button>
-          <button type="button" onClick={()=>{setFocusDiagramAi(false);openTool("diagrams");}}
-            className="qa-workbench-tool"><GitBranchPlus size={17}/> Diagramas salvos / editor</button>
-        </div>
-      </details>
+    <TaskViewTabs value={activeTab} onChange={setActiveTab}
+      scenarioCount={scenarios.data?.length ?? 0}/>
+    <section id="qa-task-panel-summary" role="tabpanel" aria-labelledby="qa-task-tab-summary"
+      className="qa-task-panel" hidden={activeTab !== "summary"}>
+      <TaskOverview description={task.descricao} cause={task.causa} correction={task.correcao}
+        pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
+        owner={task.user_id===userId}
+        onNewScenario={startScenario} onRun={startPendingExecution}
+        onCases={()=>openTool("teste")} onDiagram={openDiagramAi}
+        onDeliverables={()=>setActiveTab("deliverables")}/>
     </section>
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
     {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
@@ -540,6 +538,19 @@ export default function TaskPage() {
       </section>
     </QAModal>}
 
+    <section id="qa-task-panel-tests" role="tabpanel" aria-labelledby="qa-task-tab-tests"
+      className="qa-task-panel" hidden={activeTab !== "tests"}>
+      <div className="qa-task-section-heading qa-tests-heading">
+        <div><h2>Testes da TF</h2><p>Execute os cenários e registre o resultado de cada um.</p></div>
+        <div className="qa-tests-tools">
+          <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
+            <Plus size={16} aria-hidden="true"/> Cenário
+          </Button>
+          <Button variant="secondary" onPress={()=>openTool("teste")}>
+            <ListChecks size={16} aria-hidden="true"/> Gerar casos
+          </Button>
+        </div>
+      </div>
     <section ref={executionRef} className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
@@ -559,27 +570,32 @@ export default function TaskPage() {
           <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(scenario.ordem).padStart(2, "0")}</span>
               <h3>{scenario.titulo}</h3></div><span className={"status-chip " + scenario.status}>
                 {scenarioStatusLabels[scenario.status]}</span></div>
-          {task.user_id===userId && <div className="flex gap-2 mt-3">
-            <button className="secondary-link" onClick={() => {
-              setEditingScenario(scenario);
-              scenarioForm.reset({
-                titulo: scenario.titulo, passos: scenario.passos,
-                esperado: scenario.esperado, observacoes: scenario.observacoes
-              });
-              closeToolPanels();setEditing(false);setShowSettings(false);
-              setShowScenarioForm(true);
-            }}>Editar cenário</button>
-            <button className="secondary-link" disabled={deleteScenarioMutation.isPending} onClick={() => {
-              if (window.confirm("Excluir permanentemente este cenário?"))
-                void deleteScenarioMutation.mutateAsync(scenario.id);
-            }}>Excluir</button>
-          </div>}
+          {task.user_id===userId && <details className="qa-scenario-more">
+            <summary>Opções do cenário</summary>
+            <div className="qa-scenario-menu">
+              <button type="button" onClick={() => {
+                setEditingScenario(scenario);
+                scenarioForm.reset({
+                  titulo: scenario.titulo, passos: scenario.passos,
+                  esperado: scenario.esperado, observacoes: scenario.observacoes
+                });
+                closeToolPanels();setEditing(false);setShowSettings(false);
+                setShowScenarioForm(true);
+              }}>Editar cenário</button>
+              <button type="button" disabled={deleteScenarioMutation.isPending} onClick={() => {
+                if (window.confirm("Excluir permanentemente este cenário?"))
+                  void deleteScenarioMutation.mutateAsync(scenario.id);
+              }}>Excluir cenário</button>
+            </div>
+          </details>}
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
             <button data-qa-next-pending={filter === "pending" && index === 0 ? "true" : undefined}
               disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>
             <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "reprovado")}>Não funcionou</button>
             <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "bloqueado")}>Bloqueado</button>
-            <button disabled={saveResult.isPending || task.user_id!==userId} onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>
+            {scenario.status !== "nao_executado" && <button
+              disabled={saveResult.isPending || task.user_id!==userId}
+              onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>}
           </div>
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}
           <details className="scenario-details"><summary><CircleHelp size={16} /> Passos e resultado esperado</summary>
@@ -594,11 +610,11 @@ export default function TaskPage() {
       </p>}
     </section>
 
-    <section className="qa-settings-teaser qa-settings-compact mt-5" aria-label="Estado e compartilhamento">
-      <p className="text-muted text-sm">{taskStatusLabels[task.status]} · {task.publica?"Pública":"Privada"}</p>
-      <Button variant="secondary" onPress={() => setShowSettings(true)}>
-        <Share2 size={16} aria-hidden="true"/> Configurações da TF
-      </Button>
+    </section>
+    <section id="qa-task-panel-deliverables" role="tabpanel"
+      aria-labelledby="qa-task-tab-deliverables"
+      className="qa-task-panel" hidden={activeTab !== "deliverables"}>
+      <TaskDeliverables onOpen={openDeliverable}/>
     </section>
     {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"
       eyebrow="CONFIGURAÇÕES" size="lg" onClose={closeSettings}
