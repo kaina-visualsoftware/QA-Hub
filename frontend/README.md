@@ -473,3 +473,37 @@ versão da função. As suítes de regressão incluem
 `tests/qa-ai-diagram-prompt.test.mjs`,
 `frontend/tests/mermaid-validation.test.ts` e o browser
 `frontend/tests/browser-ai-workbench.mjs`.
+
+
+## UX da nova versão — janelas modais unificadas
+
+A página da TF permanece dedicada aos cenários e resultados de execução.
+Criação de TF, edição, casos, anotações de falha/bloqueio,
+configurações/publicação e todas as ferramentas de apoio agora abrem
+**modais padronizados**. Os painéis de posts, casos com IA, documentos,
+diagramas, requisitos, evidências e vínculos não ficam mais empilhados
+entre os cenários.
+
+`src/components/ui/QAModal.tsx` é o contrato visual comum: portal
+fora do elemento `#root`, fundo inerte, trava de Tab, Escape, retorno
+do foco, rolagem interna e tamanhos responsivos (no celular, janela
+ocupando toda a tela). Fechamento que descartaria TF ou cenário
+não salvo exige confirmação. Geradores e documentos conservam os
+contratos de persistência existentes; **fechar um modal nunca é uma
+operação de salvar ou de concluir testes**.
+
+Painéis longos de documentos, diagramas e rastreabilidade mantêm seus
+rascunhos na memória enquanto a TF continua aberta, mesmo depois
+de fechar/reabrir o modal. Não persistem no banco até o salvamento
+explícito. Voltar à lista de TFs pode descartar o rascunho não salvo.
+
+A criação rápida mantém o rascunho opcional por aba, a importação
+local e os dois caminhos `Salvar e abrir TF` e
+`Salvar e adicionar cenário`. O fluxo de resultados permanece
+rápido: `Funcionou` grava resultado de teste; `Não funcionou`
+e `Bloqueado` exigem texto observado em um modal.
+
+Tabelas/buscas operacionais continuam visíveis fora dos modais,
+pois esconder a lista de TFs prejudicaria a produtividade.
+A interface administrativa não expõe ações de edição de
+cenários pertencentes a outras contas.
