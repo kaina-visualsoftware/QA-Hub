@@ -20,7 +20,7 @@ import { publicSharingEnabled, updatePublication } from "../features/public/publ
 import {
   needsObservationResetConfirmation, quickExecutionResult
 } from "../features/executions/quick-result";
-import { useModalFocus } from "../lib/useModalFocus";
+import { QAModal } from "../components/ui/QAModal";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
@@ -49,6 +49,7 @@ export default function TaskPage() {
     enabled: Boolean(task)
   });
   const [editing, setEditing] = useState(false);
+  const [showSettings,setShowSettings]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(false);
   const [focusDiagramAi, setFocusDiagramAi] = useState(false);
@@ -63,52 +64,51 @@ export default function TaskPage() {
   const [importWarning, setImportWarning] = useState("");
   const [pending, setPending] = useState<{ scenario: Scenario; status: ExecutionResult["status"] } | null>(null);
   const [observed, setObserved] = useState("");
-  const observedModalRef = useModalFocus(Boolean(pending), () => {
-    if (!saveResult.isPending) setPending(null);
-  }, "textarea");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
   const [saved, setSaved] = useState("");
   const [focusNextPending, setFocusNextPending] = useState(false);
   const [resumeFocus, setResumeFocus] = useState(false);
   const editorRef = useRef<HTMLElement | null>(null);
   const executionRef = useRef<HTMLElement | null>(null);
-  const generatorRef = useRef<HTMLDivElement | null>(null);
   const pendingCount = (scenarios.data ?? []).filter((item) =>
     item.status === "nao_executado").length;
 
-  useEffect(() => {
-    if (!showScenarioForm) return;
-    const frame = requestAnimationFrame(() => {
-      editorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
-      editorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
-        ?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [showScenarioForm, editingScenario?.id]);
-
-  useEffect(() => {
-    if (!generatorMode) return;
-    const frame = requestAnimationFrame(() => {
-      generatorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
-      generatorRef.current?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [generatorMode]);
+  function closeToolPanels() {
+    setShowDiagrams(false);setShowDocuments(false);setShowRequirements(false);
+    setShowEvidence(false);setShowLinks(false);setGeneratorMode(null);
+  }
+  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste") {
+    closeToolPanels();
+    setEditing(false);setShowScenarioForm(false);setShowSettings(false);
+    if(kind==="diagrams")setShowDiagrams(true);
+    else if(kind==="documents")setShowDocuments(true);
+    else if(kind==="requirements")setShowRequirements(true);
+    else if(kind==="evidence")setShowEvidence(true);
+    else if(kind==="links")setShowLinks(true);
+    else setGeneratorMode(kind);
+  }
+  function closeTaskEditor(){
+    if(saveTask.isPending)return;
+    if(taskForm.formState.isDirty&&!window.confirm("Descartar as alterações não salvas da TF?"))return;
+    setEditing(false);
+  }
+  function closeScenarioEditor(){
+    if(createScenario.isPending)return;
+    if(scenarioForm.formState.isDirty&&!window.confirm("Descartar o cenário ainda não salvo?"))return;
+    setShowScenarioForm(false);setEditingScenario(null);
+    scenarioForm.reset();
+  }
 
   function startScenario() {
+    if(task?.user_id!==userId)return;
+    closeToolPanels();setEditing(false);setShowSettings(false);
     setEditingScenario(null);
     scenarioForm.reset();
     setShowScenarioForm(true);
   }
 
   function openDiagramAi() {
-    setShowDiagrams(true); setFocusDiagramAi(true);
-    setGeneratorMode(null); setShowDocuments(false);
-    requestAnimationFrame(() => {
-      const target = document.getElementById("diagram-ai-heading");
-      target?.scrollIntoView({ behavior:"auto", block:"start" });
-      target?.focus({ preventScroll:true });
-    });
+    setFocusDiagramAi(true);openTool("diagrams");
   }
 
   function startPendingExecution() {
@@ -140,6 +140,7 @@ export default function TaskPage() {
   // Clear it with replace so a refresh or Back cannot reopen an obsolete editor.
   useEffect(() => {
     if (!newScenario || !task || task.user_id !== userId) return;
+    closeToolPanels();setEditing(false);setShowSettings(false);
     setEditingScenario(null);
     scenarioForm.reset();
     setShowScenarioForm(true);
@@ -327,8 +328,11 @@ export default function TaskPage() {
         </div>
         <div className="qa-task-hero-controls">
           <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
-          <Button variant="secondary" onPress={() => setEditing((value) => !value)}>
-            <FilePenLine size={16} /> {editing ? "Fechar edição" : "Editar TF"}
+          <Button variant="secondary" onPress={() => {
+            closeToolPanels();setShowScenarioForm(false);setShowSettings(false);
+            setEditing(true);
+          }}>
+            <FilePenLine size={16} /> Editar TF
           </Button>
         </div>
       </div>
