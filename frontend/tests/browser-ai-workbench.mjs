@@ -144,7 +144,7 @@ try {
     await page.setViewportSize({width,height:844});
     const layout=await page.evaluate(()=>{
       const modal=[...document.querySelectorAll(".qa-modal")]
-        .find(element=>getComputedStyle(element).display!=="none");
+        .find(element=>element.getClientRects().length>0);
       const content=modal?.querySelector(".qa-modal-content");
       const primary=[...modal?.querySelectorAll("button")??[]]
         .find(element=>element.textContent?.includes("Gerar fluxograma"));
@@ -158,7 +158,7 @@ try {
     });
     assert.ok(layout.documentOverflow<=1,"Document overflow at "+width+": "+JSON.stringify(layout));
     assert.ok(layout.modalOverflow<=1,"Modal content overflow at "+width+": "+JSON.stringify(layout));
-    assert.ok((layout.primaryHeight??0)>=44,"CTA is too small at "+width);
+    assert.ok((layout.primaryHeight??0)>=44,"CTA is too small at "+width+": "+JSON.stringify(layout));
     assert.ok((layout.modalWidth??0)<=width+1,"Modal outside viewport at "+width);
     await page.screenshot({path:"artifacts/mobile-ux/diagrama-"+width+".png"});
   }
