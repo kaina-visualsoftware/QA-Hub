@@ -291,14 +291,19 @@ export function Workspace() {
           <label className="field">Tipo
             <select {...form.register("tipo_teste")}><option>BUILD</option><option>RELEASE</option></select>
           </label>
-          <label className="field">Código da TF<input placeholder="Opcional" {...form.register("codigo")} /></label>
-          <label className="field">Sistema / módulo<input placeholder="Opcional" {...form.register("sistema")} /></label>
-          <label className="field">Versão<input placeholder="Opcional" {...form.register("versao")} /></label>
         </div>
         <label className="field">Descrição / problema
           <textarea rows={6} placeholder="Cole um relatório completo ou descreva a TF. Não precisa preencher todos os campos."
             {...form.register("descricao")} />
         </label>
+        <details className="qa-task-optional">
+          <summary>Informações adicionais (opcional)</summary>
+          <div className="form-grid mt-3">
+            <label className="field">Código da TF<input placeholder="Opcional" {...form.register("codigo")} /></label>
+            <label className="field">Sistema / módulo<input placeholder="Opcional" {...form.register("sistema")} /></label>
+            <label className="field">Versão<input placeholder="Opcional" {...form.register("versao")} /></label>
+          </div>
+        </details>
         <label className="flex gap-2 items-start text-sm">
           <input type="checkbox" checked={rememberDraft} onChange={(event) => {
             if (event.target.checked) {

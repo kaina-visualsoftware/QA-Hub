@@ -350,8 +350,8 @@ export default function TaskPage() {
           <p className="qa-task-eyebrow">{task.codigo ? "TF · " + task.codigo : "TAREFA DE TESTE"}</p>
           <h1>{task.titulo}</h1>
           <div className="qa-task-meta">
-            <span>{task.tipo_teste}</span><span>{task.sistema || "Sem módulo"}</span>
-            <span>{task.versao || "Sem versão"}</span>
+            <span>{task.tipo_teste}</span>{task.sistema&&<span>{task.sistema}</span>}
+            {task.versao&&<span>{task.versao}</span>}
           </div>
         </div>
         <div className="qa-task-hero-controls">
@@ -378,55 +378,39 @@ export default function TaskPage() {
       </div>
     </header>
     <section className="qa-quickflow qa-quickflow-clean mt-4" aria-label="Fluxo rápido de QA">
-      <div className="qa-quickflow-heading">
-        <h2>Ações rápidas</h2>
-      </div>
-      <div className="qa-action-strip">
+      <h2 className="sr-only">Ações rápidas</h2>
+      <div className="qa-primary-actions" role="group" aria-label="Ações principais da TF">
         <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
-          <Plus size={17}/> Cenário
+          <Plus size={18} aria-hidden="true"/> Cenário
         </Button>
         <Button variant="secondary" onPress={startPendingExecution}
-          aria-label="Testar pendentes"
-          isDisabled={scenarios.isPending}><ListChecks size={17}/> Pendentes</Button>
-        <Button variant="secondary"
-          isDisabled={scenarios.isPending||scenarios.isError||scenarios.isFetching}
-          onPress={()=>{setFocusReport(true);openTool("documents");}}>
-          <FileText size={17}/> Relatório
+          aria-label="Testar pendentes" isDisabled={scenarios.isPending}>
+          <ListChecks size={18} aria-hidden="true"/> Testar
         </Button>
-      </div>
-      <div className="qa-ai-section-heading">
-        <h3>Gerar com IA</h3>
-      </div>
-      <div className="qa-ai-action-grid" role="group" aria-label="Ferramentas de IA">
-        <button type="button" className="qa-ai-action" aria-label="Gerar casos com IA"
+        <button type="button" className="qa-primary-tool" aria-label="Gerar casos com IA"
           onClick={()=>openTool("teste")}>
-          <span className="qa-ai-icon"><ListChecks size={19}/></span>
-          <span><strong>Casos</strong></span>
+          <ListChecks size={18} aria-hidden="true"/> Gerar casos
         </button>
-        <button type="button" className="qa-ai-action" aria-label="Gerar post com IA"
-          onClick={()=>openTool("post")}>
-          <span className="qa-ai-icon"><FileText size={19}/></span>
-          <span><strong>Post</strong></span>
-        </button>
-        <button type="button" className="qa-ai-action" aria-label="Gerar diagrama com IA"
+        <button type="button" className="qa-primary-tool" aria-label="Gerar diagrama com IA"
           onClick={openDiagramAi}>
-          <span className="qa-ai-icon"><Workflow size={19}/></span>
-          <span><strong>Diagrama</strong></span>
+          <Workflow size={18} aria-hidden="true"/> Diagrama
         </button>
       </div>
       <details className="qa-tool-drawer">
         <summary>Mais ferramentas</summary>
         <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
+          <button type="button" aria-label="Gerar post com IA" onClick={()=>openTool("post")}
+            className="qa-workbench-tool"><FileText size={17}/> Gerar post</button>
+          <button type="button" onClick={()=>{setFocusReport(true);openTool("documents");}}
+            className="qa-workbench-tool"><FileText size={17}/> Relatório e documentos</button>
           <button type="button" onClick={()=>openTool("requirements")}
             className="qa-workbench-tool"><BookText size={17}/> Requisitos e cobertura</button>
           <button type="button" onClick={()=>openTool("evidence")}
             className="qa-workbench-tool"><ClipboardList size={17}/> Evidências e auditoria</button>
           <button type="button" onClick={()=>openTool("links")}
             className="qa-workbench-tool"><GitMerge size={17}/> Releases e referências</button>
-          <button type="button" onClick={()=>{setFocusReport(false);openTool("documents");}}
-            className="qa-workbench-tool"><FileText size={17}/> Documentos / relatório</button>
           <button type="button" onClick={()=>{setFocusDiagramAi(false);openTool("diagrams");}}
-            className="qa-workbench-tool"><GitBranchPlus size={17}/> Editor de diagramas</button>
+            className="qa-workbench-tool"><GitBranchPlus size={17}/> Diagramas salvos / editor</button>
         </div>
       </details>
     </section>
@@ -610,15 +594,10 @@ export default function TaskPage() {
       </p>}
     </section>
 
-    <section className="qa-settings-teaser mt-5" aria-label="Estado e compartilhamento">
-      <div>
-        <p className="eyebrow">CONTROLE DA TF</p>
-        <h2>Estado e compartilhamento</h2>
-        <p className="text-muted text-sm">Situação atual: {taskStatusLabels[task.status]} ·
-          {task.publica ? " Pública" : " Privada"}. Alterações somente com confirmação.</p>
-      </div>
+    <section className="qa-settings-teaser qa-settings-compact mt-5" aria-label="Estado e compartilhamento">
+      <p className="text-muted text-sm">{taskStatusLabels[task.status]} · {task.publica?"Pública":"Privada"}</p>
       <Button variant="secondary" onPress={() => setShowSettings(true)}>
-        <Share2 size={16}/> Configurações da TF
+        <Share2 size={16} aria-hidden="true"/> Configurações da TF
       </Button>
     </section>
     {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"

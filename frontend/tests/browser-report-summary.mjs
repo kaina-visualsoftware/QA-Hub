@@ -106,8 +106,9 @@ try{
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:"Descontos em homologação"}).waitFor();
 
+  await page.getByText("Mais ferramentas").click();
   await page.getByRole("region",{name:"Fluxo rápido de QA"})
-    .getByRole("button",{name:"Relatório",exact:true}).click();
+    .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
   const heading=page.getByRole("heading",{name:"Posts e relatórios"});
   await heading.waitFor({timeout:20000});
   await page.waitForFunction(()=>document.activeElement?.id==="documents-heading");
@@ -133,7 +134,7 @@ try{
   await page.getByRole("group",{name:"Resultado de Caso pendente"})
     .getByRole("button",{name:"Funcionou",exact:true}).click();
   await page.getByRole("region",{name:"Fluxo rápido de QA"})
-    .getByRole("button",{name:"Relatório",exact:true}).click();
+    .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('textarea[readonly]')]
     .some(el=>el.value?.includes("Caso pendente")));
   const newSummary=await summary.inputValue();

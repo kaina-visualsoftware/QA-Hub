@@ -126,6 +126,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   const fast=page.getByRole("region",{name:"Fluxo rápido de QA"});
   assert.equal(await fast.getByRole("button",{name:"Gerar casos com IA"}).count(),1);
+  await fast.locator("details.qa-tool-drawer > summary").click();
   assert.equal(await fast.getByRole("button",{name:"Gerar post com IA"}).count(),1);
   assert.equal(await fast.getByRole("button",{name:"Gerar diagrama com IA"}).count(),1);
   await fast.getByRole("button",{name:"Gerar post com IA"}).click();
@@ -226,6 +227,7 @@ try {
   assert.equal(diagramSaves,2,"Only corrected and confirmed Mermaid may be saved");
 
   // Retry is available without sending the invalid code or parser error.
+  await page.getByRole("button",{name:"Alterar ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   await page.waitForFunction(()=>{
