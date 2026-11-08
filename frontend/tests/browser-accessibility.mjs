@@ -217,6 +217,7 @@ try {
     await cancelCase.focus();
     await cancelCase.press("Enter");
     await editor.waitFor({state:"hidden"});
+    await page.waitForFunction(()=>document.getElementById("root")?.inert===false);
     assert.equal(await page.locator("#root").evaluate(el=>el.inert),false,
       "Closing the scenario dialog must unlock background controls.");
     const scenarioActions = page.getByRole("group", { name: "Resultado de Aplicar desconto na venda" });
@@ -248,6 +249,7 @@ try {
     page.once("dialog",dialog=>void dialog.accept());
     await page.keyboard.press("Escape");
     await failureDialog.waitFor({ state: "hidden" });
+    await page.waitForFunction(()=>document.activeElement?.textContent?.trim()==="Não funcionou");
     assert.equal(await failButton.evaluate((el) => el === document.activeElement), true,
       "Closing the result dialog must restore focus to the status action");
     await page.close();
