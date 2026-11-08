@@ -197,7 +197,7 @@ try {
     assert.equal(await page.getByRole("dialog").count(),0,
       "Selecting pending scenarios must never record a result automatically");
     await quickCreate.click();
-    const editor = page.getByRole("region", { name: "Novo cenário" });
+    const editor = page.getByRole("dialog", { name: "Cadastrar cenário" });
     await editor.waitFor();
     const caseTitle = editor.getByRole("textbox", { name: "Título" });
     await page.waitForFunction(() =>
@@ -224,12 +224,17 @@ try {
     await page.keyboard.press("Tab");
     const save = failureDialog.getByRole("button", { name: "Salvar resultado" });
     assert.equal(await save.evaluate((el) => el === document.activeElement), true);
+    const closeResult = failureDialog.getByRole("button",{name:"Fechar Registrar falha"});
     await page.keyboard.press("Tab");
-    assert.equal(await description.evaluate((el) => el === document.activeElement), true,
-      "Tab after last control must cycle to first control");
+    assert.equal(await closeResult.evaluate(el=>el===document.activeElement),true,
+      "Tab after save must reach the accessible modal close button");
+    await page.keyboard.press("Tab");
+    assert.equal(await description.evaluate(el=>el===document.activeElement),true,
+      "Tab after the close button must cycle back to the observation");
     await page.keyboard.press("Shift+Tab");
-    assert.equal(await save.evaluate((el) => el === document.activeElement), true,
-      "Shift+Tab must cycle from first control to last");
+    assert.equal(await closeResult.evaluate(el=>el===document.activeElement),true,
+      "Shift+Tab from the first field returns to the close control");
+    page.once("dialog",dialog=>void dialog.accept());
     await page.keyboard.press("Escape");
     await failureDialog.waitFor({ state: "hidden" });
     assert.equal(await failButton.evaluate((el) => el === document.activeElement), true,
