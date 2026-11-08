@@ -209,8 +209,8 @@ try{
   assert.equal(scenarios.length,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
-  // Secondary tools are deliberately kept behind a native disclosure.
-  const extraTools = page.getByText("Outras ferramentas: post, requisitos, evidências e diagramas");
+  // Posts are now a visible primary AI action; secondary tools remain in disclosure.
+  const extraTools = page.getByText("Requisitos, evidências, diagramas e outras ferramentas");
   await extraTools.click();
   await page.getByRole("button",{name:/Gerar post com IA/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
