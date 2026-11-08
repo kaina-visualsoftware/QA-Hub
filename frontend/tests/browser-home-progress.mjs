@@ -142,7 +142,7 @@ try{
   await page.getByRole("link",{name:"Todas as TFs"}).click();
   const newZero=page.locator(".task-list-entry").filter({hasText:"TF sem casos"});
   await newZero.getByRole("link",{name:"Adicionar primeiro caso"}).click();
-  await page.getByRole("region",{name:"Novo cenário"}).waitFor();
+  await page.getByRole("dialog",{name:"Cadastrar cenário"}).waitFor();
   assert.equal(writes.length,0);
   await page.waitForFunction(()=>!location.hash.includes("newScenario"));
 

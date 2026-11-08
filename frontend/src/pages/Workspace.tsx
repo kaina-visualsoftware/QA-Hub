@@ -4,8 +4,9 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
+import { QAModal } from "../components/ui/QAModal";
 import { createTask, getAdminRole, listTasks, addExtractedScenarios } from "../lib/data";
 import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
@@ -35,7 +36,6 @@ export function Workspace() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiProgress, setAiProgress] = useState("");
   const modelRef = useRef<LocalModelClient | null>(null);
-  const taskEditorRef = useRef<HTMLElement | null>(null);
   const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
@@ -56,16 +56,6 @@ export function Workspace() {
     modelRef.current?.dispose();
     modelRef.current = null;
   }, []);
-  useEffect(() => {
-    if (!showForm) return;
-    const frame = requestAnimationFrame(() => {
-      taskEditorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
-      taskEditorRef.current?.querySelector<HTMLInputElement>('input[name="titulo"]')
-        ?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [showForm]);
-
   function showReview(source: string, draft: LocalDraft, viaModel: boolean) {
     setLocalReview({ source, draft });
     setExtracted(draft.cenarios
@@ -288,12 +278,9 @@ export function Workspace() {
       </div>
     </section>}
 
-    {showForm && <section ref={taskEditorRef} className="panel editor-panel" aria-labelledby="new-task-title">
-      <div className="section-heading">
-        <div><p className="eyebrow">CADASTRO RÁPIDO</p><h2 id="new-task-title">Nova TF</h2>
-          <p className="text-muted">Somente o essencial agora. Detalhe os cenários depois.</p></div>
-        <button aria-label="Fechar cadastro" type="button" onClick={closeDraft}><X size={18} /></button>
-      </div>
+    <QAModal open={showForm} title="Nova TF" eyebrow="CADASTRO RÁPIDO"
+      description="Preencha o essencial, revise e continue para os cenários."
+      onClose={closeDraft} busy={create.isPending} initialFocus={'input[name="titulo"]'}>
       <form onSubmit={form.handleSubmit((values, event) => {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
@@ -349,7 +336,9 @@ export function Workspace() {
           }}>Analisar texto localmente</Button>
           <span className="text-muted text-sm">Extração determinística no navegador, sem IA e sem envio externo.</span>
         </div>
-        <div className="generator-context stack" aria-label="Assistente generativo no navegador">
+        <details className="generator-context qa-task-assist">
+          <summary>Assistente local avançado (opcional)</summary>
+          <div className="stack mt-4" aria-label="Assistente generativo no navegador">
           <div>
             <h3 className="font-semibold">IA generativa local (opcional)</h3>
             <p className="text-muted text-sm mt-2">
@@ -375,7 +364,8 @@ export function Workspace() {
           {aiProgress && <p role="status" aria-live="polite" className="text-muted text-sm">
             {aiProgress}
           </p>}
-        </div>
+          </div>
+        </details>
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
         {localReview && <section className="generator-context stack"
           aria-label="Prévia do preenchimento local">
@@ -436,7 +426,7 @@ export function Workspace() {
             <span><strong>{item.titulo}</strong><small>{item.passos.slice(0, 180)}</small></span>
           </label>)}
         </fieldset>}
-        <div className="flex items-center gap-3 justify-end">
+        <div className="qa-modal-actions">
           <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
           <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
@@ -446,7 +436,7 @@ export function Workspace() {
         </div>
         {create.isError && <p className="notice error" role="alert">{create.error.message}</p>}
       </form>
-    </section>}
+    </QAModal>
 
     <section className="panel task-panel">
       <div className="section-heading"><div><h2>Base de TFs</h2><p className="text-muted">Selecione um registro para executar.</p></div>

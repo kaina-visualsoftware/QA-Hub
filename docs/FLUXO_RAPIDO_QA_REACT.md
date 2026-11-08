@@ -240,3 +240,23 @@ gravação em TF da própria conta antes de encerrar o item.
 **Cotas:** cada tentativa de correção ou regeneração requer uma
 nova chamada à função `qa-ai`; as regras de rate limit não
 devem ser removidas. Nunca tratar um erro de parser como sucesso.
+
+
+## Workspace modal (QF47–QF56)
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF47 | Abrir Nova TF pelo topo e pelo menu | Modal único com foco no título, sem rolagem forçada da página |
+| QF48 | Cancelar Nova TF com conteúdo não salvo | Confirma descarte; cancelar a confirmação mantém conteúdo |
+| QF49 | Salvar TF e adicionar cenário | A TF é persistida uma vez; abre modal do primeiro caso sem criar resultado |
+| QF50 | Salvar caso e criar outro | Mesmo modal permanece, campos limpos, progresso não executado |
+| QF51 | Abrir posts, casos IA, requisitos, evidências, releases | Um modal ativo por vez; Escape e botão fechar restauram foco |
+| QF52 | Abrir Documentos, editar relatório, fechar, executar outro caso e reabrir | Edição local não se perde; resumo derivado reflete só cenários salvos |
+| QF53 | Abrir editor de diagrama e fechá-lo sem salvar | Não grava; rascunho permanece ao reabrir na mesma TF |
+| QF54 | Abrir configurações, publicar/despublicar | Exige confirmação explícita, autorização do proprietário e não altera casos |
+| QF55 | Abrir falha/bloqueio, navegar com Tab/Shift+Tab/Escape | Foco contido, confirmação ao descartar observação e retorno ao botão original |
+| QF56 | Repetir as etapas em 320, 390, 768 e 1366 px | Modais ocupam toda a tela no celular, sem rolagem horizontal ou perda da navegação |
+
+**Regra:** modal de ferramenta não substitui workflow persistente. A
+página de cenários permanece o ponto de referência; `QAModal`
+não faz requisições ou escritas automaticamente.

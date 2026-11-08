@@ -75,7 +75,15 @@ export function useModalFocus(
     return () => {
       document.removeEventListener("keydown", keydown, true);
       document.removeEventListener("focusin", guardFocus);
-      if (origin?.isConnected) origin.focus({ preventScroll: true });
+      // When QAModal releases an inert page, that cleanup runs after this
+      // hook. Restore focus in a microtask, only if the original control is
+      // still visible and no new modal has made its ancestors inert.
+      if (origin?.isConnected) queueMicrotask(() => {
+        if (origin.isConnected && !origin.closest("[inert]") &&
+          origin.getClientRects().length > 0) {
+          origin.focus({ preventScroll: true });
+        }
+      });
     };
   }, [open, firstFocus]);
 

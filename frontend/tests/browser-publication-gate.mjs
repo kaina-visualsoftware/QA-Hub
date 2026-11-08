@@ -83,6 +83,7 @@ try {
 
   await page.goto(origin+"#/tarefa/"+privateId);
   await page.getByRole("heading",{name:"TF inicialmente privada"}).waitFor();
+  await page.getByRole("button",{name:"Configurações da TF"}).click();
   const publish=page.getByRole("button",{name:"Publicar TF"});
   assert.equal(await publish.isDisabled(),enabled==="false",
     "Publishing must match the explicit build flag");
@@ -104,6 +105,7 @@ try {
   // remain reversible by its owner (never hide the unpublish control).
   await page.goto(origin+"#/tarefa/"+publishedId);
   await page.getByRole("heading",{name:"TF publicada anteriormente"}).waitFor();
+  await page.getByRole("button",{name:"Configurações da TF"}).click();
   const unpublish=page.getByRole("button",{name:"Retirar publicação"});
   assert.equal(await unpublish.isDisabled(),false);
   page.once("dialog",dialog=>void dialog.accept());

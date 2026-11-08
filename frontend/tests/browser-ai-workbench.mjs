@@ -109,8 +109,10 @@ try {
   assert.equal(await fast.getByRole("button",{name:"Gerar diagrama com IA"}).count(),1);
   await fast.getByRole("button",{name:"Gerar post com IA"}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor({timeout:20000});
+  await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await fast.getByRole("button",{name:"Gerar casos com IA"}).click();
   await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
+  await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
   await fast.getByRole("button",{name:"Gerar diagrama com IA"}).click();
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");

@@ -35,7 +35,7 @@ jobs:
           done
           echo "Legacy Pages entry points are byte-identical to main."
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
       - name: Typecheck
         run: npm run typecheck
       - name: Lint

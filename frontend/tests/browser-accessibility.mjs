@@ -180,8 +180,15 @@ try {
     await page.getByRole("heading", { name: "Suas tarefas de teste" }).waitFor();
     await axeAudit(page, "workspace autenticado", width);
 
+    if(width<=390){
+      assert.equal(await page.getByRole("link",{name:"TFs públicas"}).isVisible(),true,
+        "Public navigation must remain available on mobile.");
+    }
     await page.getByRole("button", { name: "Nova TF" }).click();
-    await page.getByRole("heading", { name: "Nova TF" }).waitFor();
+    const taskModal=page.getByRole("dialog",{name:"Nova TF"});
+    await taskModal.waitFor();
+    assert.equal(await page.locator("#root").evaluate(el=>el.inert),true,
+      "Background must be inert while a modal is open.");
     await axeAudit(page, "formulário Nova TF", width);
     await page.goto(BASE + "#/tarefa/" + TASK);
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
@@ -197,8 +204,10 @@ try {
     assert.equal(await page.getByRole("dialog").count(),0,
       "Selecting pending scenarios must never record a result automatically");
     await quickCreate.click();
-    const editor = page.getByRole("region", { name: "Novo cenário" });
+    const editor = page.getByRole("dialog", { name: "Cadastrar cenário" });
     await editor.waitFor();
+    assert.equal(await page.locator("#root").evaluate(el=>el.inert),true,
+      "Scenario modal must prevent accidental background interaction.");
     const caseTitle = editor.getByRole("textbox", { name: "Título" });
     await page.waitForFunction(() =>
       document.activeElement?.getAttribute("name") === "titulo");
@@ -208,6 +217,9 @@ try {
     await cancelCase.focus();
     await cancelCase.press("Enter");
     await editor.waitFor({state:"hidden"});
+    await page.waitForFunction(()=>document.getElementById("root")?.inert===false);
+    assert.equal(await page.locator("#root").evaluate(el=>el.inert),false,
+      "Closing the scenario dialog must unlock background controls.");
     const scenarioActions = page.getByRole("group", { name: "Resultado de Aplicar desconto na venda" });
     const failButton = scenarioActions.getByRole("button", { name: "Não funcionou" });
     await failButton.focus();
@@ -224,14 +236,20 @@ try {
     await page.keyboard.press("Tab");
     const save = failureDialog.getByRole("button", { name: "Salvar resultado" });
     assert.equal(await save.evaluate((el) => el === document.activeElement), true);
+    const closeResult = failureDialog.getByRole("button",{name:"Fechar Registrar falha"});
     await page.keyboard.press("Tab");
-    assert.equal(await description.evaluate((el) => el === document.activeElement), true,
-      "Tab after last control must cycle to first control");
+    assert.equal(await closeResult.evaluate(el=>el===document.activeElement),true,
+      "Tab after save must reach the accessible modal close button");
+    await page.keyboard.press("Tab");
+    assert.equal(await description.evaluate(el=>el===document.activeElement),true,
+      "Tab after the close button must cycle back to the observation");
     await page.keyboard.press("Shift+Tab");
-    assert.equal(await save.evaluate((el) => el === document.activeElement), true,
-      "Shift+Tab must cycle from first control to last");
+    assert.equal(await closeResult.evaluate(el=>el===document.activeElement),true,
+      "Shift+Tab from the first field returns to the close control");
+    page.once("dialog",dialog=>void dialog.accept());
     await page.keyboard.press("Escape");
     await failureDialog.waitFor({ state: "hidden" });
+    await page.waitForFunction(()=>document.activeElement?.textContent?.trim()==="Não funcionou");
     assert.equal(await failButton.evaluate((el) => el === document.activeElement), true,
       "Closing the result dialog must restore focus to the status action");
     await page.close();

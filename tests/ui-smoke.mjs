@@ -494,6 +494,11 @@ try {
     await page.screenshot({path:'artifacts/ui/qa-native-release-'+width+'.png',fullPage:true});
     await page.locator('#sidebar .navigation a[data-route="ferramentas/post"]').evaluate(el=>el.click());
     await page.waitForFunction(()=>document.querySelector('#tool-frame').contentDocument?.querySelector('#ttl')?.textContent==='Posts do fórum');
+    // The iframe may have rendered the heading while restoring its cached
+    // unsaved editor value. Verify the stable state, not the intermediate frame.
+    await page.waitForFunction(()=>document.querySelector('#tool-frame')
+      .contentDocument?.querySelector('#t')?.value==='QA Hub mantém o conteúdo ao alternar ferramentas',
+      {timeout:10000});
     assert.equal(await tool.locator('#t').inputValue(),'QA Hub mantém o conteúdo ao alternar ferramentas');
     assert.equal(await page.locator('#tool-frame').getAttribute('src'),source,'Tool changes should not reload the module');
     overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
