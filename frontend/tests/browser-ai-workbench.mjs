@@ -138,6 +138,7 @@ try {
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
+  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
     "Advanced Mermaid code must stay hidden before generation");
   for(const width of sizes){
@@ -160,6 +161,15 @@ try {
     assert.ok(layout.modalOverflow<=1,"Modal content overflow at "+width+": "+JSON.stringify(layout));
     assert.ok((layout.primaryHeight??0)>=44,"CTA is too small at "+width+": "+JSON.stringify(layout));
     assert.ok((layout.modalWidth??0)<=width+1,"Modal outside viewport at "+width);
+    if(width===320||width===390||width===1366){
+      const audit=await page.evaluate(async()=>window.axe.run(document,{
+        runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
+        rules:{region:{enabled:false}}
+      }));
+      assert.deepEqual(audit.violations.map(v=>({
+        id:v.id,targets:v.nodes.slice(0,3).map(n=>n.target.join(" "))
+      })),[],"Diagram dialog violates WCAG at "+width);
+    }
     await page.screenshot({path:"artifacts/mobile-ux/diagrama-"+width+".png"});
   }
   await page.setViewportSize({width:390,height:844});
