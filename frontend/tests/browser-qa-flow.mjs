@@ -225,9 +225,12 @@ try{
   await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
   await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();
   const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
-  if (!(await sourceField.isVisible())) {
-    await page.getByText("Importar requisitos de texto (prévia e revisão)").click();
-  }
+  // Lazy panel loading can make isVisible() return false before the
+  // controlled native details has mounted. Wait for its summary first.
+  const importSummary=page.getByText("Importar requisitos de texto (prévia e revisão)");
+  await importSummary.waitFor();
+  if (!(await sourceField.isVisible())) await importSummary.click();
+  await sourceField.waitFor({state:"visible"});
   await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio")
     .fill("RF001: A remoção de desconto deve atualizar o total do pedido.");
   await page.getByRole("button",{name:"Organizar",exact:true}).click();
