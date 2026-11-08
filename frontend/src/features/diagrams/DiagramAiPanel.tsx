@@ -51,7 +51,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft}:Props){
     setConsent(false);setMessage("");
   },[proposal.text]);
   const canGenerate=own&&!busy&&consent&&!proposal.error&&
-    (!requirements.isPending||mode==="text")&&!requirements.isError;
+    (mode==="text"||(!requirements.isPending&&!requirements.isError));
 
   async function generate(){
     if(!canGenerate)return;
