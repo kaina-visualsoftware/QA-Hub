@@ -725,7 +725,6 @@
 .qa-task-optional>div{padding-bottom:14px}
 @media(max-width:800px){
   /* The home screen already has a New TF action; don't repeat it in the mobile nav. */
-  .sidebar nav:first-of-type .nav-link:nth-child(2){display:none}
   .sidebar{padding:8px 12px 6px}
   .sidebar nav:first-of-type,.sidebar nav:nth-of-type(2){gap:4px}
   .sidebar .nav-link{min-height:38px}
@@ -764,3 +763,120 @@
     line-height:1.3;white-space:normal;
   }
 }
+
+/* Profile-customizable navigation and restored utility workspaces. */
+.qa-primary-nav{display:flex;flex-direction:column;gap:3px;min-width:0}
+.qa-sidebar-account{margin-top:auto;border-top:1px solid #31505b;padding-top:15px}
+.qa-account-button{display:flex;align-items:center;gap:10px;color:#dfebec;
+  padding:9px;border-radius:12px;min-width:0}
+.qa-account-button:hover,.qa-account-button.active{background:#234d59}
+.qa-account-avatar,.qa-profile-avatar{display:grid;place-items:center;font-weight:800;
+  flex-shrink:0;background:#d4f3e8;color:#144856;border-radius:12px}
+.qa-account-avatar{width:37px;height:37px}
+.qa-account-details{display:flex;flex-direction:column;flex:1;min-width:0;gap:2px}
+.qa-account-details strong{font-size:.83rem}
+.qa-account-details small{font-size:.68rem;color:#b6cdd0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.qa-legacy-link{font-size:.72rem;color:#b4c8cc;display:inline-block;margin:10px 9px 0}
+.qa-legacy-link:hover{text-decoration:underline}
+.qa-mobile-profile{display:none}
+.qa-topbar-profile{display:inline-flex;align-items:center;gap:7px;color:#286a73;
+  font-size:.8rem;font-weight:690;min-height:38px;padding:6px 9px;border-radius:9px}
+.qa-topbar-profile:hover{background:#eaf4f5}
+.qa-profile-layout{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(0,1.6fr);gap:16px}
+.qa-profile-identity{align-self:start}
+.qa-profile-avatar{width:58px;height:58px;font-size:1.5rem;margin-bottom:15px}
+.qa-profile-identity h2,.qa-profile-preferences h2,.qa-dashboard .panel h2{font-size:1.12rem;font-weight:760}
+.qa-profile-role{display:inline-flex;gap:7px;align-items:center;margin:13px 0;
+  border-radius:99px;background:#eaf5f1;color:#276453;padding:7px 10px;font-size:.81rem}
+.qa-email-wrap{overflow-wrap:anywhere}
+.qa-profile-title{display:flex;align-items:flex-start;gap:12px}
+.qa-profile-title>svg{flex-shrink:0;color:#247782}
+.qa-profile-menu-options{border:1px solid #e2e9ea;border-radius:13px;
+  overflow:hidden;margin:20px 0 13px}
+.qa-profile-menu-option{display:flex;justify-content:space-between;align-items:center;
+  gap:15px;padding:15px 16px;border-bottom:1px solid #e9eff0;min-height:64px;
+  background:#fff;cursor:pointer}
+.qa-profile-menu-option:last-child{border-bottom:0}
+.qa-profile-menu-option>span:first-child,.qa-profile-menu-option>div{min-width:0}
+.qa-profile-menu-option strong,.qa-profile-menu-option small{display:block;overflow-wrap:anywhere}
+.qa-profile-menu-option strong{font-size:.9rem;color:#1d424a}
+.qa-profile-menu-option small{font-size:.75rem;color:#56717b;margin-top:3px}
+.qa-profile-menu-option input{width:20px;height:20px;flex:0 0 20px;accent-color:#0d6578}
+.qa-profile-fixed{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  color:#216c60;font-weight:760;font-size:.76rem}
+.qa-profile-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin:20px 0 0}
+.qa-profile-actions button{min-height:44px}
+.qa-tools-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:16px}
+.qa-tools-menu{display:flex;flex-direction:column;gap:6px;min-width:0}
+.qa-tools-nav-item{display:flex;align-items:center;gap:10px;background:white;
+  border:1px solid #dce7e8;min-height:47px;padding:11px 12px;
+  border-radius:11px;font-weight:680;font-size:.82rem;text-align:left;color:#315763}
+.qa-tools-nav-item.selected{background:#e2f3ef;border-color:#6cb4ac;color:#125e57}
+.qa-tools-content{min-width:0;align-self:start}
+.qa-reference-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.qa-dashboard-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.qa-dashboard-metrics article{display:flex;flex-direction:column;gap:5px;min-width:0;
+  border:1px solid #dfe9ea;border-radius:14px;padding:16px;background:white;color:#2b6672}
+.qa-dashboard-metrics strong{font-size:1.75rem;color:#17414b}
+.qa-dashboard-metrics span{font-size:.8rem;color:#597480}
+.qa-dashboard-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0}
+.qa-dashboard-statuses{margin:20px 0;display:flex;flex-direction:column;gap:13px}
+.qa-dashboard-barrow>div:first-child{display:flex;justify-content:space-between;gap:10px;
+  font-size:.8rem;margin-bottom:5px}
+.qa-dashboard-track{height:9px;background:#e0eded;border-radius:99px;overflow:hidden}
+.qa-dashboard-track>span{display:block;height:100%;background:#287d85;border-radius:99px}
+.qa-dashboard-coverage{display:flex;align-items:baseline;gap:12px;margin:28px 0 17px}
+.qa-dashboard-coverage strong{font-size:2.35rem;color:#195a67}
+.qa-dashboard-coverage span{font-size:.82rem;color:#546e77}
+.qa-dashboard-recents{margin-top:16px}
+.qa-dashboard-recent{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-top:1px solid #e5ebec;padding:13px 0;min-width:0}
+.qa-dashboard-recent>span:first-child{min-width:0}
+.qa-dashboard-recent strong,.qa-dashboard-recent small{display:block;overflow-wrap:anywhere}
+.qa-dashboard-recent strong{font-size:.9rem}
+.qa-dashboard-recent small{font-size:.73rem;color:#5b737c;margin-top:4px}
+@media(max-width:1050px){
+  .qa-profile-layout{grid-template-columns:1fr}
+  .qa-tools-layout{grid-template-columns:1fr}
+  .qa-tools-menu{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .qa-tools-nav-item{justify-content:center;padding:10px 5px;text-align:center}
+}
+@media(max-width:800px){
+  .sidebar .qa-sidebar-account{display:none}
+  .sidebar .qa-primary-nav{display:flex;flex-direction:row;flex-wrap:nowrap;
+    overflow-x:auto;min-width:0;gap:5px;max-width:100%;scrollbar-width:thin}
+  .sidebar nav.qa-primary-nav .nav-link{flex:0 0 auto;white-space:nowrap}
+  .sidebar .qa-mobile-profile{display:grid;place-items:center;
+    flex:0 0 42px;width:42px;height:42px;margin-left:auto;color:#e6f0f0;
+    border:1px solid #426675;border-radius:10px}
+  .sidebar .qa-mobile-logout{order:1}
+  .sidebar .brand{flex:1 1 calc(100% - 105px)}
+  .sidebar nav.qa-primary-nav{order:3;flex:1 0 100%;max-width:100%}
+  .qa-dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .qa-profile-layout{gap:12px}
+  .qa-profile-menu-option{padding:12px}
+  .qa-profile-actions{flex-direction:column-reverse}
+  .qa-profile-actions button{width:100%}
+  .qa-tools-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .qa-tools-nav-item{justify-content:flex-start;min-height:45px;font-size:.76rem}
+  .qa-tools-nav-item svg{width:16px;height:16px;flex-shrink:0}
+  .qa-dashboard-panels{grid-template-columns:1fr}
+  .qa-dashboard-metrics{gap:8px}
+  .qa-dashboard-metrics article{padding:12px}
+}
+
+/* Legacy mobile selector for the old "Nova TF" shortcut cannot hide Tarefas. */
+.qa-modal-content .generator-context>summary{display:flex;align-items:center;min-height:44px;padding:10px 2px}
+@media(max-width:800px){.sidebar .qa-mobile-profile{order:1}.sidebar .qa-mobile-logout{order:2}}
+
+@media(max-width:800px){
+  /* A single horizontally scrollable navigation row (no second line on phones). */
+  .sidebar nav.qa-primary-nav{display:flex;flex-wrap:nowrap;overflow-x:auto;
+    overflow-y:hidden;width:100%;max-width:100%;padding-bottom:2px}
+  .sidebar nav.qa-primary-nav .nav-link{flex:0 0 auto;white-space:nowrap}
+}
+.qa-modal-content .qa-task-assist>summary{min-height:58px;padding:17px 10px;
+  margin:4px 0;line-height:1.6}
