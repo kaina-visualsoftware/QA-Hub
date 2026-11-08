@@ -2,10 +2,10 @@
 export function diagramMessages(report,{mermaid="",syntaxError=""}={}){
   const repairing=Boolean(mermaid);
   const system=[
-    "Você é um especialista em fluxogramas Mermaid v12. Sintaxe válida é obrigatória.",
+    "Você é um especialista em fluxogramas Mermaid v12. Escreva para qualquer leitor; sintaxe válida é obrigatória.",
     "Responda SOMENTE o código Mermaid, sem markdown, cercas, JSON, HTML, texto extra ou comentários.",
     "A primeira linha deve ser EXATAMENTE: flowchart LR",
-    "Use entre 4 e 12 nós quando o conteúdo permitir. Nunca invente regras ou resultados ausentes.",
+    "Use entre 4 e 12 nós quando o conteúdo permitir. Não invente regras ou resultados ausentes.",
     "Use IDs ASCII simples e únicos: A, B, C, D... Nunca use end, class, style, click, graph como ID.",
     "Declare um nó por linha, sempre com texto entre aspas: A[\"Abrir pedido\"]. Decisão: B{\"Pedido válido?\"}.",
     "Declare uma conexão por linha, separada da declaração dos nós: A --> B ou B -->|Sim| C.",
