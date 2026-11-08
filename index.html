@@ -3,26 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex">
-  <meta name="color-scheme" content="light dark">
-  <title>QA Hub · Registro de testes</title>
+  <meta name="theme-color" content="#102f3b">
+  <meta name="description" content="QA Hub — sistema para criar tarefas e executar cenários de teste.">
+  <title>QA Hub · Workspace de testes</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <meta name="theme-color" content="#112d39">
-  <link rel="canonical" href="https://kaina-visualsoftware.github.io/QA-Hub/qa.html">
+  <link rel="canonical" href="https://kaina-visualsoftware.github.io/QA-Hub/react/">
   <script>
-    // A raiz do GitHub Pages abre exclusivamente o QA Hub.
-    // Preserva query e fragmento usados em callbacks do Supabase Auth.
-    const destination = new URL('./qa.html', window.location.href);
-    destination.search = window.location.search;
-    destination.hash = window.location.hash;
-    window.location.replace(destination.href);
+    (function () {
+      const current = new URL(window.location.href);
+      const callback = ["code", "token_hash", "error", "error_code", "type"]
+        .some((key) => current.searchParams.has(key)) ||
+        /^#(?:access_token|refresh_token|error|error_code|token_hash|type)=/i.test(current.hash);
+      const target = new URL(callback ? "./react/auth.html" : "./react/", current);
+      if (callback) {
+        target.search = current.search;
+        target.hash = current.hash;
+      } else if (/^#\/(?:tarefa\/|publicas|recuperar)/.test(current.hash)) {
+        target.hash = current.hash;
+      } else {
+        target.hash = "#/";
+      }
+      window.location.replace(target.href);
+    })();
   </script>
 </head>
 <body>
   <main>
     <h1>QA Hub</h1>
-    <p>Abrindo a plataforma de registro de testes.</p>
-    <p><a href="./qa.html">Acessar o QA Hub</a></p>
+    <p>Abrindo o novo ambiente de testes.</p>
+    <p><a href="./react/">Entrar no QA Hub</a></p>
+    <p><a href="./qa-legacy.html">Usar a versão anterior</a></p>
   </main>
 </body>
 </html>
