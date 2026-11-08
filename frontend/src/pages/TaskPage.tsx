@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, X, WandSparkles } from "lucide-react";
+import { ArrowLeft, BookText, Check, CircleHelp, ClipboardList, ExternalLink, FileText, GitBranchPlus, GitMerge, ListChecks, Plus, Share2, X, WandSparkles, FilePenLine, Workflow, Sparkles } from "lucide-react";
 import type { GeneratorMode } from "../features/generators/stream";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -51,6 +51,7 @@ export default function TaskPage() {
   const [editing, setEditing] = useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(false);
+  const [focusDiagramAi, setFocusDiagramAi] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
   const [focusReport, setFocusReport] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
@@ -98,6 +99,16 @@ export default function TaskPage() {
     setEditingScenario(null);
     scenarioForm.reset();
     setShowScenarioForm(true);
+  }
+
+  function openDiagramAi() {
+    setShowDiagrams(true); setFocusDiagramAi(true);
+    setGeneratorMode(null); setShowDocuments(false);
+    requestAnimationFrame(() => {
+      const target = document.getElementById("diagram-ai-heading");
+      target?.scrollIntoView({ behavior:"auto", block:"start" });
+      target?.focus({ preventScroll:true });
+    });
   }
 
   function startPendingExecution() {
@@ -276,6 +287,10 @@ export default function TaskPage() {
   }, [focusNextPending, saveResult.isPending, scenarios.isFetching, scenarios.data]);
 
   const progress = progressOf(scenarios.data || []);
+  const passedCount = (scenarios.data ?? []).filter(s => s.status==="aprovado").length;
+  const failedCount = (scenarios.data ?? []).filter(s => s.status==="reprovado").length;
+  const blockedCount = (scenarios.data ?? []).filter(s => s.status==="bloqueado").length;
+  const progressPercent = progress.total ? Math.round(progress.executed/progress.total*100) : 0;
   const visible = useMemo(() => (scenarios.data || []).filter((scenario) =>
     filter === "all" || filter === "pending" && scenario.status === "nao_executado" ||
     filter === "failed" && (scenario.status === "reprovado" || scenario.status === "bloqueado")
@@ -300,52 +315,90 @@ export default function TaskPage() {
 
   return <div className="page">
     <Link to="/" className="back-link"><ArrowLeft size={16} /> Todas as TFs</Link>
-    <div className="page-heading mt-4">
-      <div><p className="eyebrow">{task.codigo ? "TF · " + task.codigo : "TAREFA DE TESTE"}</p>
-        <h1>{task.titulo}</h1>
-        <p className="text-muted">{task.tipo_teste} · {task.sistema || "Sem módulo"} · {task.versao || "Sem versão"}</p>
+    <header className="qa-task-hero mt-4" aria-label="Resumo da TF">
+      <div className="qa-task-hero-top">
+        <div className="qa-task-identity">
+          <p className="qa-task-eyebrow">{task.codigo ? "TF · " + task.codigo : "TAREFA DE TESTE"}</p>
+          <h1>{task.titulo}</h1>
+          <div className="qa-task-meta">
+            <span>{task.tipo_teste}</span><span>{task.sistema || "Sem módulo"}</span>
+            <span>{task.versao || "Sem versão"}</span>
+          </div>
+        </div>
+        <div className="qa-task-hero-controls">
+          <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
+          <Button variant="secondary" onPress={() => setEditing((value) => !value)}>
+            <FilePenLine size={16} /> {editing ? "Fechar edição" : "Editar TF"}
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
-        <Button variant="secondary" onPress={() => setEditing((value) => !value)}>{editing ? "Fechar edição" : "Editar TF"}</Button>
+      <div className="qa-task-snapshot" aria-label="Indicadores da execução">
+        <div><strong>{progress.executed}<span>/{progress.total}</span></strong><small>Executados</small></div>
+        <div><strong>{pendingCount}</strong><small>Pendentes</small></div>
+        <div><strong>{passedCount}</strong><small>Aprovados</small></div>
+        <div><strong>{failedCount + blockedCount}</strong><small>Falha ou bloqueio</small></div>
       </div>
-    </div>
+      <div className="qa-task-hero-progress">
+        <div className="qa-task-progress-label">
+          <span>Andamento da validação</span><strong>{progressPercent}%</strong>
+        </div>
+        <div className="qa-task-hero-meter" role="progressbar"
+          aria-label="Cenários executados" aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={progressPercent}>
+          <span style={{width:progressPercent+"%"}} />
+        </div>
+      </div>
+    </header>
     <section className="qa-quickflow mt-4" aria-label="Fluxo rápido de QA">
       <div className="qa-quickflow-heading">
         <div>
-          <p className="eyebrow">FLUXO DE QA</p>
-          <h2>Criar, gerar e testar</h2>
-          <p className="text-muted text-sm">Ações diretas, sem alterar resultados automaticamente.</p>
+          <p className="eyebrow">ÁREA DE TRABALHO</p>
+          <h2>Da TF ao resultado, sem etapas desnecessárias</h2>
+          <p className="text-muted text-sm">Crie ou gere conteúdo, execute os casos e registre somente resultados reais.</p>
         </div>
         <span className="count-pill">{pendingCount} pendente(s)</span>
       </div>
-      <div className="qa-quickflow-actions">
-        <Button onPress={startScenario}><Plus size={17} /> Adicionar cenário</Button>
-        <Button variant="secondary" onPress={startPendingExecution}
-          isDisabled={scenarios.isPending}>
+      <div className="qa-action-strip">
+        <Button onPress={startScenario}><Plus size={17} /> Novo cenário</Button>
+        <Button variant="secondary" onPress={startPendingExecution} isDisabled={scenarios.isPending}>
           <ListChecks size={17} /> Testar pendentes
         </Button>
-        <Button variant="secondary" onPress={() => {
-          setGeneratorMode("teste"); setShowDocuments(false);
-        }}><WandSparkles size={17} /> Gerar casos com IA</Button>
         <Button variant="secondary" isDisabled={scenarios.isPending || scenarios.isError || scenarios.isFetching}
           onPress={() => {
             setGeneratorMode(null); setShowDocuments(true); setFocusReport(true);
-            // Already-open panels do not remount. Focus their heading directly.
             requestAnimationFrame(() => {
               document.getElementById("documents-heading")?.focus({ preventScroll: true });
-              document.getElementById("documents-heading")?.scrollIntoView({
-                behavior: "auto", block: "start"
-              });
+              document.getElementById("documents-heading")?.scrollIntoView({ behavior:"auto", block:"start" });
             });
           }}><FileText size={17} /> Conferir relatório</Button>
       </div>
+      <div className="qa-ai-section-heading">
+        <p className="eyebrow">GERAÇÃO ASSISTIDA</p>
+        <p>Escolha o que criar com a IA, utilizando os dados desta TF.</p>
+      </div>
+      <div className="qa-ai-action-grid" role="group" aria-label="Ferramentas de IA">
+        <button type="button" className="qa-ai-action" aria-label="Gerar casos com IA"
+          onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}>
+          <span className="qa-ai-icon"><ListChecks size={19} /></span>
+          <span><strong>Gerar casos com IA</strong><small>Roteiro e cenários revisáveis para executar</small></span>
+          <WandSparkles size={17} className="qa-ai-arrow" />
+        </button>
+        <button type="button" className="qa-ai-action" aria-label="Gerar post com IA"
+          onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}>
+          <span className="qa-ai-icon"><FileText size={19} /></span>
+          <span><strong>Gerar post com IA</strong><small>Comunicado no padrão e versão na TF</small></span>
+          <WandSparkles size={17} className="qa-ai-arrow" />
+        </button>
+        <button type="button" className="qa-ai-action" aria-label="Gerar diagrama com IA"
+          onClick={openDiagramAi}>
+          <span className="qa-ai-icon"><Workflow size={19} /></span>
+          <span><strong>Gerar diagrama com IA</strong><small>Fluxograma Mermaid com prévia e edição</small></span>
+          <Sparkles size={17} className="qa-ai-arrow" />
+        </button>
+      </div>
       <details className="qa-more-tools">
-        <summary>Outras ferramentas: post, requisitos, evidências e diagramas</summary>
+        <summary>Requisitos, evidências, diagramas e outras ferramentas</summary>
         <div className="qa-more-tools-content">
-          <button type="button" onClick={() => {
-            setGeneratorMode("post"); setShowDocuments(false);
-          }} className="secondary-link"><WandSparkles size={16} /> Gerar post com IA</button>
           <button type="button" onClick={() => setShowRequirements((value) => !value)}
             className="secondary-link"><BookText size={16} /> {showRequirements ? "Ocultar requisitos" : "Requisitos e cobertura"}</button>
           <button type="button" onClick={() => setShowEvidence((value) => !value)}
@@ -355,67 +408,11 @@ export default function TaskPage() {
           <button type="button" onClick={() => {
             setShowDocuments((value) => !value); setFocusReport(false); setGeneratorMode(null);
           }} className="secondary-link"><FileText size={16} /> {showDocuments ? "Ocultar documentos" : "Documentos / relatório"}</button>
-          <button type="button" onClick={() => setShowDiagrams((value) => !value)}
-            className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Diagramas"}</button>
+          <button type="button" onClick={() => {
+            setShowDiagrams((value) => !value); setFocusDiagramAi(false);
+          }} className="secondary-link"><GitBranchPlus size={16} /> {showDiagrams ? "Ocultar diagramas" : "Editor de diagramas"}</button>
         </div>
       </details>
-    </section>
-    <section className="panel mt-4" aria-label="Situação da tarefa">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="field" style={{ minWidth: 190 }}>Situação da TF
-          <select value={nextStatus} onChange={(e) =>
-            setNextStatus(taskStatuses.find((value) => value === e.target.value) ?? "rascunho")}>
-            {taskStatuses.map((value) => <option value={value} key={value}>{taskStatusLabels[value]}</option>)}
-          </select>
-        </label>
-        <Button variant="secondary" onPress={() => void updateStatus.mutateAsync(nextStatus)}
-          isDisabled={nextStatus === task.status || updateStatus.isPending}>Atualizar situação</Button>
-        <div className="ml-auto">
-          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending} onPress={() => {
-            if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
-          }}>Excluir TF</Button>
-        </div>
-      </div>
-      {(updateStatus.isError || deleteTaskMutation.isError) &&
-        <p role="alert" className="notice error mt-3">
-          {updateStatus.error?.message || deleteTaskMutation.error?.message}
-        </p>}
-    </section>
-    <section className="panel mt-4" aria-label="Compartilhamento público">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">PRIVACIDADE E VISIBILIDADE</p>
-          <h2>Compartilhamento da TF</h2>
-          <p className="text-muted text-sm mt-2">
-            {task.publica ? "Publicada — qualquer visitante pode consultar o resumo, os cenários, os resultados observados e os diagramas."
-              : "Privada — esta TF ainda não foi compartilhada publicamente."}
-          </p>
-        </div>
-        <span className={"status-chip " + (task.publica ? "aprovado" : "rascunho")}>
-          {task.publica ? "Pública" : "Privada"}
-        </span>
-      </div>
-      {task.user_id === userId ? <div className="flex flex-wrap gap-3 items-center mt-4">
-        <Button variant="secondary" isDisabled={publication.isPending || (!task.publica && !publicSharingEnabled)}
-          onPress={() => {
-            const next = !task.publica;
-            const label = next
-              ? "Publicar esta TF? Título, descrição, análise técnica, cenários, resultados observados e diagramas ficarão acessíveis sem login. Revise dados internos antes de confirmar."
-              : "Retirar esta TF da biblioteca pública? Links compartilhados deixarão de funcionar após a alteração.";
-            if (window.confirm(label)) void publication.mutateAsync(next);
-          }}>
-          <Share2 size={16}/> {task.publica ? "Retirar publicação" : "Publicar TF"}
-        </Button>
-        {!task.publica && !publicSharingEnabled && <p role="status" className="text-sm text-muted">
-          Novas publicações desativadas até a homologação das permissões de acesso.
-        </p>}
-        {task.publica && <Link to="/publicas" search={{ tf: task.id }} className="secondary-link">
-          <ExternalLink size={16}/> Abrir visão pública
-        </Link>}
-      </div> : <p className="text-muted text-sm mt-3">
-        A publicação só pode ser alterada pelo autor da TF, inclusive em consulta administrativa.
-      </p>}
-      {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
     </section>
     <section className="progress-panel mt-4" aria-label="Progresso da execução">
       <div><strong>{progress.executed}/{progress.total}</strong><span>cenários executados</span></div>
@@ -483,7 +480,8 @@ export default function TaskPage() {
         focusOnOpen={focusReport} />
     </Suspense>}
     {showDiagrams && <Suspense fallback={<p role="status" className="notice mt-4">Carregando editor de diagramas…</p>}>
-      <DiagramPanel taskId={taskId} userId={userId} />
+      <DiagramPanel task={task} scenarios={scenarios.data || []} userId={userId}
+        focusAi={focusDiagramAi} />
     </Suspense>}
     {showScenarioForm && <section ref={editorRef} className="panel mt-5 qa-workflow-anchor"
       aria-label={editingScenario ? "Editar cenário" : "Novo cenário"}>
@@ -568,6 +566,69 @@ export default function TaskPage() {
       {(saveResult.isError || deleteScenarioMutation.isError) && <p className="notice error mt-4" role="alert">
         {saveResult.error?.message || deleteScenarioMutation.error?.message}
       </p>}
+    </section>
+
+    <div className="qa-task-settings-heading">
+      <p className="eyebrow">ADMINISTRAÇÃO DA TF</p>
+      <h2>Estado e compartilhamento</h2>
+      <p className="text-muted text-sm">Configurações separadas da execução para evitar mudanças acidentais.</p>
+    </div>
+    <section className="panel mt-4" aria-label="Situação da tarefa">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="field" style={{ minWidth: 190 }}>Situação da TF
+          <select value={nextStatus} onChange={(e) =>
+            setNextStatus(taskStatuses.find((value) => value === e.target.value) ?? "rascunho")}>
+            {taskStatuses.map((value) => <option value={value} key={value}>{taskStatusLabels[value]}</option>)}
+          </select>
+        </label>
+        <Button variant="secondary" onPress={() => void updateStatus.mutateAsync(nextStatus)}
+          isDisabled={nextStatus === task.status || updateStatus.isPending}>Atualizar situação</Button>
+        <div className="ml-auto">
+          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending} onPress={() => {
+            if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
+          }}>Excluir TF</Button>
+        </div>
+      </div>
+      {(updateStatus.isError || deleteTaskMutation.isError) &&
+        <p role="alert" className="notice error mt-3">
+          {updateStatus.error?.message || deleteTaskMutation.error?.message}
+        </p>}
+    </section>
+    <section className="panel mt-4" aria-label="Compartilhamento público">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">PRIVACIDADE E VISIBILIDADE</p>
+          <h2>Compartilhamento da TF</h2>
+          <p className="text-muted text-sm mt-2">
+            {task.publica ? "Publicada — qualquer visitante pode consultar o resumo, os cenários, os resultados observados e os diagramas."
+              : "Privada — esta TF ainda não foi compartilhada publicamente."}
+          </p>
+        </div>
+        <span className={"status-chip " + (task.publica ? "aprovado" : "rascunho")}>
+          {task.publica ? "Pública" : "Privada"}
+        </span>
+      </div>
+      {task.user_id === userId ? <div className="flex flex-wrap gap-3 items-center mt-4">
+        <Button variant="secondary" isDisabled={publication.isPending || (!task.publica && !publicSharingEnabled)}
+          onPress={() => {
+            const next = !task.publica;
+            const label = next
+              ? "Publicar esta TF? Título, descrição, análise técnica, cenários, resultados observados e diagramas ficarão acessíveis sem login. Revise dados internos antes de confirmar."
+              : "Retirar esta TF da biblioteca pública? Links compartilhados deixarão de funcionar após a alteração.";
+            if (window.confirm(label)) void publication.mutateAsync(next);
+          }}>
+          <Share2 size={16}/> {task.publica ? "Retirar publicação" : "Publicar TF"}
+        </Button>
+        {!task.publica && !publicSharingEnabled && <p role="status" className="text-sm text-muted">
+          Novas publicações desativadas até a homologação das permissões de acesso.
+        </p>}
+        {task.publica && <Link to="/publicas" search={{ tf: task.id }} className="secondary-link">
+          <ExternalLink size={16}/> Abrir visão pública
+        </Link>}
+      </div> : <p className="text-muted text-sm mt-3">
+        A publicação só pode ser alterada pelo autor da TF, inclusive em consulta administrativa.
+      </p>}
+      {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
     </section>
 
     {pending && <div className="dialog-backdrop" role="presentation">
