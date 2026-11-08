@@ -199,3 +199,28 @@ Testes: `frontend/tests/task-progress.test.ts` (cálculo,
 separação por TF, sem inferir execução) e
 `frontend/tests/browser-home-progress.mjs` (lotes, paginação real,
 contas fictícias, foco acessível e zero gravações no atalho).
+
+
+## Assistentes de IA e workspace redesenhado — QF33 a QF40
+
+| Caso | Procedimento | Resultado esperado |
+|---|---|---|
+| QF33 | Abrir uma TF, procurar as ações de IA | Post, roteiro/casos e diagramas estão visíveis sem abrir Mais ferramentas |
+| QF34 | Clicar Gerar diagrama com IA | Painel Mermaid abre e recebe o foco; não chama IA automaticamente |
+| QF35 | Selecionar cenários e requisitos na opção Dados da TF | Somente IDs vinculados à mesma TF participam do contexto e no máximo 18 cenários |
+| QF36 | Informar texto livre e autorizar o envio | Preview do contexto é inspecionável; envio depende de consentimento |
+| QF37 | Gerar Mermaid válido | Código normalizado, prévia isolada, nada gravado no banco sem Salvar diagrama |
+| QF38 | Receber código inseguro ou serviço indisponível | Código perigoso é rejeitado; fallback local é identificado, nunca salvo automaticamente |
+| QF39 | Editar um diagrama e tentar substituí-lo por IA | Pede confirmação antes de sobrescrever o rascunho atual |
+| QF40 | Abrir tela a 390px e registrar cenários | Sem overflow horizontal; contagens derivadas somente de resultados salvos |
+
+**Arquitetura:** conserva a `qa-ai` implantada para geração de
+diagramas, os geradores `qa-generators` para posts e casos,
+o serviço de documentos privados, `qa_diagramas` sob RLS e
+o editor Mermaid existente. Nenhuma mudança SQL necessária.
+O comportamento de acesso de outras contas continua read-only.
+
+**Observação de homologação:** os testes automatizados utilizam
+Supabase/Edge Functions simulados. Validar manualmente uma
+geração real em conta proprietária, consentimento, revisão e
+gravação em TF da própria conta antes de encerrar o item.

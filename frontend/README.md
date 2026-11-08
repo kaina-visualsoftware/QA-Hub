@@ -400,3 +400,46 @@ Validação: `frontend/tests/task-progress.test.ts` e
 `frontend/tests/browser-home-progress.mjs` com contas/linhas
 fictícias, cenários paginados, tarefa de terceiro e viewport 390px.
 Não substitui a homologação com Auth/RLS e dados representativos.
+
+
+## IA restaurada: casos, posts e diagramas diretamente na TF
+
+Na página da TF, **Gerar casos com IA** e **Gerar post com IA** são
+ações principais, não mais controles escondidos no menu secundário.
+Elas reutilizam a Edge Function `qa-generators` já existente,
+com streaming, contexto revisável, consentimento prévio, checagem
+de formatos, revisão humana, anexação atômica de cenários pendentes
+e versionamento de posts em Documentos.
+
+O novo botão **Gerar diagrama com IA** abre o editor de diagramas
+Mermaid com o assistente nativo React. Ele utiliza a função
+Supabase `qa-ai` que já estava implantada e que aceita
+`{ mode: "diagram", text }`; não foi criado outro endpoint
+nem uma migration de banco. O analista pode escolher dados da
+TF, até 18 cenários, requisitos aprovados ou apenas texto livre.
+A interface mostra o conteúdo que será enviado à NVIDIA e
+solicita consentimento explícito antes de chamar a IA.
+Identificadores conhecidos (emails, CPF/CNPJ, tokens) são
+mascarados pelo utilitário de contexto; isso **não substitui**
+a revisão humana do texto.
+
+O retorno é validado e normalizado pelo sanitizador de Mermaid
+legado, preparado no editor e renderizado em um `iframe sandbox`
+sem permissões. Existe fallback local caso o modelo não produza
+um diagrama utilizável. **Gerar não salva, publica ou aprova
+qualquer dado**: é necessário revisar e clicar `Salvar diagrama`.
+Somente o proprietário recebe o direito de gerar, criar, editar
+ou remover diagramas. O backend continua protegido por JWT,
+quota de IA e RLS do Supabase.
+
+A tela de TF também tem uma nova visão de resumo com métricas
+de execução persistida, acesso direto às três ferramentas de IA
+e configurações administrativas posicionadas após o fluxo de
+testes. Os casos não executados continuam sendo pendentes,
+sem aprovação automática.
+
+Testes: `frontend/tests/diagram-ai.test.ts` para seleção,
+limites de contexto, privacidade e Mermaid seguro;
+`frontend/tests/browser-ai-workbench.mjs` para consentimento,
+botões visíveis, revisão, salvamento explícito e responsividade
+em 390px. Os testes Chromium usam fixtures sintéticas.
