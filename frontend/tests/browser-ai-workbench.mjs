@@ -80,6 +80,12 @@ async function fakeBackend(route){
     assert.ok(body.text.includes("Dados do processo")||body.text.includes("DADOS DO PROCESSO"));
     assert.ok(body.text.includes("Iniciar conferência"));
     prompts.push(body);
+    if(body.mermaid){
+      assert.match(body.mermaid,/flowchart LR/);
+      assert.ok(body.syntaxError?.length>0,"Repair must include parser diagnosis");
+      return send({mermaid:'flowchart LR\n A["Início"]\n B["Validação recuperada"]\n A --> B',
+        provider:"NVIDIA Build"});
+    }
     return send({mermaid:"flowchart TD\n A[Início] --> B[Validação] --> C[Fim]",provider:"NVIDIA Build"});
   }
   errors.push(method+" "+path);
@@ -113,7 +119,7 @@ try {
   await page.getByRole("radio",{name:"Texto livre"}).check();
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
   assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
-  await page.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
+  await page.getByRole("checkbox",{name:/Autorizo enviar o texto exibido à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
   await page.getByRole("textbox",{name:"Código Mermaid"}).waitFor({timeout:20000});
   await page.waitForFunction(()=>{
@@ -132,6 +138,42 @@ try {
   assert.equal(diagramSaves,1);
   assert.equal(diagrams.length,1);
   assert.equal(task.status,"em_teste","Generating/saving a diagram never approves a TF");
+
+  // A user may paste broken Mermaid into the editor. Such code MUST NOT be
+  // persisted; expose the real parser error and offer explicit AI repair.
+  const codeEditor=page.getByRole("textbox",{name:"Código Mermaid"});
+  await codeEditor.fill('flowchart LR\n A["Início"\n A --> B');
+  await page.getByRole("button",{name:"Salvar diagrama"}).click();
+  await page.getByRole("group",{name:"Erro de sintaxe Mermaid"})
+    .getByRole("alert").waitFor({timeout:20000});
+  assert.equal(diagramSaves,1,"Invalid Mermaid must never be saved");
+  await page.getByRole("button",{name:"Ir para Corrigir com IA"}).click();
+  await page.getByRole("button",{name:"Corrigir com IA",exact:true}).waitFor();
+  page.once("dialog",dialog=>void dialog.accept());
+  await page.getByRole("button",{name:"Corrigir com IA",exact:true}).click();
+  await page.waitForFunction(()=>{
+    const text=document.getElementById("diagram-code-editor");
+    return text?.value?.includes("Validação recuperada");
+  },{timeout:20000});
+  assert.equal(prompts.length,2,"Repair requires a new explicit AI call");
+  assert.ok(prompts[1].syntaxError.length>0);
+  assert.equal(diagramSaves,1,"A corrected suggestion is still only an unsaved draft");
+  await page.getByRole("button",{name:"Salvar diagrama"}).click();
+  await page.waitForFunction(()=>document.querySelectorAll(".diagram-item").length===2,
+    {timeout:20000});
+  assert.equal(diagramSaves,2,"Only corrected and confirmed Mermaid may be saved");
+
+  // Retry is available without sending the invalid code or parser error.
+  page.once("dialog",dialog=>void dialog.accept());
+  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  await page.waitForFunction(()=>{
+    const text=document.getElementById("diagram-code-editor");
+    return text?.value?.includes("Validação") && !text?.value?.includes("recuperada");
+  },{timeout:20000});
+  assert.equal(prompts.length,3);
+  assert.equal(prompts[2].mermaid,undefined,"Fresh retry must not reuse a repair payload");
+  assert.equal(diagramSaves,2,"Retry must not save anything");
+
   const overflow=await page.evaluate(()=>
     document.documentElement.scrollWidth-document.documentElement.clientWidth);
   assert.ok(overflow<=1,"AI workbench must fit 390px mobile viewport");
