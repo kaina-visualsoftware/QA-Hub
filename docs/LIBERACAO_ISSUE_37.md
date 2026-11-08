@@ -56,3 +56,84 @@ Ordem operacional coordenada (somente após os gates):
 - Ratificação de acessibilidade: `docs/HOMOLOGACAO_ASSISTIVA_REACT.md`.
 
 **Separação fundamental:** código integrado ≠ site React publicado ≠ banco migrado ≠ homologação concluída.
+
+
+---
+
+## Atualização — ativação em produção autorizada em 07/11/2026
+
+**A decisão anterior de manter a interface React inativa foi substituída por
+autorização explícita para ativar a nova versão diretamente na `main` e
+executar as mudanças necessárias no Supabase SIA.** Este registro não
+significa que todos os testes manuais foram executados.
+
+### Publicação e rollback
+
+- A URL principal `https://kaina-visualsoftware.github.io/QA-Hub/`
+  encaminha para `/QA-Hub/react/#/`, com bundle Vite publicado
+  em `react/` pelo workflow `qa-react-publish.yml`.
+- A aplicação legada continua em `qa-legacy.html`, como fallback.
+  A antiga `index.html` foi preservada em `index-legacy.html`.
+- `qa.html` continua sendo o callback já cadastrado no Supabase Auth,
+  mas encaminha `?code`, `#access_token` e estados de erro para
+  `react/auth.html`. Os testes com credenciais reais devem confirmar
+  cadastro, recuperação e expiração do link antes de encerrar a issue.
+- O leitor `public.html` foi adaptado para usar RPCs públicas.
+  A interface React tem sua própria biblioteca em `#/publicas`.
+- Para reverter **apenas a interface**, um responsável pode substituir
+  `index.html` por `index-legacy.html` e `qa.html` por
+  `qa-legacy.html` na `main`. Não restaurar grants ou políticas
+  públicas antigas: a versão anterior já utiliza `public.js` via RPC.
+- O workflow de build usa `QA_VITE_BASE=/QA-Hub/react/` e publica
+  automaticamente um bundle versionado. Chaves fornecidas na build
+  são **somente publicáveis**, nunca secret/service_role.
+
+### Supabase SIA — migrations efetivamente aplicadas
+
+Projeto: `pqadmlhcsimlcclpkyov`.
+
+1. `qa_public_read_api_v1_allowlist`: criou as funções limitadas
+   `qa_public_tasks_v1()` e `qa_public_task_v1(uuid)`, com
+   `search_path` restrito, predicado `publica=true`, campos
+   permitidos explícitos, limite de linhas e grants de execução.
+2. `qa_public_read_lockdown_v1`: retirou as três políticas públicas
+   antigas e `SELECT` do papel `anon` em `qa_tarefas`,
+   `qa_cenarios` e `qa_diagramas`. As políticas RLS de
+   proprietário/admin foram preservadas.
+3. Leituras posteriores do catálogo confirmaram RLS ativa nas
+   três tabelas e `anon_select=false` para todas; as RPCs retornaram
+   exatamente **2 TFs públicas**, preservadas sem DELETE/UPDATE.
+4. As páginas `public.js` legado e `public-data.ts` React
+   consultam as RPCs, não as tabelas diretamente.
+5. A produção React foi recompilada com
+   `VITE_PUBLIC_SHARING_ENABLED=true` após o lockdown; a escrita
+   de publicação ainda depende de autorização RLS do proprietário.
+
+O linter do Supabase ainda lista avisos por causa das duas funções
+`SECURITY DEFINER` públicas (exposição **intencional e limitada**
+pelas projeções), da função autenticada `qa_ai_claim_request` e da
+proteção contra senhas vazadas desativada. Esses avisos devem ser
+revisados pelo administrador e não substituem auditoria de permissões.
+
+### Validação automatizada executada
+
+O workflow `QA Hub deployed production read-only smoke` verifica
+**sem autenticar nem escrever dados**:
+
+- páginas principais `/`, `react/`, `react/auth.html`,
+  `qa.html`, `qa-legacy.html` e o leitor `public.js`;
+- existência do bundle JavaScript React no GitHub Pages;
+- RPC pública anônima retornando somente campos da allowlist;
+- consulta anônima direta à tabela operacional recebendo 401/403;
+- ausência de detalhe para UUID privado/inexistente.
+
+Esse smoke foi executado com sucesso em
+[GitHub Actions](https://github.com/kaina-visualsoftware/QA-Hub/actions/runs/42434097710).
+
+**Pendente para concluir a issue #37:** autenticar manualmente com
+pelo menos duas contas reais separadas, testar criação/edição e
+execução, upload/download do Storage, publicação/despublicação,
+revisão de requisitos e relatórios, callback e recuperação de senha,
+navegação mobile e tecnologia assistiva. Os testes Chromium de
+desenvolvimento usam Supabase simulado e não comprovam RLS de
+operações autenticadas no banco real.
