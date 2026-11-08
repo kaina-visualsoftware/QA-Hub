@@ -377,19 +377,19 @@ export default function TaskPage() {
         <p>Escolha o que criar com a IA, utilizando os dados desta TF.</p>
       </div>
       <div className="qa-ai-action-grid" role="group" aria-label="Ferramentas de IA">
-        <button type="button" className="qa-ai-action" aria-label="Gerar casos com IA"
+        <button type="button" className="qa-ai-action" 
           onClick={() => { setGeneratorMode("teste"); setShowDocuments(false); }}>
           <span className="qa-ai-icon"><ListChecks size={19} /></span>
           <span><strong>Gerar casos com IA</strong><small>Roteiro e cenários revisáveis para executar</small></span>
           <WandSparkles size={17} className="qa-ai-arrow" />
         </button>
-        <button type="button" className="qa-ai-action" aria-label="Gerar post com IA"
+        <button type="button" className="qa-ai-action" 
           onClick={() => { setGeneratorMode("post"); setShowDocuments(false); }}>
           <span className="qa-ai-icon"><FileText size={19} /></span>
           <span><strong>Gerar post com IA</strong><small>Comunicado no padrão e versão na TF</small></span>
           <WandSparkles size={17} className="qa-ai-arrow" />
         </button>
-        <button type="button" className="qa-ai-action" aria-label="Gerar diagrama com IA"
+        <button type="button" className="qa-ai-action" 
           onClick={openDiagramAi}>
           <span className="qa-ai-icon"><Workflow size={19} /></span>
           <span><strong>Gerar diagrama com IA</strong><small>Fluxograma Mermaid com prévia e edição</small></span>
