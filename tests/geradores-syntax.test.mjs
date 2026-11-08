@@ -5,7 +5,8 @@ import {Script} from 'node:vm';
 import {POST_SYSTEM,TEST_SYSTEM,messagesForGenerator} from '../supabase/functions/qa-generators/prompts.mjs';
 
 const html=readFileSync(new URL('../geradores.html',import.meta.url),'utf8');
-const qa=readFileSync(new URL('../qa.html',import.meta.url),'utf8');
+// The integrated legacy generator remains accessible as an explicit fallback.
+const qa=readFileSync(new URL('../qa-legacy.html',import.meta.url),'utf8');
 const qaScript=readFileSync(new URL('../qa.js',import.meta.url),'utf8');
 const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 
