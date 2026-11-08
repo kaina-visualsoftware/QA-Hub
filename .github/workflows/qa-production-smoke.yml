@@ -1,0 +1,32 @@
+name: QA Hub deployed production read-only smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'qa.html'
+      - 'public.js'
+      - 'frontend/**'
+      - 'scripts/production-smoke.mjs'
+      - '.github/workflows/qa-production-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-hub-prod-readonly-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deployed React, Auth redirect and public API without writes
+        run: node scripts/production-smoke.mjs
