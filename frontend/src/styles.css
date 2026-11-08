@@ -242,10 +242,11 @@
 .qa-diagram-consent input{margin-top:4px;flex-shrink:0}
 .qa-diagram-ai-focus{scroll-margin-top:20px}
 @media(max-width:1050px){
-  .qa-ai-action-grid{grid-template-columns:1fr}
+  .qa-ai-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .qa-ai-action{min-height:75px}
 }
 @media(max-width:700px){
+  .qa-ai-action-grid{grid-template-columns:1fr}
   .qa-task-hero{padding:20px 16px;border-radius:17px}
   .qa-task-hero-top{flex-direction:column;gap:18px}
   .qa-task-hero-controls{width:100%;justify-content:space-between}
