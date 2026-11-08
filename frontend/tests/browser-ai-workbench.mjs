@@ -123,15 +123,18 @@ try {
   assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
   await page.getByRole("checkbox",{name:/Autorizo enviar o texto exibido à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
-  await page.getByRole("textbox",{name:"Código Mermaid"}).waitFor({timeout:20000});
+  await page.getByTitle("Visualização do diagrama Mermaid").waitFor({timeout:20000});
+  assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
+    "Code editor must start collapsed in the quick flow");
   await page.waitForFunction(()=>{
     const code=document.getElementById("diagram-code-editor");
     return code?.value?.includes("Validação");
   },{timeout:20000});
-  const code=await page.getByRole("textbox",{name:"Código Mermaid"}).inputValue();
+  const code=await page.locator("#diagram-code-editor").inputValue();
   assert.ok(code.startsWith("flowchart LR"),"Diagram should be normalized to horizontal layout");
   assert.equal(prompts.length,1);
   assert.equal(diagrams.length,0,"Generated diagrams must not be saved without confirmation");
+  assert.equal(await page.getByRole("button",{name:"Salvar diagrama"}).isEnabled(),true);
   assert.equal(taskWrites,0);
   assert.equal(scenarioWrites,0);
 
@@ -143,6 +146,7 @@ try {
 
   // A user may paste broken Mermaid into the editor. Such code MUST NOT be
   // persisted; expose the real parser error and offer explicit AI repair.
+  await page.getByText("Editar título ou código Mermaid").click();
   const codeEditor=page.getByRole("textbox",{name:"Código Mermaid"});
   await codeEditor.fill('flowchart LR\n A["Início"\n A --> B');
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
