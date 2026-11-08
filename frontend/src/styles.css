@@ -407,3 +407,13 @@
 @media(prefers-reduced-motion:reduce){
   .qa-modal-close,.qa-workbench-tool,.task-row{transition:none}
 }
+
+
+/* Feature panels already have legacy titles and X buttons. Inside a unified
+   modal, the outer header owns dismissal; avoid two competing close controls. */
+.qa-modal-content>section.panel>.section-heading>button[aria-label^="Fechar"]{
+  display:none;
+}
+.qa-modal-content>section.panel>.section-heading{padding-bottom:10px}
+.qa-modal-content>section.panel>.section-heading h2{font-size:1.02rem}
+.qa-modal-content>section.panel>.section-heading p.text-muted{max-width:75ch}
