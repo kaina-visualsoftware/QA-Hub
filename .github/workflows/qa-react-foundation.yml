@@ -21,6 +21,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify legacy website unchanged in code-only integration
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 39
+        working-directory: .
+        run: |
+          git fetch --depth=1 origin main
+          for path in index.html qa.html qa.js qa-config.js public.html public.js; do
+            git show origin/main:"$path" > /tmp/qa-legacy-baseline
+            if ! cmp -s "$path" /tmp/qa-legacy-baseline; then
+              echo "ERROR: $path differs from main; code-only integration must not cut over live Pages"
+              exit 1
+            fi
+          done
+          echo "Legacy Pages entry points are byte-identical to main."
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Typecheck
