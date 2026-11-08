@@ -1,4 +1,4 @@
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -14,6 +14,7 @@ type QAModalProps = {
   size?:"sm"|"md"|"lg"|"full";
   busy?:boolean;
   initialFocus?:string;
+  keepMounted?:boolean;
 };
 
 /**
@@ -25,8 +26,10 @@ type QAModalProps = {
  */
 export function QAModal({
   open,title,description,eyebrow="QA HUB",children,onClose,
-  size="lg",busy=false,initialFocus
+  size="lg",busy=false,initialFocus,keepMounted=false
 }:QAModalProps){
+  const [everOpened,setEverOpened]=useState(open);
+  useEffect(()=>{if(open)setEverOpened(true);},[open]);
   const titleId=useId();
   const descriptionId=useId();
   const dialogRef=useModalFocus(open,()=>{if(!busy)onClose();},initialFocus);
@@ -44,9 +47,10 @@ export function QAModal({
     };
   },[open]);
 
-  if(!open)return null;
+  if(!open&&!(keepMounted&&everOpened))return null;
   return createPortal(
-    <div className="qa-modal-backdrop" onMouseDown={(event)=>{
+    <div className="qa-modal-backdrop" style={{display:open?"flex":"none"}}
+      aria-hidden={!open} onMouseDown={(event)=>{
       if(!busy&&event.target===event.currentTarget)onClose();
     }}>
       <section ref={dialogRef} role="dialog" aria-modal="true"
