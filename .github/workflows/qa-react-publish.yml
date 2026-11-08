@@ -46,8 +46,9 @@ jobs:
           # qa.html is already authorized in Supabase Auth; its compatibility
           # redirect sends callback tokens to React's standalone auth.html.
           VITE_AUTH_REDIRECT_URL: https://kaina-visualsoftware.github.io/QA-Hub/qa.html
-          # Re-enable ONLY after server-side public SELECT lockdown is verified.
-          VITE_PUBLIC_SHARING_ENABLED: 'false'
+          # Public read RPCs installed; direct anon SELECT revoked on 3 tables.
+          # Owner-publishing is still constrained by server-side RLS policies.
+          VITE_PUBLIC_SHARING_ENABLED: 'true'
         run: |
           npm run build
           node scripts/check-bundle-budget.mjs
