@@ -95,6 +95,7 @@ function mockFor(user){
     const member=memberOf(id);
     assert.ok(member);
     member.papel=payload.papel;
+    if(payload.papel==="leitor" && assigned?.responsavel_id===id) assigned=null;
     return send({usuario_id:id});
    }
    if(method==="DELETE"){
@@ -324,6 +325,7 @@ try{
  await roleSelect.selectOption("leitor");
  await ownerPage.getByText("Permissão atualizada.").waitFor();
  assert.equal(memberOf(TESTER).papel,"leitor");
+ assert.equal(assigned,null,"Downgrading a member must remove their previous assignment.");
 
  await testerPage.reload();
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();

@@ -31,8 +31,9 @@ Relatórios JUnit XML e Playwright JSON de até 2 MB são lidos localmente no na
 
 - supabase/qa_f5_collaboration.sql: seis novas tabelas protegidas por RLS, índices, políticas adicionais de leitura em TFs vinculadas, helpers no schema qa_private e três gatilhos de integridade.
 - supabase/qa_f5_collaboration_policies.sql: aprimora as políticas do criador de equipe e a limpeza explícita de convites históricos. A mesma versão dessas regras foi incorporada à migração base para instalações novas.
+- supabase/qa_f5_revoke_assignment.sql: limpa automaticamente atribuições antigas ao revogar integrante, rebaixá-lo para leitor ou desvincular a TF da equipe. O retorno à equipe não reativa a execução sem designação explícita.
 
-As duas migrações aditivas já foram aplicadas ao Supabase usado pelo QA Hub. A aplicação não criou equipes ou vinculou tarefas reais de usuários. As operações existentes de dono/admin permanecem disponíveis, e o compartilhamento público da TF continua regido pela configuração de publicação anterior.
+As três migrações aditivas já foram aplicadas ao Supabase usado pelo QA Hub. A aplicação não criou equipes ou vinculou tarefas reais de usuários. As operações existentes de dono/admin permanecem disponíveis, e o compartilhamento público da TF continua regido pela configuração de publicação anterior.
 
 ## Validação e limitações
 
