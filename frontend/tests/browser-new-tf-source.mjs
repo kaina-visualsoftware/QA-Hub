@@ -11,7 +11,7 @@ const user={
   user_metadata:{},created_at:"2026-11-08T10:00:00Z"
 };
 const tasks=[],scenarios=[],errors=[],aiPayloads=[],sources=[];
-let taskWrites=0,scenarioWrites=0,fallback=false;
+let taskWrites=0,scenarioWrites=0,fallback=false,rateLimited=false;
 const cors={
   "Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -34,6 +34,10 @@ async function backend(route){
     const body=req.postDataJSON();
     aiPayloads.push(body);
     assert.deepEqual(Object.keys(body),["text"]);
+    if(rateLimited)return send({
+      error:"rate_limited",
+      message:"Limite de 15 solicitações por minuto atingido. Tente novamente em 25 segundo(s)."
+    },429);
     if(fallback)return send({draft:{},fallback:true,provider:"NVIDIA Build"});
     const isRegeneration=aiPayloads.length===2;
     return send({
@@ -376,6 +380,22 @@ try{
   assert.equal(scenarioWrites,6,"Explicit pasted cases are imported automatically");
   assert.match(scenarios.at(-1).passos,/^1\\. Entrar com um usuário limpo/m);
   assert.equal(scenarios.at(-1).status,"nao_executado");
+
+  // A 429 on first-save analysis must leave the form intact and MUST NOT
+  // silently create an incomplete task requiring a second regeneration.
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  await source.fill(pasted);
+  rateLimited=true;
+  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
+  await modal.getByRole("button",{name:"Gerar com IA e abrir TF"}).click();
+  await page.getByText("Limite de 15 solicitações por minuto atingido.",{exact:false}).waitFor();
+  assert.equal(taskWrites,7,"A refused AI request must never create a partial TF");
+  assert.equal(await source.inputValue(),pasted,"The original TF must remain editable");
+  assert.equal(await modal.count(),1);
+  rateLimited=false;
 
   assert.deepEqual(errors,[]);
   console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
