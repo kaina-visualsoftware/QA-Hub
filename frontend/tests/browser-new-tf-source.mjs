@@ -176,7 +176,7 @@ try{
       runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
       rules:{region:{enabled:false}}
     }));
-    assert.deepEqual(violations.violations.map(v=>v.id),[],"New TF WCAG "+width);
+    assert.deepEqual(violations.violations.map(v=>({id:v.id,targets:v.nodes.slice(0,5).map(node=>node.target.join(" "))})),[],"New TF WCAG "+width);
     await page.screenshot({path:"artifacts/new-tf-source/modal-"+width+".png"});
   }
   assert.deepEqual(errors,[]);
