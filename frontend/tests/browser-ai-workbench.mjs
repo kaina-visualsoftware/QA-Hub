@@ -189,7 +189,7 @@ try {
         .find(element=>element.getClientRects().length>0);
       const content=modal?.querySelector(".qa-modal-content");
       const primary=[...modal?.querySelectorAll("button")??[]]
-        .find(element=>element.textContent?.includes("Gerar fluxograma"));
+        .find(element=>element.textContent?.includes("Gerar diagrama"));
       return {
         documentOverflow:document.documentElement.scrollWidth-innerWidth,
         modalOverflow:content?content.scrollWidth-content.clientWidth:999,
@@ -218,9 +218,9 @@ try {
   await page.getByRole("radio",{name:"Texto livre"}).check();
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
   await page.getByRole("combobox",{name:"Modelo do diagrama"}).selectOption("decisoes");
-  assert.equal(await page.getByRole("button",{name:"Gerar fluxograma com IA"}).isDisabled(),true);
+  assert.equal(await page.getByRole("button",{name:"Gerar diagrama"}).isDisabled(),true);
   await page.getByRole("checkbox",{name:/Autorizo enviar este conteúdo à NVIDIA/}).check();
-  await page.getByRole("button",{name:"Gerar fluxograma com IA"}).click();
+  await page.getByRole("button",{name:"Gerar diagrama"}).click();
   await page.getByTitle("Visualização do diagrama Mermaid").waitFor({timeout:20000});
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
     "Code editor must start collapsed in the quick flow");
