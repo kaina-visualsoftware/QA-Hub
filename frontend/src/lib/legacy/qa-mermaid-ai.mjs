@@ -73,7 +73,7 @@ export async function requestAiDiagramSummary({db,text,signal}){
   return data.summary.trim();
 }
 
-export async function requestAiDiagram({db,text,repair=null,onProgress=()=>{}}){
+export async function requestAiDiagram({db,text,repair=null,strict=false,onProgress=()=>{}}){
   if(!db?.functions?.invoke)throw Error('Serviço de IA indisponível.');
   if(!String(text).trim())throw Error('Informe um texto para gerar o diagrama.');
   if(text.length>20000)throw Error('A descrição excede o limite de 20.000 caracteres.');
@@ -92,7 +92,7 @@ export async function requestAiDiagram({db,text,repair=null,onProgress=()=>{}}){
   if(error){
     let info={};
     try{info=await error.context?.json?.()||{};}catch{}
-    if(['ai_temporarily_unavailable','free_model_unavailable'].includes(info.error)){
+    if(!strict&&['ai_temporarily_unavailable','free_model_unavailable'].includes(info.error)){
       return {code:fallbackFlowchart(text),fallback:true};
     }
     throw Error(info.message||'Não foi possível gerar o diagrama agora.');
@@ -100,5 +100,6 @@ export async function requestAiDiagram({db,text,repair=null,onProgress=()=>{}}){
   if(data?.mermaid){
     try{return {code:cleanMermaid(data.mermaid),fallback:false};}catch{}
   }
+  if(strict)throw Error('A NVIDIA não retornou um fluxograma válido. Seu resumo continua disponível para tentar novamente.');
   return {code:fallbackFlowchart(text),fallback:true};
 }
