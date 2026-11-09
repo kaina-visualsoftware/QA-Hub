@@ -18,7 +18,7 @@ describe("TF com IA: persistência e revisão",()=>{
     ]
   });
 
-  it("aplica os campos diretamente ao formulário sem apagar a descrição original",()=>{
+  it("aplica o resumo da IA tanto na criação quanto na regeneração",()=>{
     const values:Record<string,string>={descricao:"Relatório original do QA"};
     const setValue=vi.fn((name:string,value:string)=>{values[name]=value;});
     const applied=applyTaskAiFields({
@@ -28,7 +28,7 @@ describe("TF com IA: persistência e revisão",()=>{
     expect(values.titulo).toBe("Conferência de descontos");
     expect(values.causa).toContain("Rateio");
     expect(values.codigo).toBe("78912");
-    expect(values.descricao).toBe("Relatório original do QA");
+    expect(values.descricao).toBe("Resumo reformulado pela IA");
     expect(setValue).toHaveBeenCalledWith("titulo","Conferência de descontos",{
       shouldDirty:true,shouldTouch:true,shouldValidate:true
     });
@@ -58,5 +58,20 @@ describe("TF com IA: persistência e revisão",()=>{
     expect(onlyNewTaskAiSelections(savedNow,[{
       titulo:"Conferir conciliação",passos:"Consultar banco",esperado:"Baixa conferida"
     }])).toHaveLength(0);
+  });
+  it("deduplica cenários mesmo quando IA muda passos, maiúsculas e numeração",()=>{
+    const regenerated=normalizeDraft({cenarios:[{
+      titulo:"CENÁRIO 8 — IMPACTO NO RESULTADO: VALORES DIFEREM COM E SEM DEVOLUÇÕES",
+      passos:"Gerar o relatório duas vezes",esperado:"Conferir os valores"
+    }]});
+    const existing=[{
+      titulo:"Impacto no resultado: valores diferem com e sem devoluções",
+      passos:"Selecionar período e comparar resultados",esperado:"Valores diferentes"
+    }];
+    expect(freshTaskAiScenarios(regenerated,existing)).toHaveLength(0);
+    expect(onlyNewTaskAiSelections([{
+      titulo:"Cenário 8: Impacto no resultado: valores diferem com e sem devoluções",
+      passos:"Revisar totais",esperado:"Totais corretos",observacoes:"",selected:true
+    }],existing)).toHaveLength(0);
   });
 });
