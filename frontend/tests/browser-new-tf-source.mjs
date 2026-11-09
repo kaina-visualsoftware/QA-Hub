@@ -16,6 +16,7 @@ const cors={
 };
 const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[];
 let taskWrites=0,caseWrites=0,rateLimited=false;
+let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},releaseCasesRequest=()=>{};
 const markdown=[
   "# ROTEIRO DE TESTES — DESCONTOS",
   "## Cenário 01 — Remover desconto",
@@ -71,6 +72,10 @@ async function backend(route){
   if(path.endsWith("/functions/v1/qa-ai")){
     const payload=req.postDataJSON();
     aiRequests.push(payload);
+    if(holdTaskRequest){
+      await new Promise(resolve=>{releaseTaskRequest=resolve;});
+      holdTaskRequest=false;
+    }
     if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
     return send({provider:"NVIDIA Build",draft:{
       titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
@@ -88,6 +93,10 @@ async function backend(route){
     const data=req.postDataJSON();
     assert.equal(data.mode,"teste");
     caseRequests.push(data);
+    if(holdCasesRequest){
+      await new Promise(resolve=>{releaseCasesRequest=resolve;});
+      holdCasesRequest=false;
+    }
     const sse="event: chunk\ndata: "+JSON.stringify({text:markdown})+"\n\n"+
       "event: done\ndata: "+JSON.stringify({truncated:false})+"\n\n";
     return route.fulfill({status:200,headers:cors,contentType:"text/event-stream",body:sse});
@@ -175,7 +184,17 @@ try{
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  const statusPanel=wizard.locator(".qa-wizard-work");
+  await statusPanel.getByText("Interpretando a tarefa").waitFor();
+  await statusPanel.getByText(/Aguardando a NVIDIA analisar/).waitFor();
+  assert.equal(await statusPanel.locator(".qa-wizard-work-steps li.is-active").count(),1,
+    "Only the actual in-flight stage should be marked active");
+  assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
+    "Navigation must be blocked during in-flight NVIDIA analysis");
+  releaseTaskRequest();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+  await statusPanel.waitFor({state:"detached"});
+  assert.equal(await wizard.getByText(/A TF será salva somente após a finalização/).count(),1);
   assert.match(aiRequests[0].text,/Análise: o rateio ignora descontos negativos/);
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
     "Validar descontos de pedidos");
@@ -195,7 +214,13 @@ try{
   await page.getByText("requisito.txt").waitFor();
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o contexto/}).check();
   await wizard.getByRole("button",{name:"Ampliar cobertura com IA"}).click();
+  await statusPanel.getByText("Gerando cobertura de testes").waitFor();
+  await statusPanel.getByText(/Aguardando a NVIDIA elaborar/).waitFor();
+  assert.equal(await statusPanel.getByRole("button",{name:"Cancelar"}).count(),1,
+    "Streaming case generation must offer an explicit cancel action");
+  releaseCasesRequest();
   await page.getByText("2 caso(s) novo(s) identificados.",{exact:false}).waitFor();
+  await statusPanel.waitFor({state:"detached"});
   assert.match(caseRequests[0].tarefa,/o rateio ignora descontos negativos/i);
   assert.match(caseRequests[0].requisito,/CA01: A baixa financeira/);
   assert.equal(await wizard.locator(".qa-wizard-case").count(),3,
