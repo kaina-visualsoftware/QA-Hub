@@ -449,87 +449,9 @@ export function Workspace() {
             Evite usar em dispositivos compartilhados.</span>
         </label>
         {draftStorageError && <p role="alert" className="notice error">{draftStorageError}</p>}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="secondary" type="button" onPress={() => {
-            const source = form.getValues("descricao");
-            try {
-              const draft = extractLocalDraft(source);
-              showReview(source, draft, false);
-            } catch (error) {
-              setLocalReview(null); setExtracted([]);
-              setExtractionNotice(error instanceof Error ? error.message : "Falha na análise local.");
-            }
-          }}>Analisar texto localmente</Button>
-          <span className="text-muted text-sm">Extração local sem envio externo.</span>
-        </div>
-        <details className="generator-context qa-task-assist">
-          <summary>Importar relatório ou usar IA online (opcional)</summary>
-          <div className="stack mt-3">
-            <label className="field">Importar relatório (TXT, MD, PDF ou DOCX)
-              <input type="file" accept=".txt,.md,.pdf,.docx"
-                disabled={fileBusy||onlineBusy||create.isPending}
-                onChange={event=>{
-                  const file=event.target.files?.[0];
-                  void importReport(file);
-                  event.target.value="";
-                }}/>
-            </label>
-            <p className="text-muted text-sm">O arquivo é lido somente neste navegador.
-              Revise a descrição antes de extrair os campos.</p>
-            <label className="flex gap-2 items-start text-sm">
-              <input type="checkbox" checked={onlineConsentText!==null&&
-                onlineConsentText===form.watch("descricao")}
-                disabled={onlineBusy||!form.watch("descricao").trim()}
-                onChange={event=>setOnlineConsentText(event.target.checked
-                  ?form.getValues("descricao"):null)}/>
-              Autorizo enviar o texto atual da TF à NVIDIA para gerar uma prévia de campos e cenários.
-            </label>
-            <details className="generator-context">
-              <summary>Ver conteúdo que será enviado</summary>
-              <textarea rows={4} readOnly aria-label="Texto enviado à IA online"
-                value={form.watch("descricao")}/>
-            </details>
-            <div><Button type="button" variant="secondary"
-              isDisabled={onlineBusy||onlineConsentText!==form.watch("descricao")||
-                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
-              onPress={()=>void analyzeOnline()}>
-              <Sparkles size={16}/> {onlineBusy?"Analisando…":"Gerar campos com IA online"}
-            </Button></div>
-          </div>
-        </details>
-        <details className="generator-context qa-task-assist">
-          <summary>Assistente local avançado (opcional)</summary>
-          <div className="stack mt-4" aria-label="Assistente generativo no navegador">
-          <div>
-            <h3 className="font-semibold">IA generativa local (opcional)</h3>
-            <p className="text-muted text-sm mt-2">
-              O modelo público é baixado sob demanda e pode usar bastante memória e espaço no navegador.
-              O relatório é processado no próprio dispositivo, sem ser enviado ao provedor do modelo.
-              Só use após revisar o texto para não incluir dados sensíveis desnecessários.
-            </p>
-          </div>
-          <label className="flex gap-2 items-start text-sm">
-            <input type="checkbox" checked={allowModel} onChange={(event) =>
-              setAllowModel(event.target.checked)} disabled={aiBusy} />
-            Autorizo baixar o modelo público e executar a análise localmente.
-          </label>
-          <div className="flex gap-2 flex-wrap items-center">
-            <Button type="button" variant="secondary"
-              isDisabled={!allowModel || aiBusy}
-              onPress={() => void analyzeWithModel()}>
-              <Sparkles size={16} /> {aiBusy ? "Analisando no dispositivo…" : "Analisar com IA local"}
-            </Button>
-            {aiBusy && <Button type="button" variant="secondary"
-              onPress={cancelModel}>Cancelar análise</Button>}
-          </div>
-          {aiProgress && <p role="status" aria-live="polite" className="text-muted text-sm">
-            {aiProgress}
-          </p>}
-          </div>
-        </details>
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
         {localReview && <section className="generator-context stack"
-          aria-label="Prévia do preenchimento local">
+          aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
           <p className="text-muted text-sm">Nada será aplicado até você confirmar.
             Campos não identificados permanecem como estão.</p>
