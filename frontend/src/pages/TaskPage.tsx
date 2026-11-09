@@ -591,6 +591,63 @@ export default function TaskPage() {
           <label className="field">Versão<input {...taskForm.register("versao")} /></label>
         </div>
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
+        <details className="qa-task-ai-regenerate">
+          <summary><Sparkles size={17} aria-hidden="true"/> Regerar dados da TF com IA</summary>
+          <div className="qa-task-ai-regenerate-body">
+            <p>Use a descrição atual para preencher novamente título, código, módulo,
+              análise, causa e correção. Os campos retornados pela IA serão mostrados
+              neste formulário para revisão, mas só serão gravados ao salvar.</p>
+            <p className="text-muted text-sm">A descrição original será preservada.
+              Cenários já existentes não serão alterados e os novos poderão ser selecionados.</p>
+            <label className="qa-tf-consent">
+              <input type="checkbox"
+                checked={taskAiConsent!==null&&taskAiConsent===taskForm.watch("descricao")}
+                disabled={taskAiBusy||saveTask.isPending||
+                  !taskForm.watch("descricao")?.trim()||
+                  taskForm.watch("descricao").length>20000}
+                onChange={event=>setTaskAiConsent(event.target.checked
+                  ?taskForm.getValues("descricao"):null)}/>
+              <span>Autorizo enviar a descrição atual à NVIDIA para regerar os dados.</span>
+            </label>
+            <Button type="button" variant="secondary"
+              isDisabled={taskAiBusy||saveTask.isPending||
+                taskAiConsent!==taskForm.watch("descricao")||
+                !taskForm.watch("descricao")?.trim()||
+                taskForm.watch("descricao").length>20000}
+              onPress={()=>void regenerateTaskWithAi()}>
+              <Sparkles size={16} aria-hidden="true"/>
+              {taskAiBusy?"Gerando dados…":"Regerar TF com IA NVIDIA"}
+            </Button>
+            {taskForm.watch("descricao").length>20000&&
+              <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
+            {taskAiPreviewSource!==null&&<div className="qa-task-ai-result" role="region"
+              aria-label="Revisão da regeração por IA">
+              <strong>Dados preenchidos no formulário</strong>
+              <p>Confira os campos acima e em “Análise técnica e informações adicionais”.
+                Ao salvar, os campos editados e os cenários selecionados serão registrados.</p>
+              {taskAiScenarios.length>0?
+                <fieldset className="qa-task-ai-scenarios">
+                  <legend>Novos cenários sugeridos — {taskAiScenarios.filter(item=>item.selected).length} selecionado(s)</legend>
+                  <div className="qa-task-ai-select-actions" role="group" aria-label="Selecionar cenários sugeridos">
+                    <button type="button" onClick={()=>setTaskAiScenarios(items=>items.map(item=>({...item,selected:true})))}>
+                      Selecionar todos
+                    </button>
+                    <button type="button" onClick={()=>setTaskAiScenarios(items=>items.map(item=>({...item,selected:false})))}>
+                      Limpar seleção
+                    </button>
+                  </div>
+                  {taskAiScenarios.map((item,index)=><label className="qa-task-ai-scenario" key={index}>
+                    <input type="checkbox" checked={item.selected}
+                      onChange={event=>setTaskAiScenarios(items=>items.map((entry,i)=>
+                        i===index?{...entry,selected:event.target.checked}:entry))}/>
+                    <span><strong>{item.titulo}</strong>
+                      <small>{item.passos.slice(0,150)}</small></span>
+                  </label>)}
+                </fieldset>
+                :<p>Não foram identificados cenários novos. Os existentes permanecerão intactos.</p>}
+            </div>}
+          </div>
+        </details>
         <details className="generator-context">
           <summary>Análise técnica e informações adicionais</summary>
           <div className="form-grid mt-4">
