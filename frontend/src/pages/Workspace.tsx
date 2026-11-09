@@ -157,9 +157,11 @@ export function Workspace() {
         body:{text:source},signal:AbortSignal.timeout(65000)
       });
       if(error){
-        let detail: {message?:string}={};
+        let detail: {message?:string;error?:string}={};
         try{detail=await error.context?.json?.()??{};}catch{}
-        throw Error(detail.message||"Falha ao analisar a TF com IA online.");
+        if(detail.error==="nvidia_not_configured")
+          throw Error("A NVIDIA ainda não está configurada. Preencha manualmente ou extraia sem IA.");
+        throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
       }
       if(form.getValues("descricao")!==source){
         setExtractionNotice("O texto mudou durante a análise. Gere uma nova prévia antes de aplicar.");
