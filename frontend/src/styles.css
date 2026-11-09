@@ -1497,6 +1497,10 @@
 .qa-task-fab-heading button{display:grid;place-items:center;min-height:36px;min-width:36px;
  border-radius:8px;color:#4d6d76}
 .qa-task-fab-items{display:flex;flex-direction:column;gap:2px;padding-top:7px}
+.qa-task-fab-section{display:flex;flex-direction:column;gap:2px}
+.qa-task-fab-section+.qa-task-fab-section{margin-top:5px;padding-top:7px;border-top:1px solid #e8eeee}
+.qa-task-fab-section-label{padding:4px 11px;font-size:.68rem;line-height:1.4;
+ letter-spacing:.075em;text-transform:uppercase;font-weight:800;color:#607e87}
 .qa-task-fab-items button{display:flex;align-items:center;gap:10px;text-align:left;
  width:100%;padding:10px 12px;min-height:43px;border-radius:9px;
  color:#315763;font-size:.82rem;font-weight:650;background:#fff}

@@ -9,7 +9,7 @@ import GuidedExecution from "../features/executions/GuidedExecution";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables
 } from "../features/tasks/TaskWorkspaceSections";
-import type { TaskTab, DeliverableKind } from "../features/tasks/TaskWorkspaceSections";
+import type { TaskTab } from "../features/tasks/TaskWorkspaceSections";
 import {TaskQuickActions} from "../features/tasks/TaskQuickActions";
 import type {QuickActionId} from "../features/tasks/TaskQuickActions";
 import { AiStudioTabs } from "../features/generators/AiStudioTabs";
@@ -191,15 +191,10 @@ export default function TaskPage() {
     setFocusDiagramAi(!id);
     openTool("diagrams");
   }
-  function openDeliverable(kind: DeliverableKind) {
-    if (kind === "diagrams") {
-      openDiagramEditor();
-    } else if (kind === "documents") {
-      setFocusReport(true);
-      openTool("documents");
-    } else {
-      openTool(kind);
-    }
+  function openReportEditor() {
+    if(!own)return;
+    setFocusReport(true);
+    openTool("documents");
   }
 
   function quickAction(id:QuickActionId){
@@ -209,10 +204,14 @@ export default function TaskPage() {
       case "cases":openTool("teste");break;
       case "post":openTool("post");break;
       case "diagram":openDiagramEditor();break;
+      case "report":openReportEditor();break;
       case "view-diagrams":setActiveTab("deliverables");break;
-      case "documents":openDeliverable("documents");break;
+      case "documents":setActiveTab("deliverables");break;
       case "evidence":openTool("evidence");break;
       case "requirements":openTool("requirements");break;
+      case "links":openTool("links");break;
+      case "history":openTool("history");break;
+      case "collaboration":openTool("collaboration");break;
     }
   }
 
@@ -756,15 +755,15 @@ export default function TaskPage() {
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
       className="qa-task-panel" hidden={activeTab !== "deliverables"}>
-      {activeTab==="deliverables"&&<TaskDeliverables owner={!!own} onOpen={openDeliverable}
+      {activeTab==="deliverables"&&<TaskDeliverables
         diagrams={<Suspense fallback={<p role="status">Carregando diagramas…</p>}>
           <DiagramLibrary taskId={task.id} userId={userId} owner={!!own}
             onCreate={()=>openDiagramEditor()}
             onEdit={id=>openDiagramEditor(id)}/>
         </Suspense>}
         documents={<Suspense fallback={<p role="status">Carregando documentos…</p>}>
-          <DocumentLibrary taskId={task.id} userId={userId}
-            onCreate={()=>openDeliverable("documents")}/>
+          <DocumentLibrary taskId={task.id} userId={userId} owner={!!own}
+            onCreate={openReportEditor}/>
         </Suspense>}/>}
     </section>
     {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"

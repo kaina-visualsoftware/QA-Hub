@@ -6,8 +6,8 @@ import {supabase} from "../../lib/supabase";
 import {cleanDocumentName} from "../../lib/legacy/qa-phase2.mjs";
 import type {TfDocument} from "../../lib/legacy/qa-phase2.mjs";
 
-export function DocumentLibrary({taskId,userId,onCreate}:{
-  taskId:string;userId:string;onCreate:()=>void;
+export function DocumentLibrary({taskId,userId,owner,onCreate}:{
+  taskId:string;userId:string;owner:boolean;onCreate:()=>void;
 }){
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [feedback,setFeedback]=useState("");
@@ -40,9 +40,9 @@ export function DocumentLibrary({taskId,userId,onCreate}:{
         </h3>
         <p>Documentos já salvos, separados do editor e do gerador.</p>
       </div>
-      <Button variant="secondary" size="sm" onPress={onCreate}>
+      {owner&&<Button variant="secondary" size="sm" onPress={onCreate}>
         <FileText size={16} aria-hidden="true"/> Criar relatório
-      </Button>
+      </Button>}
     </header>
     {query.isPending&&<p role="status" className="text-muted text-sm">Carregando documentos…</p>}
     {query.isError&&<div role="alert" className="notice error">

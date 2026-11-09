@@ -82,9 +82,17 @@ try{
   assert.equal(await menu.count(),0);
 
   await fab.click();
-  await menu.getByRole("button",{name:"Visualizar diagramas"}).click();
+  assert.equal(await menu.getByRole("button",{name:"Gerar relatório"}).count(),1);
+  assert.equal(await menu.getByRole("button",{name:"Histórico de execuções"}).count(),1);
+  await menu.getByRole("button",{name:"Posts e relatórios salvos"}).click();
   const deliverables=page.getByRole("tabpanel",{name:"Entregáveis"});
   await deliverables.waitFor();
+  assert.equal(await page.getByRole("dialog").count(),0,
+    "Quick view of posts and reports must not open an editor");
+  assert.equal(await deliverables.locator(".qa-deliverables-group").count(),0,
+    "Do not duplicate creation grids alongside saved artifact galleries");
+  await fab.click();
+  await menu.getByRole("button",{name:"Visualizar diagramas"}).click();
   const gallery=deliverables.locator(".qa-artifact-browser").first();
   await gallery.getByRole("heading",{name:/Diagramas/}).waitFor();
   await gallery.getByText("Fluxo de descontos").waitFor();
