@@ -7,8 +7,8 @@ import {supabase} from "../../lib/supabase";
 import {cleanDocumentName} from "../../lib/legacy/qa-phase2.mjs";
 import type {TfDocument} from "../../lib/legacy/qa-phase2.mjs";
 
-export function DocumentLibrary({taskId,userId,owner,onCreate}:{
-  taskId:string;userId:string;owner:boolean;onCreate:()=>void;
+export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
+  taskId:string;userId:string;owner:boolean;onCreate:()=>void;showCreate?:boolean;
 }){
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const query=useQuery({
@@ -40,7 +40,7 @@ export function DocumentLibrary({taskId,userId,owner,onCreate}:{
         </h3>
         <p>Documentos já salvos, separados do editor e do gerador.</p>
       </div>
-      {owner&&<Button variant="secondary" size="sm" onPress={onCreate}>
+      {owner&&showCreate&&<Button variant="secondary" size="sm" onPress={onCreate}>
         <FileText size={16} aria-hidden="true"/> Criar relatório
       </Button>}
     </header>
