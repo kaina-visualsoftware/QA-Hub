@@ -127,9 +127,12 @@ try {
     await page.screenshot({path:"artifacts/mobile-ux/tf-"+width+".png"});
   }
   await page.setViewportSize({width:390,height:844});
-  const fast=page.getByRole("region",{name:"Fluxo rápido de QA"});
-  assert.equal(await fast.getByRole("button",{name:"Gerar casos com IA"}).count(),1);
-  await fast.getByRole("button",{name:/Mais ferramentas/}).click();
+  const quickTrigger=page.getByRole("button",{name:"Abrir ações rápidas da TF"});
+  await quickTrigger.click();
+  assert.equal(await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Gerar casos com IA"}).count(),1);
+  await page.getByRole("button",{name:"Fechar ações rápidas"}).click();
+  await page.getByRole("tab",{name:"Entregáveis"}).click();
   const deliverables=page.getByRole("tabpanel",{name:"Entregáveis"});
   assert.equal(await deliverables.getByRole("button",{name:/^Gerar post/}).count(),1);
   await deliverables.getByRole("button",{name:/^Gerar post/}).click();
@@ -166,10 +169,14 @@ try {
   await studio.getByRole("button",{name:"Post"}).click();
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("tab",{name:"Resumo"}).click();
-  await fast.getByRole("button",{name:"Gerar casos com IA"}).click();
+  await quickTrigger.click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Gerar casos com IA"}).click();
   await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
   await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
-  await fast.getByRole("button",{name:"Gerar diagrama com IA"}).click();
+  await quickTrigger.click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Criar diagrama"}).click();
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
@@ -257,8 +264,7 @@ try {
   assert.ok(prompts[1].syntaxError.length>0);
   assert.equal(diagramSaves,1,"A corrected suggestion is still only an unsaved draft");
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
-  await page.waitForFunction(()=>document.querySelectorAll(".diagram-item").length===2,
-    {timeout:20000});
+  await page.getByText("Diagrama salvo.",{exact:true}).waitFor();
   assert.equal(diagramSaves,2,"Only corrected and confirmed Mermaid may be saved");
 
   // Retry is available without sending the invalid code or parser error.
