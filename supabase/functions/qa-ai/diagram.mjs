@@ -6,6 +6,8 @@ export function diagramMessages(report,{mermaid="",syntaxError=""}={}){
     "Responda SOMENTE o código Mermaid, sem markdown, cercas, JSON, HTML, texto extra ou comentários.",
     "A primeira linha deve ser EXATAMENTE: flowchart LR",
     "Use entre 6 e 24 nós conforme a complexidade real. Agrupe cenários repetidos por funcionalidade, mas preserve decisões, exceções e resultados distintos.",
+    "Não invente regras, resultados, critérios ou passos ausentes dos dados comprovados.",
+    "Ao representar reprovados, destaque as falhas reais; bloqueados e pendentes devem permanecer claramente não validados.",
     "Diferencie explicitamente comportamento esperado, implementado, testado como aprovado, falha observada, bloqueio e testes pendentes. Não apresente pendências como sucessos.",
     "O resumo já foi revisado pelo QA: represente os principais caminhos e regras efetivas, inclusive falhas e restrições relevantes. Não confunda contagens de cenários com etapas de processo.",
     "Use IDs ASCII simples e únicos: A, B, C, D... Nunca use end, class, style, click, graph como ID.",
