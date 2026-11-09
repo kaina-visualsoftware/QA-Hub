@@ -1467,3 +1467,17 @@
  content:"▸";font-size:.82rem;flex:0 0 12px;color:currentColor
 }
 .qa-task-optional[open]>summary::before{content:"▾"}
+
+/* WCAG 2.2: reserve a sufficiently large unobstructed disclosure hit area. */
+.qa-task-optional>summary,
+.qa-tf-preview-source>summary{
+ display:flex!important;align-items:center!important;
+ height:52px!important;min-height:52px!important;
+ padding:12px 8px!important;margin:4px 0!important;
+ line-height:24px!important;box-sizing:border-box!important;
+ position:relative;z-index:1;cursor:pointer
+}
+.qa-task-optional>summary:focus-visible,
+.qa-tf-preview-source>summary:focus-visible{
+ outline:3px solid #218391;outline-offset:2px
+}
