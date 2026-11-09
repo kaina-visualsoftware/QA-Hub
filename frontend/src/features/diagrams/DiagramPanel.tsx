@@ -1,25 +1,23 @@
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Trash2, WandSparkles } from "lucide-react";
+import { Eye, WandSparkles } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { DiagramAiPanel } from "./DiagramAiPanel";
 import { ensureMermaidSyntax, mermaidErrorMessage } from "./mermaid-validation";
 import {
-  diagramDraftSchema, listDiagrams, removeDiagram, saveDiagram
+  diagramDraftSchema, listDiagrams, saveDiagram
 } from "../../lib/data";
-import type { Diagram } from "../../lib/data";
 
-export default function DiagramPanel({ task, scenarios, userId, focusAi = false }: {
-  task:Task; scenarios:Scenario[]; userId:string; focusAi?:boolean
+export default function DiagramPanel({ task, scenarios, userId, focusAi = false, editDiagramId }: {
+  task:Task; scenarios:Scenario[]; userId:string; focusAi?:boolean; editDiagramId?:string|null
 }) {
   const taskId=task.id;
   const own=task.user_id===userId;
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | undefined>();
   const [showEditor,setShowEditor]=useState(false);
-  const [showSaved,setShowSaved]=useState(false);
-  const [showComposer,setShowComposer]=useState(true);
+  const [showComposer,setShowComposer]=useState(!editDiagramId);
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]");
   const [svg, setSvg] = useState<string | null>(null);
@@ -44,14 +42,23 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
   const save = useMutation({
     mutationFn: () => saveDiagram(taskId, userId, { titulo: title, conteudo: code }, editingId),
     onSuccess: async () => {
-      setEditingId(undefined);setShowSaved(true);setShowEditor(false);
+      setEditingId(undefined);setShowEditor(false);
       setMessage("Diagrama salvo."); await invalidate();
     }
   });
-  const remove = useMutation({
-    mutationFn: (id: string) => removeDiagram(taskId, id),
-    onSuccess: async () => { setMessage("Diagrama excluído."); await invalidate(); }
-  });
+  // Editing opens independently from the read-only library. The task and the
+  // selected record are scoped by the existing RLS-aware list query.
+  useEffect(()=>{
+    if(!editDiagramId||!diagrams.data)return;
+    const record=diagrams.data.find(item=>item.id===editDiagramId);
+    if(!record)return;
+    setEditingId(record.id);setTitle(record.titulo);setCode(record.conteudo);
+    setSvg(null);setShowEditor(true);setShowComposer(false);
+    setPreviewError("");setRepairRequest(null);
+    void preview(record.conteudo);
+  // Deliberately initialize once per editor mount, not for every edit keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[editDiagramId,diagrams.data]);
 
   // Generated Mermaid is only a local draft until the human explicitly saves it.
   function applyAiDraft(generated:string){
@@ -66,13 +73,6 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
       document.getElementById("diagram-save-action")?.focus({preventScroll:true});
     });
     return true;
-  }
-
-  function edit(record: Diagram) {
-    setEditingId(record.id);
-    setTitle(record.titulo);setCode(record.conteudo);setSvg(null);
-    setShowEditor(true);setShowComposer(false);setPreviewError("");setRepairRequest(null);
-    void preview(record.conteudo);
   }
 
   function showMermaidError(value:string,reason:unknown){
@@ -187,32 +187,10 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false 
     </form> :
     <button type="button" className="qa-diagram-manual-toggle"
       onClick={()=>setShowEditor(true)}>Criar manualmente com Mermaid</button>}
-    {(diagrams.isPending||diagrams.isError)&&<p className="text-muted text-sm"
-      role={diagrams.isError?"alert":"status"}>
-      {diagrams.isPending?"Carregando diagramas…":"Não foi possível carregar diagramas."}
-    </p>}
-    {(diagrams.data?.length??0)>0&&<details className="qa-diagram-history"
-      open={showSaved} onToggle={event=>setShowSaved(event.currentTarget.open)}>
-      <summary>Diagramas salvos ({diagrams.data?.length})</summary>
-      <div className="qa-diagram-history-list">
-        {diagrams.data?.map(diagram=><div className="diagram-item" key={diagram.id}>
-          <strong>{diagram.titulo}</strong>
-          <div className="diagram-item-actions">
-            <button type="button" className="secondary-link"
-              onClick={()=>{void preview(diagram.conteudo);setShowSaved(false);}}>
-              <Eye size={15}/> Visualizar
-            </button>
-            {own&&<button type="button" className="secondary-link"
-              onClick={()=>edit(diagram)}><Pencil size={15}/> Editar</button>}
-            {own&&<button type="button" className="secondary-link"
-              disabled={remove.isPending}
-              onClick={()=>{if(window.confirm("Excluir este diagrama?"))remove.mutate(diagram.id);}}>
-              <Trash2 size={15}/> Excluir
-            </button>}
-          </div>
-        </div>)}
-      </div>
-      {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
-    </details>}
+    {editDiagramId&&diagrams.isPending&&<p role="status">Carregando diagrama para edição…</p>}
+    {editDiagramId&&diagrams.isError&&<p role="alert" className="notice error">{diagrams.error.message}</p>}
+    {editDiagramId&&diagrams.isSuccess&&
+      !diagrams.data.some(item=>item.id===editDiagramId)&&
+      <p role="alert" className="notice error">Diagrama não encontrado ou sem acesso.</p>}
   </section>;
 }
