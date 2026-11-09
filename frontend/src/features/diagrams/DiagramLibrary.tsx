@@ -109,7 +109,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
           srcDoc={svg}/>}
       </div>}
     </div>}
-    {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
+    <ToastNotice message={remove.isError?remove.error.message:null} tone="error"/>
     <ToastNotice message={notice} tone="success"/>
   </section>;
 }
