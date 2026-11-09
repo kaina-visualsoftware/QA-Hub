@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
-import { ArrowLeft, ArrowRight, FileText, Paperclip, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
 import { ToastNotice } from "../../components/ui/Toasts";
 import { createTask, addExtractedScenarios } from "../../lib/data";
@@ -32,6 +32,22 @@ const TASK_LIMIT = 20000;
 const CASE_TASK_LIMIT = 30000;
 const REQUIREMENT_LIMIT = 20000;
 const MAX_FILES = 6;
+
+type WorkKind="files"|"task"|"cases"|"save";
+type WorkStatus={
+  kind:WorkKind; phase:number; detail:string;
+  current?:number; total?:number;
+};
+const WORK_STEPS: Record<WorkKind,string[]>={
+  files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
+  task:["Validar conteúdo","Consultar NVIDIA","Estruturar campos"],
+  cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
+  save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
+};
+const WORK_LABELS:Record<WorkKind,string>={
+  files:"Lendo os documentos",task:"Interpretando a tarefa",
+  cases:"Gerando cobertura de testes",save:"Finalizando a TF"
+};
 
 type Props = {
   open: boolean;
@@ -100,6 +116,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [remember,setRemember] = useState(false);
   const [recoverable,setRecoverable] = useState<ReturnType<typeof loadNewTaskDraft>>(null);
   const [streamText,setStreamText] = useState("");
+  const [work,setWork]=useState<WorkStatus|null>(null);
   const controller=useRef<AbortController|null>(null);
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
@@ -112,7 +129,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setStep(1);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
       setRequirementText("");setDraft(blank());setCases([]);
       setConsentTask(false);setConsentCases(false);setAiUsed(false);
-      setError("");setNotice("");setDraftErrors({});setStreamText("");
+      setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
     }
     wasOpen.current=open;
@@ -174,9 +191,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("Anexe no máximo "+MAX_FILES+" arquivos por etapa.");return;
     }
     setReading(true);setError("");setNotice("");
+    setWork({kind:"files",phase:0,detail:"Conferindo tipos e tamanhos dos arquivos.",total:chosen.length,current:0});
     try{
       const prepared:PreparedFile[]=[];
-      for(const file of chosen)prepared.push(await prepareRequirementFile(file));
+      for(const [index,file] of chosen.entries()){
+        setWork({kind:"files",phase:1,detail:"Lendo "+file.name,current:index+1,total:chosen.length});
+        prepared.push(await prepareRequirementFile(file));
+      }
+      setWork({kind:"files",phase:2,detail:"Verificando arquivos repetidos e preparando os textos.",current:chosen.length,total:chosen.length});
       const known=new Set(existing.map(item=>item.hash));
       for(const item of prepared){
         if(known.has(item.hash))throw Error("Arquivo repetido: "+item.file.name);
@@ -193,17 +215,20 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setNotice(warnings.length?warnings.join(" "):
         prepared.length+" arquivo(s) preparado(s). Serão anexados à TF na finalização.");
     }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível ler o arquivo.");}
-    finally{setReading(false);}
+    finally{setReading(false);setWork(null);}
   }
 
   async function generateTask(){
     if(busy||!consentTask)return;
     setAnalyzing(true);setError("");setNotice("");
+    setWork({kind:"task",phase:0,detail:"Conferindo o conteúdo e os anexos selecionados."});
     const snapshot=combine("TEXTO DA TAREFA",sourceText,taskFiles);
     try{
       assertReadable(taskFiles);
       validateContext(snapshot,TASK_LIMIT,"O texto da tarefa e seus arquivos");
+      setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
       const response=await generateTaskAiDraft(snapshot);
+      setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
       if(snapshot!==combine("TEXTO DA TAREFA",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
       }
@@ -216,7 +241,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setStep(2);
       setNotice("Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
-    finally{setAnalyzing(false);}
+    finally{setAnalyzing(false);setWork(null);}
   }
   function continueManual(){
     if(busy)return;
@@ -258,8 +283,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   async function generateCases(){
     if(busy||!consentCases)return;
     setGenerating(true);setError("");setNotice("");setStreamText("");
+    setWork({kind:"cases",phase:0,detail:"Preparando regras, requisitos e casos já identificados."});
     const abort=new AbortController();
     controller.current=abort;
+    let firstChunk=true;
     try{
       assertReadable(taskFiles);assertReadable(requirementFiles);
       const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
@@ -278,10 +305,18 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       validateContext(context,CASE_TASK_LIMIT,"O contexto completo da TF");
       if(requirements.length>REQUIREMENT_LIMIT)
         throw Error("Os requisitos excedem 20.000 caracteres. Remova ou divida os arquivos.");
+      setWork({kind:"cases",phase:1,detail:"Aguardando a NVIDIA elaborar novos cenários, variações e regressões."});
       const response=await generateWithNvidia(
-        "teste",context,requirements,chunk=>setStreamText(previous=>previous+chunk),
+        "teste",context,requirements,chunk=>{
+          if(firstChunk){
+            firstChunk=false;
+            setWork({kind:"cases",phase:2,detail:"Recebendo o roteiro de testes gerado."});
+          }
+          setStreamText(previous=>previous+chunk);
+        },
         abort.signal
       );
+      setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados esperados e casos repetidos."});
       const parsed=parseGeneratedCases(response.text);
       const normalized=normalizeDraft({cenarios:parsed});
       const fresh=freshTaskAiScenarios(normalized,cases,true);
@@ -294,7 +329,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           : "Nenhum caso novo e válido foi encontrado. Revise os requisitos ou tente novamente.");
     }catch(reason){setError(abort.signal.aborted?"Geração cancelada. Os casos anteriores foram preservados.":
       reason instanceof Error?reason.message:"Não foi possível gerar os casos de teste.");}
-    finally{setGenerating(false);controller.current=null;}
+    finally{setGenerating(false);controller.current=null;setWork(null);}
   }
   function editCase(index:number,patch:Partial<SuggestedScenario>){
     setCases(current=>current.map((item,i)=>i===index?{...item,...patch}:item));
@@ -311,10 +346,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       if(!valid.success){setError("Revise os passos e o resultado esperado do caso "+(index+1)+".");return;}
     }
     setFinishing(true);setError("");setNotice("");
+    setWork({kind:"save",phase:0,detail:"Gravando a TF com os dados revisados."});
     try{
       // The TF is created once, only at the final step.
       const created=await createTask(userId,checked.data);
       const warnings:string[]=[];
+      setWork({kind:"save",phase:1,detail:"Registrando o documento original e os requisitos."});
       if(sourceText.trim()){
         try{await archiveTaskAiSource(created.id,userId,sourceText);}
         catch(reason){warnings.push("Texto original: "+(reason as Error).message);}
@@ -329,10 +366,19 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           if(sourceError)throw sourceError;
         }catch(reason){warnings.push("Requisito colado: "+(reason as Error).message);}
       }
-      for(const item of [...taskFiles,...requirementFiles]){
+      const toUpload=[...taskFiles,...requirementFiles];
+      setWork({kind:"save",phase:2,
+        detail:toUpload.length?"Preparando envio seguro dos anexos.":"Nenhum arquivo adicional para anexar.",
+        current:0,total:toUpload.length});
+      for(const [index,item] of toUpload.entries()){
+        setWork({kind:"save",phase:2,detail:"Enviando "+item.file.name,
+          current:index+1,total:toUpload.length});
         try{await registerRequirementFile(created.id,userId,item);}
         catch(reason){warnings.push("Arquivo "+item.file.name+": "+(reason as Error).message);}
       }
+      setWork({kind:"save",phase:3,detail:selected.length
+        ?"Salvando "+selected.length+" caso(s) de teste como não executados."
+        :"Concluindo a TF sem casos de teste."});
       if(selected.length){
         try{await addExtractedScenarios(created.id,userId,selected);}
         catch(reason){warnings.push("Casos de teste: "+(reason as Error).message);}
@@ -340,7 +386,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       if(remember)discardNewTaskDraft(userId);
       await onCreated(created.id,warnings.join(" | "));
     }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível salvar a TF.");}
-    finally{setFinishing(false);}
+    finally{setFinishing(false);setWork(null);}
   }
 
   const totalSelected=cases.filter(item=>item.selected).length;
