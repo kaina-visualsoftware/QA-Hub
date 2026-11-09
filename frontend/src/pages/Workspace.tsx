@@ -389,7 +389,7 @@ export function Workspace() {
                   form.watch("descricao").length>20000}
                 onChange={event=>setOnlineConsentText(event.target.checked
                   ?form.getValues("descricao"):null)}/>
-              <span>Autorizo enviar esta descrição à NVIDIA.</span>
+              <span>Autorizo enviar este texto à NVIDIA.</span>
             </label>
             <Button type="button" size="sm"
               isDisabled={fileBusy||onlineBusy||
@@ -449,6 +449,7 @@ export function Workspace() {
           </div>
         </section>}
         {extracted.length>0&&<fieldset className="extracted-cases">
+          <legend className="sr-only">Cenários sugeridos para esta TF</legend>
           <div className="qa-ai-selection-head">
             <strong>Cenários sugeridos — {extracted.filter(item=>item.selected).length} de {extracted.length} selecionado(s)</strong>
             <div className="qa-task-ai-select-actions" role="group" aria-label="Selecionar cenários sugeridos">
