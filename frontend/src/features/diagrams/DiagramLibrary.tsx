@@ -4,6 +4,7 @@ import {Button} from "@heroui/react";
 import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
 import {listDiagrams,removeDiagram} from "../../lib/data";
 import {ensureMermaidSyntax,mermaidErrorMessage} from "./mermaid-validation";
+import {DiagramViewer} from "./DiagramViewer";
 
 export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
   taskId:string;userId:string;owner:boolean;
@@ -19,7 +20,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
     queryKey:["diagrams",userId,taskId],
     queryFn:()=>listDiagrams(taskId)
   });
-  const selected=useMemo(()=>diagrams.data?.find(item=>item.id===selectedId),
+  const selected=useMemo(()=>diagrams.data?.find(item=>item.id===selectedId)??diagrams.data?.[0],
     [diagrams.data,selectedId]);
   useEffect(()=>{
     let cancelled=false;
@@ -75,15 +76,15 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
     {!!diagrams.data?.length&&<div className="qa-diagram-library-layout">
       <div className="qa-diagram-library-list" aria-label="Diagramas existentes">
         {diagrams.data.map(item=><article key={item.id}
-          className={"qa-diagram-library-row"+(selectedId===item.id?" selected":"")}>
+          className={"qa-diagram-library-row"+(selected?.id===item.id?" selected":"")}>
           <div className="qa-diagram-library-title">
             <strong>{item.titulo}</strong>
           </div>
           <div className="qa-diagram-library-actions">
-            <button type="button" aria-pressed={selectedId===item.id}
-              onClick={()=>setSelectedId(current=>current===item.id?null:item.id)}>
+            <button type="button" aria-pressed={selected?.id===item.id}
+              onClick={()=>setSelectedId(item.id)}>
               <Eye size={15} aria-hidden="true"/>
-              {selectedId===item.id?"Ocultar":"Visualizar"}
+              Visualizar
             </button>
             {owner&&<button type="button" onClick={()=>onEdit(item.id)}>
               <Pencil size={15} aria-hidden="true"/> Editar
@@ -103,9 +104,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
         <strong>{selected.titulo}</strong>
         {rendering&&<p role="status" className="text-muted text-sm">Preparando visualização…</p>}
         {previewError&&<p role="alert" className="notice error">{previewError}</p>}
-        {svg&&<iframe title={"Diagrama: "+selected.titulo}
-          className="diagram-preview" sandbox="" referrerPolicy="no-referrer"
-          srcDoc={svg}/>}
+        {svg&&<DiagramViewer key={selected.id} svg={svg} title={selected.titulo}/>}
       </div>}
     </div>}
     {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
