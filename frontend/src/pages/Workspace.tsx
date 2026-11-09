@@ -107,7 +107,7 @@ export function Workspace() {
     // fields shown in the form, even when the user skips the preview controls.
     if(mode==="nvidia")applyTaskAiFields(form,draft);
     setLocalReview({source,draft,mode});
-    const suggestions=freshTaskAiScenarios(draft,[],mode==="nvidia");
+    const suggestions=freshTaskAiScenarios(draft,[],true);
     setExtracted(suggestions);
     setExtractionNotice(mode==="nvidia"
       ? "Prévia da NVIDIA pronta. Os campos foram preenchidos automaticamente."
@@ -340,7 +340,13 @@ export function Workspace() {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
           draft:values,openScenario:submitter?.getAttribute("data-next")==="scenario",
-          selected:extracted.filter(item=>item.selected),
+          selected:extracted.length?extracted.filter(item=>item.selected):
+            // Pasting a finished TF and saving without pressing Extract must
+            // still import its explicitly identified test cases.
+            (localReview?[]:(()=>{
+              try{return freshTaskAiScenarios(extractLocalDraft(values.descricao),[],true);}
+              catch{return [];}
+            })())),
           source:localReview?.mode==="nvidia"?localReview.source:undefined
         });
       })} className="stack mt-4 qa-tf-compact">
@@ -427,7 +433,7 @@ export function Workspace() {
           <h3>{localReview.mode==="nvidia"?"Sugestão da IA pronta":"Campos encontrados no texto"}</h3>
           <p className="qa-ai-preview-hint">{localReview.mode==="nvidia"
             ? "Os campos já foram preenchidos. Confira os dados e os cenários antes de salvar."
-            : "Confira a extração e aplique os campos que deseja aproveitar."}</p>
+            : "Confira os campos e cenários; os selecionados serão salvos como pendentes."}</p>
           <details className="qa-ai-draft-fields">
             <summary>Ver {Object.entries(localReview.draft.fields)
               .filter(([key,value])=>key!=="descricao"&&Boolean(value)).length} campo(s) identificado(s)</summary>
