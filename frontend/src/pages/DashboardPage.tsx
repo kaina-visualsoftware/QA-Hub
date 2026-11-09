@@ -1,3 +1,4 @@
+import {useState,lazy,Suspense} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, ChartNoAxesCombined, CircleCheck, CircleDashed, ClipboardList, Plus } from "lucide-react";
@@ -6,11 +7,14 @@ import {getAdminRole} from "../lib/data";
 import {taskStatistics} from "../features/tasks/task-search-data";
 import { taskStatusLabels } from "../lib/contracts";
 import type { Task } from "../lib/contracts";
+import {QAModal} from "../components/ui/QAModal";
+const InsightsPanel=lazy(()=>import("../features/insights/InsightsPanel"));
 
 function percentage(value:number,total:number){return total?Math.round(value/total*100):0}
 export default function DashboardPage(){
   const {user}=useAuth();
   const userId=user?.id??"";
+  const [showInsights,setShowInsights]=useState(false);
   const role=useQuery({queryKey:["role",userId],queryFn:()=>getAdminRole(userId),enabled:!!userId});
   const tasks=useQuery({
     queryKey:["task-stats",userId,role.data],
@@ -72,6 +76,21 @@ export default function DashboardPage(){
           Execução não equivale à aprovação da TF.</small>
       </section>
     </div>
+    <section className="panel qa-f6-dashboard-entry" aria-label="Inteligência de QA">
+      <div className="section-heading">
+        <div><h2>Análises de qualidade</h2>
+          <p className="text-muted text-sm">Cobertura por módulo e versão, mudanças reais e regressões.</p></div>
+        <button type="button" className="secondary-link" onClick={()=>setShowInsights(true)}>
+          <ChartNoAxesCombined size={17} aria-hidden="true"/> Explorar indicadores
+        </button>
+      </div>
+    </section>
+    <QAModal open={showInsights} title="Inteligência de QA" eyebrow="INDICADORES"
+      size="full" onClose={()=>setShowInsights(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando análises…</p>}>
+        <InsightsPanel userId={userId}/>
+      </Suspense>
+    </QAModal>
     <section className="panel qa-dashboard-recents">
       <div className="section-heading"><h2>Últimas tarefas</h2>
         <Link className="back-link" to="/">Ver todas <ArrowRight size={15}/></Link></div>
