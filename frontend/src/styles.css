@@ -1456,3 +1456,14 @@
  border:1px solid #c5d7d8;border-radius:8px;background:#f4f8f8;
  color:#2d5963;cursor:pointer
 }
+
+/* Keep the collapsed optional-fields disclosure a full-height touch target. */
+.qa-task-optional>summary{
+ display:flex;align-items:center;gap:7px;min-height:44px;
+ padding:10px 0;box-sizing:border-box;line-height:24px;list-style:none
+}
+.qa-task-optional>summary::-webkit-details-marker{display:none}
+.qa-task-optional>summary::before{
+ content:"▸";font-size:.82rem;flex:0 0 12px;color:currentColor
+}
+.qa-task-optional[open]>summary::before{content:"▾"}
