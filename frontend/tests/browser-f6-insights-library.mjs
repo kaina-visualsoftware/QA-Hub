@@ -133,7 +133,7 @@ try{
   await library.getByText("Modelo salvo na biblioteca privada.").waitFor();
   assert.equal(modelWrites,1);
   assert.equal(models[0].user_id,USER);
-  await library.getByText("Remover desconto").waitFor();
+  await library.locator(".qa-f6-library-item strong").filter({hasText:"Remover desconto"}).waitFor();
   page.once("dialog",dialog=>void dialog.accept());
   await library.getByRole("button",{name:"Adicionar à TF"}).click();
   await library.getByText("Cenário adicionado como pendente.",{exact:false}).waitFor();
