@@ -756,7 +756,7 @@ export default function TaskPage() {
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
       className="qa-task-panel" hidden={activeTab !== "deliverables"}>
-      {activeTab==="deliverables"&&<TaskDeliverables onOpen={openDeliverable}
+      {activeTab==="deliverables"&&<TaskDeliverables owner={!!own} onOpen={openDeliverable}
         diagrams={<Suspense fallback={<p role="status">Carregando diagramas…</p>}>
           <DiagramLibrary taskId={task.id} userId={userId} owner={!!own}
             onCreate={()=>openDiagramEditor()}
