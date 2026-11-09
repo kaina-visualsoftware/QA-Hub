@@ -16,7 +16,6 @@ import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft, normalizeDraft } from "../lib/legacy/qa-assistant.mjs";
 import { supabase } from "../lib/supabase";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
-import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -37,14 +36,9 @@ export function Workspace() {
   const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
   const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
-  const [allowModel, setAllowModel] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiProgress, setAiProgress] = useState("");
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [onlineConsentText, setOnlineConsentText] = useState<string|null>(null);
   const [fileBusy, setFileBusy] = useState(false);
-  const modelRef = useRef<LocalModelClient | null>(null);
-  const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -104,12 +98,7 @@ export function Workspace() {
   const visibleTasks=useMemo(()=>
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
   const total=tasks.data?.pages[0]?.total??0;
-  useEffect(() => () => {
-    aiRunRef.current++;
-    modelRef.current?.dispose();
-    modelRef.current = null;
-  }, []);
-  function showReview(source: string, draft: LocalDraft, viaModel: boolean | "online") {
+  function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
     setLocalReview({ source, draft });
     setExtracted(draft.cenarios
       .filter((item) => item.titulo.trim().length >= 3 &&
@@ -119,52 +108,9 @@ export function Workspace() {
         esperado: item.esperado.slice(0,20000),
         observacoes: item.observacoes.slice(0,20000), selected: false
       })));
-    setExtractionNotice(viaModel === "online"
-      ? "Prévia da IA NVIDIA pronta para revisão. Confira cada campo: a IA pode errar ou inventar informações."
-      : viaModel
-        ? "Sugestão de IA preparada no seu dispositivo. Confira cada campo: a IA pode errar ou inventar informações."
-        : "Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
-  }
-
-  async function analyzeWithModel() {
-    const source = form.getValues("descricao");
-    if (!allowModel || aiBusy) return;
-    if (!source.trim() || source.length > 6000) {
-      setExtractionNotice("A IA local aceita entre 1 e 6.000 caracteres. Para textos maiores, use a extração sem IA.");
-      return;
-    }
-    const run = ++aiRunRef.current;
-    let activeClient: LocalModelClient | null = null;
-    setAiBusy(true); setAiProgress("Preparando o worker local…");
-    setLocalReview(null); setExtracted([]);
-    try {
-      const { createOpenModelClient } = await import("../lib/legacy/qa-ai-open.mjs");
-      if (aiRunRef.current !== run) return;
-      modelRef.current?.dispose();
-      const client = createOpenModelClient();
-      activeClient = client;
-      modelRef.current = client;
-      const draft = await client.extract(source, (message) => {
-        if (aiRunRef.current === run) setAiProgress(message);
-      });
-      if (aiRunRef.current !== run) return;
-      if (form.getValues("descricao") !== source) {
-        setExtractionNotice("O texto mudou durante a análise. Execute a IA novamente para gerar uma prévia atualizada.");
-        return;
-      }
-      showReview(source, draft, true);
-    } catch (error) {
-      if (aiRunRef.current === run) {
-        setExtractionNotice(error instanceof Error ? error.message :
-          "Não foi possível usar o modelo neste dispositivo. Use a extração sem IA.");
-      }
-    } finally {
-      if (aiRunRef.current === run) {
-        setAiBusy(false); setAiProgress("");
-      }
-      activeClient?.dispose();
-      if (modelRef.current === activeClient) modelRef.current = null;
-    }
+    setExtractionNotice(mode === "nvidia"
+      ? "Prévia da NVIDIA pronta. Revise os campos e cenários antes de aplicar."
+      : "Campos extraídos sem IA. Confira o resultado antes de aplicar.");
   }
 
   async function importReport(file:File | undefined){
@@ -188,11 +134,15 @@ export function Workspace() {
         extracted=result.text;warning=result.warning;
       }else throw Error("Use um relatório TXT, MD, PDF ou DOCX.");
       if(!extracted)throw Error(warning||"O arquivo não contém texto selecionável.");
+      if(extracted.length>30000){
+        extracted=extracted.slice(0,30000);
+        warning="Texto limitado a 30.000 caracteres; confira o trecho importado. "+warning;
+      }
       if(form.getValues("descricao").trim() &&
-         !window.confirm("Substituir a descrição existente pelo texto do arquivo?")) return;
+         !window.confirm("Substituir o texto colado pelo conteúdo do arquivo?")) return;
       form.setValue("descricao",extracted,{shouldDirty:true,shouldValidate:true});
       setLocalReview(null);setExtracted([]);setOnlineConsentText(null);
-      setExtractionNotice("Relatório carregado localmente. Revise antes de salvar. "+warning);
+      setExtractionNotice("Arquivo lido e texto inserido. Você pode gerar com NVIDIA ou preencher sem IA. "+warning);
     }catch(reason){
       setExtractionNotice(reason instanceof Error?reason.message:"Não foi possível ler o relatório.");
     }finally{setFileBusy(false);}
@@ -207,33 +157,29 @@ export function Workspace() {
         body:{text:source},signal:AbortSignal.timeout(65000)
       });
       if(error){
-        let detail: {message?:string}={};
+        let detail: {message?:string;error?:string}={};
         try{detail=await error.context?.json?.()??{};}catch{}
-        throw Error(detail.message||"Falha ao analisar a TF com IA online.");
+        if(detail.error==="nvidia_not_configured")
+          throw Error("A NVIDIA ainda não está configurada. Preencha manualmente ou extraia sem IA.");
+        throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
       }
       if(form.getValues("descricao")!==source){
         setExtractionNotice("O texto mudou durante a análise. Gere uma nova prévia antes de aplicar.");
         return;
       }
       const raw=data?.draft;
-      const local=extractLocalDraft(source);
-      const suggestion=raw&&typeof raw==="object"&&!Array.isArray(raw)
-        ? normalizeDraft({...local.fields,...raw,
-            cenarios:Array.isArray(raw.cenarios)?raw.cenarios:local.cenarios}) : local;
-      showReview(source,suggestion,"online");
-      if(data?.fallback||!raw||!Object.keys(raw).length)
-        setExtractionNotice("A IA não retornou campos utilizáveis; foi preparada uma prévia local para revisão.");
+      if(data?.fallback || data?.provider!=="NVIDIA Build" ||
+         !raw || typeof raw!=="object" || Array.isArray(raw) ||
+         !Object.keys(raw).length)
+        throw Error("A NVIDIA não retornou campos válidos. Tente novamente ou use a extração sem IA.");
+      const suggestion=normalizeDraft(raw);
+      if(!Object.keys(suggestion.fields).length && !suggestion.cenarios.length)
+        throw Error("A NVIDIA não identificou dados suficientes. Preencha manualmente ou extraia sem IA.");
+      showReview(source,suggestion,"nvidia");
     }catch(reason){
-      setExtractionNotice(reason instanceof Error?reason.message:"A IA online está indisponível. Use a análise local.");
+      setExtractionNotice(reason instanceof Error?reason.message:
+        "A NVIDIA está indisponível. Você pode preencher manualmente ou extrair sem IA.");
     }finally{setOnlineBusy(false);setOnlineConsentText(null);}
-  }
-
-  function cancelModel() {
-    aiRunRef.current++;
-    modelRef.current?.dispose();
-    modelRef.current = null;
-    setAiBusy(false); setAiProgress("");
-    setExtractionNotice("Análise com modelo local cancelada. Você pode usar a extração sem IA.");
   }
 
   const form = useForm<TaskDraft>({
@@ -324,7 +270,6 @@ export function Workspace() {
     if (create.isPending) return;
     if (form.formState.isDirty && !rememberDraft &&
       !window.confirm("Descartar os campos não salvos desta TF?")) return;
-    cancelModel();
     setShowForm(false); setLocalReview(null); setExtracted([]);
     setExtractionNotice("");
     if (!rememberDraft) form.reset();
@@ -392,14 +337,83 @@ export function Workspace() {
     </section>}
 
     <QAModal open={showForm} title="Nova TF" eyebrow="CADASTRO RÁPIDO"
-      description="Preencha o essencial, revise e continue para os cenários."
-      onClose={closeDraft} busy={create.isPending} initialFocus={'input[name="titulo"]'}>
+      description="Cole o texto da TF ou importe um arquivo opcional. Gere com NVIDIA ou preencha manualmente."
+      onClose={closeDraft} busy={create.isPending} initialFocus={'textarea[name="descricao"]'}>
       <form onSubmit={form.handleSubmit((values, event) => {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
           draft: values, openScenario: submitter?.getAttribute("data-next") === "scenario"
         });
       })} className="stack mt-5">
+        <section className="qa-tf-source" aria-label="Texto de origem para a TF">
+          <div className="qa-tf-source-heading">
+            <strong>Cole o texto da tarefa</strong>
+            <span className="text-muted text-sm">Ou importe um arquivo opcional.</span>
+          </div>
+          <label className="field">Descrição / problema
+            <textarea rows={6} maxLength={30000}
+              placeholder="Cole a descrição, a análise e a correção da TF aqui. Você não precisa anexar nenhum documento."
+              {...form.register("descricao")}/>
+          </label>
+          <div className="qa-tf-source-file">
+            <label className="field">Importar arquivo (opcional: TXT, MD, PDF ou DOCX)
+              <input type="file" accept=".txt,.md,.pdf,.docx"
+                disabled={fileBusy||onlineBusy||create.isPending}
+                onChange={event=>{
+                  const file=event.target.files?.[0];
+                  void importReport(file);
+                  event.target.value="";
+                }}/>
+            </label>
+            <small className="text-muted">O arquivo apenas coloca o texto no campo acima.
+              Nenhum anexo é obrigatório.</small>
+          </div>
+          <div className="qa-tf-source-choice" role="group" aria-label="Formas de preencher">
+            <Button variant="secondary" type="button"
+              isDisabled={fileBusy||onlineBusy||!form.watch("descricao").trim()}
+              onPress={()=>{
+                const source=form.getValues("descricao");
+                try{
+                  showReview(source,extractLocalDraft(source),"manual");
+                }catch(error){
+                  setLocalReview(null);setExtracted([]);
+                  setExtractionNotice(error instanceof Error?error.message:
+                    "Não foi possível extrair os campos sem IA.");
+                }
+              }}>Extrair campos sem IA</Button>
+          </div>
+          <div className="qa-tf-nvidia">
+            <label className="flex gap-2 items-start text-sm">
+              <input type="checkbox" checked={onlineConsentText!==null&&
+                onlineConsentText===form.watch("descricao")}
+                disabled={onlineBusy||fileBusy||!form.watch("descricao").trim()||
+                  form.watch("descricao").length>20000}
+                onChange={event=>setOnlineConsentText(event.target.checked
+                  ?form.getValues("descricao"):null)}/>
+              <span>Autorizo enviar este texto à NVIDIA para sugerir campos e cenários.
+                Revise informações sensíveis antes do envio.</span>
+            </label>
+            <div className="qa-tf-nvidia-actions">
+              <Button type="button" isDisabled={fileBusy||onlineBusy||
+                onlineConsentText!==form.watch("descricao")||
+                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
+                onPress={()=>void analyzeOnline()}>
+                <Sparkles size={16} aria-hidden="true"/>
+                {onlineBusy?"Gerando prévia…":"Gerar com IA NVIDIA"}
+              </Button>
+              <small className="text-muted">
+                {form.watch("descricao").length.toLocaleString("pt-BR")}/20.000 caracteres para IA.
+                {form.watch("descricao").length>20000?
+                  " Reduza o texto antes de gerar.":""}
+              </small>
+            </div>
+            <details className="qa-tf-preview-source">
+              <summary>Ver texto que será enviado à NVIDIA</summary>
+              <textarea rows={4} readOnly aria-label="Texto enviado à NVIDIA"
+                value={form.watch("descricao")}/>
+            </details>
+          </div>
+        </section>
         <div className="form-grid">
           <label className="field grow-2">Título da tarefa
             <input placeholder="Ex.: Validar o desconto na devolução" {...form.register("titulo")} />
@@ -409,10 +423,6 @@ export function Workspace() {
             <select {...form.register("tipo_teste")}><option>BUILD</option><option>RELEASE</option></select>
           </label>
         </div>
-        <label className="field">Descrição / problema
-          <textarea rows={6} placeholder="Cole um relatório completo ou descreva a TF. Não precisa preencher todos os campos."
-            {...form.register("descricao")} />
-        </label>
         <details className="qa-task-optional">
           <summary>Informações adicionais (opcional)</summary>
           <div className="form-grid mt-3">
@@ -441,87 +451,9 @@ export function Workspace() {
             Evite usar em dispositivos compartilhados.</span>
         </label>
         {draftStorageError && <p role="alert" className="notice error">{draftStorageError}</p>}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="secondary" type="button" onPress={() => {
-            const source = form.getValues("descricao");
-            try {
-              const draft = extractLocalDraft(source);
-              showReview(source, draft, false);
-            } catch (error) {
-              setLocalReview(null); setExtracted([]);
-              setExtractionNotice(error instanceof Error ? error.message : "Falha na análise local.");
-            }
-          }}>Analisar texto localmente</Button>
-          <span className="text-muted text-sm">Extração local sem envio externo.</span>
-        </div>
-        <details className="generator-context qa-task-assist">
-          <summary>Importar relatório ou usar IA online (opcional)</summary>
-          <div className="stack mt-3">
-            <label className="field">Importar relatório (TXT, MD, PDF ou DOCX)
-              <input type="file" accept=".txt,.md,.pdf,.docx"
-                disabled={fileBusy||onlineBusy||create.isPending}
-                onChange={event=>{
-                  const file=event.target.files?.[0];
-                  void importReport(file);
-                  event.target.value="";
-                }}/>
-            </label>
-            <p className="text-muted text-sm">O arquivo é lido somente neste navegador.
-              Revise a descrição antes de extrair os campos.</p>
-            <label className="flex gap-2 items-start text-sm">
-              <input type="checkbox" checked={onlineConsentText!==null&&
-                onlineConsentText===form.watch("descricao")}
-                disabled={onlineBusy||!form.watch("descricao").trim()}
-                onChange={event=>setOnlineConsentText(event.target.checked
-                  ?form.getValues("descricao"):null)}/>
-              Autorizo enviar o texto atual da TF à NVIDIA para gerar uma prévia de campos e cenários.
-            </label>
-            <details className="generator-context">
-              <summary>Ver conteúdo que será enviado</summary>
-              <textarea rows={4} readOnly aria-label="Texto enviado à IA online"
-                value={form.watch("descricao")}/>
-            </details>
-            <div><Button type="button" variant="secondary"
-              isDisabled={onlineBusy||onlineConsentText!==form.watch("descricao")||
-                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
-              onPress={()=>void analyzeOnline()}>
-              <Sparkles size={16}/> {onlineBusy?"Analisando…":"Gerar campos com IA online"}
-            </Button></div>
-          </div>
-        </details>
-        <details className="generator-context qa-task-assist">
-          <summary>Assistente local avançado (opcional)</summary>
-          <div className="stack mt-4" aria-label="Assistente generativo no navegador">
-          <div>
-            <h3 className="font-semibold">IA generativa local (opcional)</h3>
-            <p className="text-muted text-sm mt-2">
-              O modelo público é baixado sob demanda e pode usar bastante memória e espaço no navegador.
-              O relatório é processado no próprio dispositivo, sem ser enviado ao provedor do modelo.
-              Só use após revisar o texto para não incluir dados sensíveis desnecessários.
-            </p>
-          </div>
-          <label className="flex gap-2 items-start text-sm">
-            <input type="checkbox" checked={allowModel} onChange={(event) =>
-              setAllowModel(event.target.checked)} disabled={aiBusy} />
-            Autorizo baixar o modelo público e executar a análise localmente.
-          </label>
-          <div className="flex gap-2 flex-wrap items-center">
-            <Button type="button" variant="secondary"
-              isDisabled={!allowModel || aiBusy}
-              onPress={() => void analyzeWithModel()}>
-              <Sparkles size={16} /> {aiBusy ? "Analisando no dispositivo…" : "Analisar com IA local"}
-            </Button>
-            {aiBusy && <Button type="button" variant="secondary"
-              onPress={cancelModel}>Cancelar análise</Button>}
-          </div>
-          {aiProgress && <p role="status" aria-live="polite" className="text-muted text-sm">
-            {aiProgress}
-          </p>}
-          </div>
-        </details>
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
         {localReview && <section className="generator-context stack"
-          aria-label="Prévia do preenchimento local">
+          aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
           <p className="text-muted text-sm">Nada será aplicado até você confirmar.
             Campos não identificados permanecem como estão.</p>
@@ -551,7 +483,7 @@ export function Workspace() {
               };
               const draft = localReview.draft;
               for (const [name,value] of Object.entries(draft.fields)) {
-                if (!value || name === "tipo_teste" || !(name in textLimits)) continue;
+                if (!value || name === "tipo_teste" || name === "descricao" || !(name in textLimits)) continue;
                 const key = name as Exclude<keyof TaskDraft,"tipo_teste">;
                 form.setValue(key, value.slice(0,textLimits[name]), {
                   shouldValidate:true, shouldDirty:true

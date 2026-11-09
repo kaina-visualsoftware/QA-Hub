@@ -96,7 +96,7 @@ try {
   await page.getByRole("heading", { name: "Suas tarefas de teste" }).waitFor();
 
   await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   await page.getByRole("button", { name: "Salvar e adicionar cenário" }).click();
   assert.equal(calls.task, 0, "An invalid form must not create a task");
   await page.getByLabel("Título da tarefa").fill("Nova TF com primeiro caso");
@@ -147,7 +147,7 @@ try {
 
   await page.getByRole("link", { name: "Todas as TFs" }).click();
   await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   await page.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
   await page.getByRole("button", { name: "Salvar e abrir TF" }).click();
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();

@@ -18,6 +18,7 @@ const suites = [
   "browser-report-summary.mjs",
   "browser-access.mjs",
   "browser-quick-create.mjs",
+  "browser-new-tf-source.mjs",
   "browser-draft-recovery.mjs",
   "browser-auth-callback.mjs",
   "browser-accessibility.mjs",
