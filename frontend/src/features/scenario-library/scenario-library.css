@@ -1,0 +1,26 @@
+.qa-f6-library{display:flex;flex-direction:column;gap:14px;min-width:0}
+.qa-f6-library-tabs{display:flex;gap:4px;background:#eaf1f2;border-radius:10px;padding:4px}
+.qa-f6-library-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;
+  flex:1;min-height:43px;padding:8px;border-radius:8px;color:#456b76;
+  font-size:.84rem;font-weight:750}
+.qa-f6-library-tabs button.selected{background:white;color:#195762;
+  box-shadow:0 1px 5px rgba(18,54,62,.09)}
+.qa-f6-library-tabs button:focus-visible{outline:3px solid #248b91;outline-offset:2px}
+.qa-f6-library-save{display:flex;flex-direction:column;gap:12px}
+.qa-f6-library-save>button{align-self:flex-start}
+.qa-f6-library-item{border:1px solid #dde8e9;border-radius:11px;padding:12px;
+  min-width:0;display:flex;flex-direction:column;gap:10px}
+.qa-f6-library-item>div:first-child{display:flex;flex-direction:column;gap:4px;min-width:0}
+.qa-f6-library-item strong{font-size:.85rem;overflow-wrap:anywhere;color:#305965}
+.qa-f6-library-item small{font-size:.76rem;color:#56757d}
+.qa-f6-library-item details{border:1px solid #e9eff0;border-radius:8px;padding:8px 10px;
+  min-width:0}
+.qa-f6-library-item summary{cursor:pointer;font-size:.79rem;font-weight:750;
+  color:#286773;min-height:30px}
+.qa-f6-library-item details p{font-size:.8rem;color:#436774;
+  white-space:pre-wrap;overflow-wrap:anywhere;margin:7px 0}
+.qa-f6-library-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media(max-width:480px){
+ .qa-f6-library-tabs button{font-size:.77rem}
+ .qa-f6-library-actions button{flex:1 1 100%}
+}
