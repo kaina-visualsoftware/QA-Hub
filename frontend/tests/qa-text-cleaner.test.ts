@@ -65,6 +65,7 @@ describe("limpeza do conteúdo enviado à NVIDIA",()=>{
   it("limpa campos e cenários retornados pela IA antes de preencher a TF",()=>{
     const draft=normalizeDraft({
       titulo:"PERSISTÊNCIA DO CHECKBOX POR USUÁRIO E POR TERMINAL",
+      descricao:"Cliente quer que o checkbox reabra com o estado salvo.",
       causa:"GOOGLE DRIVE\nPREVIEW\nO CONTROLE NÃO LEMBRA A PREFERÊNCIA POR USUÁRIO.",
       correcao:"REUTILIZADO O MECANISMO DE LEITURA DO TELAS.INI.",
       codigo:"192381",versao:"12.08.10.0000",tipo_teste:"BUILD",
@@ -86,7 +87,7 @@ describe("limpeza do conteúdo enviado à NVIDIA",()=>{
     const values:Record<string,string>={};
     const setValue=vi.fn((key:string,value:string)=>{values[key]=value;});
     applyTaskAiFields({setValue} as unknown as Pick<UseFormReturn<TaskDraft>,"setValue">,
-      draft,{cleanDescription:copiedReport});
+      draft);
     expect(values.titulo).toBe("Persistência do checkbox por usuário e por terminal");
     expect(values.causa).not.toContain("Google Drive");
     expect(values.descricao).toContain("Cliente quer que o checkbox");
