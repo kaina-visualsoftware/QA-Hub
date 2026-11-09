@@ -330,6 +330,53 @@ try{
   assert.equal(pastedScenario.status,"nao_executado","Imported observations are not automatic approval");
   assert.equal(pastedScenario.obtido,"");
 
+  // Regression: first creation used to save raw TF text without interpreting it.
+  // With permission, one click must run the SAME NVIDIA extraction used for
+  // regeneration, save all fields, archive the source and create its scenarios.
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  await source.fill(pasted);
+  const beforeAuto=aiPayloads.length;
+  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
+  await modal.getByRole("button",{name:"Gerar com IA e abrir TF"}).click();
+  await page.getByRole("heading",{name:"Validação dos descontos no pedido"}).waitFor();
+  assert.equal(aiPayloads.length,beforeAuto+1,"Saving with consent must call NVIDIA once");
+  assert.equal(taskWrites,6,"The TF must be created exactly once after AI analysis");
+  assert.equal(tasks[5].codigo,"78912");
+  assert.equal(tasks[5].causa,"O rateio antigo ignora descontos negativos.");
+  assert.equal(tasks[5].descricao,normalized);
+  assert.equal(scenarioWrites,5,"New TF automatically receives the mapped AI scenario");
+  assert.equal(sources.at(-1).texto_extraido,pasted,"Original pasted text is archived");
+  assert.equal(scenarios.at(-1).status,"nao_executado");
+
+  // No consent: find the documented fields and explicit scenarios locally,
+  // without sending the pasted text to NVIDIA.
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  const manualReport=[
+    "TÍTULO: Revisar validação das devoluções",
+    "TF #87123",
+    "CENÁRIOS TESTADOS:",
+    "CENÁRIO 1 — Estado inicial do filtro",
+    "1. Entrar com um usuário limpo",
+    "2. Acessar Relatórios > Vendas > Resumos > Vendedor",
+    "RESULTADO ESPERADO: O filtro deve abrir desmarcado."
+  ].join("\n");
+  await source.fill(manualReport);
+  const beforeLocal=aiPayloads.length;
+  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
+  await page.getByRole("heading",{name:"Revisar validação das devoluções"}).waitFor();
+  assert.equal(aiPayloads.length,beforeLocal,"No-consent creation is offline");
+  assert.equal(taskWrites,7);
+  assert.equal(tasks[6].codigo,"87123");
+  assert.equal(scenarioWrites,6,"Explicit pasted cases are imported automatically");
+  assert.match(scenarios.at(-1).passos,/^1\\. Entrar com um usuário limpo/m);
+  assert.equal(scenarios.at(-1).status,"nao_executado");
+
   assert.deepEqual(errors,[]);
   console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
 }finally{await browser.close();}
