@@ -120,7 +120,7 @@ try{
   await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
   assert.equal(await generate.isEnabled(),true,"Pasted text must allow AI without upload");
   await generate.click();
-  await modal.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
+  await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
   assert.equal(aiPayloads.length,1);
   assert.equal(aiPayloads[0].text,pasted);
   assert.equal(taskWrites,0,"AI preview must not create TF");
@@ -146,11 +146,11 @@ try{
     name:"relato.txt",mimeType:"text/plain",
     buffer:Buffer.from("TÍTULO: Revisar pagamentos\nCÓDIGO: 99112\nO QUE FOI TESTADO: Validar baixas financeiras.")
   });
-  await modal.getByText("Arquivo lido e texto inserido.",{exact:false}).waitFor();
+  await page.getByText("Arquivo lido e texto inserido.",{exact:false}).waitFor();
   assert.match(await source.inputValue(),/Revisar pagamentos/);
   assert.equal(aiPayloads.length,1,"File reading must never automatically call NVIDIA");
   await modal.getByRole("button",{name:"Extrair sem IA"}).click();
-  await modal.getByText("Campos extraídos sem IA.",{exact:false}).waitFor();
+  await page.getByText("Campos extraídos sem IA.",{exact:false}).waitFor();
   await modal.getByRole("button",{name:"Aplicar campos revisados"}).click();
   assert.match(await modal.getByLabel("Título da tarefa").inputValue(),/Revisar pagamentos/);
   await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
@@ -175,7 +175,7 @@ try{
   fallback=true;
   await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
   await generate.click();
-  await modal.getByText(/A NVIDIA não retornou campos válidos/).waitFor();
+  await page.getByText(/A NVIDIA não retornou campos válidos/).waitFor();
   assert.equal(await modal.getByRole("button",{name:"Aplicar campos revisados"}).count(),0,
     "NVIDIA fallback must not silently turn into local AI output");
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
