@@ -63,7 +63,7 @@ function ToastItem({item}:{item:ToastEntry}){
     return ()=>window.clearTimeout(timeout);
   },[dismiss,item.id,item.tone,paused]);
   const Icon=icons[item.tone];
-  return <li className={"qa-toast qa-toast-"+item.tone}
+  return <div className={"qa-toast qa-toast-"+item.tone}
     role={item.tone==="error"?"alert":"status"}
     onMouseEnter={()=>setPaused(true)} onMouseLeave={()=>setPaused(false)}
     onFocusCapture={()=>setPaused(true)}
@@ -79,16 +79,16 @@ function ToastItem({item}:{item:ToastEntry}){
       onClick={()=>dismiss(item.id)}>
       <X size={17} aria-hidden="true"/>
     </button>
-  </li>;
+  </div>;
 }
 
 /** Portal keeps notifications operable even while the app root is inert behind a modal. */
 export function ToastCenter(){
   const items=useToastStore(state=>state.items);
   return createPortal(
-    <ol className="qa-toast-viewport" aria-label="Notificações do QA Hub">
+    <div className="qa-toast-viewport" role="region" aria-label="Notificações do QA Hub">
       {items.map(item=><ToastItem key={item.id} item={item}/>)}
-    </ol>,
+    </div>,
     document.body
   );
 }
