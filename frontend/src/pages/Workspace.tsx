@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {FormEvent} from "react";
 import {ToastNotice,notify} from "../components/ui/Toasts";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
@@ -16,7 +17,8 @@ import {
 import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import {
-  applyTaskAiFields,archiveTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft
+  applyTaskAiFields,archiveTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,
+  mergeTaskAiCreation
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
@@ -42,6 +44,9 @@ export function Workspace() {
   const [extracted, setExtracted] = useState<SuggestedScenario[]>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
   const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft;mode:"nvidia"|"manual"} | null>(null);
+  const [analyzedSource,setAnalyzedSource]=useState<string|null>(null);
+  const [submitBusy,setSubmitBusy]=useState(false);
+  const submittingRef=useRef(false);
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [onlineConsentText, setOnlineConsentText] = useState<string|null>(null);
   const [fileBusy, setFileBusy] = useState(false);
@@ -121,7 +126,10 @@ export function Workspace() {
   function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
     // Apply NVIDIA results immediately: every submit action must persist the
     // fields shown in the form, even when the user skips the preview controls.
-    if(mode==="nvidia")applyTaskAiFields(form,draft);
+    if(mode==="nvidia"){
+      applyTaskAiFields(form,draft);
+      setAnalyzedSource(source);
+    }
     setLocalReview({source,draft,mode});
     const suggestions=freshTaskAiScenarios(draft,[],true);
     setExtracted(suggestions);
@@ -158,7 +166,7 @@ export function Workspace() {
       if(form.getValues("descricao").trim() &&
          !window.confirm("Substituir o texto colado pelo conteúdo do arquivo?")) return;
       form.setValue("descricao",extracted,{shouldDirty:true,shouldValidate:true});
-      setLocalReview(null);setExtracted([]);setOnlineConsentText(null);
+      setLocalReview(null);setExtracted([]);setOnlineConsentText(null);setAnalyzedSource(null);
       setExtractionNotice("Arquivo lido e texto inserido. Você pode gerar com NVIDIA ou preencher sem IA. "+warning);
     }catch(reason){
       setExtractionNotice(reason instanceof Error?reason.message:"Não foi possível ler o relatório.");
@@ -186,6 +194,103 @@ export function Workspace() {
     resolver: zodResolver(taskDraftSchema),
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
   });
+  /**
+   * The old creation form only imported explicit local scenarios on Save; it
+   * never ran NVIDIA, while regeneration did. One submit now runs the same
+   * NVIDIA extraction when the current text was authorized, then validates and
+   * persists its structured fields and selected cases in the first TF save.
+   * Without consent, only deterministic local extraction is used.
+   */
+  async function submitNewTask(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    if(submittingRef.current||create.isPending||onlineBusy||fileBusy)return;
+    submittingRef.current=true;
+    setSubmitBusy(true);
+    const submitter=(event.nativeEvent as SubmitEvent).submitter;
+    const openScenario=submitter?.getAttribute("data-next")==="scenario";
+    try{
+      const original=form.getValues();
+      const text=original.descricao.trim();
+      let candidate:TaskDraft={...original};
+      let candidates:SuggestedScenario[]=[];
+      let source=analyzedSource??undefined;
+      const consented=Boolean(text&&text.length<=20000&&onlineConsentText===original.descricao);
+      const currentReview=localReview && (
+        localReview.mode==="nvidia" || localReview.source===original.descricao
+      );
+
+      if(consented){
+        // No persisted TF is created if the provider fails. Avoid the previous
+        // workaround: create an incomplete TF and regenerate it afterwards.
+        const ai=await generateTaskAiDraft(original.descricao);
+        if(form.getValues("descricao")!==original.descricao){
+          setExtractionNotice("A descrição foi alterada durante a análise. Revise o texto e salve novamente.");
+          return;
+        }
+        candidate=mergeTaskAiCreation(original,ai);
+        candidates=freshTaskAiScenarios(ai,[],true);
+        source=original.descricao;
+        setLocalReview({source:original.descricao,draft:ai,mode:"nvidia"});
+        setAnalyzedSource(original.descricao);
+        setExtracted(candidates);
+        setExtractionNotice("Campos e cenários identificados pela NVIDIA e preparados para salvar.");
+        setOnlineConsentText(null);
+      }else if(currentReview){
+        // Respect the QA's selected scenarios rather than importing them again.
+        candidates=extracted.filter(item=>item.selected);
+        if(localReview.mode==="manual"){
+          candidate=mergeTaskAiCreation(original,localReview.draft,{keepDescription:true});
+        }
+      }else if(analyzedSource){
+        // The user may have hidden the AI review or applied local fields.
+        // Keep the archived original and the reviewed scenario selections.
+        candidates=extracted.filter(item=>item.selected);
+      }else if(text){
+        try{
+          const local=extractLocalDraft(original.descricao);
+          candidate=mergeTaskAiCreation(original,local,{keepDescription:true});
+          candidates=freshTaskAiScenarios(local,[],true);
+        }catch{
+          // Unstructured descriptions are valid manual TFs; do not invent facts.
+        }
+      }
+
+      form.clearErrors();
+      const checked=taskDraftSchema.safeParse(candidate);
+      if(!checked.success){
+        for(const issue of checked.error.issues){
+          const field=issue.path[0];
+          if(typeof field==="string" && field in candidate){
+            form.setError(field as keyof TaskDraft,{
+              type:"manual",message:issue.message
+            });
+          }
+        }
+        setExtractionNotice(
+          "Confira os campos indicados. Se a TF não tem título, cole o texto e use a NVIDIA para identificá-lo."
+        );
+        return;
+      }
+      // Show the exact structured values that are being saved, including on
+      // database errors. Preserve any title/fields the QA typed manually.
+      for(const [name,value] of Object.entries(checked.data)){
+        if((original as Record<string,unknown>)[name]!==value)
+          form.setValue(name as keyof TaskDraft,value as never,{
+            shouldDirty:true,shouldTouch:true,shouldValidate:true
+          });
+      }
+      await create.mutateAsync({
+        draft:checked.data,openScenario,selected:candidates,source
+      });
+    }catch(reason){
+      setExtractionNotice(reason instanceof Error?reason.message:
+        "Não foi possível analisar e criar a TF. O texto foi preservado.");
+    }finally{
+      submittingRef.current=false;
+      setSubmitBusy(false);
+    }
+  }
+
   const create = useMutation({
     mutationFn: async ({ draft, openScenario, selected, source }: {
       draft: TaskDraft; openScenario: boolean; selected: SuggestedScenario[]; source?: string
@@ -219,7 +324,7 @@ export function Workspace() {
       draftTimerRef.current = null;
       discardNewTaskDraft(userId);
       setRememberDraft(false); setRecoverableDraft(null); setDraftStorageError("");
-      setExtracted([]); setExtractionNotice(""); setLocalReview(null);
+      setExtracted([]); setExtractionNotice(""); setLocalReview(null);setAnalyzedSource(null);
       setFocused(task.id);
       await Promise.all([
         queryClient.invalidateQueries({queryKey:["task-search",userId]}),
@@ -242,7 +347,7 @@ export function Workspace() {
     if (!userId) return;
     if (previousDraftUserRef.current && previousDraftUserRef.current !== userId) {
       form.reset();
-      setShowForm(false); setExtracted([]); setLocalReview(null);
+      setShowForm(false); setExtracted([]); setLocalReview(null);setAnalyzedSource(null);
     }
     previousDraftUserRef.current = userId;
     setRememberDraft(false);
@@ -279,10 +384,10 @@ export function Workspace() {
   }, [rememberDraft, userId, form.watch, form.getValues]);
 
   function closeDraft() {
-    if (create.isPending) return;
+    if (create.isPending||submitBusy) return;
     if (form.formState.isDirty && !rememberDraft &&
       !window.confirm("Descartar os campos não salvos desta TF?")) return;
-    setShowForm(false); setLocalReview(null); setExtracted([]);
+    setShowForm(false); setLocalReview(null); setExtracted([]);setAnalyzedSource(null);
     setExtractionNotice("");
     if (!rememberDraft) form.reset();
   }
@@ -338,7 +443,7 @@ export function Workspace() {
             !window.confirm("Substituir o formulário atual pelo rascunho guardado?")) return;
           form.reset(recoverableDraft.fields);
           setRememberDraft(true); setRecoverableDraft(null);
-          setShowForm(true); setExtracted([]); setLocalReview(null);
+          setShowForm(true); setExtracted([]); setLocalReview(null);setAnalyzedSource(null);
           setExtractionNotice(""); setDraftStorageError("");
         }}>Recuperar rascunho</Button>
         <Button variant="secondary" onPress={() => {
@@ -349,23 +454,11 @@ export function Workspace() {
     </section>}
 
     <QAModal open={showForm} title="Nova TF"
-      description="Preencha o título. O restante é opcional."
-      onClose={closeDraft} busy={create.isPending} initialFocus={'input[name="titulo"]'}>
-      <form onSubmit={form.handleSubmit((values, event) => {
-        if(onlineBusy||fileBusy||create.isPending)return;
-        const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
-        void create.mutateAsync({
-          draft:values,openScenario:submitter?.getAttribute("data-next")==="scenario",
-          selected:extracted.length?extracted.filter(item=>item.selected):
-            // Pasting a finished TF and saving without pressing Extract must
-            // still import its explicitly identified test cases.
-            (localReview?[]:(()=>{
-              try{return freshTaskAiScenarios(extractLocalDraft(values.descricao),[],true);}
-              catch{return [];}
-            })()),
-          source:localReview?.mode==="nvidia"?localReview.source:undefined
-        });
-      })} className="stack mt-4 qa-tf-compact">
+      description="Cole a TF para preencher os campos e mapear os cenários, ou crie uma tarefa manualmente."
+      onClose={closeDraft} busy={create.isPending||submitBusy}
+      initialFocus={'input[name="titulo"]'}>
+      <form onSubmit={event=>void submitNewTask(event)}
+        className="stack mt-4 qa-tf-compact">
         <div className="qa-tf-primary-row">
           <label className="field grow-2">Título da tarefa
             <input placeholder="Ex.: Validar desconto na devolução"
@@ -390,7 +483,7 @@ export function Workspace() {
             {fileBusy?"Lendo arquivo…":"Importar arquivo"}
             <input type="file" aria-label="Importar arquivo opcional (TXT, MD, PDF ou DOCX)"
               accept=".txt,.md,.pdf,.docx"
-              disabled={fileBusy||onlineBusy||create.isPending}
+              disabled={fileBusy||onlineBusy||submitBusy||create.isPending}
               onChange={event=>{
                 const file=event.target.files?.[0];
                 void importReport(file);
@@ -398,7 +491,7 @@ export function Workspace() {
               }}/>
           </label>
           <Button variant="secondary" type="button" size="sm"
-            isDisabled={fileBusy||onlineBusy||!form.watch("descricao").trim()}
+            isDisabled={fileBusy||onlineBusy||submitBusy||!form.watch("descricao").trim()}
             onPress={()=>{
               const source=form.getValues("descricao");
               try{
@@ -413,20 +506,20 @@ export function Workspace() {
         <div className="qa-tf-nvidia-compact" role="group" aria-label="Preenchimento com NVIDIA">
           <div className="qa-tf-nvidia-heading">
             <strong><Sparkles size={17} aria-hidden="true"/> Gerar dados com IA</strong>
-            <small>Preenche os campos e sugere cenários para revisão.</small>
+            <small>Autorize para analisar automaticamente ao salvar, ou gere uma prévia agora.</small>
           </div>
           <div className="qa-tf-nvidia-row">
             <label className="qa-tf-consent">
               <input type="checkbox" checked={onlineConsentText!==null&&
                 onlineConsentText===form.watch("descricao")}
-                disabled={fileBusy||onlineBusy||!form.watch("descricao").trim()||
+                disabled={fileBusy||onlineBusy||submitBusy||!form.watch("descricao").trim()||
                   form.watch("descricao").length>20000}
                 onChange={event=>setOnlineConsentText(event.target.checked
                   ?form.getValues("descricao"):null)}/>
               <span>Autorizo enviar este texto à NVIDIA.</span>
             </label>
             <Button type="button" size="sm"
-              isDisabled={fileBusy||onlineBusy||
+              isDisabled={fileBusy||onlineBusy||submitBusy||
                 onlineConsentText!==form.watch("descricao")||
                 !form.watch("descricao").trim()||form.watch("descricao").length>20000}
               onPress={()=>void analyzeOnline()}>
@@ -470,6 +563,7 @@ export function Workspace() {
                 return;
               }
               applyTaskAiFields(form,localReview.draft);
+              setAnalyzedSource(localReview.source);
               setLocalReview(null);
               setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
             }}>Aplicar campos revisados</Button>}
@@ -552,9 +646,15 @@ export function Workspace() {
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
-            isDisabled={create.isPending||onlineBusy||fileBusy}>Salvar e abrir TF</Button>
+            isDisabled={create.isPending||onlineBusy||fileBusy||submitBusy}>
+            {submitBusy?"Preparando TF…":onlineConsentText===form.watch("descricao")&&
+              !!onlineConsentText?"Gerar com IA e abrir TF":"Salvar e abrir TF"}
+          </Button>
           <Button type="submit" data-next="scenario"
-            isDisabled={create.isPending||onlineBusy||fileBusy}>Salvar e adicionar cenário</Button>
+            isDisabled={create.isPending||onlineBusy||fileBusy||submitBusy}>
+            {submitBusy?"Preparando TF…":onlineConsentText===form.watch("descricao")&&
+              !!onlineConsentText?"Gerar com IA e adicionar cenário":"Salvar e adicionar cenário"}
+          </Button>
         </div>
         <ToastNotice message={create.isError?create.error.message:null} tone="error"/>
       </form>
