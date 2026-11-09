@@ -405,7 +405,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
 
   const totalSelected=cases.filter(item=>item.selected).length;
   const caseHeadingsReceived=(streamText.match(/^##\s+Cen[áa]rio\b/gim)||[]).length;
-  const filledFields=Object.values(draft).filter(value=>typeof value==="string"&&value.trim()).length;
+  // BUILD is a default choice, not a field identified by the AI.
+  const filledFields=Object.entries(draft)
+    .filter(([name,value])=>name!=="tipo_teste"&&typeof value==="string"&&value.trim()).length;
   const taskContextLength=combine("TEXTO DA TAREFA",sourceText,taskFiles).length;
   const fullTaskReview=Object.entries(draft)
     .filter(([,value])=>Boolean(value?.trim()))
