@@ -1733,3 +1733,11 @@
  .qa-ai-review-footer{padding:11px;bottom:-14px}
  .qa-ai-review-footer button{width:100%}
 }
+
+/* A missing or invalid Mermaid module is reported by a toast; only recovery remains in the modal. */
+.qa-diagram-unavailable{display:flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:12px;min-height:200px;margin-top:12px;
+ border:1px dashed #ccdddf;border-radius:12px;background:#f7fafb;
+ text-align:center;padding:25px 16px;color:#45626c}
+.qa-diagram-unavailable strong{font-size:.89rem;color:#244e59}
+.qa-diagram-unavailable button{min-height:42px}
