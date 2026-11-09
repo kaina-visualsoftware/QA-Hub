@@ -395,7 +395,7 @@ export default function TaskPage() {
         notify.warning("A descrição mudou durante a análise. Gere novamente antes de aplicar.");
         return;
       }
-      const applied=applyTaskAiFields(taskForm,result);
+      const applied=applyTaskAiFields(taskForm,result,{cleanDescription:source});
       const suggestions=freshTaskAiScenarios(result,scenarios.data??[]);
       setTaskAiScenarios(suggestions);setTaskAiPreviewSource(source);
       setTaskAiAppliedCount(applied);

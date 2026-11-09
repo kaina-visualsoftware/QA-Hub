@@ -3,6 +3,7 @@ import type {Scenario,TaskDraft} from "../../lib/contracts";
 import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
+import {cleanQaSourceText,formatQaSentenceCase} from "../../lib/legacy/qa-text-cleaner.mjs";
 
 export type SuggestedScenario={
   titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean;
@@ -22,7 +23,8 @@ const FIELD_LIMITS:Readonly<Partial<Record<keyof TaskDraft,number>>>={
  */
 export function applyTaskAiFields(
   form:Pick<UseFormReturn<TaskDraft>,"setValue">,
-  draft:LocalDraft
+  draft:LocalDraft,
+  options?:{cleanDescription?:string}
 ):number{
   let applied=0;
   for(const [name,limit] of Object.entries(FIELD_LIMITS)){
@@ -38,6 +40,15 @@ export function applyTaskAiFields(
       shouldValidate:true,shouldDirty:true,shouldTouch:true
     });
     applied++;
+  }
+  if(options?.cleanDescription!==undefined){
+    const normalized=formatQaSentenceCase(options.cleanDescription).slice(0,30000);
+    if(normalized&&normalized!==options.cleanDescription){
+      form.setValue("descricao",normalized,{
+        shouldValidate:true,shouldDirty:true,shouldTouch:true
+      });
+      applied++;
+    }
   }
   return applied;
 }
@@ -87,8 +98,13 @@ export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
   const source=text.trim();
   if(!source||source.length>20000)
     throw Error("Informe uma descrição de até 20.000 caracteres para gerar com IA.");
+  // Keep the user's original report in the form, but exclude copied web controls
+  // from the version sent to NVIDIA. Do not collapse technical lines or evidence.
+  const relevant=cleanQaSourceText(source);
+  if(!relevant||relevant.length<10)
+    throw Error("A descrição contém apenas elementos de interface. Cole o conteúdo da TF.");
   const {data,error}=await supabase.functions.invoke("qa-ai",{
-    body:{text:source},signal:AbortSignal.timeout(65000)
+    body:{text:relevant},signal:AbortSignal.timeout(65000)
   });
   if(error){
     let detail:{message?:string;error?:string}={};
