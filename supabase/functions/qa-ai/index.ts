@@ -26,10 +26,13 @@ function corsHeaders(origin: string | null) {
     "Cache-Control": "no-store"
   };
 }
-function respond(origin: string | null, status: number, body: Record<string, unknown>) {
+function respond(origin: string | null, status: number, body: Record<string, unknown>, extraHeaders: Record<string,string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(origin), "Content-Type": "application/json; charset=utf-8" }
+    headers: {
+      ...corsHeaders(origin), "Content-Type": "application/json; charset=utf-8",
+      ...extraHeaders
+    }
   });
 }
 function promptForReport(text: string) {
@@ -132,16 +135,32 @@ Deno.serve(async req => {
       message:"Nenhum dos modelos NVIDIA com endpoint gratuito está disponível agora."
     });
   }
-  const claim=await db.rpc("qa_ai_claim_request");
-  if(claim.error) {
-    return respond(origin,503,{error:"rate_limit_not_ready",message:"O limite de uso da IA ainda não foi configurado no banco."});
-  }
-  if(!claim.data) {
-    return respond(origin,429,{error:"rate_limited",message:"Aguarde 15 segundos ou tente novamente amanhã (máximo de 12 usos por dia)."});
-  }
   let hadReply=false;
   let lastStatus=0;
   for(const model of available) {
+    // Count every attempted NVIDIA completion (including fallback models)
+    // against the same rolling 15/min window for our shared provider key.
+    // Requests rejected here do not reserve a slot or consume a daily quota.
+    const claim=await db.rpc("qa_ai_claim_minute_request");
+    if(claim.error || !claim.data || typeof claim.data!=="object") {
+      return respond(origin,503,{
+        error:"rate_limit_not_ready",
+        message:"Não foi possível verificar o limite por minuto da IA."
+      });
+    }
+    const quota=claim.data as {
+      allowed?:boolean; error?:string; remaining?:number; retry_after_seconds?:number;
+    };
+    if(!quota.allowed){
+      if(quota.error==="unauthorized")
+        return respond(origin,401,{error:"unauthorized",message:"Faça login para usar a IA."});
+      const retry=Math.max(1,Math.min(60,Math.ceil(Number(quota.retry_after_seconds)||60)));
+      return respond(origin,429,{
+        error:"rate_limited",
+        message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+" segundo(s). Não há limite diário no QA Hub.",
+        retry_after_seconds:retry,limit:15,window_seconds:60
+      },{"Retry-After":String(retry)});
+    }
     try {
       const result=await fetch(NVIDIA_BASE+"/chat/completions",{
         method:"POST",
