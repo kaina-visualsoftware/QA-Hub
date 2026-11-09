@@ -53,6 +53,26 @@ export function cleanMermaid(source){
   if(!/-->|---|==>|-.->/.test(content))throw Error('O diagrama não contém conexões entre etapas.');
   return horizontalFlowchart(content);
 }
+/** Request an evidence-preserving chunk summary; do not silently fall back to a fabricated diagram. */
+export async function requestAiDiagramSummary({db,text,signal}){
+  if(!db?.functions?.invoke)throw Error('Serviço de IA indisponível.');
+  if(typeof text!=='string'||!text.trim()||text.length>20000)
+    throw Error('O bloco de resumo deve ter entre 1 e 20.000 caracteres.');
+  const {data,error}=await db.functions.invoke('qa-ai',{
+    body:{mode:'diagram-summary',text},
+    signal:signal??AbortSignal.timeout(65000)
+  });
+  if(error){
+    let info={};
+    try{info=await error.context?.json?.()||{};}catch{}
+    throw Error(info.message||'Não foi possível resumir este bloco da TF com a NVIDIA.');
+  }
+  if(data?.provider!=='NVIDIA Build'||typeof data?.summary!=='string'||
+    data.summary.trim().length<30||data.summary.length>6500)
+    throw Error('A NVIDIA não retornou um resumo completo. Nenhum conteúdo foi descartado.');
+  return data.summary.trim();
+}
+
 export async function requestAiDiagram({db,text,repair=null,onProgress=()=>{}}){
   if(!db?.functions?.invoke)throw Error('Serviço de IA indisponível.');
   if(!String(text).trim())throw Error('Informe um texto para gerar o diagrama.');
