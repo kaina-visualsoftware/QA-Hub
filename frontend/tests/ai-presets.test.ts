@@ -21,7 +21,8 @@ describe("F2 — presets de geração e contexto inspecionável",()=>{
     expect(generatorPresetInstruction("teste","essencial")).toBe("");
     expect(generatorPresetInstruction("post","__invalid__")).toBe("");
     expect(diagramPresetInstruction("__invalid__")).toBe("");
-    expect(combinedInstructions("teste","essencial","")).toBe("");
+    expect(combinedInstructions("teste","essencial","")).toMatch(/EVITE REPETIÇÕES/);
+    expect(combinedInstructions("post","essencial","")).toBe("");
   });
   it("insere modelo e complemento no mesmo contexto que o usuário pode conferir",()=>{
     const text=combinedInstructions("teste","regressao","Conferir retorno do estorno");

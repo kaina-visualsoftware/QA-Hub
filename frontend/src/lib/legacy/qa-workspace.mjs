@@ -69,6 +69,11 @@ export function markScenarioDuplicates(candidates,existing=[]) {
   });
 }
 
+/** Keep only new cases, including removing repeats inside the same AI response. */
+export function onlyNewScenarioCandidates(candidates,existing=[]) {
+  return markScenarioDuplicates(candidates,existing).filter(item=>!item.duplicate);
+}
+
 export function validateReviewedCases(items) {
   if (!Array.isArray(items) || items.length>100) throw new Error('Selecione no máximo 100 casos por operação.');
   return items.map((item,index)=>{

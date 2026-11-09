@@ -13,7 +13,7 @@ import {
   composeRequirementContext, loadApprovedRequirements, recordRequirementUsage
 } from "../../lib/legacy/qa-requirements-context.mjs";
 import {
-  attachReviewedCases, markScenarioDuplicates, parseGeneratedCases
+  attachReviewedCases, markScenarioDuplicates, onlyNewScenarioCandidates, parseGeneratedCases
 } from "../../lib/legacy/qa-workspace.mjs";
 import type { GeneratedCase } from "../../lib/legacy/qa-workspace.mjs";
 import {
@@ -59,6 +59,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
   const [raw, setRaw] = useState("");
   const [content, setContent] = useState("");
   const [cases, setCases] = useState<GeneratedCase[]>([]);
+  const [generatedCount, setGeneratedCount] = useState(0);
   const [truncated, setTruncated] = useState(false);
   const [dirtyOutput, setDirtyOutput] = useState(false);
   const [busySave, setBusySave] = useState(false);
@@ -85,7 +86,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     return () => controller.current?.abort();
   }, []);
   useEffect(() => {
-    setRaw(""); setContent(""); setCases([]); setConsent(false);
+    setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");
     setMessage(""); setError(""); setDirtyOutput(false);
   }, [task.id, mode]);
@@ -115,15 +116,25 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent);
 
-  const reviewed = useMemo(() =>
-    markScenarioDuplicates(cases, scenarios), [cases, scenarios]);
-  const chosen = reviewed.filter((item) => item.selected && !item.duplicate);
+  const available = useMemo(() =>
+    markScenarioDuplicates(cases, scenarios)
+      .flatMap((item, caseIndex) => item.duplicate ? [] : [{...item, caseIndex}]),
+    [cases, scenarios]);
+  const chosen = available.filter(item => item.selected);
+  const invalidSelection = chosen.length > 100 || chosen.some(item =>
+    item.titulo.trim().length < 3 || !item.passos.trim() || !item.esperado.trim());
+  const allSelected = available.length > 0 && chosen.length === available.length;
   const postIssues = mode === "post" && content
     ? validatePostStructure(content) : [];
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
-    setDirtyOutput(true);
-    setCases((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
+    if (Object.keys(patch).some(key => key !== "selected")) setDirtyOutput(true);
+    setCases(current => current.map((item, i) => i === index ? {...item,...patch} : item));
+  }
+  function selectAllVisible(value: boolean) {
+    const visibleIndices = new Set(available.map(item => item.caseIndex));
+    setCases(current => current.map((item,index)=>
+      visibleIndices.has(index) ? {...item,selected:value} : item));
   }
 
   async function generate() {
@@ -148,6 +159,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       setGenerationId(nextId);
       setTruncated(response.truncated);
       setDirtyOutput(false);
+      let newCases = 0;
       if (mode === "post") {
         const formatted = formatGeneratedPost(response.text, {
           taskText: context.taskContext.text
@@ -155,13 +167,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         setContent(formatted);
       } else {
         const candidates = parseGeneratedCases(response.text);
-        setCases(editableCopy(candidates));
+        const fresh = onlyNewScenarioCandidates(candidates, scenarios);
+        newCases = fresh.length;
+        setGeneratedCount(candidates.length);
+        setCases(editableCopy(fresh));
         setContent(response.text);
       }
       setMessage(response.truncated
         ? "Resposta interrompida pelo limite do modelo. Revise antes de usar."
         : mode === "teste"
-          ? "Roteiro gerado. Revise os cenários antes de anexá-los."
+          ? newCases ? "Casos novos preparados. Revise a seleção antes de adicionar."
+            : "Nenhum caso novo encontrado nesta geração."
           : "Post gerado e formatado. Revise os campos antes de salvar.");
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
@@ -209,7 +225,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
   }
 
   async function attachCases() {
-    if (mode !== "teste" || !chosen.length || !context || !formOwn) return;
+    if (mode !== "teste" || !chosen.length || invalidSelection || !context || !formOwn) return;
     setBusySave(true); setError(""); setMessage("");
     try {
       // The RPC is atomic, checks RLS, prevents duplicates and never marks tests approved.
@@ -234,8 +250,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
-      setMessage(saved.inserted + " cenário(s) anexado(s) · " + saved.skipped +
-        " duplicado(s) ignorado(s). Todos começam não executados." +
+      setMessage(saved.inserted + " cenário(s) anexado(s) à TF. Todos começam não executados." +
         (warnings.length ? " Atenção: " + warnings.join(" | ") : ""));
     } catch (reason) { setError(messageOf(reason)); }
     finally { setBusySave(false); }
@@ -318,7 +333,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         <Button isDisabled={!canSend} onPress={() => void generate()}>
           {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
           {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
-            : mode === "post" ? "Gerar post" : "Gerar roteiro"}
+            : mode === "post" ? "Gerar post" : "Gerar casos"}
         </Button>
         {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
           Cancelar geração
@@ -348,42 +363,78 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
             <FileCheck2 size={16} /> Salvar post na TF
           </Button>
         </div>
-      </div> : <div className="stack mt-4">
-        <details className="generator-context"><summary>Ver roteiro completo em Markdown</summary>
-          <textarea className="w-full mt-3" rows={12} readOnly value={raw} /></details>
-        <p className="text-muted text-sm">Revise cada cenário. Duplicados serão ignorados pela seleção e pelo banco.</p>
-        {reviewed.length === 0 && !generating && <p className="notice error">
-          O modelo não produziu cenários no formato esperado. Consulte o roteiro acima e tente novamente; não serão cadastrados casos automaticamente.
-        </p>}
-        <p className="qa-ai-case-count">{chosen.length} de {reviewed.length} casos selecionados</p>
-        {reviewed.map((item, index) => <article key={String(item.source_index) + index} className="generator-case qa-ai-case-review">
-          <label className="flex gap-2 items-center text-sm font-semibold">
-            <input type="checkbox" disabled={item.duplicate} checked={item.selected && !item.duplicate}
-              onChange={(event) => replaceCase(index, { selected: event.target.checked })} />
-            Caso {index + 1} {item.duplicate ? "· Duplicado, não anexar" : ""}
-          </label>
-          <div className="qa-ai-case-preview">
-            <strong>{item.titulo}</strong>
-            <p><b>Passos:</b> {item.passos.slice(0,240)}{item.passos.length>240?"…":""}</p>
-            <p><b>Esperado:</b> {item.esperado.slice(0,240)}{item.esperado.length>240?"…":""}</p>
-          </div>
-          <details className="qa-ai-case-edit">
-            <summary>Editar cenário</summary>
-            <div className="stack mt-3">
-              <label className="field">Título<input value={item.titulo} maxLength={240}
-                onChange={(e) => replaceCase(index, { titulo: e.target.value })} /></label>
-              <label className="field">Passos<textarea rows={3} value={item.passos} maxLength={20000}
-                onChange={(e) => replaceCase(index, { passos: e.target.value })} /></label>
-              <label className="field">Resultado esperado<textarea rows={3} value={item.esperado} maxLength={20000}
-                onChange={(e) => replaceCase(index, { esperado: e.target.value })} /></label>
-              <label className="field">Observações<textarea rows={2} value={item.observacoes} maxLength={20000}
-                onChange={(e) => replaceCase(index, { observacoes: e.target.value })} /></label>
+      </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
+        {available.length > 0 ? <>
+          <div className="qa-ai-review-heading">
+            <div>
+              <p className="eyebrow">REVISÃO DOS CASOS</p>
+              <h3>Casos novos para esta TF</h3>
+              <p>Selecione os que deseja adicionar. Você pode ajustar cada caso antes de salvar.</p>
             </div>
-          </details>
-        </article>)}
-        <Button isDisabled={!chosen.length || busySave || generating} onPress={() => void attachCases()}>
-          <Send size={16} /> Anexar {chosen.length} caso(s) à TF
-        </Button>
+            <div className="qa-ai-review-bulk" role="group" aria-label="Seleção de casos">
+              <button type="button" disabled={generating || busySave || allSelected}
+                onClick={() => selectAllVisible(true)}>Selecionar todos</button>
+              <button type="button" disabled={generating || busySave || chosen.length===0}
+                onClick={() => selectAllVisible(false)}>Limpar seleção</button>
+            </div>
+          </div>
+          <div className="qa-ai-review-list" aria-label="Casos disponíveis">
+            {available.map((item,index) => <article
+              key={String(item.source_index)+"-"+item.caseIndex}
+              className={"generator-case qa-ai-case-review"+(item.selected?" is-selected":"")}>
+              <div className="qa-ai-case-header">
+                <label className="qa-ai-case-selector">
+                  <input type="checkbox" checked={item.selected}
+                    aria-label={"Selecionar "+item.titulo}
+                    disabled={generating || busySave}
+                    onChange={event=>replaceCase(item.caseIndex,{selected:event.target.checked})}/>
+                  <span>
+                    <small>Caso {index+1}</small>
+                    <strong>{item.titulo || "Caso sem título"}</strong>
+                  </span>
+                </label>
+              </div>
+              <div className="qa-ai-case-preview">
+                <p><b>Passos</b> {item.passos.slice(0,230)}{item.passos.length>230?"…":""}</p>
+                <p><b>Esperado</b> {item.esperado.slice(0,230)}{item.esperado.length>230?"…":""}</p>
+              </div>
+              <details className="qa-ai-case-edit">
+                <summary>Editar cenário</summary>
+                <div className="stack mt-3">
+                  <label className="field">Título<input value={item.titulo} maxLength={240}
+                    onChange={e=>replaceCase(item.caseIndex,{titulo:e.target.value})}/></label>
+                  <label className="field">Passos<textarea rows={3} value={item.passos} maxLength={20000}
+                    onChange={e=>replaceCase(item.caseIndex,{passos:e.target.value})}/></label>
+                  <label className="field">Resultado esperado<textarea rows={3} value={item.esperado} maxLength={20000}
+                    onChange={e=>replaceCase(item.caseIndex,{esperado:e.target.value})}/></label>
+                  <label className="field">Observações<textarea rows={2} value={item.observacoes} maxLength={20000}
+                    onChange={e=>replaceCase(item.caseIndex,{observacoes:e.target.value})}/></label>
+                </div>
+              </details>
+            </article>)}
+          </div>
+          <div className="qa-ai-review-footer">
+            <div>
+              <strong>{chosen.length} de {available.length} selecionados</strong>
+              <small>Os casos serão cadastrados como não executados.</small>
+              {invalidSelection&&<p role="status">
+                Revise título, passos e resultado esperado dos casos selecionados.</p>}
+            </div>
+            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating}
+              onPress={() => void attachCases()}>
+              <Send size={16} /> Anexar {chosen.length} caso(s) à TF
+            </Button>
+          </div>
+        </> : !generating && (generatedCount > 0
+          ? <div className="qa-ai-review-empty" role="status">
+              <FileCheck2 size={22} aria-hidden="true"/>
+              <strong>Nenhum caso novo para adicionar</strong>
+              <p>Os cenários encontrados já estão contemplados nesta TF. Experimente outro modelo de geração para explorar novas situações.</p>
+            </div>
+          : <div className="qa-ai-review-empty" role="status">
+              <strong>Nenhum caso de teste identificável</strong>
+              <p>A resposta não trouxe casos no formato esperado. Tente gerar novamente.</p>
+            </div>)}
       </div>}
     </section>}
     <ToastNotice message={message} tone="success"/>
