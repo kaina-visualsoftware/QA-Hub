@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
-import { Check, WandSparkles, Wrench } from "lucide-react";
+import { WandSparkles, Wrench } from "lucide-react";
 import { diagramPresets, diagramPresetInstruction } from "../generators/ai-presets";
 import type { Scenario, Task } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
