@@ -11,7 +11,7 @@ export type GithubIssueStatus={title:string;state:"open"|"closed";url:string};
 
 export function normalizeGithubRepo(raw:string):string {
   const repo=raw.trim().toLowerCase();
-  if(repo.length>180||!/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(repo)||
+  if(repo.length>180||!/^[a-z0-9][a-z0-9_.-]*\/[a-z0-9][a-z0-9_.-]*$/.test(repo)||
     repo.split("/").some(part=>part==="."||part===".."||part.startsWith(".")))
     throw Error("Informe um repositório no formato organização/repositório.");
   return repo;
@@ -69,7 +69,7 @@ export async function checkPublicGithubIssue(repo:string,number:number):Promise<
     pull_request:z.unknown().optional()
   }).parse(await response.json());
   if(data.pull_request)throw Error("O número informado é um pull request, não uma issue.");
-  if(data.html_url!==githubIssueUrl(normalized,valid))
+  if(data.html_url.toLowerCase()!==githubIssueUrl(normalized,valid).toLowerCase())
     throw Error("O GitHub retornou uma referência diferente da solicitada.");
   return {title:data.title.slice(0,240),state:data.state,url:data.html_url};
 }
