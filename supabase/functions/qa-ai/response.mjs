@@ -21,6 +21,7 @@ const caseFields={
   titulo:'titulo nome cenario',
   passos:'passos etapas steps acoes procedimento',
   esperado:'esperado resultado_esperado expected',
+  objetivo:'objetivo objetivo_do_cenario test_goal',
   obtido:'obtido resultado_obtido resultado_observado actual',
   observacoes:'observacoes obs notes'
 };
