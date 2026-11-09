@@ -57,7 +57,14 @@ async function mock(route){
   }
   if(path.endsWith("/rest/v1/qa_cenarios")){
     if(method==="GET"){
-      assert.equal(url.searchParams.get("tarefa_id"),"eq."+taskId);
+      const filter=url.searchParams.get("tarefa_id");
+      if(filter==="in.("+taskId+")"){
+        // Home progress can fetch in parallel while opening the detail.
+        // Accept only the scoped projection, never another TF's results.
+        assert.equal(url.searchParams.get("select"),"tarefa_id,status");
+        return send(scenarios.map(item=>({tarefa_id:item.tarefa_id,status:item.status})));
+      }
+      assert.equal(filter,"eq."+taskId);
       return send(scenarios);
     }
     if(method==="PATCH"){
