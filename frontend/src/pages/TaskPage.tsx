@@ -191,7 +191,7 @@ export default function TaskPage() {
     setFocusDiagramAi(!id);
     openTool("diagrams");
   }
-  function openDeliverable(kind: DeliverableKind, primary = false) {
+  function openDeliverable(kind: DeliverableKind) {
     if (kind === "diagrams") {
       openDiagramEditor();
     } else if (kind === "documents") {
