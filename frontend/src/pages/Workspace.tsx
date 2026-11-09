@@ -512,7 +512,7 @@ export function Workspace() {
           <Button type="submit" data-next="scenario"
             isDisabled={create.isPending}>Salvar e adicionar cenário</Button>
         </div>
-        {create.isError && <p className="notice error" role="alert">{create.error.message}</p>}
+        <ToastNotice message={create.isError?create.error.message:null} tone="error"/>
       </form>
     </QAModal>
 
