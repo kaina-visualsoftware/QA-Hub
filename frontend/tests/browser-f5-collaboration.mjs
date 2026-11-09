@@ -31,7 +31,7 @@ const scenario={
  obtido:"",observacoes:"",status:"nao_executado",ordem:1
 };
 let team=null,invite=null,linked=null,assigned=null;
-const members=[],comments=[],writes=[],errors=[];
+const members=[],comments=[],githubLinks=[],writes=[],errors=[];
 const cors={
  "Access-Control-Allow-Origin":"*",
  "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -148,6 +148,25 @@ function mockFor(user){
     assigned={tarefa_id:TASK,responsavel_id:TESTER};
     writes.push({type:"assign"});
     return send({tarefa_id:TASK},201);
+   }
+  }
+  if(path.endsWith("/rest/v1/qa_tarefa_github_issues")){
+   if(method==="GET")return send(canSee(user.id)?githubLinks:[]);
+   if(method==="POST"){
+    assert.equal(user.id,OWNER);
+    assert.equal(payload.repositorio,"acme/financeiro");
+    assert.equal(payload.numero,123);
+    const row={id:"88888888-8888-4888-8888-888888888888",
+     ...payload,created_at:"2026-11-08T14:15:00Z"};
+    githubLinks.push(row);writes.push({type:"github-link"});return send({id:row.id},201);
+   }
+   if(method==="DELETE"){
+    assert.equal(user.id,OWNER);
+    const id=url.searchParams.get("id")?.replace("eq.","");
+    const index=githubLinks.findIndex(item=>item.id===id);
+    if(index<0)return send({message:"Not found"},404);
+    const [removed]=githubLinks.splice(index,1);
+    return send({id:removed.id});
    }
   }
   if(path.endsWith("/rest/v1/qa_tarefa_comentarios")){
@@ -270,6 +289,15 @@ try{
  await ownerPage.getByRole("dialog",{name:"Equipe e integrações"})
   .getByRole("button",{name:"Conversa"}).click();
  await ownerPage.getByText("Revisar o rateio de desconto.").waitFor();
+ const ownerIntegration=ownerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await ownerIntegration.getByRole("button",{name:"Integrações",exact:true}).click();
+ await ownerIntegration.getByRole("textbox",{name:"Repositório",exact:true})
+  .fill("acme/financeiro");
+ await ownerIntegration.getByRole("textbox",{name:"Número da issue"}).fill("123");
+ await ownerIntegration.getByRole("button",{name:"Vincular issue"}).click();
+ await ownerIntegration.getByText("Issue vinculada à TF.").waitFor();
+ assert.equal(githubLinks.length,1);
+ assert.equal(githubLinks[0].user_id,OWNER);
 
  await testerPage.reload();
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();
@@ -284,6 +312,19 @@ try{
  await testerPage.getByRole("button",{name:"Equipe e comentários"}).click();
  const integrated=testerPage.getByRole("dialog",{name:"Equipe e integrações"});
  await integrated.getByRole("button",{name:"Integrações",exact:true}).click();
+ const linkedIssue=integrated.getByRole("link",{name:"Abrir no GitHub"});
+ await linkedIssue.waitFor();
+ assert.equal(await linkedIssue.getAttribute("href"),
+   "https://github.com/acme/financeiro/issues/123");
+ assert.equal(await integrated.getByRole("button",{name:"Vincular issue"}).count(),0,
+   "Only the owner can link issues");
+ await testerPage.route("https://api.github.com/repos/acme/financeiro/issues/123",
+   route=>route.fulfill({status:200,contentType:"application/json",
+    body:JSON.stringify({title:"Corrigir descontos",state:"open",
+     html_url:"https://github.com/acme/financeiro/issues/123"})}));
+ await integrated.getByRole("button",{name:"Consultar estado"}).click();
+ await integrated.getByText("Aberta").waitFor();
+ await integrated.getByText("Corrigir descontos").waitFor();
  await integrated.getByRole("textbox",{name:"Repositório GitHub"})
   .fill("acme/financeiro");
  const github=integrated.getByRole("link",{name:"Revisar issue no GitHub"});
@@ -358,6 +399,6 @@ try{
  await ownerPage.getByText(/Convite registrado/).waitFor();
  assert.equal(invite?.estado,"pendente");
  assert.deepEqual(errors,[]);
- console.log("F5: team, invite, accept, share, QA assignment, comments, GitHub draft, JUnit preview, explicit import, viewer downgrade and responsive WCAG.");
+ console.log("F5: team, invite, accept, share, QA assignment, comments, persisted GitHub issue link/status, GitHub draft, JUnit preview, explicit import, viewer downgrade and responsive WCAG.");
  await tester.context.close();await owner.context.close();
 }finally{await browser.close();}
