@@ -70,6 +70,19 @@ export function freshTaskAiScenarios(
   return fresh;
 }
 
+/** Recheck after refresh, because existing tests can change during an AI review. */
+export function onlyNewTaskAiSelections(
+  selected:SuggestedScenario[],existing:Pick<Scenario,"titulo"|"passos"|"esperado">[]
+):SuggestedScenario[]{
+  const seen=new Set(existing.map(identity));
+  return selected.filter(item=>{
+    const key=identity(item);
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
   const source=text.trim();
   if(!source||source.length>20000)
