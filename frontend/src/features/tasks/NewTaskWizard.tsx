@@ -263,8 +263,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     try{
       assertReadable(taskFiles);assertReadable(requirementFiles);
       const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
+      const additionalFacts=[
+        draft.conclusao?"Conclusão registrada: "+draft.conclusao:"",
+        draft.observacoes?"Observações registradas: "+draft.observacoes:""
+      ].filter(Boolean).join("\n\n");
       const context=sanitizeAiContext([
-        taskToGeneratorText(draft),fullSource,
+        taskToGeneratorText(draft),additionalFacts,fullSource,
         cases.length?"CASOS JÁ IDENTIFICADOS (não repetir):\n"+
           cases.map(item=>"- "+item.titulo).join("\n"):""
       ].filter(Boolean).join("\n\n"));
@@ -341,6 +345,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
 
   const totalSelected=cases.filter(item=>item.selected).length;
   const taskContextLength=combine("TEXTO DA TAREFA",sourceText,taskFiles).length;
+  const fullTaskReview=Object.entries(draft)
+    .filter(([,value])=>Boolean(value?.trim()))
+    .map(([name,value])=>name.replaceAll("_"," ")+": "+value).join("\n\n");
   const filePicker=(requirement:boolean)=>(
     <div className="qa-wizard-attachments">
       <label className="qa-wizard-attach-button">
@@ -496,7 +503,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           {draft.versao?" · v"+draft.versao:""}{draft.sistema?" · "+draft.sistema:""}</span>
         <p>{draft.descricao||"Sem resumo informado."}</p>
         <details><summary>Conferir todos os dados da tarefa</summary>
-          <pre>{taskToGeneratorText(draft)}</pre>
+          <pre>{fullTaskReview}</pre>
         </details>
       </div>
       {cases.length>0&&<p className="qa-wizard-existing">
