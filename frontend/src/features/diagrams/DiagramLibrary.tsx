@@ -5,6 +5,7 @@ import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
 import {listDiagrams,removeDiagram} from "../../lib/data";
 import {ensureMermaidSyntax,mermaidErrorMessage} from "./mermaid-validation";
 import {DiagramViewer} from "./DiagramViewer";
+import {QAModal} from "../../components/ui/QAModal";
 
 export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
   taskId:string;userId:string;owner:boolean;
@@ -20,7 +21,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
     queryKey:["diagrams",userId,taskId],
     queryFn:()=>listDiagrams(taskId)
   });
-  const selected=useMemo(()=>diagrams.data?.find(item=>item.id===selectedId)??diagrams.data?.[0],
+  const selected=useMemo(()=>diagrams.data?.find(item=>item.id===selectedId),
     [diagrams.data,selectedId]);
   useEffect(()=>{
     let cancelled=false;
@@ -73,15 +74,16 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
       <p className="qa-artifact-empty">Nenhum diagrama salvo nesta TF.
         {owner?" Crie o primeiro usando o botão acima.":""}
       </p>}
-    {!!diagrams.data?.length&&<div className="qa-diagram-library-layout">
+    {!!diagrams.data?.length&&<div className="qa-diagram-library-layout qa-diagram-catalog">
       <div className="qa-diagram-library-list" aria-label="Diagramas existentes">
         {diagrams.data.map(item=><article key={item.id}
-          className={"qa-diagram-library-row"+(selected?.id===item.id?" selected":"")}>
+          className="qa-diagram-library-row">
           <div className="qa-diagram-library-title">
             <strong>{item.titulo}</strong>
           </div>
           <div className="qa-diagram-library-actions">
-            <button type="button" aria-pressed={selected?.id===item.id}
+            <button type="button"
+              aria-label={"Visualizar diagrama "+item.titulo}
               onClick={()=>setSelectedId(item.id)}>
               <Eye size={15} aria-hidden="true"/>
               Visualizar
@@ -99,14 +101,16 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
           </div>
         </article>)}
       </div>
-      {selected&&<div className="qa-diagram-library-preview"
-        aria-label={"Visualização: "+selected.titulo}>
-        <strong>{selected.titulo}</strong>
-        {rendering&&<p role="status" className="text-muted text-sm">Preparando visualização…</p>}
-        {previewError&&<p role="alert" className="notice error">{previewError}</p>}
-        {svg&&<DiagramViewer key={selected.id} svg={svg} title={selected.titulo}/>}
-      </div>}
     </div>}
+    {selected&&<QAModal open title={"Visualizar diagrama — "+selected.titulo}
+      eyebrow="DIAGRAMA SALVO" size="full"
+      description="Visualização centralizada em 100%. Utilize os controles para aproximar ou afastar."
+      initialFocus=".qa-diagram-viewer .qa-diagram-stage"
+      onClose={()=>setSelectedId(null)}>
+      {rendering&&<p role="status" className="qa-diagram-loading">Preparando diagrama…</p>}
+      {previewError&&<p role="alert" className="notice error">{previewError}</p>}
+      {svg&&<DiagramViewer key={selected.id} svg={svg} title={selected.titulo}/>}
+    </QAModal>}
     {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
     {notice&&<p role="status" className="notice">{notice}</p>}
   </section>;
