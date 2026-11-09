@@ -49,49 +49,50 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
 
   await page.getByRole("button",{name:"Nova TF"}).click();
-  await page.getByLabel("Título da tarefa").fill("Rascunho que deve sobreviver ao refresh");
-  await page.getByLabel("Descrição / problema").fill("Linha 1\nLinha 2: dados de fixture");
-  await page.getByText("Mais opções").click();
-  const optIn=page.getByRole("checkbox",{name:/Guardar rascunho nesta aba/});
+  let wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  await wizard.getByLabel("Informações da tarefa").fill("Linha 1\nLinha 2: dados de fixture");
+  const optIn=wizard.getByRole("checkbox",{name:/Guardar rascunho nesta aba/});
   assert.equal(await optIn.isChecked(),false,"Draft retention must be opt-in");
-  const noData=await page.evaluate(()=>Object.keys(sessionStorage)
-    .filter(key=>key.startsWith("qa-react-new-task-draft")));
-  assert.deepEqual(noData,[],"No sensitive draft storage before consent");
-
+  assert.deepEqual(await page.evaluate(()=>Object.keys(sessionStorage)
+    .filter(key=>key.startsWith("qa-react-new-task-draft"))),[],
+    "No sensitive draft should be saved before opt-in");
   await optIn.check();
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  await wizard.getByLabel("Título da tarefa").fill("Rascunho que deve sobreviver ao refresh");
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  const recovery=page.getByRole("region",{name:"Rascunho recuperável nesta aba"});
-  await recovery.waitFor({timeout:10000});
-  assert.equal(await page.getByLabel("Título da tarefa").count(),0,
-    "Saved draft must NOT silently overwrite a new form");
-  await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
-  await page.getByText("Mais opções").click();
-  assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
-    "Rascunho que deve sobreviver ao refresh");
-  assert.equal(await page.getByLabel("Descrição / problema").inputValue(),
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),"",
+    "A saved draft must not be restored without consent");
+  await wizard.getByRole("button",{name:"Recuperar rascunho"}).click();
+  assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),
     "Linha 1\nLinha 2: dados de fixture");
-  assert.equal(await page.getByRole("checkbox",{
+  assert.equal(await wizard.getByRole("checkbox",{
     name:/Guardar rascunho nesta aba/
   }).isChecked(),true);
-
-  await page.getByLabel("Título da tarefa").fill("Rascunho atualizado");
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
+    "Rascunho que deve sobreviver ao refresh");
+  await wizard.getByLabel("Título da tarefa").fill("Rascunho atualizado");
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await recovery.waitFor({timeout:10000});
-  await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
-  await page.getByText("Mais opções").click();
-  assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
-    "Rascunho atualizado","Pagehide must flush pending form changes");
-
-  // Explicit opt-out immediately removes the copy and subsequent reloads
-  // must not propose or reuse the user's previous text.
-  await page.getByRole("checkbox",{name:/Guardar rascunho nesta aba/}).uncheck();
-  await page.reload();
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  assert.equal(await recovery.count(),0,"Opt-out must remove locally stored copy");
   await page.getByRole("button",{name:"Nova TF"}).click();
-  assert.equal(await page.getByLabel("Título da tarefa").inputValue(),"");
+  wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  await wizard.getByRole("button",{name:"Recuperar rascunho"}).click();
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
+    "Rascunho atualizado","Pagehide must flush pending wizard changes");
+
+  await wizard.getByRole("button",{name:"Voltar"}).click();
+  await wizard.getByRole("checkbox",{name:/Guardar rascunho nesta aba/}).uncheck();
+  await page.reload();
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  assert.equal(await wizard.getByRole("button",{name:"Recuperar rascunho"}).count(),0,
+    "Opt-out must remove the locally stored copy");
+  assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),"");
   assert.deepEqual(mutations,[],"Draft operations must never write to Supabase");
   assert.deepEqual(errors,[]);
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
