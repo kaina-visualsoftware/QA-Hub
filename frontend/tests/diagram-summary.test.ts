@@ -78,7 +78,7 @@ describe("Síntese integral de TF para diagramas",()=>{
 
   it("resumos só aceitos quando completos e envio estrito não cai em diagrama genérico",async()=>{
     const db={functions:{invoke:vi.fn().mockResolvedValueOnce({
-      data:{summary:"FUNCIONALIDADES: verificar descontos. FALHAS: conciliação sem retorno."},
+      data:{provider:"NVIDIA Build",summary:"FUNCIONALIDADES: verificar descontos. FALHAS: conciliação sem retorno."},
       error:null
     }).mockResolvedValueOnce({
       data:{mermaid:null},error:null
