@@ -747,9 +747,8 @@ export default function TaskPage() {
           </details>
         </article>)}
       </div>
-      {(saveResult.isError || deleteScenarioMutation.isError) && <p className="notice error mt-4" role="alert">
-        {saveResult.error?.message || deleteScenarioMutation.error?.message}
-      </p>}
+      <ToastNotice tone="error"
+        message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
     </section>
 
     </section>
@@ -786,10 +785,8 @@ export default function TaskPage() {
           }}>Excluir TF</Button>
         </div>
       </div>
-      {(updateStatus.isError || deleteTaskMutation.isError) &&
-        <p role="alert" className="notice error mt-3">
-          {updateStatus.error?.message || deleteTaskMutation.error?.message}
-        </p>}
+      <ToastNotice tone="error"
+        message={updateStatus.error?.message || deleteTaskMutation.error?.message}/>
     </section>
     <section className="panel mt-4" aria-label="Compartilhamento público">
       <div className="section-heading">
