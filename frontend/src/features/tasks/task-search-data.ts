@@ -59,7 +59,7 @@ export async function taskStatistics():Promise<TaskStats>{
 }
 export async function getTaskById(id:string,userId:string,isAdmin:boolean):Promise<Task|null>{
   const uuid=z.uuid().parse(id);
-  const scoped=supabase.from("qa_tarefas").select("*").eq("id",uuid);
+  const scoped=supabase.from("qa_tarefas").select("*").eq("id",uuid).is("archived_at",null);
   const {data,error}=await (isAdmin?scoped:scoped.eq("user_id",z.uuid().parse(userId)))
     .limit(1);
   if(error)throw error;
@@ -68,7 +68,7 @@ export async function getTaskById(id:string,userId:string,isAdmin:boolean):Promi
   if(isAdmin)return null;
   // A team member can read a TF shared through RLS even when they are not
   // its owner. Query that single ID only; never enumerate another account.
-  const shared=await supabase.from("qa_tarefas").select("*").eq("id",uuid).limit(1);
+  const shared=await supabase.from("qa_tarefas").select("*").eq("id",uuid).is("archived_at",null).limit(1);
   if(shared.error)throw shared.error;
   const sharedRow=(shared.data??[]).find(item=>item.id===uuid);
   return sharedRow?taskSchema.parse(sharedRow):null;
