@@ -229,6 +229,29 @@ try{
     assert.deepEqual(violations.violations.map(v=>({id:v.id,targets:v.nodes.slice(0,5).map(node=>node.target.join(" "))})),[],"New TF WCAG "+width);
     await page.screenshot({path:"artifacts/new-tf-source/modal-"+width+".png"});
   }
+  // The other submit action must persist the same AI-populated fields.
+  fallback=false;
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  await source.fill(pasted);
+  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
+  await generate.click();
+  await modal.getByRole("textbox",{name:"Título da tarefa"})
+    .waitFor({state:"visible"});
+  await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
+  await modal.getByRole("textbox",{name:"Título da tarefa"})
+    .fill("Título revisado pelo QA depois da IA");
+  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
+  await page.getByRole("heading",{name:"Título revisado pelo QA depois da IA"}).waitFor();
+  assert.equal(taskWrites,4,"Save and open TF must create once");
+  assert.equal(tasks[3].causa,"O rateio antigo ignora descontos negativos.");
+  assert.equal(tasks[3].titulo,"Título revisado pelo QA depois da IA",
+    "Manual edits after AI must take precedence when saving");
+  assert.equal(scenarioWrites,3,
+    "Save and open TF must persist the automatically selected AI scenario");
+
   assert.deepEqual(errors,[]);
-  console.log("Nova TF: colar sem arquivo, NVIDIA consentida, arquivo opcional, sem IA, manual e fallback protegido.");
+  console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
 }finally{await browser.close();}
