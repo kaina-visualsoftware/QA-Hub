@@ -10,7 +10,7 @@ const user={
   role:"authenticated",app_metadata:{provider:"email",providers:["email"]},
   user_metadata:{},created_at:"2026-11-08T10:00:00Z"
 };
-const tasks=[],scenarios=[],errors=[],aiPayloads=[];
+const tasks=[],scenarios=[],errors=[],aiPayloads=[],sources=[];
 let taskWrites=0,scenarioWrites=0,fallback=false;
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -56,6 +56,18 @@ async function backend(route){
     });
   }
   if(await mockF4Rpc(route,tasks,scenarios))return;
+  if(path.endsWith("/rest/v1/qa_requisito_fontes")){
+    if(method==="GET"){
+      const taskId=url.searchParams.get("tarefa_id")?.replace("eq.","");
+      const filtered=sources.filter(row=>row.tarefa_id===taskId);
+      if(url.searchParams.get("limit")==="1"){
+        const last=filtered[filtered.length-1];
+        return send(last?{texto_extraido:last.texto_extraido}:null);
+      }
+      return send(filtered);
+    }
+    if(method==="POST"){sources.push(req.postDataJSON());return send(null,201);}
+  }
   if(path.endsWith("/rest/v1/qa_tarefas")){
     if(method==="POST"){
       taskWrites++;
@@ -127,7 +139,7 @@ try{
 
   const source=modal.getByLabel("Descrição / problema");
   const relevant="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.\nGERADO UMA VENDA TAL";
-  const normalized="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.\nGerado uma venda tal";
+  const normalized="Verificar o desconto aplicado à compra.";
   const pasted="preview\nGoogle Drive\nArquivo do Google Drive\nDownload\nAbrir\n"+relevant;
   await source.fill(pasted);
   assert.equal(await generate.isDisabled(),true,"Sending requires current-text consent");
@@ -162,7 +174,9 @@ try{
   assert.equal(scenarios[0].obtido,"");
   assert.equal(tasks[0].codigo,"78912");
   assert.equal(tasks[0].causa,"O rateio antigo ignora descontos negativos.");
-  assert.equal(tasks[0].descricao,normalized,"Saved TF must not retain the copied Drive controls");
+  assert.equal(tasks[0].descricao,normalized,"Saved TF must use the AI summary");
+  assert.equal(sources.length,1,"Original report must be archived");
+  assert.equal(sources[0].texto_extraido,pasted,"Original source remains available");
 
   await firstEditor.getByRole("button",{name:"Cancelar"}).click();
   await page.getByRole("button",{name:"Editar TF"}).click();
@@ -190,7 +204,7 @@ try{
     assert.ok(layout.overflow<=1,
       "AI editor must not overflow horizontally: "+JSON.stringify(layout));
   }
-  await edit.getByRole("checkbox",{name:/Autorizo enviar a descrição atual à NVIDIA/}).check();
+  await edit.getByRole("checkbox",{name:/Autorizo enviar o texto-base da TF à NVIDIA/}).check();
   await edit.getByRole("button",{name:"Regerar TF com IA NVIDIA"}).click();
   await edit.getByRole("region",{name:"Revisão da regeração por IA"}).waitFor({timeout:20000});
   await edit.getByRole("button",{name:"Conferir campos"}).click();
@@ -207,7 +221,7 @@ try{
   assert.equal(tasks[0].causa,"Rateio revisado e validado pela IA.");
   assert.equal(scenarioWrites,2,"Existing TF should receive only new selected scenarios");
   assert.equal(scenarios[1].ordem,2,"Regenerated scenario must follow existing order");
-  assert.equal(tasks[0].descricao,normalized,"AI regeneration must not reintroduce copied UI labels");
+  assert.equal(tasks[0].descricao,normalized,"Regeneration must preserve the concise summary");
 
   await page.goto(ROOT);
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
