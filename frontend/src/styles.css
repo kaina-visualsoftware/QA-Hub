@@ -1413,3 +1413,35 @@
   min-height:38px;display:flex;align-items:center;color:#326473}
 .qa-f5-invites-history>p{margin-bottom:10px}
 .qa-f5-invites-history>.qa-f5-item{margin:6px 0}
+
+
+/* Nova TF: pasted source and optional import, without a nested AI accordion. */
+.qa-tf-source{display:flex;flex-direction:column;gap:12px;min-width:0;
+ padding:14px;border:1px solid #dce7e8;border-radius:12px}
+.qa-tf-source-heading{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap}
+.qa-tf-source-heading strong{color:#2b515b;font-size:.91rem;font-weight:770}
+.qa-tf-source textarea{width:100%;max-width:100%;min-height:130px}
+.qa-tf-source-file{display:flex;flex-direction:column;gap:5px;min-width:0}
+.qa-tf-source-file input[type="file"]{display:block;width:100%;max-width:100%;
+ font-size:.78rem;overflow:hidden}
+.qa-tf-source-file small{font-size:.76rem;line-height:1.5}
+.qa-tf-source-choice{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.qa-tf-source-choice button{min-height:42px}
+.qa-tf-nvidia{display:flex;flex-direction:column;gap:12px;min-width:0;
+ border-top:1px solid #e3ecec;padding-top:12px}
+.qa-tf-nvidia label{line-height:1.5}
+.qa-tf-nvidia-actions{display:flex;align-items:center;gap:9px 14px;flex-wrap:wrap}
+.qa-tf-nvidia-actions button{min-height:42px;flex:0 0 auto}
+.qa-tf-nvidia-actions small{font-size:.74rem}
+.qa-tf-preview-source{border:1px solid #e2e9ea;border-radius:9px;
+ padding:8px 10px;min-width:0}
+.qa-tf-preview-source summary{font-weight:700;font-size:.79rem;cursor:pointer;
+ min-height:32px;color:#315e69}
+.qa-tf-preview-source textarea{margin-top:8px;min-height:100px;max-height:180px;
+ font-size:.76rem;resize:vertical}
+@media(max-width:520px){
+ .qa-tf-source{padding:11px;gap:10px}
+ .qa-tf-source-choice button,.qa-tf-nvidia-actions button{flex:1 1 100%}
+ .qa-tf-nvidia-actions{align-items:stretch;flex-direction:column}
+ .qa-tf-nvidia-actions small{align-self:flex-start}
+}
