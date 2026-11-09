@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, WandSparkles } from "lucide-react";
@@ -16,6 +16,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   const own=task.user_id===userId;
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | undefined>();
+  const initializedEditId=useRef<string|null>(null);
   const [showEditor,setShowEditor]=useState(false);
   const [showComposer,setShowComposer]=useState(!editDiagramId);
   const [title, setTitle] = useState("");
@@ -49,9 +50,10 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   // Editing opens independently from the read-only library. The task and the
   // selected record are scoped by the existing RLS-aware list query.
   useEffect(()=>{
-    if(!editDiagramId||!diagrams.data)return;
+    if(!editDiagramId||!diagrams.data||initializedEditId.current===editDiagramId)return;
     const record=diagrams.data.find(item=>item.id===editDiagramId);
     if(!record)return;
+    initializedEditId.current=editDiagramId;
     setEditingId(record.id);setTitle(record.titulo);setCode(record.conteudo);
     setSvg(null);setShowEditor(true);setShowComposer(false);
     setPreviewError("");setRepairRequest(null);
