@@ -1,4 +1,5 @@
 import { useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, ClipboardCopy, Database, EyeOff } from "lucide-react";
@@ -193,7 +194,7 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
         <EyeOff size={16}/> Os valores originais não integram o registro.
       </p>
     </div>}
-    {message && <p className="notice" role="status">{message}</p>}
-    {error && <p className="notice error" role="alert">{error}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
   </section>;
 }
