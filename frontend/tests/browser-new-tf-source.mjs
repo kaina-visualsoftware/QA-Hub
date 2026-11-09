@@ -1,26 +1,64 @@
 import assert from "node:assert/strict";
-import {mkdirSync} from "node:fs";
-import {chromium} from "playwright";
-import {mockF4Rpc} from "./f4-mock-rpc.mjs";
+import { chromium } from "playwright";
+import { mockF4Rpc } from "./f4-mock-rpc.mjs";
 
 const ROOT="http://127.0.0.1:4173/QA-Hub/";
 const USER="11111111-1111-4111-8111-111111111111";
 const user={
-  id:USER,email:"new-tf-text@fixture.invalid",aud:"authenticated",
-  role:"authenticated",app_metadata:{provider:"email",providers:["email"]},
-  user_metadata:{},created_at:"2026-11-08T10:00:00Z"
+  id:USER,email:"wizard@fixture.invalid",aud:"authenticated",role:"authenticated",
+  app_metadata:{provider:"email",providers:["email"]},user_metadata:{},
+  created_at:"2026-11-09T10:00:00Z"
 };
-const tasks=[],scenarios=[],errors=[],aiPayloads=[],sources=[];
-let taskWrites=0,scenarioWrites=0,fallback=false,rateLimited=false;
 const cors={
   "Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
   "Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"
 };
+const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[];
+let taskWrites=0,caseWrites=0,rateLimited=false;
+const markdown=[
+  "# ROTEIRO DE TESTES — DESCONTOS",
+  "## Cenário 01 — Remover desconto",
+  "### Cenário",
+  "Validar remoção de desconto.",
+  "### Passos",
+  "1. Abrir pedido",
+  "2. Remover desconto",
+  "### Resultado esperado",
+  "- Total atualizado",
+  "---",
+  "## Cenário 02 — Conferir baixa financeira",
+  "### Cenário",
+  "Validar baixa após estorno.",
+  "### Passos",
+  "1. Abrir contas a receber",
+  "2. Consultar baixa",
+  "### Resultado esperado",
+  "- Baixa financeira correta",
+  "---",
+  "## Cenário 03 — Conferir baixa financeira",
+  "### Cenário",
+  "Duplicado com outra redação.",
+  "### Passos",
+  "1. Consultar baixa",
+  "### Resultado esperado",
+  "- A baixa permanece correta",
+  "---",
+  "## Cenário 04 — Valor limite",
+  "### Cenário",
+  "Conferir um valor limite indicado no requisito.",
+  "### Passos",
+  "1. Acessar pedido",
+  "2. Validar valor",
+  "### Resultado esperado",
+  "- O total respeita a regra"
+].join("\n");
+
+const browser=await chromium.launch({headless:true});
 async function backend(route){
   const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method();
-  const send=(body,status=200)=>route.fulfill({
-    status,headers:cors,contentType:"application/json",body:JSON.stringify(body)
+  const send=(data,status=200)=>route.fulfill({
+    status,headers:cors,contentType:"application/json",body:JSON.stringify(data)
   });
   if(method==="OPTIONS")return route.fulfill({status:204,headers:cors});
   if(path.endsWith("/auth/v1/token"))return send({
@@ -31,372 +69,178 @@ async function backend(route){
   if(path.endsWith("/auth/v1/user"))return send(user);
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
   if(path.endsWith("/functions/v1/qa-ai")){
-    const body=req.postDataJSON();
-    aiPayloads.push(body);
-    assert.deepEqual(Object.keys(body),["text"]);
-    if(rateLimited)return send({
-      error:"rate_limited",
-      message:"Limite de 15 solicitações por minuto atingido. Tente novamente em 25 segundo(s)."
-    },429);
-    if(fallback)return send({draft:{},fallback:true,provider:"NVIDIA Build"});
-    const isRegeneration=aiPayloads.length===2;
-    return send({
-      provider:"NVIDIA Build",
-      draft:{
-        titulo:isRegeneration?"Validação dos descontos corrigida":"Validação dos descontos no pedido",
-        codigo:"78912",sistema:"Financeiro",versao:"12.08",tipo_teste:"BUILD",
-        descricao:"Verificar o desconto aplicado à compra.",
-        causa:isRegeneration?"Rateio revisado e validado pela IA.":
-          "O rateio antigo ignora descontos negativos.",
-        cenarios:[{
-          titulo:"Remover desconto da compra",passos:"Abrir o pedido e remover desconto.",
-          esperado:"O total deve ser atualizado.",obtido:"",
-          observacoes:"Usar dados sintéticos."
-        },...(isRegeneration?[{
-          titulo:"Verificar retorno bancário",passos:"Consultar o retorno e verificar a baixa.",
-          esperado:"A baixa está conciliada.",obtido:"",observacoes:""
-        }]:[])]
-      }
-    });
+    const payload=req.postDataJSON();
+    aiRequests.push(payload);
+    if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
+    return send({provider:"NVIDIA Build",draft:{
+      titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
+      versao:"12.09",tipo_teste:"BUILD",
+      descricao:"O desconto não era removido corretamente em certos pedidos.",
+      causa:"A rotina ignorava valores negativos.",
+      correcao:"A rotina passou a considerar os valores negativos.",
+      cenarios:[{
+        titulo:"Remover desconto",passos:"1. Abrir pedido\n2. Remover desconto",
+        esperado:"Total atualizado",objetivo:"Validar que o desconto é removido."
+      }]
+    }});
   }
-  if(await mockF4Rpc(route,tasks,scenarios))return;
-  if(path.endsWith("/rest/v1/qa_requisito_fontes")){
-    if(method==="GET"){
-      const taskId=url.searchParams.get("tarefa_id")?.replace("eq.","");
-      const filtered=sources.filter(row=>row.tarefa_id===taskId);
-      if(url.searchParams.get("limit")==="1"){
-        const last=filtered[filtered.length-1];
-        return send(last?{texto_extraido:last.texto_extraido}:null);
-      }
-      return send(filtered);
-    }
-    if(method==="POST"){sources.push(req.postDataJSON());return send(null,201);}
+  if(path.endsWith("/functions/v1/qa-generators")){
+    const data=req.postDataJSON();
+    assert.equal(data.mode,"teste");
+    caseRequests.push(data);
+    const sse="event: chunk\ndata: "+JSON.stringify({text:markdown})+"\n\n"+
+      "event: done\ndata: "+JSON.stringify({truncated:false})+"\n\n";
+    return route.fulfill({status:200,headers:cors,contentType:"text/event-stream",body:sse});
   }
+  if(await mockF4Rpc(route,tasks,cases))return;
   if(path.endsWith("/rest/v1/qa_tarefas")){
     if(method==="POST"){
+      const draft=req.postDataJSON();
+      assert.equal(draft.user_id,USER);
       taskWrites++;
-      const payload=req.postDataJSON();
-      assert.equal(payload.user_id,USER);
-      assert.equal(payload.status,"rascunho");
-      const row={...payload,
-        id:"33333333-3333-4333-8333-"+String(taskWrites).padStart(12,"0"),
-        executado_em:"2026-11-08",created_at:"2026-11-08T11:00:00Z"};
+      const row={...draft,id:"33333333-3333-4333-8333-"+String(taskWrites).padStart(12,"0"),
+        executado_em:"2026-11-09",created_at:"2026-11-09T12:00:00Z"};
       tasks.push(row);
       return send(row,201);
     }
     if(method==="GET")return send(tasks);
     if(method==="PATCH"){
       const id=url.searchParams.get("id")?.replace("eq.","");
-      const record=tasks.find(row=>row.id===id);
-      if(!record)return send(null,404);
-      Object.assign(record,req.postDataJSON());
-      return send(record);
+      const item=tasks.find(item=>item.id===id);
+      if(item)Object.assign(item,req.postDataJSON());
+      return send(item??null);
     }
   }
   if(path.endsWith("/rest/v1/qa_cenarios")){
+    if(method==="GET"){
+      const id=url.searchParams.get("tarefa_id")?.replace("eq.","");
+      return send(cases.filter(item=>item.tarefa_id===id));
+    }
     if(method==="POST"){
-      const rows=req.postDataJSON(),items=Array.isArray(rows)?rows:[rows];
-      for(const item of items){
-        scenarioWrites++;
+      for(const item of req.postDataJSON()){
         assert.equal(item.status,"nao_executado");
         assert.equal(item.obtido,"");
-        scenarios.push({...item,id:"44444444-4444-4444-8444-"+
-          String(scenarioWrites).padStart(12,"0")});
+        caseWrites++;
+        cases.push({...item,id:"44444444-4444-4444-8444-"+String(caseWrites).padStart(12,"0")});
       }
       return send(null,201);
     }
-    if(method==="GET")return send(scenarios);
+  }
+  if(path.endsWith("/rest/v1/qa_requisito_fontes")){
+    if(method==="GET")return send(sources);
+    if(method==="POST"){
+      const item=req.postDataJSON();
+      sources.push(item);
+      return send(null,201);
+    }
+  }
+  if(path.includes("/storage/v1/object/")&&method==="POST"){
+    files.push(path);
+    return send({Key:path},200);
+  }
+  if(path.endsWith("/rest/v1/rpc/qa_register_requirement_file")){
+    const body=req.postDataJSON();
+    files.push(body.p_nome);
+    sources.push({...body,tarefa_id:body.p_tarefa_id,storage_path:body.p_path,
+      id:"55555555-5555-4555-8555-"+String(files.length).padStart(12,"0")});
+    return send({tarefa_id:body.p_tarefa_id,id:sources.at(-1).id,versao:1});
   }
   errors.push(method+" "+path);
-  return send({message:"Unexpected synthetic endpoint"},500);
+  return send({message:"Unexpected fixture endpoint"},500);
 }
-mkdirSync("artifacts/new-tf-source",{recursive:true});
-const browser=await chromium.launch({headless:true});
 try{
   const page=await browser.newPage({viewport:{width:390,height:844}});
-  page.on("pageerror",err=>errors.push("PAGE: "+err.message));
+  page.on("pageerror",error=>errors.push("PAGE: "+error.message));
   await page.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",backend);
   await page.goto(ROOT);
   await page.getByRole("textbox",{name:"Email"}).fill(user.email);
   await page.getByLabel("Senha").fill("fixture-password");
   await page.getByRole("button",{name:"Entrar",exact:true}).click();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  const modal=page.getByRole("dialog",{name:"Nova TF"});
-  await modal.waitFor();
-  await page.waitForFunction(()=>document.activeElement?.getAttribute("name")==="titulo");
-  const isTitleFirst=await modal.evaluate(element=>{
-    const title=element.querySelector('input[name="titulo"]');
-    const source=element.querySelector('textarea[name="descricao"]');
-    return !!title && !!source &&
-      Boolean(title.compareDocumentPosition(source)&Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  assert.equal(isTitleFirst,true,"Title must appear before the pasted description");
-  assert.equal(await modal.getByText("Mais opções").isVisible(),true);
-  assert.equal(await modal.getByLabel("Código da TF").isVisible(),false,
-    "Extra fields must be initially collapsed");
-  assert.equal(await modal.getByRole("button",{name:"Extrair sem IA"}).count(),1);
-  assert.equal(await modal.getByText("IA generativa local").count(),0);
-  assert.equal(await modal.getByRole("button",{name:"Analisar com IA local"}).count(),0);
-  const generate=modal.getByRole("button",{name:"Gerar com IA NVIDIA"});
-  assert.equal(await generate.isDisabled(),true,"No source or consent yet");
 
-  const source=modal.getByLabel("Descrição / problema");
-  const relevant="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.\nGERADO UMA VENDA TAL";
-  const normalized="Verificar o desconto aplicado à compra.";
-  const pasted="preview\nGoogle Drive\nArquivo do Google Drive\nDownload\nAbrir\n"+relevant;
-  await source.fill(pasted);
-  assert.equal(await generate.isDisabled(),true,"Sending requires current-text consent");
-  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  assert.equal(await generate.isEnabled(),true,"Pasted text must allow AI without upload");
-  await generate.click();
-  await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
-  assert.equal(aiPayloads.length,1);
-  assert.equal(aiPayloads[0].text,relevant,"NVIDIA must not receive controls copied from the interface");
-  assert.equal(taskWrites,0,"AI preview must not create TF");
-  // Regression: clicking save directly after generation must not discard AI fields.
-  assert.equal(await modal.getByLabel("Título da tarefa").inputValue(),
-    "Validação dos descontos no pedido");
-  assert.equal(await source.inputValue(),normalized,"The form must show the clean, sentence-case description before saving");
-  const aiScenario=modal.getByRole("checkbox",{name:/Remover desconto da compra/});
-  assert.equal(await aiScenario.isChecked(),true,
-    "Suggested scenarios should be selected by default");
-  assert.equal(await modal.locator(".qa-ai-draft-fields").count(),1,
-    "Generated fields should have a compact review instead of a long list");
-  await modal.getByRole("button",{name:"Limpar seleção"}).click();
-  assert.equal(await aiScenario.isChecked(),false);
-  await modal.getByRole("button",{name:"Selecionar todos"}).click();
-  assert.equal(await aiScenario.isChecked(),true);
-  await modal.getByRole("button",{name:"Salvar e adicionar cenário"}).click();
-  await page.getByRole("heading",{name:"Validação dos descontos no pedido"}).waitFor();
-  const firstEditor=page.getByRole("dialog",{name:"Cadastrar cenário"});
-  await firstEditor.waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  const wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  await wizard.waitFor();
+  await page.getByText("Informações da tarefa").waitFor();
+  assert.equal(await wizard.getByLabel("Título da tarefa").count(),0,
+    "The first step must contain only source collection, not a full form");
+  const source=wizard.getByLabel("Informações da tarefa");
+  await source.fill("Pedido 88771. Descontos negativos não são removidos.");
+  await wizard.getByLabel("Adicionar arquivos da tarefa").setInputFiles({
+    name:"analise.txt",mimeType:"text/plain",
+    buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
+  });
+  await page.getByText("analise.txt").waitFor();
+  assert.equal(taskWrites,0,"No TF must be saved when preparing files");
+  assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
+  await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+  await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+  assert.match(aiRequests[0].text,/Análise: o rateio ignora descontos negativos/);
+  assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
+    "Validar descontos de pedidos");
+  assert.equal(await wizard.getByLabel("Versão").inputValue(),"12.09");
+  assert.equal(taskWrites,0,"Stage 2 must not persist the task");
+  await wizard.getByLabel("Título da tarefa").fill("TF revisada pelo QA");
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
+  assert.equal(taskWrites,0);
+  await wizard.getByLabel(/Requisitos e critérios de aceite/).fill(
+    "RN01: Valores negativos devem ser removidos e refletidos na baixa."
+  );
+  await wizard.getByLabel("Anexar arquivos de requisito").setInputFiles({
+    name:"requisito.txt",mimeType:"text/plain",
+    buffer:Buffer.from("CA01: A baixa financeira deve refletir o valor corrigido.")
+  });
+  await page.getByText("requisito.txt").waitFor();
+  await wizard.getByRole("checkbox",{name:/Autorizo enviar o contexto/}).check();
+  await wizard.getByRole("button",{name:"Ampliar cobertura com IA"}).click();
+  await page.getByText("2 caso(s) novo(s) identificados.",{exact:false}).waitFor();
+  assert.match(caseRequests[0].tarefa,/o rateio ignora descontos negativos/i);
+  assert.match(caseRequests[0].requisito,/CA01: A baixa financeira/);
+  assert.equal(await wizard.locator(".qa-wizard-case").count(),3,
+    "The original case and exactly two unique cases must be shown");
+  assert.equal(taskWrites,0,"Generation must not create a TF");
+  await wizard.getByRole("button",{name:/Finalizar com 3 caso/}).click();
+  await page.getByRole("heading",{name:"TF revisada pelo QA"}).waitFor();
   assert.equal(taskWrites,1);
-  assert.equal(scenarioWrites,1,
-    "Save and add scenario must persist the AI suggestions before opening a new editor");
-  assert.equal(scenarios[0].status,"nao_executado");
-  assert.equal(scenarios[0].obtido,"");
-  assert.equal(tasks[0].codigo,"78912");
-  assert.equal(tasks[0].causa,"O rateio antigo ignora descontos negativos.");
-  assert.equal(tasks[0].descricao,normalized,"Saved TF must use the AI summary");
-  assert.equal(sources.length,1,"Original report must be archived");
-  assert.equal(sources[0].texto_extraido,pasted,"Original source remains available");
+  assert.equal(caseWrites,3);
+  assert.equal(tasks[0].codigo,"88771");
+  assert.equal(tasks[0].descricao,"O desconto não era removido corretamente em certos pedidos.");
+  assert.ok(files.some(x=>x.includes("analise.txt"))&&files.some(x=>x.includes("requisito.txt")),
+    "Both source and requirement files must be privately registered");
+  assert.equal(sources.some(x=>x.nome_arquivo==="Requisito da criação"),true);
+  assert.ok(cases.every(x=>x.status==="nao_executado"));
 
-  await firstEditor.getByRole("button",{name:"Cancelar"}).click();
-  await page.getByRole("button",{name:"Editar TF"}).click();
-  const edit=page.getByRole("dialog",{name:"Editar TF"});
-  await edit.waitFor();
-  await edit.getByText("Regerar dados da TF com IA").click();
-
-  // Regression from the user's screenshot: the consent row incorrectly grew
-  // 205px tall when placed in the modal's vertical flex layout.
-  for(const viewport of [{width:1366,height:768},{width:390,height:844}]){
-    await page.setViewportSize(viewport);
-    const layout=await edit.evaluate(dialog=>{
-      const body=dialog.querySelector(".qa-task-ai-regenerate-body");
-      const consent=dialog.querySelector(".qa-ai-consent-compact");
-      const action=dialog.querySelector(".qa-task-ai-generate");
-      if(!body||!consent||!action)throw Error("Missing AI generation controls");
-      const c=consent.getBoundingClientRect(),a=action.getBoundingClientRect();
-      return {bodyHeight:body.getBoundingClientRect().height,
-        gap:a.top-c.bottom,overflow:document.documentElement.scrollWidth-innerWidth};
-    });
-    assert.ok(layout.bodyHeight<(viewport.width<500?330:230),
-      "AI editor must not contain a large empty area: "+JSON.stringify(layout));
-    assert.ok(layout.gap<=17,
-      "Generate button must be adjacent to consent: "+JSON.stringify(layout));
-    assert.ok(layout.overflow<=1,
-      "AI editor must not overflow horizontally: "+JSON.stringify(layout));
-  }
-  await edit.getByRole("checkbox",{name:/Autorizo enviar o texto-base da TF à NVIDIA/}).check();
-  await edit.getByRole("button",{name:"Regerar TF com IA NVIDIA"}).click();
-  await edit.getByRole("region",{name:"Revisão da regeração por IA"}).waitFor({timeout:20000});
-  await edit.getByRole("button",{name:"Conferir campos"}).click();
-  assert.equal(await edit.locator("details.generator-context").getAttribute("open"),"",
-    "Review action must expose generated technical fields");
-  assert.equal(await edit.getByRole("textbox",{name:"Título"}).inputValue(),
-    "Validação dos descontos corrigida");
-  const proposals=edit.locator(".qa-task-ai-scenario");
-  assert.equal(await proposals.count(),1,
-    "AI regeneration must omit already registered duplicate scenarios");
-  assert.match(await proposals.first().innerText(),/Verificar retorno bancário/);
-  await edit.getByRole("button",{name:"Salvar alterações"}).click();
-  await page.getByRole("heading",{name:"Validação dos descontos corrigida"}).waitFor();
-  assert.equal(tasks[0].causa,"Rateio revisado e validado pela IA.");
-  assert.equal(scenarioWrites,2,"Existing TF should receive only new selected scenarios");
-  assert.equal(scenarios[1].ordem,2,"Regenerated scenario must follow existing order");
-  assert.equal(tasks[0].descricao,normalized,"Regeneration must preserve the concise summary");
-
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("link",{name:"Todas as TFs"}).click();
   await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  const file=modal.locator('input[type="file"]');
-  await file.setInputFiles({
-    name:"relato.txt",mimeType:"text/plain",
-    buffer:Buffer.from("TÍTULO: Revisar pagamentos\nCÓDIGO: 99112\nO QUE FOI TESTADO: Validar baixas financeiras.")
-  });
-  await page.getByText("Arquivo lido e texto inserido.",{exact:false}).waitFor();
-  assert.match(await source.inputValue(),/Revisar pagamentos/);
-  assert.equal(aiPayloads.length,2,"File reading must never automatically call NVIDIA");
-  await modal.getByRole("button",{name:"Extrair sem IA"}).click();
-  await page.getByText("Campos extraídos sem IA.",{exact:false}).waitFor();
-  await modal.getByRole("button",{name:"Aplicar campos revisados"}).click();
-  assert.match(await modal.getByLabel("Título da tarefa").inputValue(),/Revisar pagamentos/);
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
-  await page.getByRole("heading",{name:/Revisar pagamentos/}).waitFor();
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  await wizard.getByLabel("Título da tarefa").fill("TF sem casos");
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  assert.equal(await wizard.getByRole("button",{name:/Finalizar com/}).isDisabled(),true);
+  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
+  await page.getByRole("heading",{name:"TF sem casos"}).waitFor();
   assert.equal(taskWrites,2);
-  assert.equal(aiPayloads.length,2,"No-AI extraction must not send text to provider");
+  assert.equal(caseWrites,3,"Skip must save no test scenarios");
 
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("link",{name:"Todas as TFs"}).click();
   await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  await modal.getByLabel("Título da tarefa").fill("TF totalmente manual");
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
-  await page.getByRole("heading",{name:"TF totalmente manual"}).waitFor();
-  assert.equal(taskWrites,3,"Manual creation must not require source or file");
-
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  await source.fill("Testar falha da IA sem preencher qualquer campo.");
-  fallback=true;
-  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  await generate.click();
-  await page.getByText(/A NVIDIA não retornou campos válidos/).waitFor();
-  assert.equal(await modal.getByRole("button",{name:"Aplicar campos revisados"}).count(),0,
-    "NVIDIA fallback must not silently turn into local AI output");
-  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
-  for(const width of [320,390,768,1366]){
-    await page.setViewportSize({width,height:844});
-    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
-    assert.ok(overflow<=1,"New TF form overflow at "+width);
-    const violations=await page.evaluate(async()=>window.axe.run(document,{
-      runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
-      rules:{region:{enabled:false}}
-    }));
-    assert.deepEqual(violations.violations.map(v=>({id:v.id,targets:v.nodes.slice(0,5).map(node=>node.target.join(" "))})),[],"New TF WCAG "+width);
-    await page.screenshot({path:"artifacts/new-tf-source/modal-"+width+".png"});
-  }
-  // The other submit action must persist the same AI-populated fields.
-  fallback=false;
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  await source.fill(pasted);
-  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  await generate.click();
-  await modal.getByRole("textbox",{name:"Título da tarefa"})
-    .waitFor({state:"visible"});
-  await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
-  await modal.getByRole("textbox",{name:"Título da tarefa"})
-    .fill("Título revisado pelo QA depois da IA");
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
-  await page.getByRole("heading",{name:"Título revisado pelo QA depois da IA"}).waitFor();
-  assert.equal(taskWrites,4,"Save and open TF must create once");
-  assert.equal(tasks[3].causa,"O rateio antigo ignora descontos negativos.");
-  assert.equal(tasks[3].titulo,"Título revisado pelo QA depois da IA",
-    "Manual edits after AI must take precedence when saving");
-  assert.equal(scenarioWrites,3,
-    "Save and open TF must persist the automatically selected AI scenario");
-
-  // Saving an already-tested pasted TF without pressing Extract/NVIDIA
-  // must still produce numbered, pending scenarios with an explicit objective.
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  const executedReport=[
-    "CENÁRIOS TESTADOS:",
-    "CENÁRIO 1 — Primeiro uso: checkbox abre desmarcado",
-    "Utilizado um usuário novo",
-    "Acessado Relatórios > Vendas > Resumos > Vendedor",
-    "Confirmado que o checkbox abre desmarcado",
-    "RESULTADO ESPERADO: O checkbox deve aparecer desmarcado.",
-    "Objetivo: Validar que o primeiro acesso exibe o filtro desmarcado."
-  ].join("\n");
-  await modal.getByLabel("Título da tarefa").fill("TF com cenário executado colado");
-  await source.fill(executedReport);
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
-  await page.getByRole("heading",{name:"TF com cenário executado colado"}).waitFor();
-  assert.equal(taskWrites,5);
-  assert.equal(scenarioWrites,4,"Pasted scenarios must be imported even without AI");
-  const pastedScenario=scenarios[3];
-  assert.match(pastedScenario.passos,/^1\\. Utilizar um usuário novo/m);
-  assert.match(pastedScenario.passos,/^2\\. Acessar Relatórios > Vendas > Resumos > Vendedor/m);
-  assert.match(pastedScenario.passos,/^3\\. Verificar se o checkbox abre desmarcado/m);
-  assert.equal(pastedScenario.esperado,"O checkbox deve aparecer desmarcado.");
-  assert.match(pastedScenario.observacoes,/Objetivo:\\nValidar que o primeiro acesso/);
-  assert.match(pastedScenario.observacoes,/Resultado observado na TF:/);
-  assert.equal(pastedScenario.status,"nao_executado","Imported observations are not automatic approval");
-  assert.equal(pastedScenario.obtido,"");
-
-  // Regression: first creation used to save raw TF text without interpreting it.
-  // With permission, one click must run the SAME NVIDIA extraction used for
-  // regeneration, save all fields, archive the source and create its scenarios.
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  await source.fill(pasted);
-  const beforeAuto=aiPayloads.length;
-  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  await modal.getByRole("button",{name:"Gerar com IA e abrir TF"}).click();
-  await page.getByRole("heading",{name:"Validação dos descontos no pedido"}).waitFor();
-  assert.equal(aiPayloads.length,beforeAuto+1,"Saving with consent must call NVIDIA once");
-  assert.equal(taskWrites,6,"The TF must be created exactly once after AI analysis");
-  assert.equal(tasks[5].codigo,"78912");
-  assert.equal(tasks[5].causa,"O rateio antigo ignora descontos negativos.");
-  assert.equal(tasks[5].descricao,normalized);
-  assert.equal(scenarioWrites,5,"New TF automatically receives the mapped AI scenario");
-  assert.equal(sources.at(-1).texto_extraido,pasted,"Original pasted text is archived");
-  assert.equal(scenarios.at(-1).status,"nao_executado");
-
-  // No consent: find the documented fields and explicit scenarios locally,
-  // without sending the pasted text to NVIDIA.
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  const manualReport=[
-    "TÍTULO: Revisar validação das devoluções",
-    "TF #87123",
-    "CENÁRIOS TESTADOS:",
-    "CENÁRIO 1 — Estado inicial do filtro",
-    "1. Entrar com um usuário limpo",
-    "2. Acessar Relatórios > Vendas > Resumos > Vendedor",
-    "RESULTADO ESPERADO: O filtro deve abrir desmarcado."
-  ].join("\n");
-  await source.fill(manualReport);
-  const beforeLocal=aiPayloads.length;
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
-  await page.getByRole("heading",{name:"Revisar validação das devoluções"}).waitFor();
-  assert.equal(aiPayloads.length,beforeLocal,"No-consent creation is offline");
-  assert.equal(taskWrites,7);
-  assert.equal(tasks[6].codigo,"87123");
-  assert.equal(scenarioWrites,6,"Explicit pasted cases are imported automatically");
-  assert.match(scenarios.at(-1).passos,/^1\\. Entrar com um usuário limpo/m);
-  assert.equal(scenarios.at(-1).status,"nao_executado");
-
-  // A 429 on first-save analysis must leave the form intact and MUST NOT
-  // silently create an incomplete task requiring a second regeneration.
-  await page.goto(ROOT);
-  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
-  await modal.waitFor();
-  await source.fill(pasted);
+  await wizard.getByLabel("Informações da tarefa").fill("Texto de uma TF com falha de quota");
   rateLimited=true;
-  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  await modal.getByRole("button",{name:"Gerar com IA e abrir TF"}).click();
-  await page.getByText("Limite de 15 solicitações por minuto atingido.",{exact:false}).waitFor();
-  assert.equal(taskWrites,7,"A refused AI request must never create a partial TF");
-  assert.equal(await source.inputValue(),pasted,"The original TF must remain editable");
-  assert.equal(await modal.count(),1);
+  await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+  await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  await page.getByText("Limite por minuto; tente novamente.",{exact:false}).waitFor();
+  assert.equal(taskWrites,2,"429 must not save a partial TF");
+  assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),
+    "Texto de uma TF com falha de quota");
   rateLimited=false;
 
+  for(const width of [320,390,768,1366]){
+    await page.setViewportSize({width,height:844});
+    const over=await page.evaluate(()=>
+      document.documentElement.scrollWidth-document.documentElement.clientWidth);
+    assert.ok(over<=1,"Wizard must not overflow on width "+width);
+  }
   assert.deepEqual(errors,[]);
-  console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
+  console.log("Nova TF em 3 etapas: fontes, IA, revisão, requisitos, deduplicação, persistência, pulo e 429.");
 }finally{await browser.close();}
