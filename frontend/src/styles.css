@@ -1858,3 +1858,9 @@
 
 
 .qa-ai-privacy-note{margin:0;font-size:.74rem;line-height:1.5;color:#506c76}
+/* Keep every target in the new-TF form unobscured, especially its
+   advanced-options summary at 320px. The modal itself already scrolls. */
+.qa-tf-compact .qa-modal-actions{position:relative;bottom:auto;z-index:auto}
+.qa-tf-compact .qa-task-optional>summary{min-height:52px;margin:0;
+ padding:13px 8px;line-height:24px}
+.qa-tf-compact .qa-task-optional{flex:0 0 auto;min-width:0}
