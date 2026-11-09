@@ -10,6 +10,8 @@ import {
   TaskViewTabs, TaskOverview, TaskDeliverables
 } from "../features/tasks/TaskWorkspaceSections";
 import type { TaskTab, DeliverableKind } from "../features/tasks/TaskWorkspaceSections";
+import {TaskQuickActions} from "../features/tasks/TaskQuickActions";
+import type {QuickActionId} from "../features/tasks/TaskQuickActions";
 import { AiStudioTabs } from "../features/generators/AiStudioTabs";
 import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
@@ -32,6 +34,12 @@ import {getTaskRights} from "../features/collaboration/team-data";
 import type {TaskRights} from "../features/collaboration/team-data";
 
 const DiagramPanel = lazy(() => import("../features/diagrams/DiagramPanel"));
+const DiagramLibrary = lazy(() => import("../features/diagrams/DiagramLibrary").then(
+  module=>({default:module.DiagramLibrary})
+));
+const DocumentLibrary = lazy(() => import("../features/documents/DocumentLibrary").then(
+  module=>({default:module.DocumentLibrary})
+));
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
 const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel"));
 const RequirementsPanel = lazy(() => import("../features/requirements/RequirementsPanel"));
@@ -80,6 +88,8 @@ export default function TaskPage() {
   const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
   const [visitedAi, setVisitedAi] = useState<AiStudioMode[]>([]);
   const [focusDiagramAi, setFocusDiagramAi] = useState(false);
+  const [editingDiagramId,setEditingDiagramId]=useState<string|null>(null);
+  const [diagramEditorRevision,setDiagramEditorRevision]=useState(0);
   const [showDocuments, setShowDocuments] = useState(false);
   const [focusReport, setFocusReport] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
@@ -95,7 +105,9 @@ export default function TaskPage() {
     setActiveTab("summary");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
-    setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);setShowDocuments(false);
+    setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);
+    setEditingDiagramId(null);setDiagramEditorRevision(0);
+    setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
     setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
     setShowLibrary(false);
@@ -173,18 +185,34 @@ export default function TaskPage() {
     setShowScenarioForm(true);
   }
 
-  function openDiagramAi() {
-    setFocusDiagramAi(true);openTool("diagrams");
+  function openDiagramEditor(id?:string) {
+    setEditingDiagramId(id??null);
+    setDiagramEditorRevision(value=>value+1);
+    setFocusDiagramAi(!id);
+    openTool("diagrams");
   }
-  function openDeliverable(kind: DeliverableKind, primary = false) {
+  function openDeliverable(kind: DeliverableKind) {
     if (kind === "diagrams") {
-      setFocusDiagramAi(primary);
-      openTool("diagrams");
+      openDiagramEditor();
     } else if (kind === "documents") {
       setFocusReport(true);
       openTool("documents");
     } else {
       openTool(kind);
+    }
+  }
+
+  function quickAction(id:QuickActionId){
+    switch(id){
+      case "run":startPendingExecution();break;
+      case "scenario":startScenario();break;
+      case "cases":openTool("teste");break;
+      case "post":openTool("post");break;
+      case "diagram":openDiagramEditor();break;
+      case "view-diagrams":setActiveTab("deliverables");break;
+      case "documents":openDeliverable("documents");break;
+      case "evidence":openTool("evidence");break;
+      case "requirements":openTool("requirements");break;
     }
   }
 
@@ -459,14 +487,13 @@ export default function TaskPage() {
     </header>
     <TaskViewTabs value={activeTab} onChange={setActiveTab}
       scenarioCount={scenarios.data?.length ?? 0}/>
+    <TaskQuickActions key={task.id} owner={!!own} canExecute={canExecute}
+      onAction={quickAction}/>
     <section id="qa-task-panel-summary" role="tabpanel" aria-labelledby="qa-task-tab-summary"
       className="qa-task-panel" hidden={activeTab !== "summary"}>
       <TaskOverview description={task.descricao} cause={task.causa} correction={task.correcao}
         pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
-        owner={own} canRun={canExecute}
-        onNewScenario={startScenario} onRun={startPendingExecution}
-        onCases={()=>openTool("teste")} onDiagram={openDiagramAi}
-        onDeliverables={()=>setActiveTab("deliverables")}/>
+        onViewTests={()=>setActiveTab("tests")}/>
     </section>
     {saved && <div className="notice mt-4" role="status">{saved}</div>}
     {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
@@ -555,9 +582,9 @@ export default function TaskPage() {
     </QAModal>
     <QAModal key={task.id+"-ai-studio"} open={aiMode!==null} keepMounted
       title={aiMode==="post"?"Gerar post com IA":
-        aiMode==="diagrams"?"Diagramas da TF":"Gerar casos com IA"}
+        aiMode==="diagrams"?(editingDiagramId?"Editar diagrama":"Criar diagrama"):"Gerar casos com IA"}
       eyebrow="CENTRAL DE IA" size={aiMode==="diagrams"?"lg":"full"}
-      initialFocus={aiMode==="diagrams"?"#diagram-ai-heading":undefined}
+      initialFocus={aiMode==="diagrams"?(editingDiagramId?"#diagram-code-editor":"#diagram-ai-heading"):undefined}
       onClose={()=>setAiMode(null)}>
       <AiStudioTabs active={aiMode??"teste"} onChange={mode=>{
         setAiMode(mode);
@@ -583,8 +610,10 @@ export default function TaskPage() {
       {visitedAi.includes("diagrams")&&<div hidden={aiMode!=="diagrams"}
         className="qa-ai-studio-panel">
         <Suspense fallback={<p role="status" className="notice">Carregando diagramas…</p>}>
-          <DiagramPanel key={task.id} task={task} scenarios={scenarios.data||[]}
-            userId={userId} focusAi={aiMode==="diagrams"&&focusDiagramAi}/>
+          <DiagramPanel key={task.id+"-"+diagramEditorRevision}
+            task={task} scenarios={scenarios.data||[]}
+            userId={userId} editDiagramId={editingDiagramId}
+            focusAi={aiMode==="diagrams"&&focusDiagramAi}/>
         </Suspense>
       </div>}
     </QAModal>
@@ -727,7 +756,16 @@ export default function TaskPage() {
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
       className="qa-task-panel" hidden={activeTab !== "deliverables"}>
-      <TaskDeliverables onOpen={openDeliverable}/>
+      {activeTab==="deliverables"&&<TaskDeliverables owner={!!own} onOpen={openDeliverable}
+        diagrams={<Suspense fallback={<p role="status">Carregando diagramas…</p>}>
+          <DiagramLibrary taskId={task.id} userId={userId} owner={!!own}
+            onCreate={()=>openDiagramEditor()}
+            onEdit={id=>openDiagramEditor(id)}/>
+        </Suspense>}
+        documents={<Suspense fallback={<p role="status">Carregando documentos…</p>}>
+          <DocumentLibrary taskId={task.id} userId={userId}
+            onCreate={()=>openDeliverable("documents")}/>
+        </Suspense>}/>}
     </section>
     {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"
       eyebrow="CONFIGURAÇÕES" size="lg" onClose={closeSettings}

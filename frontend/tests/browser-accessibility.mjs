@@ -195,10 +195,11 @@ try {
     await page.goto(BASE + "#/tarefa/" + TASK);
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
     await axeAudit(page, "TF com fluxo rápido", width);
-    const workflow = page.getByRole("region", { name: "Fluxo rápido de QA" });
+    await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+    const workflow = page.getByRole("group",{name:"Ações rápidas da TF"});
     const quickCreate = page.getByRole("tabpanel", { name: /Testes/ })
       .getByRole("button", { name: "Cenário", exact: true });
-    const runPending = workflow.getByRole("button", { name: "Testar pendentes" });
+    const runPending = workflow.getByRole("button", { name: "Executar testes" });
     await runPending.click();
     await page.getByRole("button",{name:"Lista",exact:true}).click();
     await page.getByRole("button",{name:"Pendentes",exact:true}).click();

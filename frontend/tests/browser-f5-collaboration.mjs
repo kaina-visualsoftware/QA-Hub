@@ -180,6 +180,7 @@ function mockFor(user){
     return send({id:COMMENT},201);
    }
   }
+  if(path.endsWith("/rest/v1/qa_diagramas")||path.endsWith("/rest/v1/qa_documentos"))return send([]);
   errors.push(user.id+" "+method+" "+path);
   return send({message:"Unexpected F5 fixture endpoint"},500);
  };

@@ -94,8 +94,9 @@ try {
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:"Execução progressiva"}).waitFor();
 
-  await page.getByRole("region",{name:"Fluxo rápido de QA"})
-    .getByRole("button",{name:"Testar pendentes"}).click();
+  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Executar testes"}).click();
   // The historical list is still available for bulk review.
   await page.getByRole("button",{name:"Lista",exact:true}).click();
   await page.getByRole("button",{name:"Pendentes",exact:true}).click();

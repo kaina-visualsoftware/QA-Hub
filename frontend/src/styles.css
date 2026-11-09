@@ -1467,3 +1467,97 @@
 @media(max-width:350px){
  .qa-tf-primary-row{grid-template-columns:minmax(0,1fr)}
 }
+
+
+/* Task workspace: separate read surfaces from create/edit modals. */
+.qa-task-overview-clean{grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr);gap:15px}
+.qa-task-status-summary{display:flex;align-items:flex-start;justify-content:space-between;
+ gap:12px;flex-wrap:wrap;padding:20px;border:1px solid #dee8e9;border-radius:15px;
+ background:#fff;min-width:0}
+.qa-task-status-summary>div{min-width:0;flex:1 1 200px}
+.qa-task-status-summary .eyebrow{color:#4e7780;font-size:.68rem}
+.qa-task-status-summary h2{font-size:1.06rem;color:#1d4853;font-weight:800;margin:7px 0}
+.qa-task-status-summary p:last-child{font-size:.81rem;color:#57727b;line-height:1.55}
+.qa-task-status-summary>button{min-height:43px;flex-shrink:0}
+.qa-task-overview-clean .qa-task-description{margin:0}
+.qa-task-fab{position:fixed;bottom:max(22px,env(safe-area-inset-bottom));
+ right:max(22px,env(safe-area-inset-right));z-index:30;display:flex;flex-direction:column;
+ align-items:flex-end;gap:10px}
+.qa-task-fab-trigger{display:inline-flex;align-items:center;justify-content:center;
+ gap:9px;background:#075e71;color:#fff;border:1px solid #075e71;box-shadow:0 6px 20px #073e4b40;
+ border-radius:999px;padding:11px 18px;min-height:52px;font-size:.85rem;font-weight:780}
+.qa-task-fab-trigger:hover{background:#084e5f}
+.qa-task-fab-trigger:focus-visible{outline:3px solid #62c5c0;outline-offset:3px}
+.qa-task-fab-menu{width:min(292px,calc(100vw - 32px));max-height:min(590px,calc(100dvh - 120px));
+ overflow-y:auto;background:#fff;border:1px solid #d6e5e6;border-radius:15px;
+ box-shadow:0 12px 35px #0f344c33;padding:8px;min-width:0}
+.qa-task-fab-heading{display:flex;justify-content:space-between;align-items:center;
+ gap:8px;padding:7px 8px 10px;border-bottom:1px solid #e8eeee}
+.qa-task-fab-heading strong{font-size:.87rem;color:#1c4853}
+.qa-task-fab-heading button{display:grid;place-items:center;min-height:36px;min-width:36px;
+ border-radius:8px;color:#4d6d76}
+.qa-task-fab-items{display:flex;flex-direction:column;gap:2px;padding-top:7px}
+.qa-task-fab-items button{display:flex;align-items:center;gap:10px;text-align:left;
+ width:100%;padding:10px 12px;min-height:43px;border-radius:9px;
+ color:#315763;font-size:.82rem;font-weight:650;background:#fff}
+.qa-task-fab-items button:hover:not(:disabled),.qa-task-fab-items button:focus-visible{
+ background:#eaf5f3;color:#135e66}
+.qa-task-fab-items button:focus-visible,.qa-task-fab-heading button:focus-visible{
+ outline:3px solid #288f98;outline-offset:-2px}
+.qa-task-fab-items button:disabled{opacity:.48;cursor:not-allowed}
+.qa-task-fab-items svg{color:#2d7680;flex-shrink:0}
+.qa-task-deliverables-organized{padding:20px}
+.qa-artifact-collections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:13px;align-items:start;margin:16px 0 24px}
+.qa-artifact-browser{border:1px solid #dfe9e9;border-radius:13px;padding:16px;
+ min-width:0;background:#fcfefe;display:flex;flex-direction:column;gap:12px}
+.qa-artifact-browser-head{display:flex;align-items:flex-start;justify-content:space-between;
+ flex-wrap:wrap;gap:10px}
+.qa-artifact-browser-head>div{min-width:0;flex:1 1 180px}
+.qa-artifact-browser-head h3{font-size:.99rem;font-weight:780;color:#1e4954;
+ display:flex;align-items:center;gap:7px}
+.qa-artifact-browser-head p{font-size:.75rem;color:#55727b;line-height:1.5;
+ margin-top:4px}
+.qa-artifact-browser-head button{min-height:41px;flex-shrink:0}
+.qa-artifact-counter{display:inline-grid;place-items:center;min-width:23px;height:23px;
+ border-radius:99px;background:#e6f3f0;color:#166877;font-size:.7rem;padding:0 5px}
+.qa-artifact-empty{border:1px dashed #dbe7e8;border-radius:10px;padding:16px;
+ color:#617980;font-size:.78rem;line-height:1.6}
+.qa-diagram-library-layout{display:flex;flex-direction:column;gap:10px;min-width:0}
+.qa-diagram-library-list{display:flex;flex-direction:column;gap:7px;min-width:0}
+.qa-diagram-library-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;
+ justify-content:space-between;border:1px solid #dce7e8;border-radius:10px;
+ background:#fff;padding:10px;min-width:0}
+.qa-diagram-library-row.selected{border-color:#86b9b6;background:#f6fbf9}
+.qa-diagram-library-title{min-width:0;flex:1 1 140px;display:flex;flex-direction:column;gap:4px}
+.qa-diagram-library-title strong{font-size:.81rem;overflow-wrap:anywhere;color:#27545f}
+.qa-diagram-library-title small{font-size:.75rem;color:#405d68}
+.qa-diagram-library-actions{display:flex;flex-wrap:wrap;gap:4px}
+.qa-diagram-library-actions button{display:inline-flex;align-items:center;justify-content:center;
+ gap:5px;min-height:40px;padding:7px 8px;border-radius:8px;
+ color:#2e6772;font-size:.73rem;font-weight:700}
+.qa-diagram-library-actions button:hover{background:#eaf5f3}
+.qa-diagram-library-actions button:focus-visible{outline:3px solid #2b8a92;outline-offset:2px}
+.qa-diagram-library-preview,.qa-document-library-preview{padding:12px;border:1px solid #deeaeb;
+ border-radius:10px;background:white;min-width:0}
+.qa-diagram-library-preview>strong,.qa-document-library-preview h4{
+ display:block;font-size:.85rem;font-weight:780;color:#265661;margin-bottom:10px}
+.qa-diagram-library-preview iframe{display:block;width:100%;min-width:0;
+ height:clamp(200px,36vw,380px);border:1px solid #e2eded;border-radius:7px}
+.qa-document-library-preview pre{font-family:inherit;white-space:pre-wrap;
+ overflow-wrap:anywhere;word-break:break-word;max-height:340px;overflow:auto;
+ font-size:.79rem;line-height:1.65;color:#355f6b;padding:8px 0}
+.qa-document-library-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+@media(max-width:1050px){
+ .qa-artifact-collections{grid-template-columns:1fr}
+ .qa-task-overview-clean{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+ .qa-task-fab{right:12px;bottom:max(12px,env(safe-area-inset-bottom))}
+ .qa-task-fab-trigger{min-height:50px;padding:10px 16px}
+ .qa-task-fab-menu{width:min(288px,calc(100vw - 24px))}
+ .qa-task-status-summary{padding:14px}
+ .qa-task-deliverables-organized{padding:12px}
+ .qa-artifact-browser{padding:12px}
+ .qa-diagram-library-actions{width:100%;justify-content:flex-start}
+}

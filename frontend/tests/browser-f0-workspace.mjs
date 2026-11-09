@@ -119,7 +119,7 @@ try{
   await page.keyboard.press("Home");
   assert.equal(await page.getByRole("tab",{name:"Resumo"}).getAttribute("aria-selected"),"true");
 
-  await page.getByRole("button",{name:/Mais ferramentas/}).click();
+  await page.getByRole("tab",{name:"Entregáveis"}).click();
   assert.equal(await page.getByRole("tab",{name:"Entregáveis"}).getAttribute("aria-selected"),"true");
   await page.getByRole("button",{name:/^Gerar post/}).click();
   await page.getByRole("dialog",{name:"Gerar post com IA"}).waitFor({timeout:20000});

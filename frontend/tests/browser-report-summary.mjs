@@ -79,6 +79,7 @@ async function mock(route){
       return send({id});
     }
   }
+  if(path.endsWith("/rest/v1/qa_diagramas"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   if(path.endsWith("/rest/v1/qa_documentos")){
     assert.equal(method,"GET","Reports list is read-only");
@@ -117,10 +118,10 @@ try{
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:"Descontos em homologação"}).waitFor();
 
-  await page.getByText("Mais ferramentas").click();
+  await page.getByRole("tab",{name:"Entregáveis"}).click();
   await page.getByRole("tabpanel",{name:"Entregáveis"})
     .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
-  const heading=page.getByRole("heading",{name:"Posts e relatórios"});
+  const heading=page.getByRole("dialog",{name:"Documentos e relatório"}).getByRole("heading",{name:"Criar relatório"});
   await heading.waitFor({timeout:20000});
   await page.waitForFunction(()=>document.activeElement?.id==="documents-heading");
 

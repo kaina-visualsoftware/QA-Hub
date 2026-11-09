@@ -1,8 +1,8 @@
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent,ReactNode } from "react";
 import { Button } from "@heroui/react";
 import {
-  ArrowRight, BookText, ClipboardList, FileText, GitBranchPlus, GitMerge,
-  LayoutDashboard, ListChecks, Plus, Sparkles, Workflow, History, Users
+  ArrowRight, BookText, ClipboardList, FileText, GitMerge,
+  LayoutDashboard, ListChecks, Workflow, History, Users
 } from "lucide-react";
 
 export type TaskTab = "summary" | "tests" | "deliverables";
@@ -47,108 +47,103 @@ export function TaskViewTabs({ value, onChange, scenarioCount }: {
 }
 
 export function TaskOverview({
-  description, cause, correction, pendingCount, total, owner,
-  onNewScenario, onRun, onCases, onDiagram, onDeliverables, canRun
-}: {
-  description?: string | null; cause?: string | null; correction?: string | null;
-  pendingCount: number; total: number; owner: boolean; canRun?:boolean;
-  onNewScenario: () => void; onRun: () => void; onCases: () => void;
-  onDiagram: () => void; onDeliverables: () => void;
-}) {
-  const source = description?.trim() || "";
-  const abbreviated = source.length > 360;
-  const nextLabel = pendingCount === 1
-    ? "1 teste aguardando execução" : pendingCount + " testes aguardando execução";
-  return <div className="qa-task-overview">
-    <section className="qa-quickflow qa-quickflow-clean qa-task-action-panel"
-      aria-label="Fluxo rápido de QA">
-      <div className="qa-overview-intro">
-        <div>
-          <p className="eyebrow">PRÓXIMO PASSO</p>
-          <h2>{!total ? "Comece pelos cenários" :
-            pendingCount ? nextLabel :
-            "Execução registrada"}</h2>
-          <p>{!total ? "Cadastre um caso ou gere uma sugestão a partir da TF." :
-            pendingCount ? "Continue de onde parou, sem alterar a situação da TF." :
-            "Consulte os resultados e prepare os entregáveis."}</p>
-        </div>
+  description,cause,correction,pendingCount,total,onViewTests
+}:{
+  description?:string|null;cause?:string|null;correction?:string|null;
+  pendingCount:number;total:number;onViewTests:()=>void;
+}){
+  const source=description?.trim()||"";
+  const abbreviated=source.length>360;
+  return <div className="qa-task-overview qa-task-overview-clean">
+    <section className="qa-task-status-summary" aria-label="Situação dos testes">
+      <div>
+        <p className="eyebrow">EXECUÇÃO</p>
+        <h2>{!total?"Sem cenários cadastrados":
+          pendingCount?pendingCount+" cenário(s) pendente(s)":"Execução registrada"}</h2>
+        <p>{!total?"Use Ações para cadastrar ou gerar o primeiro cenário.":
+          pendingCount?"Abra a área Testes para continuar a validação.":
+          "Consulte os resultados em Testes e os artefatos em Entregáveis."}</p>
       </div>
-      <div className="qa-primary-actions" role="group" aria-label="Ações principais da TF">
-        <Button onPress={onRun} isDisabled={!(canRun??owner)} aria-label="Testar pendentes">
-          <ListChecks size={18} aria-hidden="true"/> Testar
-        </Button>
-        <Button variant="secondary" onPress={onNewScenario} isDisabled={!owner}>
-          <Plus size={18} aria-hidden="true"/> Cenário
-        </Button>
-        <button type="button" className="qa-primary-tool" aria-label="Gerar casos com IA"
-          onClick={onCases}><Sparkles size={18} aria-hidden="true"/> Gerar casos</button>
-        <button type="button" className="qa-primary-tool" aria-label="Gerar diagrama com IA"
-          onClick={onDiagram}><Workflow size={18} aria-hidden="true"/> Diagrama</button>
-      </div>
-      <button type="button" className="qa-overview-more" onClick={onDeliverables}>
-        Mais ferramentas <ArrowRight size={16} aria-hidden="true"/>
-      </button>
+      <Button variant="secondary" onPress={onViewTests}>
+        <ListChecks size={17} aria-hidden="true"/> Ver testes
+      </Button>
     </section>
-    {source && <section className="panel qa-task-description" aria-label="Descrição da TF">
+    <section className="panel qa-task-description" aria-label="Descrição da TF">
       <h2>Sobre esta TF</h2>
-      <p className="qa-task-excerpt">{abbreviated ? source.slice(0, 350).trimEnd() + "…" : source}</p>
-      {abbreviated && <details className="qa-task-full-text">
+      {source?<p className="qa-task-excerpt">{abbreviated?
+        source.slice(0,350).trimEnd()+"…":source}</p>:
+        <p className="text-muted text-sm">Nenhuma descrição informada.</p>}
+      {abbreviated&&<details className="qa-task-full-text">
         <summary>Ver descrição completa</summary><p>{source}</p>
       </details>}
-      {(cause?.trim() || correction?.trim()) && <details className="qa-task-full-text">
+      {(cause?.trim()||correction?.trim())&&<details className="qa-task-full-text">
         <summary>Ver análise técnica</summary>
-        {cause?.trim() && <p><strong>Causa</strong>{cause}</p>}
-        {correction?.trim() && <p><strong>Correção</strong>{correction}</p>}
+        {cause?.trim()&&<p><strong>Causa</strong>{cause}</p>}
+        {correction?.trim()&&<p><strong>Correção</strong>{correction}</p>}
       </details>}
-    </section>}
+    </section>
   </div>;
 }
 
 export type DeliverableKind =
   | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history" | "collaboration";
 
-export function TaskDeliverables({ onOpen }: {
-  onOpen: (kind: DeliverableKind, primary?: boolean) => void;
-}) {
-  return <div className="qa-task-deliverables">
+export function TaskDeliverables({onOpen,diagrams,documents,owner}:{
+  onOpen:(kind:DeliverableKind,primary?:boolean)=>void;
+  diagrams:ReactNode;documents:ReactNode;owner:boolean;
+}){
+  return <div className="qa-task-deliverables qa-task-deliverables-organized">
     <div className="qa-task-section-heading">
-      <div><h2>Entregáveis</h2><p>Produza ou consulte os materiais da TF sem sair da tarefa.</p></div>
+      <div><h2>Entregáveis</h2>
+        <p>Visualize os registros já salvos sem abrir um formulário de criação.</p>
+      </div>
     </div>
+    <div className="qa-artifact-collections">
+      {diagrams}
+      {documents}
+    </div>
+    {owner&&<><h3 className="qa-deliverables-subtitle">Criar</h3>
     <div className="qa-deliverables-group" aria-label="Criar entregáveis">
       <button type="button" className="qa-deliverable-action"
-        onClick={() => onOpen("post", true)}>
-        <span className="qa-deliverable-icon"><FileText size={20}/></span>
-        <span><strong>Gerar post</strong><small>Resumo técnico com IA</small></span>
+        onClick={()=>onOpen("post",true)}>
+        <span className="qa-deliverable-icon"><FileText size={19}/></span>
+        <span><strong>Gerar post</strong><small>Redigir com IA</small></span>
         <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
       </button>
-      <button type="button" className="qa-deliverable-action" onClick={() => onOpen("diagrams", true)}>
-        <span className="qa-deliverable-icon"><Workflow size={20}/></span>
-        <span><strong>Gerar diagrama</strong><small>Fluxo visual Mermaid</small></span>
+      <button type="button" className="qa-deliverable-action"
+        onClick={()=>onOpen("diagrams",true)}>
+        <span className="qa-deliverable-icon"><Workflow size={19}/></span>
+        <span><strong>Criar diagrama</strong><small>Editor Mermaid / IA</small></span>
         <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
       </button>
-      <button type="button" className="qa-deliverable-action" onClick={() => onOpen("documents", true)}>
-        <span className="qa-deliverable-icon"><ClipboardList size={20}/></span>
-        <span><strong>Relatório</strong><small>Resultados e histórico</small></span>
+      <button type="button" className="qa-deliverable-action"
+        onClick={()=>onOpen("documents",true)}>
+        <span className="qa-deliverable-icon"><ClipboardList size={19}/></span>
+        <span><strong>Gerar relatório</strong><small>Resultados registrados</small></span>
         <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
       </button>
     </div>
-    <h3 className="qa-deliverables-subtitle">Consultar e organizar</h3>
+    </>}
+    <h3 className="qa-deliverables-subtitle">Consultar e gerenciar</h3>
     <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
-      <button type="button" aria-label="Requisitos e cobertura" onClick={() => onOpen("requirements")}
-        className="qa-workbench-tool"><BookText size={17}/> Requisitos e cobertura</button>
-      <button type="button" aria-label="Evidências e auditoria" onClick={() => onOpen("evidence")}
-        className="qa-workbench-tool"><ClipboardList size={17}/> Evidências e auditoria</button>
-      <button type="button" aria-label="Releases e referências" onClick={() => onOpen("links")}
-        className="qa-workbench-tool"><GitMerge size={17}/> Releases e referências</button>
-      <button type="button" aria-label="Diagramas salvos / editor" onClick={() => onOpen("diagrams")}
-        className="qa-workbench-tool"><GitBranchPlus size={17}/> Diagramas salvos / editor</button>
-      <button type="button" aria-label="Relatório e documentos" onClick={() => onOpen("documents")}
-        className="qa-workbench-tool"><FileText size={17}/> Relatório e documentos</button>
-      <button type="button" aria-label="Histórico de execuções" onClick={() => onOpen("history")}
-        className="qa-workbench-tool"><History size={17}/> Histórico de execuções</button>
+      <button type="button" aria-label="Requisitos e cobertura"
+        onClick={()=>onOpen("requirements")} className="qa-workbench-tool">
+        <BookText size={17}/> Requisitos e cobertura</button>
+      <button type="button" aria-label="Evidências e auditoria"
+        onClick={()=>onOpen("evidence")} className="qa-workbench-tool">
+        <ClipboardList size={17}/> Evidências e auditoria</button>
+      <button type="button" aria-label="Releases e referências"
+        onClick={()=>onOpen("links")} className="qa-workbench-tool">
+        <GitMerge size={17}/> Releases e referências</button>
+      <button type="button" aria-label="Relatório e documentos"
+        onClick={()=>onOpen("documents")} className="qa-workbench-tool">
+        <FileText size={17}/> Relatório e documentos</button>
+      <button type="button" aria-label="Histórico de execuções"
+        onClick={()=>onOpen("history")} className="qa-workbench-tool">
+        <History size={17}/> Histórico de execuções</button>
       <button type="button" aria-label="Equipe e comentários"
-        onClick={() => onOpen("collaboration")}
-        className="qa-workbench-tool"><Users size={17}/> Equipe e comentários</button>
+        onClick={()=>onOpen("collaboration")} className="qa-workbench-tool">
+        <Users size={17}/> Equipe e comentários</button>
     </div>
   </div>;
 }

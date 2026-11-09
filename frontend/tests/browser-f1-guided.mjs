@@ -92,8 +92,9 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:task.titulo}).waitFor({timeout:15000});
-  await page.getByRole("region",{name:"Fluxo rápido de QA"})
-    .getByRole("button",{name:"Testar pendentes"}).click();
+  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Executar testes"}).click();
 
   const guided=page.getByRole("region",{name:"Execução guiada dos testes"});
   await guided.waitFor();

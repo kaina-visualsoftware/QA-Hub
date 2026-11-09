@@ -143,6 +143,7 @@ async function mock(route){
     return send(evidenceFiles);
   }
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
+  if(p.endsWith("/rest/v1/qa_diagramas"))return send([]);
   if(p.endsWith("/rest/v1/qa_evidencias")){
     if(m==="POST"){
       evidenceSaves++;
@@ -230,7 +231,9 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await page.getByText("Validação de descontos",{exact:true}).click();
   await page.getByRole("heading",{name:"Validação de descontos"}).waitFor({timeout:20000});
-  await page.getByRole("button",{name:/Gerar casos com IA/}).click();
+  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Gerar casos com IA"}).click();
   await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
   const studio=page.getByRole("navigation",{name:"Ferramentas da central de IA"});
   assert.equal(await studio.getByRole("button",{name:"Casos"}).count(),1);
@@ -277,7 +280,7 @@ try{
   assert.equal(tasks[0].status,"rascunho");
   // One focused tool at a time: close the generator before opening posts.
   await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
-  await page.getByText("Mais ferramentas").click();
+  await page.getByRole("tab",{name:"Entregáveis"}).click();
   await page.getByRole("button",{name:/^Gerar post/}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("objetivo");
@@ -371,7 +374,7 @@ try{
   assert.equal(evidenceFiles[0].tamanho_bytes,samplePng.length);
   assert.equal(evidenceFiles[0].descricao,"Captura sintética do pedido");
   assert.equal(tasks[0].status,"rascunho","Anexar arquivo não aprova a TF.");
-  await page.getByRole("button",{name:"Visualizar"}).click();
+  await page.getByLabel("Arquivos da TF").getByRole("button",{name:"Visualizar"}).click();
   await page.getByRole("region",{name:"Prévia do anexo privado"}).waitFor({timeout:8000});
   await page.getByRole("button",{name:"Fechar prévia do arquivo"}).click();
   await page.getByText("Adicionar observação ou link").click();
