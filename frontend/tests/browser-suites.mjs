@@ -7,6 +7,7 @@ const suites = [
   "browser-smoke.mjs",
   "browser-qa-flow.mjs",
   "browser-ai-workbench.mjs",
+  "browser-diagram-summary.mjs",
   "browser-f0-workspace.mjs",
   "browser-f1-guided.mjs",
   "browser-f4-search-history.mjs",

@@ -64,13 +64,15 @@ describe("IA de diagramas no React — seleção e privacidade",()=>{
     expect(text).not.toContain("RF-001");
     expect(()=>buildDiagramPrompt({...args,mode:"text",manual:"  "})).toThrow("Descreva");
   });
-  it("não trunca seleções ou dados excessivos silenciosamente",()=>{
+  it("não limita artificialmente 19 cenários e avisa se o contexto direto exceder 20 mil",()=>{
     const lots=Array.from({length:19},(_,i)=>({
-      ...scenario,id:"33333333-3333-4333-8333-"+String(i+1).padStart(12,"0")
+      ...scenario,id:"33333333-3333-4333-8333-"+String(i+1).padStart(12,"0"),
+      titulo:"Conferência "+i
     }));
-    expect(()=>buildDiagramPrompt({
+    const result=buildDiagramPrompt({
       ...args,scenarios:lots,selectedScenarioIds:lots.map(s=>s.id)
-    })).toThrow("até 18");
+    });
+    expect(result).toContain("Conferência 18");
     expect(()=>buildDiagramPrompt({...args,manual:"x".repeat(20000)})).toThrow(/ultrapass|excede/);
   });
   it("sanitiza Mermaid gerado e rejeita comandos não permitidos",()=>{
