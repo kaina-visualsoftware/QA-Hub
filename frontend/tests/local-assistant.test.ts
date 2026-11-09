@@ -30,6 +30,51 @@ describe("extração local de TF (sem IA ou tráfego de rede)", () => {
     expect(result.cenarios[0].passos).toMatch(/Abrir pedido/);
     expect(result.cenarios[0].esperado).toMatch(/deve zerar/);
   });
+  it("transforma cenários já testados em passos, esperado e objetivo sem aprovar automaticamente",()=>{
+    const pasted=[
+      "TÍTULO: Persistência do checkbox de devolução",
+      "CENÁRIOS TESTADOS:",
+      "CENÁRIO 1 — Primeiro uso: checkbox desmarcado",
+      "Utilizado um usuário sem histórico no relatório",
+      "Acessado o menu Relatórios > Vendas > Resumos > Vendedor",
+      "Confirmado que o checkbox abre desmarcado",
+      "Objetivo: Validar que um usuário sem histórico vê o checkbox desmarcado.",
+      "RESULTADO ESPERADO: O checkbox deve abrir desmarcado."
+    ].join("\n");
+    const parsed=extractLocalDraft(pasted);
+    expect(parsed.cenarios).toHaveLength(1);
+    const c=parsed.cenarios[0];
+    expect(c.titulo).toBe("Primeiro uso: checkbox desmarcado");
+    expect(c.passos.split("\n")).toEqual([
+      "1. Utilizar um usuário sem histórico no relatório",
+      "2. Acessar o menu Relatórios > Vendas > Resumos > Vendedor",
+      "3. Verificar se o checkbox abre desmarcado"
+    ]);
+    expect(c.esperado).toBe("O checkbox deve abrir desmarcado.");
+    expect(c.observacoes).toContain("Objetivo:\nValidar que um usuário sem histórico");
+    expect(c.observacoes).toContain("Resultado observado na TF:");
+    expect(c.status).toBe("nao_executado");
+    expect(c.obtido).toBe("");
+  });
+  it("padroniza também os cenários da NVIDIA e preserva o objetivo explícito",()=>{
+    const parsed=normalizeDraft({
+      cenarios:[{
+        titulo:"PRIMEIRO USO DO RELATÓRIO",
+        passos:"1. ENTRAR COM UM USUÁRIO NOVO\n2. ACESSAR VENDAS > RESUMOS > VENDEDOR",
+        esperado:"- O CHECKBOX DEVE APARECER DESMARCADO.",
+        objetivo:"Validar o estado inicial do filtro",
+        obtido:"O teste foi realizado e a tela abriu desmarcada.",
+        observacoes:"Conferir também a versão do sistema"
+      }]
+    });
+    const c=parsed.cenarios[0];
+    expect(c.passos).toBe("1. Entrar com um usuário novo\n2. Acessar vendas > resumos > vendedor");
+    expect(c.esperado).toBe("O checkbox deve aparecer desmarcado.");
+    expect(c.observacoes).toContain("Objetivo:\nValidar o estado inicial do filtro");
+    expect(c.observacoes).toContain("Resultado observado na TF:");
+    expect(c.observacoes).toContain("Conferir também a versão");
+    expect(c.status).toBe("nao_executado");
+  });
   it("não confia em status nem campos arbitrários devolvidos por uma análise", () => {
     const result=normalizeDraft({
       titulo:"TF sem aprovação automática", segredo:"não armazenar",
