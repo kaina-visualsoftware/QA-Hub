@@ -34,7 +34,7 @@ export function cleanQaSourceText(value){
 const ACRONYMS=new Set([
   "QA","TF","IA","API","CPF","CNPJ","ERP","SQL","JSON","XML","HTML","CSS",
   "PDF","DOCX","TXT","CSV","XLSX","DV","NF","NFC","UI","UX","URL",
-  "HTTP","HTTPS","IP","ID","UUID","PIX","INI","PR","SKU","CLP",
+  "HTTP","HTTPS","IP","ID","UUID","PIX","PR","SKU","CLP",
   "MQTT","RAM","CPU","GPU","SIA","VSAPP","BUILD","RELEASE","GET",
   "POST","PUT","PATCH","DELETE","CTE","HTTPS","TCP","UDP"
 ]);
