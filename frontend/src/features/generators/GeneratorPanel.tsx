@@ -249,8 +249,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
-      setMessage(saved.inserted + " cenário(s) anexado(s) · " + saved.skipped +
-        " duplicado(s) ignorado(s). Todos começam não executados." +
+      setMessage(saved.inserted + " cenário(s) anexado(s) à TF. Todos começam não executados." +
         (warnings.length ? " Atenção: " + warnings.join(" | ") : ""));
     } catch (reason) { setError(messageOf(reason)); }
     finally { setBusySave(false); }
@@ -333,7 +332,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         <Button isDisabled={!canSend} onPress={() => void generate()}>
           {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
           {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
-            : mode === "post" ? "Gerar post" : "Gerar roteiro"}
+            : mode === "post" ? "Gerar post" : "Gerar casos"}
         </Button>
         {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
           Cancelar geração
