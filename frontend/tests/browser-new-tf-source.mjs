@@ -299,6 +299,37 @@ try{
   assert.equal(scenarioWrites,3,
     "Save and open TF must persist the automatically selected AI scenario");
 
+  // Saving an already-tested pasted TF without pressing Extract/NVIDIA
+  // must still produce numbered, pending scenarios with an explicit objective.
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  const executedReport=[
+    "CENÁRIOS TESTADOS:",
+    "CENÁRIO 1 — Primeiro uso: checkbox abre desmarcado",
+    "Utilizado um usuário novo",
+    "Acessado Relatórios > Vendas > Resumos > Vendedor",
+    "Confirmado que o checkbox abre desmarcado",
+    "RESULTADO ESPERADO: O checkbox deve aparecer desmarcado.",
+    "Objetivo: Validar que o primeiro acesso exibe o filtro desmarcado."
+  ].join("\n");
+  await modal.getByLabel("Título da tarefa").fill("TF com cenário executado colado");
+  await source.fill(executedReport);
+  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
+  await page.getByRole("heading",{name:"TF com cenário executado colado"}).waitFor();
+  assert.equal(taskWrites,5);
+  assert.equal(scenarioWrites,4,"Pasted scenarios must be imported even without AI");
+  const pastedScenario=scenarios[3];
+  assert.match(pastedScenario.passos,/^1\\. Utilizar um usuário novo/m);
+  assert.match(pastedScenario.passos,/^2\\. Acessar Relatórios > Vendas > Resumos > Vendedor/m);
+  assert.match(pastedScenario.passos,/^3\\. Verificar se o checkbox abre desmarcado/m);
+  assert.equal(pastedScenario.esperado,"O checkbox deve aparecer desmarcado.");
+  assert.match(pastedScenario.observacoes,/Objetivo:\\nValidar que o primeiro acesso/);
+  assert.match(pastedScenario.observacoes,/Resultado observado na TF:/);
+  assert.equal(pastedScenario.status,"nao_executado","Imported observations are not automatic approval");
+  assert.equal(pastedScenario.obtido,"");
+
   assert.deepEqual(errors,[]);
   console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
 }finally{await browser.close();}
