@@ -86,6 +86,7 @@ async function mock(route){
     return send(events);
   }
   if(path.endsWith("/rest/v1/qa_tarefa_mudancas"))return send(taskChanges);
+  if(path.endsWith("/rest/v1/qa_diagramas")||path.endsWith("/rest/v1/qa_documentos"))return send([]);
   errors.push(method+" "+path);
   return send({message:"Fixture unsupported"},500);
 }
