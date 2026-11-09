@@ -1964,7 +1964,7 @@
   gap:6px;margin:14px 0 24px}
 .qa-wizard-progress span{display:flex;align-items:center;justify-content:center;
   gap:7px;padding:11px 6px;border-radius:11px;background:#f4f8f9;
-  border:1px solid #e0eaed;color:#667e86;font-size:.79rem;font-weight:650;
+  border:1px solid #e0eaed;color:#48626c;font-size:.79rem;font-weight:650;
   text-align:center;min-width:0}
 .qa-wizard-progress b{display:grid;place-items:center;width:23px;height:23px;
   min-width:23px;border-radius:50%;background:#e0eaec;color:#405f6b;font-size:.74rem}
@@ -2001,7 +2001,7 @@
 .qa-wizard-consent input,.qa-wizard-draft input{margin-top:3px;flex-shrink:0}
 .qa-wizard-manual{display:flex;align-items:center;justify-content:center;
   flex-direction:column;gap:5px;border-top:1px solid #edf1f2;padding-top:12px}
-.qa-wizard-manual span{font-size:.76rem;color:#748991}
+.qa-wizard-manual span{font-size:.76rem;color:#526970}
 .qa-wizard-manual button{padding:9px 15px;border-radius:8px;color:#176b70;
   font-size:.85rem;font-weight:720;cursor:pointer}
 .qa-wizard-manual button:hover{background:#eaf6f4}
