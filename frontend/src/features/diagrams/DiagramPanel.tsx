@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, WandSparkles } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { DiagramAiPanel } from "./DiagramAiPanel";
-import { ensureMermaidSyntax, mermaidErrorMessage } from "./mermaid-validation";
+import { ensureMermaidSyntax, isMissingModuleChunk, mermaidErrorMessage } from "./mermaid-validation";
 import {
   diagramDraftSchema, listDiagrams, saveDiagram
 } from "../../lib/data";
@@ -78,6 +78,11 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   }
 
   function showMermaidError(value:string,reason:unknown){
+    if(isMissingModuleChunk(reason)){
+      setPreviewError("A versão do QA Hub mudou. Recarregue a página para carregar o Mermaid.");
+      setShowEditor(true);setRepairRequest(null);
+      return;
+    }
     const diagnosis=mermaidErrorMessage(reason);
     setPreviewError("Mermaid inválido: "+diagnosis);
     setShowEditor(true);setShowComposer(true);
@@ -155,17 +160,17 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
           </label>
         </div>
       </details>
-      {previewError&&<div className="qa-diagram-error-details"
-        role="group" aria-label="Erro de sintaxe Mermaid">
-        <p role="alert" className="notice error">{previewError}</p>
-        {repairRequest&&own&&<button className="secondary-link" type="button"
+      <ToastNotice message={previewError} tone="error"/>
+      {repairRequest&&own&&<div className="qa-diagram-error-details"
+        role="group" aria-label="Opção para corrigir diagrama">
+        <button className="secondary-link" type="button"
           onClick={()=>{
             setShowComposer(true);
             requestAnimationFrame(()=>{
               document.getElementById("diagram-ai-heading")?.focus({preventScroll:true});
               document.getElementById("diagram-ai-heading")?.scrollIntoView({block:"start"});
             });
-          }}>Ir para Corrigir com IA</button>}
+          }}>Ir para Corrigir com IA</button>
       </div>}
       <div className="qa-diagram-savebar">
         <Button type="submit" id="diagram-save-action"
