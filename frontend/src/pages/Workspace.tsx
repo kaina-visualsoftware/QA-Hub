@@ -413,6 +413,22 @@ export function Workspace() {
                 <input placeholder="Opcional" {...form.register("versao")}/>
               </label>
             </div>
+            <details className="qa-tf-technical-fields">
+              <summary>Análise técnica e informações adicionais</summary>
+              <div className="form-grid mt-3">
+                <label className="field">Ambiente<input {...form.register("ambiente")}/></label>
+                <label className="field">Base de teste<input {...form.register("base_teste")}/></label>
+                <label className="field">Empresa<input {...form.register("empresa")}/></label>
+                <label className="field">Testador<input {...form.register("testador")}/></label>
+              </div>
+              <div className="stack mt-3">
+                <label className="field">Análise / como funciona<textarea rows={3} {...form.register("explicacao")}/></label>
+                <label className="field">Causa identificada<textarea rows={3} {...form.register("causa")}/></label>
+                <label className="field">Correção realizada<textarea rows={3} {...form.register("correcao")}/></label>
+                <label className="field">Conclusão<textarea rows={3} {...form.register("conclusao")}/></label>
+                <label className="field">Observações<textarea rows={3} {...form.register("observacoes")}/></label>
+              </div>
+            </details>
             <label className="qa-tf-draft-option">
               <input type="checkbox" checked={rememberDraft} onChange={(event)=>{
                 if(event.target.checked){
@@ -435,8 +451,9 @@ export function Workspace() {
         {localReview && <section className="generator-context stack"
           aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
-          <p className="text-muted text-sm">Nada será aplicado até você confirmar.
-            Campos não identificados permanecem como estão.</p>
+          <p className="text-muted text-sm">{localReview.mode==="nvidia"
+            ? "Os campos identificados pela IA já foram preenchidos no formulário. Confira e ajuste o que precisar antes de salvar. O texto original foi preservado na descrição."
+            : "Nada será aplicado até você confirmar. Campos não identificados permanecem como estão."}</p>
           <div className="local-preview-grid">
             {Object.entries(localReview.draft.fields)
               .filter(([key,value]) => key !== "descricao" && Boolean(value))
@@ -455,36 +472,21 @@ export function Workspace() {
                 setLocalReview(null); setExtracted([]);
                 return;
               }
-              const textLimits: Record<string,number> = {
-                titulo:240, descricao:30000, codigo:100, sistema:160, versao:100,
-                ambiente:240, base_teste:240, empresa:240, testador:240,
-                explicacao:30000, causa:30000, correcao:30000,
-                conclusao:30000, observacoes:30000
-              };
-              const draft = localReview.draft;
-              for (const [name,value] of Object.entries(draft.fields)) {
-                if (!value || name === "tipo_teste" || name === "descricao" || !(name in textLimits)) continue;
-                const key = name as Exclude<keyof TaskDraft,"tipo_teste">;
-                form.setValue(key, value.slice(0,textLimits[name]), {
-                  shouldValidate:true, shouldDirty:true
-                });
-              }
-              if (draft.fields.tipo_teste === "BUILD" || draft.fields.tipo_teste === "RELEASE") {
-                form.setValue("tipo_teste", draft.fields.tipo_teste, {
-                  shouldValidate:true, shouldDirty:true
-                });
-              }
+              applyTaskAiFields(form,localReview.draft);
               setLocalReview(null);
-              setExtractionNotice("Campos aplicados. Revise o formulário e selecione explicitamente os casos antes de salvar.");
-            }}>Aplicar campos revisados</Button>
+              setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
+            }}>{localReview.mode==="nvidia"?"Reaplicar sugestões da IA":"Aplicar campos revisados"}</Button>
             <Button type="button" variant="secondary" onPress={() => {
-              setLocalReview(null); setExtracted([]);
-              setExtractionNotice("Análise descartada. O formulário não foi modificado.");
-            }}>Descartar prévia</Button>
+              setLocalReview(null);
+              if(localReview.mode!=="nvidia")setExtracted([]);
+              setExtractionNotice(localReview.mode==="nvidia"
+                ? "Prévia ocultada. Os dados e cenários sugeridos permanecem prontos para salvar."
+                : "Análise descartada. O formulário não foi modificado.");
+            }}>{localReview.mode==="nvidia"?"Ocultar prévia":"Descartar prévia"}</Button>
           </div>
         </section>}
         {extracted.length > 0 && <fieldset className="extracted-cases">
-          <legend className="font-semibold">Cenários identificados — nenhum é anexado sem seleção</legend>
+          <legend className="font-semibold">Cenários identificados — {extracted.filter(item=>item.selected).length} selecionado(s) para salvar</legend>
           {extracted.map((item, index) => <label key={index} className="extracted-case">
             <input type="checkbox" checked={item.selected} onChange={(e) =>
               setExtracted((items) => items.map((v, i) => i === index ? {...v, selected: e.target.checked} : v))} />
