@@ -130,13 +130,13 @@ try{
   await library.getByRole("combobox",{name:"Cenário desta TF"}).selectOption(ORIGINAL);
   page.once("dialog",dialog=>void dialog.accept());
   await library.getByRole("button",{name:"Salvar na biblioteca"}).click();
-  await library.getByText("Modelo salvo na biblioteca privada.").waitFor();
+  await page.getByText("Modelo salvo na biblioteca privada.").waitFor();
   assert.equal(modelWrites,1);
   assert.equal(models[0].user_id,USER);
   await library.locator(".qa-f6-library-item strong").filter({hasText:"Remover desconto"}).waitFor();
   page.once("dialog",dialog=>void dialog.accept());
   await library.getByRole("button",{name:"Adicionar à TF"}).click();
-  await library.getByText("Cenário adicionado como pendente.",{exact:false}).waitFor();
+  await page.getByText("Cenário adicionado como pendente.",{exact:false}).waitFor();
   assert.equal(scenarioWrites,1);
   assert.equal(cases.length,2);
   assert.equal(cases[1].status,"nao_executado");
@@ -163,7 +163,7 @@ try{
   await page.setViewportSize({width:390,height:844});
   page.once("dialog",dialog=>void dialog.accept());
   await library.getByRole("button",{name:"Excluir modelo"}).click();
-  await library.getByText("Modelo removido apenas da biblioteca.").waitFor();
+  await page.getByText("Modelo removido apenas da biblioteca.").waitFor();
   assert.equal(models.length,0);
   assert.equal(cases.length,2,"Deleting template must keep imported scenarios");
 
