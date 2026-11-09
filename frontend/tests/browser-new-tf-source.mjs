@@ -126,7 +126,9 @@ try{
   assert.equal(await generate.isDisabled(),true,"No source or consent yet");
 
   const source=modal.getByLabel("Descrição / problema");
-  const pasted="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.";
+  const relevant="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.\nGERADO UMA VENDA TAL";
+  const normalized="Pedido 78912 versão 12.08. Remover desconto negativo e recalcular total. O rateio ignora valores negativos.\nGerado uma venda tal";
+  const pasted="preview\nGoogle Drive\nArquivo do Google Drive\nDownload\nAbrir\n"+relevant;
   await source.fill(pasted);
   assert.equal(await generate.isDisabled(),true,"Sending requires current-text consent");
   await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
@@ -134,12 +136,12 @@ try{
   await generate.click();
   await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
   assert.equal(aiPayloads.length,1);
-  assert.equal(aiPayloads[0].text,pasted);
+  assert.equal(aiPayloads[0].text,relevant,"NVIDIA must not receive controls copied from the interface");
   assert.equal(taskWrites,0,"AI preview must not create TF");
   // Regression: clicking save directly after generation must not discard AI fields.
   assert.equal(await modal.getByLabel("Título da tarefa").inputValue(),
     "Validação dos descontos no pedido");
-  assert.equal(await source.inputValue(),pasted,"Pasted source must be preserved");
+  assert.equal(await source.inputValue(),normalized,"The form must show the clean, sentence-case description before saving");
   assert.equal(await modal.getByRole("checkbox",{name:/Remover desconto da compra/}).isChecked(),
     true,"Suggested scenarios should be selected by default");
   await modal.getByRole("button",{name:"Salvar e adicionar cenário"}).click();
@@ -153,7 +155,7 @@ try{
   assert.equal(scenarios[0].obtido,"");
   assert.equal(tasks[0].codigo,"78912");
   assert.equal(tasks[0].causa,"O rateio antigo ignora descontos negativos.");
-  assert.equal(tasks[0].descricao,pasted);
+  assert.equal(tasks[0].descricao,normalized,"Saved TF must not retain the copied Drive controls");
 
   await firstEditor.getByRole("button",{name:"Cancelar"}).click();
   await page.getByRole("button",{name:"Editar TF"}).click();
@@ -174,7 +176,7 @@ try{
   assert.equal(tasks[0].causa,"Rateio revisado e validado pela IA.");
   assert.equal(scenarioWrites,2,"Existing TF should receive only new selected scenarios");
   assert.equal(scenarios[1].ordem,2,"Regenerated scenario must follow existing order");
-  assert.equal(tasks[0].descricao,pasted,"Editing with AI must preserve the source text");
+  assert.equal(tasks[0].descricao,normalized,"AI regeneration must not reintroduce copied UI labels");
 
   await page.goto(ROOT);
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
