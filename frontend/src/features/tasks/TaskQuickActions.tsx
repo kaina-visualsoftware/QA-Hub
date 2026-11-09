@@ -77,7 +77,7 @@ export function TaskQuickActions({owner,canExecute,onAction}:{
     </div>}
     <button ref={trigger} type="button" className="qa-task-fab-trigger"
       aria-controls={open?"qa-task-quick-menu":undefined} aria-expanded={open}
-      aria-label={open?"Fechar ações rápidas":"Abrir ações rápidas da TF"}
+      aria-label={open?"Recolher ações rápidas":"Abrir ações rápidas da TF"}
       onClick={()=>setOpen(value=>!value)}>
       {open?<X size={20} aria-hidden="true"/>:<Plus size={21} aria-hidden="true"/>}
       <span>{open?"Fechar":"Ações"}</span>
