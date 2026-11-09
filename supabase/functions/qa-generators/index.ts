@@ -10,8 +10,8 @@ function headers(origin){
     "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type",
     "Access-Control-Allow-Methods":"POST, OPTIONS","Cache-Control":"no-store","Vary":"Origin"};
 }
-function json(origin,status,body){
-  return new Response(JSON.stringify(body),{status,headers:{...headers(origin),"Content-Type":"application/json; charset=utf-8"}});
+function json(origin,status,body,extraHeaders={}){
+  return new Response(JSON.stringify(body),{status,headers:{...headers(origin),"Content-Type":"application/json; charset=utf-8",...extraHeaders}});
 }
 async function allowedModels(key){
   try{
@@ -110,16 +110,25 @@ Deno.serve(async req=>{
   if(!key)return json(origin,503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
   const models=await allowedModels(key);
   if(!models.length)return json(origin,503,{error:"models_unavailable",message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
-  const claim=await db.rpc("qa_ai_claim_request");
-  if(claim.error)return json(origin,503,{error:"quota_unavailable",message:"O limite de uso da IA não está configurado."});
-  if(!claim.data)return json(origin,429,{error:"quota",message:"Limite de IA atingido. Aguarde antes de tentar novamente."});
   const messages=messagesForGenerator(mode,tarefa,requisito);
   for(const model of models){
+    // Count EVERY upstream attempt, including model fallback, against the
+    // same 15/minute rolling window as qa-ai. No daily limit applies.
+    const claim=await db.rpc("qa_ai_claim_minute_request");
+    if(claim.error||!claim.data||typeof claim.data!=="object")
+      return json(origin,503,{error:"quota_unavailable",message:"Não foi possível verificar o limite por minuto."});
+    if(!claim.data.allowed){
+      const retry=Math.max(1,Math.min(60,Math.ceil(Number(claim.data.retry_after_seconds)||60)));
+      return json(origin,429,{
+        error:"rate_limited",retry_after_seconds:retry,
+        message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+" segundo(s)."
+      },{"Retry-After":String(retry)});
+    }
     try{
       const r=await fetch(BASE+"/chat/completions",{
         method:"POST",
         headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json","Accept":"text/event-stream"},
-        body:JSON.stringify({model,messages,stream:true,temperature:0.15,max_tokens:mode==="teste"?8500:3500,
+        body:JSON.stringify({model,messages,stream:true,temperature:0.15,max_tokens:mode==="teste"?11000:3500,
           ...(model.startsWith("nvidia/nemotron-")?{chat_template_kwargs:{enable_thinking:false}}:{})}),
         signal:AbortSignal.timeout(110000)
       });
