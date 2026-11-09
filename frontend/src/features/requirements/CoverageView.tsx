@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { Download, Link2, Save, X } from "lucide-react";
 import type { Task, Scenario } from "../../lib/contracts";
@@ -72,7 +73,7 @@ export default function CoverageView({
       quando todos os cenários vinculados foram realmente aprovados.
     </p>
     {loading && <p role="status" className="notice">Carregando vínculos privados…</p>}
-    {error && <p role="alert" className="notice error">{error}</p>}
+    <ToastNotice message={error} tone="error"/>
     {!loading && !error && <>
       <div className="flex flex-wrap items-end gap-2">
         <label className="field grow-2">Localizar requisito<input placeholder="Código, cenário ou título..."
@@ -138,7 +139,7 @@ export default function CoverageView({
         </div>}
       </article>)}
     </>}
-    {message && <p role="status" className="notice">{message}</p>}
-    {saveError && <p role="alert" className="notice error">{saveError}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={saveError} tone="error"/>
   </div>;
 }
