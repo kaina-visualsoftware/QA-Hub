@@ -666,7 +666,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           {generating?"Gerando casos…":
             cases.length?"Ampliar cobertura com IA":"Gerar casos de teste com IA"}
         </Button>
-      </div>}
+      </div>
       {cases.length>0&&<div className="qa-wizard-case-review">
         <div className="qa-wizard-case-head">
           <strong>{totalSelected} de {cases.length} casos selecionados</strong>
