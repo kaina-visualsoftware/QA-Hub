@@ -70,7 +70,7 @@ try{
   assert.equal(await page.getByRole("heading",{name:"Execução registrada"}).count(),0);
   await page.getByRole("heading",{name:"Sobre esta TF"}).waitFor();
 
-  const fab=page.getByRole("button",{name:"Abrir ações rápidas da TF"});
+  const fab=page.locator(".qa-task-fab-trigger");
   await fab.click();
   const menu=page.getByRole("group",{name:"Ações rápidas da TF"});
   await menu.waitFor();
