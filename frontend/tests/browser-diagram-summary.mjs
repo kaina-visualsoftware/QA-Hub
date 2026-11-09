@@ -121,7 +121,7 @@ try{
      "IMPLEMENTADO: descontos recalculados. FALHAS: retorno bancário reprovado. "+
      "BLOQUEIOS: cenários sem teste. PENDENTES: conferir integração.");
  await dialog.getByRole("button",{name:"Gerar diagrama da TF"}).click();
- await page.locator("#diagram-code-editor").waitFor({timeout:20000});
+ await page.waitForFunction(()=>document.getElementById("diagram-code-editor")?.value?.startsWith("flowchart LR"),null,{timeout:20000});
  const generated=await page.locator("#diagram-code-editor").inputValue();
  assert.match(generated,/flowchart LR/);
  assert.equal(diagramPrompts.length,1);
