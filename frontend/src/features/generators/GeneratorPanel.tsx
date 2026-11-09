@@ -328,7 +328,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       <div className="qa-ai-submit-row">
         <label className="qa-ai-consent-compact">
           <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-          <span>Autorizo enviar o contexto à NVIDIA. Revise os dados exibidos antes do envio.</span>
+          <span>Autorizo enviar os textos exibidos à NVIDIA.</span>
         </label>
         <div className="qa-ai-submit-actions">
           <Button isDisabled={!canSend} onPress={() => void generate()}>
@@ -341,6 +341,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           </Button>}
         </div>
       </div>
+      <p className="qa-ai-privacy-note">
+        A ocultação automática de dados sensíveis pode falhar; confira o contexto antes de enviar.
+      </p>
     </div>}
 
     {(generating || raw || content || cases.length>0) && <section className="mt-6" aria-label="Resultado da IA">
