@@ -17,6 +17,9 @@ const cors={
 const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[];
 let taskWrites=0,caseWrites=0,rateLimited=false;
 let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},releaseCasesRequest=()=>{};
+let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
+const taskStarted=new Promise(resolve=>{notifyTaskStarted=resolve;});
+const casesStarted=new Promise(resolve=>{notifyCasesStarted=resolve;});
 const markdown=[
   "# ROTEIRO DE TESTES — DESCONTOS",
   "## Cenário 01 — Remover desconto",
@@ -72,6 +75,7 @@ async function backend(route){
   if(path.endsWith("/functions/v1/qa-ai")){
     const payload=req.postDataJSON();
     aiRequests.push(payload);
+    notifyTaskStarted();
     if(holdTaskRequest){
       await new Promise(resolve=>{releaseTaskRequest=resolve;});
       holdTaskRequest=false;
@@ -93,6 +97,7 @@ async function backend(route){
     const data=req.postDataJSON();
     assert.equal(data.mode,"teste");
     caseRequests.push(data);
+    notifyCasesStarted();
     if(holdCasesRequest){
       await new Promise(resolve=>{releaseCasesRequest=resolve;});
       holdCasesRequest=false;
@@ -191,6 +196,7 @@ try{
     "Only the actual in-flight stage should be marked active");
   assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
     "Navigation must be blocked during in-flight NVIDIA analysis");
+  await taskStarted;
   releaseTaskRequest();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
   await statusPanel.waitFor({state:"detached"});
@@ -218,6 +224,7 @@ try{
   await statusPanel.getByText(/Aguardando a NVIDIA elaborar/).waitFor();
   assert.equal(await statusPanel.getByRole("button",{name:"Cancelar"}).count(),1,
     "Streaming case generation must offer an explicit cancel action");
+  await casesStarted;
   releaseCasesRequest();
   await page.getByText("2 caso(s) novo(s) identificados.",{exact:false}).waitFor();
   await statusPanel.waitFor({state:"detached"});
