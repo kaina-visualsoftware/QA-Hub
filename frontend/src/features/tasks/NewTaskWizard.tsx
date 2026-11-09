@@ -11,7 +11,7 @@ import { taskToGeneratorText, parseGeneratedCases } from "../../lib/legacy/qa-wo
 import { sanitizeAiContext } from "../../lib/legacy/qa-test-context.mjs";
 import {
   archiveTaskAiSource, freshTaskAiScenarios, generateTaskAiDraft,
-  mergeTaskAiCreation, onlyNewTaskAiSelections
+  mergeTaskAiCreation, onlyNewTaskAiSelections, taskAiFieldValues
 } from "./task-ai";
 import type { SuggestedScenario } from "./task-ai";
 import { generateWithNvidia } from "../generators/stream";
@@ -102,6 +102,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [streamText,setStreamText] = useState("");
   const controller=useRef<AbortController|null>(null);
   const wasOpen=useRef(false);
+  const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const busy=reading||analyzing||generating||finishing;
 
   useEffect(()=>{
@@ -112,7 +113,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setRequirementText("");setDraft(blank());setCases([]);
       setConsentTask(false);setConsentCases(false);setAiUsed(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");
-      setRemember(false);setRecoverable(null);
+      setRemember(false);setRecoverable(null);automaticallyFilled.current={};
     }
     wasOpen.current=open;
   },[open,userId]);
@@ -142,10 +143,28 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   function update(name:keyof TaskDraft,value:string){
     setDraft(current=>({...current,[name]:value}));
     setDraftErrors(current=>({...current,[name]:""}));
+    setConsentCases(false);
+  }
+  function invalidateSource(){
+    const previouslyFilled=automaticallyFilled.current;
+    if(Object.keys(previouslyFilled).length){
+      setDraft(current=>{
+        const next={...current};
+        const defaults=blank();
+        for(const [name,value] of Object.entries(previouslyFilled)){
+          const key=name as keyof TaskDraft;
+          // Preserve anything the QA has manually changed since analysis.
+          if(next[key]===value) (next as Record<string,string>)[key]=defaults[key];
+        }
+        return next;
+      });
+      setNotice("A origem da TF mudou. Gere a análise novamente ou revise os campos na etapa 2.");
+    }else setNotice("");
+    automaticallyFilled.current={};
+    setConsentTask(false);setConsentCases(false);setAiUsed(false);setCases([]);
   }
   function alterSource(value:string){
-    setSourceText(value);setConsentTask(false);setConsentCases(false);
-    setAiUsed(false);setCases([]);setError("");setNotice("");
+    setSourceText(value);invalidateSource();setError("");
   }
   async function addFiles(list: FileList | null, requirement:boolean){
     if(!list?.length)return;
@@ -168,7 +187,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         setConsentCases(false);
       }else{
         setTaskFiles(current=>[...current,...prepared]);
-        setAiUsed(false);setConsentTask(false);setCases([]);setConsentCases(false);
+        invalidateSource();
       }
       const warnings=prepared.filter(item=>item.warning).map(item=>item.file.name+": "+item.warning);
       setNotice(warnings.length?warnings.join(" "):
@@ -190,6 +209,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       }
       const initial={...draft,descricao:sourceText};
       const merged=mergeTaskAiCreation(initial,response);
+      automaticallyFilled.current=taskAiFieldValues(response);
       setDraft(merged);
       setCases(freshTaskAiScenarios(response,[],true));
       setAiUsed(true);
@@ -204,9 +224,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       const all=combine("TEXTO DA TAREFA",sourceText,taskFiles);
       const extracted=all.trim()?extractLocalDraft(all):null;
       if(extracted){
-        setDraft(mergeTaskAiCreation({...draft,descricao:sourceText},extracted,{keepDescription:true}));
+        const merged=mergeTaskAiCreation({...draft,descricao:sourceText},extracted,{keepDescription:true});
+        automaticallyFilled.current={...taskAiFieldValues(extracted),descricao:sourceText};
+        setDraft(merged);
         setCases(freshTaskAiScenarios(extracted,[],true));
-      }else setDraft(current=>({...current,descricao:sourceText}));
+      }else{
+        automaticallyFilled.current={};
+        setDraft(current=>({...current,descricao:sourceText}));
+      }
     }catch{
       setDraft(current=>({...current,descricao:sourceText}));
     }
@@ -336,7 +361,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <button type="button" disabled={busy} aria-label={"Remover "+item.file.name}
             onClick={()=>{
               if(requirement){setRequirementFiles(files=>files.filter(x=>x.hash!==item.hash));setConsentCases(false);}
-              else{setTaskFiles(files=>files.filter(x=>x.hash!==item.hash));setAiUsed(false);setConsentTask(false);setCases([]);}
+              else{setTaskFiles(files=>files.filter(x=>x.hash!==item.hash));invalidateSource();}
             }}><Trash2 size={16}/></button>
         </div>)}
       </div>
@@ -378,6 +403,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {!!taskContextLength&&<p className="qa-wizard-size">
         {taskContextLength.toLocaleString("pt-BR")} / {TASK_LIMIT.toLocaleString("pt-BR")} caracteres
         para a análise da NVIDIA
+      </p>}
+      {taskContextLength>TASK_LIMIT&&<p role="alert" className="text-error text-sm">
+        O texto e os arquivos ultrapassam 20.000 caracteres. Remova ou divida os documentos
+        para analisar todo o conteúdo, sem perder partes silenciosamente.
       </p>}
       <label className="qa-wizard-consent">
         <input type="checkbox" checked={consentTask} disabled={busy||!taskContextLength}
@@ -426,7 +455,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         {field("codigo","Código da TF")}
         <label className="field">Tipo de teste
           <select value={draft.tipo_teste} disabled={busy}
-            onChange={event=>setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}))}>
+            onChange={event=>{
+            setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}));
+            setConsentCases(false);
+          }}>
             <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
           </select>
         </label>
