@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
 import { Check, WandSparkles, Wrench } from "lucide-react";
@@ -208,7 +209,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     {repairRequest&&!invalidGenerated&&<p role="status" className="text-muted text-sm">
       Código com erro. Use Corrigir com IA ou ajuste manualmente.
     </p>}
-    {error&&<p role="alert" className="notice error">{error}</p>}
+    <ToastNotice message={error} tone="error"/>
     {message&&<p role="status" className="qa-diagram-success">
       <Check size={16} aria-hidden="true"/>{message}
     </p>}
