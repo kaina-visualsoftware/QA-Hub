@@ -65,9 +65,46 @@ jobs:
             echo 'Refusing to replace an unmanaged react/ directory.'
             exit 1
           fi
+          # Keep the current and two previous releases' hashed chunks.
+          # A tab left open during deploy may still import the old Mermaid bundle.
+          # Deleting those assets causes "Failed to fetch dynamically imported module".
+          previous="$(mktemp -d)"
+          trap 'rm -rf "$previous"' EXIT
+          if [ -d react/assets ]; then
+            mkdir -p "$previous/assets"
+            cp -a react/assets/. "$previous/assets/"
+            if [ -s react/.qa-react-current-assets ]; then
+              cp react/.qa-react-current-assets "$previous/current"
+            else
+              find react/assets -maxdepth 1 -type f -printf '%f\\n' | sort > "$previous/current"
+            fi
+            if [ -s react/.qa-react-prior-1-assets ]; then
+              cp react/.qa-react-prior-1-assets "$previous/prior-1"
+            fi
+          fi
           rm -rf react
           mkdir -p react
           cp -a frontend/dist/. react/
+          # Record the freshly generated assets before restoring historical chunks.
+          find react/assets -maxdepth 1 -type f -printf '%f\\n' | sort > react/.qa-react-current-assets
+          : > react/.qa-react-prior-1-assets
+          : > react/.qa-react-prior-2-assets
+          if [ -f "$previous/current" ]; then
+            cp "$previous/current" react/.qa-react-prior-1-assets
+          fi
+          if [ -f "$previous/prior-1" ]; then
+            cp "$previous/prior-1" react/.qa-react-prior-2-assets
+          fi
+          for manifest in react/.qa-react-prior-1-assets react/.qa-react-prior-2-assets; do
+            while IFS= read -r asset; do
+              # Names come from generated build manifests, never external input.
+              if [ -n "$asset" ] && [ "$asset" = "${asset##*/}" ] \
+                && [ -f "$previous/assets/$asset" ] \
+                && [ ! -e "react/assets/$asset" ]; then
+                cp "$previous/assets/$asset" "react/assets/$asset"
+              fi
+            done < "$manifest"
+          done
           touch react/.nojekyll
           cat > react/.qa-react-generated <<'EOF'
           Generated React build managed by .github/workflows/qa-react-publish.yml.
