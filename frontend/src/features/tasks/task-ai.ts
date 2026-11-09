@@ -10,27 +10,29 @@ export type SuggestedScenario={
 };
 
 const FIELD_LIMITS:Readonly<Partial<Record<keyof TaskDraft,number>>>={
-  titulo:240,codigo:100,sistema:160,versao:100,
+  titulo:240,descricao:30000,codigo:100,sistema:160,versao:100,
   ambiente:240,base_teste:240,empresa:240,testador:240,
   explicacao:30000,causa:30000,correcao:30000,
   conclusao:30000,observacoes:30000
 };
 
-/**
- * Apply all AI-derived structured fields to the actual React Hook Form.
- * The description is left untouched as it contains the source report that
- * the user pasted; never destroy that source while regenerating.
- */
+/** Use the same structured summaries on creation and regeneration. */
 export function applyTaskAiFields(
   form:Pick<UseFormReturn<TaskDraft>,"setValue">,
-  draft:LocalDraft,
-  options?:{cleanDescription?:string}
+  draft:LocalDraft
 ):number{
   let applied=0;
   for(const [name,limit] of Object.entries(FIELD_LIMITS)){
     const value=draft.fields[name]?.trim();
     if(!value)continue;
-    form.setValue(name as keyof typeof FIELD_LIMITS,value.slice(0,limit),{
+    const prose=["titulo","descricao","explicacao","causa","correcao","conclusao","observacoes"];
+    const cleaned=prose.includes(name)?formatQaSentenceCase(value):value;
+    // Never place the full report, copied UI controls or a test script in the summary.
+    const normalized=name==="descricao"
+      ?cleaned.replace(/\s*\n+\s*/g," ").replace(/\s+/g," ").slice(0,650).trim()
+      :cleaned.slice(0,limit);
+    if(!normalized)continue;
+    form.setValue(name as keyof typeof FIELD_LIMITS,normalized,{
       shouldValidate:true,shouldDirty:true,shouldTouch:true
     });
     applied++;
@@ -41,21 +43,15 @@ export function applyTaskAiFields(
     });
     applied++;
   }
-  if(options?.cleanDescription!==undefined){
-    const normalized=formatQaSentenceCase(options.cleanDescription).slice(0,30000);
-    if(normalized&&normalized!==options.cleanDescription){
-      form.setValue("descricao",normalized,{
-        shouldValidate:true,shouldDirty:true,shouldTouch:true
-      });
-      applied++;
-    }
-  }
   return applied;
 }
 
 function identity(item:Pick<SuggestedScenario,"titulo"|"passos"|"esperado">){
-  return [item.titulo,item.passos,item.esperado]
-    .map(text=>text.toLocaleLowerCase("pt-BR").trim().replace(/\s+/g," ")).join("\u0000");
+  // Equivalent objectives are the same test even when steps are rewritten.
+  return item.titulo.normalize("NFD").replace(/\p{M}/gu,"")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/^\s*(?:cenario\s*\d+\s*[-—–:.]?\s*|\d+\s*[-—–:.]\s*)/u,"")
+    .replace(/[^a-z0-9]+/g," ").trim();
 }
 
 export function freshTaskAiScenarios(
@@ -66,10 +62,10 @@ export function freshTaskAiScenarios(
   const fresh:SuggestedScenario[]=[];
   for(const item of draft.cenarios){
     const scenario={
-      titulo:item.titulo.trim().slice(0,240),
-      passos:item.passos.trim().slice(0,20000),
-      esperado:item.esperado.trim().slice(0,20000),
-      observacoes:item.observacoes.trim().slice(0,20000),
+      titulo:formatQaSentenceCase(item.titulo).trim().slice(0,240),
+      passos:formatQaSentenceCase(item.passos).trim().slice(0,20000),
+      esperado:formatQaSentenceCase(item.esperado).trim().slice(0,20000),
+      observacoes:formatQaSentenceCase(item.observacoes).trim().slice(0,20000),
       selected
     };
     if(scenario.titulo.length<3||!scenario.passos||!scenario.esperado)continue;
@@ -94,12 +90,39 @@ export function onlyNewTaskAiSelections(
   });
 }
 
+const SOURCE_NAME="Fonte original da TF";
+
+/** Archive pasted reports in a protected task source rather than the summary. */
+export async function archiveTaskAiSource(taskId:string,userId:string,text:string):Promise<void>{
+  const source=text.trim();
+  if(source.length<5||source.length>30000)throw Error("Fonte original inválida ou muito extensa.");
+  const {data,error}=await supabase.from("qa_requisito_fontes")
+    .select("id,texto_extraido").eq("tarefa_id",taskId)
+    .eq("tipo_fonte","texto").eq("nome_arquivo",SOURCE_NAME)
+    .order("created_at",{ascending:false}).limit(20);
+  if(error)throw Error("Não foi possível consultar a fonte original: "+error.message);
+  if(data?.some(row=>row.texto_extraido===source))return;
+  const {error:insertError}=await supabase.from("qa_requisito_fontes").insert({
+    tarefa_id:taskId,user_id:userId,tipo_fonte:"texto",
+    nome_arquivo:SOURCE_NAME,texto_extraido:source
+  });
+  if(insertError)throw Error("Não foi possível arquivar a fonte original: "+insertError.message);
+}
+
+export async function loadTaskAiSource(taskId:string):Promise<string|null>{
+  const {data,error}=await supabase.from("qa_requisito_fontes")
+    .select("texto_extraido").eq("tarefa_id",taskId)
+    .eq("tipo_fonte","texto").eq("nome_arquivo",SOURCE_NAME)
+    .order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(error)throw Error("Falha ao carregar a fonte original: "+error.message);
+  return data?.texto_extraido||null;
+}
+
 export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
   const source=text.trim();
   if(!source||source.length>20000)
     throw Error("Informe uma descrição de até 20.000 caracteres para gerar com IA.");
-  // Keep the user's original report in the form, but exclude copied web controls
-  // from the version sent to NVIDIA. Do not collapse technical lines or evidence.
+  // Preserve the original report separately; do not send copied UI controls to NVIDIA.
   const relevant=cleanQaSourceText(source);
   if(!relevant||relevant.length<10)
     throw Error("A descrição contém apenas elementos de interface. Cole o conteúdo da TF.");
