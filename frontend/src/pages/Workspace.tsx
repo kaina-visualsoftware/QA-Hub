@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCheck, Filter, Paperclip, Plus, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
 import { createTask, getAdminRole, addExtractedScenarios } from "../lib/data";
@@ -336,121 +336,114 @@ export function Workspace() {
       </div>
     </section>}
 
-    <QAModal open={showForm} title="Nova TF" eyebrow="CADASTRO RÁPIDO"
-      description="Cole o texto da TF ou importe um arquivo opcional. Gere com NVIDIA ou preencha manualmente."
-      onClose={closeDraft} busy={create.isPending} initialFocus={'textarea[name="descricao"]'}>
+    <QAModal open={showForm} title="Nova TF"
+      description="Preencha o título. O restante é opcional."
+      onClose={closeDraft} busy={create.isPending} initialFocus={'input[name="titulo"]'}>
       <form onSubmit={form.handleSubmit((values, event) => {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
           draft: values, openScenario: submitter?.getAttribute("data-next") === "scenario"
         });
-      })} className="stack mt-5">
-        <section className="qa-tf-source" aria-label="Texto de origem para a TF">
-          <div className="qa-tf-source-heading">
-            <strong>Cole o texto da tarefa</strong>
-            <span className="text-muted text-sm">Ou importe um arquivo opcional.</span>
-          </div>
-          <label className="field">Descrição / problema
-            <textarea rows={6} maxLength={30000}
-              placeholder="Cole a descrição, a análise e a correção da TF aqui. Você não precisa anexar nenhum documento."
-              {...form.register("descricao")}/>
-          </label>
-          <div className="qa-tf-source-file">
-            <label className="field">Importar arquivo (opcional: TXT, MD, PDF ou DOCX)
-              <input type="file" accept=".txt,.md,.pdf,.docx"
-                disabled={fileBusy||onlineBusy||create.isPending}
-                onChange={event=>{
-                  const file=event.target.files?.[0];
-                  void importReport(file);
-                  event.target.value="";
-                }}/>
-            </label>
-            <small className="text-muted">O arquivo apenas coloca o texto no campo acima.
-              Nenhum anexo é obrigatório.</small>
-          </div>
-          <div className="qa-tf-source-choice" role="group" aria-label="Formas de preencher">
-            <Button variant="secondary" type="button"
-              isDisabled={fileBusy||onlineBusy||!form.watch("descricao").trim()}
-              onPress={()=>{
-                const source=form.getValues("descricao");
-                try{
-                  showReview(source,extractLocalDraft(source),"manual");
-                }catch(error){
-                  setLocalReview(null);setExtracted([]);
-                  setExtractionNotice(error instanceof Error?error.message:
-                    "Não foi possível extrair os campos sem IA.");
-                }
-              }}>Extrair campos sem IA</Button>
-          </div>
-          <div className="qa-tf-nvidia">
-            <label className="flex gap-2 items-start text-sm">
-              <input type="checkbox" checked={onlineConsentText!==null&&
-                onlineConsentText===form.watch("descricao")}
-                disabled={onlineBusy||fileBusy||!form.watch("descricao").trim()||
-                  form.watch("descricao").length>20000}
-                onChange={event=>setOnlineConsentText(event.target.checked
-                  ?form.getValues("descricao"):null)}/>
-              <span>Autorizo enviar este texto à NVIDIA para sugerir campos e cenários.
-                Revise informações sensíveis antes do envio.</span>
-            </label>
-            <div className="qa-tf-nvidia-actions">
-              <Button type="button" isDisabled={fileBusy||onlineBusy||
-                onlineConsentText!==form.watch("descricao")||
-                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
-                onPress={()=>void analyzeOnline()}>
-                <Sparkles size={16} aria-hidden="true"/>
-                {onlineBusy?"Gerando prévia…":"Gerar com IA NVIDIA"}
-              </Button>
-              <small className="text-muted">
-                {form.watch("descricao").length.toLocaleString("pt-BR")}/20.000 caracteres para IA.
-                {form.watch("descricao").length>20000?
-                  " Reduza o texto antes de gerar.":""}
-              </small>
-            </div>
-            <details className="qa-tf-preview-source">
-              <summary>Ver texto que será enviado à NVIDIA</summary>
-              <textarea rows={4} readOnly aria-label="Texto enviado à NVIDIA"
-                value={form.watch("descricao")}/>
-            </details>
-          </div>
-        </section>
-        <div className="form-grid">
+      })} className="stack mt-4 qa-tf-compact">
+        <div className="qa-tf-primary-row">
           <label className="field grow-2">Título da tarefa
-            <input placeholder="Ex.: Validar o desconto na devolução" {...form.register("titulo")} />
-            {form.formState.errors.titulo && <small role="alert" className="text-error">{form.formState.errors.titulo.message}</small>}
+            <input placeholder="Ex.: Validar desconto na devolução"
+              {...form.register("titulo")}/>
+            {form.formState.errors.titulo &&
+              <small role="alert" className="text-error">{form.formState.errors.titulo.message}</small>}
           </label>
           <label className="field">Tipo
-            <select {...form.register("tipo_teste")}><option>BUILD</option><option>RELEASE</option></select>
+            <select {...form.register("tipo_teste")}>
+              <option>BUILD</option><option>RELEASE</option>
+            </select>
           </label>
         </div>
+        <label className="field">Descrição / problema
+          <textarea rows={5} maxLength={30000}
+            placeholder="Cole o texto da TF aqui, ou preencha apenas o título."
+            {...form.register("descricao")}/>
+        </label>
+        <div className="qa-tf-compact-tools" role="group" aria-label="Importar ou extrair texto">
+          <label className="qa-tf-attach">
+            <Paperclip size={16} aria-hidden="true"/>
+            {fileBusy?"Lendo arquivo…":"Importar arquivo"}
+            <input type="file" aria-label="Importar arquivo opcional (TXT, MD, PDF ou DOCX)"
+              accept=".txt,.md,.pdf,.docx"
+              disabled={fileBusy||onlineBusy||create.isPending}
+              onChange={event=>{
+                const file=event.target.files?.[0];
+                void importReport(file);
+                event.target.value="";
+              }}/>
+          </label>
+          <Button variant="secondary" type="button" size="sm"
+            isDisabled={fileBusy||onlineBusy||!form.watch("descricao").trim()}
+            onPress={()=>{
+              const source=form.getValues("descricao");
+              try{
+                showReview(source,extractLocalDraft(source),"manual");
+              }catch(error){
+                setLocalReview(null);setExtracted([]);
+                setExtractionNotice(error instanceof Error?error.message:
+                  "Não foi possível extrair os campos sem IA.");
+              }
+            }}>Extrair sem IA</Button>
+        </div>
+        <div className="qa-tf-nvidia-compact" role="group" aria-label="Preenchimento com NVIDIA">
+          <label className="qa-tf-consent">
+            <input type="checkbox" checked={onlineConsentText!==null&&
+              onlineConsentText===form.watch("descricao")}
+              disabled={fileBusy||onlineBusy||!form.watch("descricao").trim()||
+                form.watch("descricao").length>20000}
+              onChange={event=>setOnlineConsentText(event.target.checked
+                ?form.getValues("descricao"):null)}/>
+            <span>Autorizo enviar este texto à NVIDIA.</span>
+          </label>
+          <Button type="button" size="sm"
+            isDisabled={fileBusy||onlineBusy||
+              onlineConsentText!==form.watch("descricao")||
+              !form.watch("descricao").trim()||form.watch("descricao").length>20000}
+            onPress={()=>void analyzeOnline()}>
+            <Sparkles size={16} aria-hidden="true"/>
+            {onlineBusy?"Gerando…":"Gerar com IA NVIDIA"}
+          </Button>
+          {form.watch("descricao").length>20000&&
+            <small role="status" className="text-error">
+              A NVIDIA aceita até 20.000 caracteres. Reduza o texto para gerar.
+            </small>}
+        </div>
         <details className="qa-task-optional">
-          <summary>Informações adicionais (opcional)</summary>
-          <div className="form-grid mt-3">
-            <label className="field">Código da TF<input placeholder="Opcional" {...form.register("codigo")} /></label>
-            <label className="field">Sistema / módulo<input placeholder="Opcional" {...form.register("sistema")} /></label>
-            <label className="field">Versão<input placeholder="Opcional" {...form.register("versao")} /></label>
+          <summary>Mais opções</summary>
+          <div className="qa-tf-more">
+            <div className="form-grid">
+              <label className="field">Código da TF
+                <input placeholder="Opcional" {...form.register("codigo")}/>
+              </label>
+              <label className="field">Sistema / módulo
+                <input placeholder="Opcional" {...form.register("sistema")}/>
+              </label>
+              <label className="field">Versão
+                <input placeholder="Opcional" {...form.register("versao")}/>
+              </label>
+            </div>
+            <label className="qa-tf-draft-option">
+              <input type="checkbox" checked={rememberDraft} onChange={(event)=>{
+                if(event.target.checked){
+                  if(!saveNewTaskDraft(userId,form.getValues())){
+                    setDraftStorageError("Não foi possível guardar o rascunho neste navegador.");
+                    return;
+                  }
+                  setRememberDraft(true);setRecoverableDraft(null);setDraftStorageError("");
+                }else{
+                  setRememberDraft(false);discardNewTaskDraft(userId);
+                  setDraftStorageError("");
+                }
+              }}/>
+              <span>Guardar rascunho nesta aba</span>
+            </label>
           </div>
         </details>
-        <label className="flex gap-2 items-start text-sm">
-          <input type="checkbox" checked={rememberDraft} onChange={(event) => {
-            if (event.target.checked) {
-              if (!saveNewTaskDraft(userId, form.getValues())) {
-                setDraftStorageError("O navegador não permitiu guardar o rascunho. Copie seu texto antes de sair.");
-                return;
-              }
-              setRememberDraft(true); setRecoverableDraft(null);
-              setDraftStorageError("");
-            } else {
-              setRememberDraft(false);
-              discardNewTaskDraft(userId);
-              setDraftStorageError("");
-            }
-          }} />
-          <span>Guardar rascunho somente nesta aba (opcional).
-            O texto fica neste navegador até salvar, descartar ou sair da conta.
-            Evite usar em dispositivos compartilhados.</span>
-        </label>
-        {draftStorageError && <p role="alert" className="notice error">{draftStorageError}</p>}
+        {draftStorageError&&<p role="alert" className="notice error">{draftStorageError}</p>}
         {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
         {localReview && <section className="generator-context stack"
           aria-label="Prévia dos campos sugeridos">
@@ -512,7 +505,6 @@ export function Workspace() {
           </label>)}
         </fieldset>}
         <div className="qa-modal-actions">
-          <span className="text-muted text-sm mr-auto">O registro inicia como rascunho.</span>
           <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
             isDisabled={create.isPending}>Salvar e abrir TF</Button>

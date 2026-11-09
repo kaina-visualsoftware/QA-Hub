@@ -51,7 +51,8 @@ try{
   await page.getByRole("button",{name:"Nova TF"}).click();
   await page.getByLabel("Título da tarefa").fill("Rascunho que deve sobreviver ao refresh");
   await page.getByLabel("Descrição / problema").fill("Linha 1\nLinha 2: dados de fixture");
-  const optIn=page.getByRole("checkbox",{name:/Guardar rascunho somente nesta aba/});
+  await page.getByText("Mais opções").click();
+  const optIn=page.getByRole("checkbox",{name:/Guardar rascunho nesta aba/});
   assert.equal(await optIn.isChecked(),false,"Draft retention must be opt-in");
   const noData=await page.evaluate(()=>Object.keys(sessionStorage)
     .filter(key=>key.startsWith("qa-react-new-task-draft")));
@@ -65,12 +66,13 @@ try{
   assert.equal(await page.getByLabel("Título da tarefa").count(),0,
     "Saved draft must NOT silently overwrite a new form");
   await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
+  await page.getByText("Mais opções").click();
   assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
     "Rascunho que deve sobreviver ao refresh");
   assert.equal(await page.getByLabel("Descrição / problema").inputValue(),
     "Linha 1\nLinha 2: dados de fixture");
   assert.equal(await page.getByRole("checkbox",{
-    name:/Guardar rascunho somente nesta aba/
+    name:/Guardar rascunho nesta aba/
   }).isChecked(),true);
 
   await page.getByLabel("Título da tarefa").fill("Rascunho atualizado");
@@ -78,12 +80,13 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
   await recovery.waitFor({timeout:10000});
   await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
+  await page.getByText("Mais opções").click();
   assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
     "Rascunho atualizado","Pagehide must flush pending form changes");
 
   // Explicit opt-out immediately removes the copy and subsequent reloads
   // must not propose or reuse the user's previous text.
-  await page.getByRole("checkbox",{name:/Guardar rascunho somente nesta aba/}).uncheck();
+  await page.getByRole("checkbox",{name:/Guardar rascunho nesta aba/}).uncheck();
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
   assert.equal(await recovery.count(),0,"Opt-out must remove locally stored copy");

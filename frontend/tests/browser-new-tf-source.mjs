@@ -96,7 +96,18 @@ try{
   await page.getByRole("button",{name:"Nova TF"}).click();
   const modal=page.getByRole("dialog",{name:"Nova TF"});
   await modal.waitFor();
-  await page.waitForFunction(()=>document.activeElement?.getAttribute("name")==="descricao");
+  await page.waitForFunction(()=>document.activeElement?.getAttribute("name")==="titulo");
+  const isTitleFirst=await modal.evaluate(element=>{
+    const title=element.querySelector('input[name="titulo"]');
+    const source=element.querySelector('textarea[name="descricao"]');
+    return !!title && !!source &&
+      Boolean(title.compareDocumentPosition(source)&Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  assert.equal(isTitleFirst,true,"Title must appear before the pasted description");
+  assert.equal(await modal.getByText("Mais opções").isVisible(),true);
+  assert.equal(await modal.getByLabel("Código da TF").isVisible(),false,
+    "Extra fields must be initially collapsed");
+  assert.equal(await modal.getByRole("button",{name:"Extrair sem IA"}).count(),1);
   assert.equal(await modal.getByText("IA generativa local").count(),0);
   assert.equal(await modal.getByRole("button",{name:"Analisar com IA local"}).count(),0);
   const generate=modal.getByRole("button",{name:"Gerar com IA NVIDIA"});
@@ -138,7 +149,7 @@ try{
   await modal.getByText("Arquivo lido e texto inserido.",{exact:false}).waitFor();
   assert.match(await source.inputValue(),/Revisar pagamentos/);
   assert.equal(aiPayloads.length,1,"File reading must never automatically call NVIDIA");
-  await modal.getByRole("button",{name:"Extrair campos sem IA"}).click();
+  await modal.getByRole("button",{name:"Extrair sem IA"}).click();
   await modal.getByText("Campos extraídos sem IA.",{exact:false}).waitFor();
   await modal.getByRole("button",{name:"Aplicar campos revisados"}).click();
   assert.match(await modal.getByLabel("Título da tarefa").inputValue(),/Revisar pagamentos/);
