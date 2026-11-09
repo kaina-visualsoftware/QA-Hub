@@ -4,7 +4,7 @@ import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
 import {listDiagrams,removeDiagram} from "../../lib/data";
-import {ensureMermaidSyntax,mermaidErrorMessage} from "./mermaid-validation";
+import {ensureMermaidSyntax,isMissingModuleChunk,mermaidErrorMessage} from "./mermaid-validation";
 import {DiagramViewer} from "./DiagramViewer";
 import {QAModal} from "../../components/ui/QAModal";
 
@@ -15,7 +15,8 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
   const queryClient=useQueryClient();
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [svg,setSvg]=useState<string|null>(null);
-  const [previewError,setPreviewError]=useState("");
+  const [previewError,setPreviewError]=useState<"stale"|"invalid"|null>(null);
+  const [retry,setRetry]=useState(0);
   const [rendering,setRendering]=useState(false);
   const diagrams=useQuery({
     queryKey:["diagrams",userId,taskId],
@@ -25,7 +26,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
     [diagrams.data,selectedId]);
   useEffect(()=>{
     let cancelled=false;
-    setSvg(null);setPreviewError("");
+    setSvg(null);setPreviewError(null);
     if(!selected){setRendering(false);return;}
     setRendering(true);
     async function renderDiagram(){
@@ -36,13 +37,18 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
           selected!.conteudo);
         if(!cancelled)setSvg(result.svg);
       }catch(reason){
-        if(!cancelled)setPreviewError("Não foi possível visualizar este diagrama: "+
-          mermaidErrorMessage(reason));
+        if(!cancelled){
+          const stale=isMissingModuleChunk(reason);
+          setPreviewError(stale?"stale":"invalid");
+          notify.error(stale
+            ? "O QA Hub foi atualizado. Recarregue a página para visualizar este diagrama."
+            : "Não foi possível visualizar este diagrama: "+mermaidErrorMessage(reason));
+        }
       }finally{if(!cancelled)setRendering(false);}
     }
     void renderDiagram();
     return ()=>{cancelled=true;};
-  },[selected?.id,selected?.conteudo]);
+  },[selected?.id,selected?.conteudo,retry]);
   const remove=useMutation({
     mutationFn:(id:string)=>removeDiagram(taskId,id),
     onSuccess:async()=>{
@@ -108,7 +114,13 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
       initialFocus=".qa-diagram-viewer .qa-diagram-stage"
       onClose={()=>setSelectedId(null)}>
       {rendering&&<p role="status" className="qa-diagram-loading">Preparando diagrama…</p>}
-      {previewError&&<p role="alert" className="notice error">{previewError}</p>}
+      {previewError&&<div className="qa-diagram-unavailable">
+        <strong>Prévia indisponível</strong>
+        <Button variant="secondary" size="sm" onPress={()=>{
+          if(previewError==="stale")window.location.reload();
+          else setRetry(current=>current+1);
+        }}>{previewError==="stale"?"Atualizar QA Hub":"Tentar novamente"}</Button>
+      </div>}
       {svg&&<DiagramViewer key={selected.id} svg={svg} title={selected.titulo}/>}
     </QAModal>}
     <ToastNotice message={remove.isError?remove.error.message:null} tone="error"/>
