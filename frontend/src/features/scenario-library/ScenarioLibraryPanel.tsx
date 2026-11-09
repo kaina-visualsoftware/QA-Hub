@@ -1,4 +1,5 @@
 import "./scenario-library.css";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useMemo,useState} from "react";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
@@ -128,7 +129,7 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
       {listing.data?.length===100&&<small className="text-muted">
         Exibindo os 100 modelos mais recentes desta conta.</small>}
     </>}
-    {notice&&<p role="status" className="notice">{notice}</p>}
-    {error&&<p role="alert" className="notice error">{error}</p>}
+    <ToastNotice message={notice} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
   </div>;
 }
