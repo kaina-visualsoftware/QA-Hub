@@ -1,9 +1,6 @@
 import type { KeyboardEvent,ReactNode } from "react";
 import { Button } from "@heroui/react";
-import {
-  ArrowRight, BookText, ClipboardList, FileText, GitMerge,
-  LayoutDashboard, ListChecks, Workflow, History, Users
-} from "lucide-react";
+import {FileText,LayoutDashboard,ListChecks} from "lucide-react";
 
 export type TaskTab = "summary" | "tests" | "deliverables";
 const tabs: { id: TaskTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -85,65 +82,18 @@ export function TaskOverview({
   </div>;
 }
 
-export type DeliverableKind =
-  | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history" | "collaboration";
-
-export function TaskDeliverables({onOpen,diagrams,documents,owner}:{
-  onOpen:(kind:DeliverableKind,primary?:boolean)=>void;
-  diagrams:ReactNode;documents:ReactNode;owner:boolean;
+export function TaskDeliverables({diagrams,documents}:{
+  diagrams:ReactNode;documents:ReactNode;
 }){
   return <div className="qa-task-deliverables qa-task-deliverables-organized">
     <div className="qa-task-section-heading">
-      <div><h2>Entregáveis</h2>
-        <p>Visualize os registros já salvos sem abrir um formulário de criação.</p>
+      <div><h2>Entregáveis salvos</h2>
+        <p>Selecione um registro para visualizar. Criar e editar são ações separadas.</p>
       </div>
     </div>
     <div className="qa-artifact-collections">
       {diagrams}
       {documents}
-    </div>
-    {owner&&<><h3 className="qa-deliverables-subtitle">Criar</h3>
-    <div className="qa-deliverables-group" aria-label="Criar entregáveis">
-      <button type="button" className="qa-deliverable-action"
-        onClick={()=>onOpen("post",true)}>
-        <span className="qa-deliverable-icon"><FileText size={19}/></span>
-        <span><strong>Gerar post</strong><small>Redigir com IA</small></span>
-        <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
-      </button>
-      <button type="button" className="qa-deliverable-action"
-        onClick={()=>onOpen("diagrams",true)}>
-        <span className="qa-deliverable-icon"><Workflow size={19}/></span>
-        <span><strong>Criar diagrama</strong><small>Editor Mermaid / IA</small></span>
-        <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
-      </button>
-      <button type="button" className="qa-deliverable-action"
-        onClick={()=>onOpen("documents",true)}>
-        <span className="qa-deliverable-icon"><ClipboardList size={19}/></span>
-        <span><strong>Gerar relatório</strong><small>Resultados registrados</small></span>
-        <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
-      </button>
-    </div>
-    </>}
-    <h3 className="qa-deliverables-subtitle">Consultar e gerenciar</h3>
-    <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
-      <button type="button" aria-label="Requisitos e cobertura"
-        onClick={()=>onOpen("requirements")} className="qa-workbench-tool">
-        <BookText size={17}/> Requisitos e cobertura</button>
-      <button type="button" aria-label="Evidências e auditoria"
-        onClick={()=>onOpen("evidence")} className="qa-workbench-tool">
-        <ClipboardList size={17}/> Evidências e auditoria</button>
-      <button type="button" aria-label="Releases e referências"
-        onClick={()=>onOpen("links")} className="qa-workbench-tool">
-        <GitMerge size={17}/> Releases e referências</button>
-      <button type="button" aria-label="Relatório e documentos"
-        onClick={()=>onOpen("documents")} className="qa-workbench-tool">
-        <FileText size={17}/> Relatório e documentos</button>
-      <button type="button" aria-label="Histórico de execuções"
-        onClick={()=>onOpen("history")} className="qa-workbench-tool">
-        <History size={17}/> Histórico de execuções</button>
-      <button type="button" aria-label="Equipe e comentários"
-        onClick={()=>onOpen("collaboration")} className="qa-workbench-tool">
-        <Users size={17}/> Equipe e comentários</button>
     </div>
   </div>;
 }
