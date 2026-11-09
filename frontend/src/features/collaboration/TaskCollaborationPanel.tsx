@@ -12,6 +12,7 @@ import {
 import type {TaskRights} from "./team-data";
 import {githubIssueDraft,readAutomatedResults} from "../integrations/test-results";
 import type {ImportedTestResult} from "../integrations/test-results";
+import {GithubIssueLinks} from "../integrations/GithubIssueLinks";
 
 export default function TaskCollaborationPanel({task,scenarios,userId,rights,onExecuted}:{
  task:Task;scenarios:Scenario[];userId:string;
@@ -219,6 +220,7 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
        event.preventDefault();
     }}><ExternalLink size={16}/> Revisar issue no GitHub</a>:
     <p className="text-muted text-sm">Use o formato organização/repositório.</p>}
+   <GithubIssueLinks key={task.id} taskId={task.id} userId={userId} owner={owner}/>
    <div className="qa-f5-divider"/>
    <h3>Resultados automatizados</h3>
    <p className="text-muted text-sm">Importe um relatório JUnit XML ou Playwright JSON.

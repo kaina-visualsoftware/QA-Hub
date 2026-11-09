@@ -23,6 +23,22 @@ No banco, as novas tabelas usam RLS, e os helpers de verificação de acesso fic
 
 A partir da TF, é gerado um link HTTPS para revisar uma nova issue, com título e descrição preenchidos. O usuário confirma explicitamente antes de abrir o rascunho, pois o link transfere título e descrição da TF ao GitHub. Depois, também precisa confirmar manualmente a publicação na interface GitHub. Nenhum token ou OAuth é solicitado e não ocorre criação silenciosa de issue.
 
+### Vínculos persistentes com issues existentes
+
+O complemento `supabase/qa_f5_github_issue_links.sql` adiciona uma tabela privada
+`qa_tarefa_github_issues` para vincular uma TF a uma issue por repositório e número.
+Somente o proprietário pode criar/remover o vínculo; membros autorizados podem
+consultá-lo via RLS. O estado da issue é consultado **apenas ao clicar** em
+"Consultar estado", diretamente na API pública do GitHub, sem OAuth ou tokens.
+Issues privadas e APIs com limite atingido mostram uma mensagem honesta e um link
+externo para o próprio usuário acessar. Não há webhook, alteração automática do
+status da TF, criação de issue sem confirmação ou cópia de documentos do QA Hub.
+
+O complemento é aditivo: não altera a política de comentários, execução ou
+arquivos privados das migrações F5 anteriores. A interface aceita issues públicas
+ou privadas como referência, mas não promete ler o estado das privadas sem
+autenticação GitHub.
+
 ### JUnit e Playwright
 
 Relatórios JUnit XML e Playwright JSON de até 2 MB são lidos localmente no navegador, limitados a 200 testes. XML com DTD, entidades ou referências externas é rejeitado. O QA associa manualmente um item a um cenário, escolhe o resultado e confirma o registro individualmente. O status geral da TF nunca é modificado automaticamente. O histórico F4 é gerado pelas alterações efetivamente salvas.
