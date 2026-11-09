@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { ArrowLeft, ArrowRight, Check, ClipboardList, FilePlus2, ListCheck, RotateCcw, X } from "lucide-react";
 import type { ExecutionResult, Scenario } from "../../lib/contracts";
 import { scenarioStatusLabels } from "../../lib/contracts";
@@ -183,8 +184,8 @@ export default function GuidedExecution({
             onClick={()=>move(1)}>Próximo <ArrowRight size={16} aria-hidden="true"/></button>
         </div>
       </article>}
-    {error&&<p className="notice error qa-guided-feedback" role="alert">{error}</p>}
-    {announcement&&<p className="qa-guided-feedback" role="status">{announcement}</p>}
+    <ToastNotice message={error} tone="error"/>
+    <ToastNotice message={announcement} tone="info"/>
     <p className="qa-guided-disclaimer"><ClipboardList size={14} aria-hidden="true"/>
       Os resultados só são registrados após confirmação do servidor. A situação da TF não muda automaticamente.</p>
   </section>;
