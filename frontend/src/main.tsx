@@ -7,6 +7,13 @@ import { router } from "./app/router";
 import "./styles.css";
 import {ToastCenter,notify} from "./components/ui/Toasts";
 
+// When an open tab requests a chunk removed by a newer deployment,
+// keep its workspace visible and ask for a controlled refresh.
+window.addEventListener("vite:preloadError",event=>{
+  event.preventDefault();
+  notify.warning("Uma versão nova do QA Hub está disponível. Atualize a página para continuar usando esta ferramenta.");
+});
+
 const root = document.getElementById("root");
 if (!root) throw Error("Elemento #root não encontrado.");
 const reportFailure=(reason:unknown)=>{
