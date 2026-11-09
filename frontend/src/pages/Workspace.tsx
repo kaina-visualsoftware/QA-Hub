@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { ArrowRight, CheckCheck, Filter, Paperclip, Plus, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
-import { createTask, getAdminRole, addExtractedScenarios } from "../lib/data";
+import { createTask, updateTask, getAdminRole, addExtractedScenarios } from "../lib/data";
 import {
   searchTasksPage,taskStatistics,listSavedFilters,saveFilter,
   deleteFilter,normalizeTaskFilters
@@ -16,7 +16,7 @@ import {
 import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import {
-  applyTaskAiFields,freshTaskAiScenarios,generateTaskAiDraft
+  applyTaskAiFields,archiveTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
@@ -105,8 +105,8 @@ export function Workspace() {
   function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
     // Apply NVIDIA results immediately: every submit action must persist the
     // fields shown in the form, even when the user skips the preview controls.
-    if(mode==="nvidia")applyTaskAiFields(form,draft,{cleanDescription:source});
-    setLocalReview({source:mode==="nvidia"?form.getValues("descricao"):source,draft,mode});
+    if(mode==="nvidia")applyTaskAiFields(form,draft);
+    setLocalReview({source,draft,mode});
     const suggestions=freshTaskAiScenarios(draft,[],mode==="nvidia");
     setExtracted(suggestions);
     setExtractionNotice(mode==="nvidia"
@@ -171,11 +171,22 @@ export function Workspace() {
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
   });
   const create = useMutation({
-    mutationFn: async ({ draft, openScenario, selected }: {
-      draft: TaskDraft; openScenario: boolean; selected: SuggestedScenario[]
+    mutationFn: async ({ draft, openScenario, selected, source }: {
+      draft: TaskDraft; openScenario: boolean; selected: SuggestedScenario[]; source?: string
     }) => {
-      const task = await createTask(userId, draft);
+      const needsArchive=Boolean(source?.trim()&&source.trim()!==draft.descricao.trim());
+      // Save the original first: never discard it if archiving fails.
+      const task = await createTask(userId,needsArchive?{...draft,descricao:source!.trim()}:draft);
       let warning = "";
+      if(needsArchive){
+        try{
+          await archiveTaskAiSource(task.id,userId,source!);
+          await updateTask(task.id,draft);
+        }catch(reason){
+          warning="A TF manteve o texto original porque não foi possível arquivá-lo e aplicar o resumo: "+
+            (reason instanceof Error?reason.message:"erro desconhecido");
+        }
+      }
       if (selected.length) {
         try { await addExtractedScenarios(task.id, userId, selected); }
         catch (error) { warning = error instanceof Error ? error.message : "Falha ao salvar cenários extraídos"; }
@@ -329,7 +340,8 @@ export function Workspace() {
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
           draft:values,openScenario:submitter?.getAttribute("data-next")==="scenario",
-          selected:extracted.filter(item=>item.selected)
+          selected:extracted.filter(item=>item.selected),
+          source:localReview?.mode==="nvidia"?localReview.source:undefined
         });
       })} className="stack mt-4 qa-tf-compact">
         <div className="qa-tf-primary-row">
