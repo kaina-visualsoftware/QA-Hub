@@ -1855,3 +1855,6 @@
  .qa-ai-submit-actions{flex:1 1 100%}
  .qa-ai-submit-actions>button{flex:1 1 100%;min-height:44px}
 }
+
+
+.qa-ai-privacy-note{margin:0;font-size:.74rem;line-height:1.5;color:#506c76}
