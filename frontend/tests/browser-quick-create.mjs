@@ -116,6 +116,13 @@ try {
     .fill("O desconto deve respeitar a configuração.");
   await editor.getByRole("button", { name: "Adicionar cenário" }).click();
   await page.getByText("Cenário salvo.").waitFor();
+  const createdToast=page.locator(".qa-toast").filter({hasText:"Cenário salvo."});
+  await createdToast.waitFor();
+  assert.equal(await page.locator(".qa-task-panel .notice")
+    .filter({hasText:"Cenário salvo."}).count(),0,
+    "Confirmation must not be injected into the task content");
+  await createdToast.getByRole("button",{name:/Fechar notificação/}).click();
+  assert.equal(await createdToast.count(),0,"Toast should close by its dismiss button");
   assert.equal(calls.case, 1);
   assert.equal(savedCases[0].status, "nao_executado");
   assert.equal(savedTasks[0].status, "rascunho");
