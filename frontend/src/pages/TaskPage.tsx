@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles, Trash2 } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables
@@ -35,6 +35,7 @@ import {
 } from "../features/executions/quick-result";
 import { QAModal } from "../components/ui/QAModal";
 import {splitScenarioNotes} from "../lib/legacy/qa-assistant.mjs";
+import {DeleteTaskDialog} from "../features/tasks/DeleteTaskDialog";
 import {getTaskById} from "../features/tasks/task-search-data";
 import {getTaskRights} from "../features/collaboration/team-data";
 import type {TaskRights} from "../features/collaboration/team-data";
@@ -95,6 +96,7 @@ export default function TaskPage() {
   const [taskAiScenarios,setTaskAiScenarios]=useState<SuggestedScenario[]>([]);
   const [taskAiPreviewSource,setTaskAiPreviewSource]=useState<string|null>(null);
   const [showSettings,setShowSettings]=useState(false);
+  const [showDeleteTask,setShowDeleteTask]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
   const [visitedAi, setVisitedAi] = useState<AiStudioMode[]>([]);
@@ -115,7 +117,7 @@ export default function TaskPage() {
   useEffect(()=>{
     setActiveTab("summary");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
-    setEditing(false);setShowScenarioForm(false);setShowSettings(false);
+    setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
     setTaskAiAppliedCount(0);
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);
@@ -472,6 +474,7 @@ export default function TaskPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: () => removeTask(taskId),
     onSuccess: async () => {
+      setShowDeleteTask(false);
       focusTask(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
@@ -561,6 +564,15 @@ export default function TaskPage() {
           }}>
             <FilePenLine size={16} /> Editar TF
           </Button>
+          {own && <button type="button" className="qa-task-header-delete"
+            aria-label="Excluir TF" title="Excluir esta TF"
+            disabled={deleteTaskMutation.isPending}
+            onClick={() => {
+              deleteTaskMutation.reset();
+              setShowDeleteTask(true);
+            }}>
+            <Trash2 size={16} aria-hidden="true"/> Excluir TF
+          </button>}
           <button type="button" className="qa-task-config-button"
             aria-label="Configurações da TF" title="Configurações da TF"
             onClick={() => setShowSettings(true)}>
@@ -951,6 +963,12 @@ export default function TaskPage() {
             onCreate={openReportEditor}/>
         </Suspense>}/>}
     </section>
+    <DeleteTaskDialog task={showDeleteTask && own ? task : null}
+      busy={deleteTaskMutation.isPending}
+      error={deleteTaskMutation.error?.message}
+      scenarioCount={scenarios.data?.length}
+      onClose={() => { if(!deleteTaskMutation.isPending) setShowDeleteTask(false); }}
+      onConfirm={() => { if(own && !deleteTaskMutation.isPending) deleteTaskMutation.mutate(); }}/>
     {showSettings && <QAModal open={showSettings} title="Estado e compartilhamento"
       eyebrow="CONFIGURAÇÕES" size="lg" onClose={closeSettings}
       busy={updateStatus.isPending||publication.isPending||deleteTaskMutation.isPending}>
@@ -964,14 +982,9 @@ export default function TaskPage() {
         </label>
         <Button variant="secondary" onPress={() => void updateStatus.mutateAsync(nextStatus)}
           isDisabled={nextStatus === task.status || updateStatus.isPending || task.user_id!==userId}>Atualizar situação</Button>
-        <div className="ml-auto">
-          <Button variant="secondary" isDisabled={deleteTaskMutation.isPending || task.user_id!==userId} onPress={() => {
-            if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
-          }}>Excluir TF</Button>
-        </div>
       </div>
       <ToastNotice tone="error"
-        message={updateStatus.error?.message || deleteTaskMutation.error?.message}/>
+        message={updateStatus.error?.message}/>
     </section>
     <section className="panel mt-4" aria-label="Compartilhamento público">
       <div className="section-heading">
