@@ -105,8 +105,8 @@ export function Workspace() {
   function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
     // Apply NVIDIA results immediately: every submit action must persist the
     // fields shown in the form, even when the user skips the preview controls.
-    if(mode==="nvidia")applyTaskAiFields(form,draft);
-    setLocalReview({source,draft,mode});
+    if(mode==="nvidia")applyTaskAiFields(form,draft,{cleanDescription:source});
+    setLocalReview({source:mode==="nvidia"?form.getValues("descricao"):source,draft,mode});
     const suggestions=freshTaskAiScenarios(draft,[],mode==="nvidia");
     setExtracted(suggestions);
     setExtractionNotice(mode==="nvidia"
