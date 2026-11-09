@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import {ToastNotice} from "../components/ui/Toasts";
+import {ToastNotice,notify} from "../components/ui/Toasts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -120,7 +120,7 @@ export default function TaskPage() {
   const [pending, setPending] = useState<{ scenario: Scenario; status: ExecutionResult["status"] } | null>(null);
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
-  const [saved, setSaved] = useState("");
+  const setSaved = notify.success;
   // TanStack Router reuses TaskPage for different TF IDs. Do not display a
   // previous task's success notice or keep its pending-focus state.
   useEffect(()=>{
@@ -219,7 +219,7 @@ export default function TaskPage() {
   function startPendingExecution() {
     setActiveTab("tests");
     setExecutionMode("guided");
-    setSaved(pendingCount ? "" :
+    if(!pendingCount)notify.info(
       "Não há casos pendentes. Adicione um cenário ou consulte os resultados registrados.");
   }
 
@@ -265,7 +265,7 @@ export default function TaskPage() {
     setExecutionMode("guided");
     setFilter("pending");
     setResumeFocus(true);
-    setSaved(pendingCount ? "" :
+    if(!pendingCount)notify.info(
       "Não há casos pendentes nesta TF. Adicione um cenário ou consulte outros filtros.");
     void navigate({
       to: "/tarefa/$taskId",
@@ -495,7 +495,7 @@ export default function TaskPage() {
         pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
         onViewTests={()=>setActiveTab("tests")}/>
     </section>
-    <ToastNotice message={saved} tone="success"/>
+
     <ToastNotice message={importWarning} tone="error"/>
 
     {editing && <QAModal open={editing} title="Editar TF" eyebrow="DADOS DO REGISTRO"
