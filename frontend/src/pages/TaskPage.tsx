@@ -12,7 +12,7 @@ import {
 } from "../features/tasks/TaskWorkspaceSections";
 import type { TaskTab } from "../features/tasks/TaskWorkspaceSections";
 import {
-  applyTaskAiFields,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections
+  applyTaskAiFields,archiveTaskAiSource,loadTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
 import {TaskQuickActions} from "../features/tasks/TaskQuickActions";
@@ -248,6 +248,14 @@ export default function TaskPage() {
     resolver: zodResolver(taskDraftSchema),
     defaultValues: { titulo: "", descricao: "", tipo_teste: "BUILD", codigo: "", sistema: "", versao: "" }
   });
+  const savedAiSource=useQuery({
+    queryKey:["task-ai-source",userId,taskId],
+    queryFn:()=>loadTaskAiSource(taskId),
+    enabled:!!own&&editing
+  });
+  const currentDescription=taskForm.watch("descricao");
+  const sourceForAi=taskForm.formState.dirtyFields.descricao
+    ?currentDescription:(savedAiSource.data||currentDescription);
   const scenarioForm = useForm<ScenarioDraft>({
     resolver: zodResolver(scenarioDraftSchema),
     defaultValues: { titulo: "", passos: "", esperado: "", observacoes: "" }
@@ -340,7 +348,10 @@ export default function TaskPage() {
     mutationFn: async ({draft,suggested}:{
       draft:TaskDraft;suggested:SuggestedScenario[]
     })=>{
-      // Save the current form first, regardless of how it was populated.
+      // Archive the original before replacing the report with a short summary.
+      if(taskAiPreviewSource&&taskAiPreviewSource.trim()!==draft.descricao.trim()){
+        await archiveTaskAiSource(taskId,userId,taskAiPreviewSource);
+      }
       const updated=await updateTask(taskId,draft);
       let warning="";
       let appended=0;
@@ -361,6 +372,7 @@ export default function TaskPage() {
     },
     onSuccess:async ({warning,appended})=>{
       await invalidate();
+      await queryClient.invalidateQueries({queryKey:["task-ai-source",userId,taskId]});
       if(warning){
         notify.warning("Dados da TF salvos, mas os cenários sugeridos não foram adicionados: "+
           warning+". Revise e tente salvar novamente.");
@@ -376,7 +388,8 @@ export default function TaskPage() {
 
   async function regenerateTaskWithAi(){
     if(!own||taskAiBusy||saveTask.isPending)return;
-    const source=taskForm.getValues("descricao");
+    const source=sourceForAi;
+    const descriptionAtStart=taskForm.getValues("descricao");
     if(!source.trim()||source.length>20000){
       notify.error("Informe uma descrição de até 20.000 caracteres para usar a IA.");
       return;
@@ -391,11 +404,11 @@ export default function TaskPage() {
     setTaskAiBusy(true);
     try{
       const result=await generateTaskAiDraft(source);
-      if(taskForm.getValues("descricao")!==source){
+      if(taskForm.getValues("descricao")!==descriptionAtStart){
         notify.warning("A descrição mudou durante a análise. Gere novamente antes de aplicar.");
         return;
       }
-      const applied=applyTaskAiFields(taskForm,result,{cleanDescription:source});
+      const applied=applyTaskAiFields(taskForm,result);
       const suggestions=freshTaskAiScenarios(result,scenarios.data??[]);
       setTaskAiScenarios(suggestions);setTaskAiPreviewSource(source);
       setTaskAiAppliedCount(applied);
@@ -602,25 +615,25 @@ export default function TaskPage() {
             <span>Regerar dados da TF com IA</span>
           </summary>
           <div className="qa-task-ai-regenerate-body">
-            <p className="qa-ai-helper-copy">A NVIDIA analisa a descrição da TF e sugere dados
-              para o formulário. Você revisa tudo antes de salvar; os cenários existentes
-              e seus resultados não serão alterados.</p>
+            <p className="qa-ai-helper-copy">A NVIDIA organiza o texto em resumo, causa,
+               correção e conclusão. O documento original será arquivado;
+               os cenários existentes e seus resultados serão preservados.</p>
             <div className="qa-task-ai-control-row">
               <label className="qa-ai-consent-compact">
                 <input type="checkbox"
-                  checked={taskAiConsent!==null&&taskAiConsent===taskForm.watch("descricao")}
+                  checked={taskAiConsent!==null&&taskAiConsent===sourceForAi}
                   disabled={taskAiBusy||saveTask.isPending||
-                    !taskForm.watch("descricao")?.trim()||
-                    taskForm.watch("descricao").length>20000}
+                    !sourceForAi?.trim()||
+                    sourceForAi.length>20000}
                   onChange={event=>setTaskAiConsent(event.target.checked
-                    ?taskForm.getValues("descricao"):null)}/>
-                <span>Autorizo enviar a descrição atual à NVIDIA.</span>
+                    ?sourceForAi:null)}/>
+                <span>Autorizo enviar o texto-base da TF à NVIDIA.</span>
               </label>
               <Button type="button" className="qa-task-ai-generate"
                 isDisabled={taskAiBusy||saveTask.isPending||
-                  taskAiConsent!==taskForm.watch("descricao")||
-                  !taskForm.watch("descricao")?.trim()||
-                  taskForm.watch("descricao").length>20000}
+                  taskAiConsent!==sourceForAi||
+                  !sourceForAi?.trim()||
+                  sourceForAi.length>20000}
                 onPress={()=>void regenerateTaskWithAi()}>
                 <Sparkles size={16} aria-hidden="true"/>
                 {taskAiBusy?"Gerando dados…":"Regerar TF com IA NVIDIA"}
@@ -629,7 +642,7 @@ export default function TaskPage() {
             {taskAiBusy&&<p className="qa-task-ai-progress" role="status">
               Analisando a descrição e preparando sugestões…
             </p>}
-            {taskForm.watch("descricao").length>20000&&
+            {sourceForAi.length>20000&&
               <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
             {taskAiPreviewSource!==null&&<div className="qa-task-ai-result" role="region"
               aria-label="Revisão da regeração por IA">
