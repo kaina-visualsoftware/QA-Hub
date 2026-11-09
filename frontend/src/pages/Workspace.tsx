@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {ToastNotice} from "../components/ui/Toasts";
+import {ToastNotice,notify} from "../components/ui/Toasts";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -86,7 +86,7 @@ export function Workspace() {
       setFilterName("");setFilterNotice("Filtro salvo para esta conta.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>setFilterNotice(err.message)
+    onError:(err)=>notify.error(err.message)
   });
   const removeSavedFilter=useMutation({
     mutationFn:(id:string)=>deleteFilter(userId,id),
@@ -94,7 +94,7 @@ export function Workspace() {
       setFilterNotice("Filtro removido.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>setFilterNotice(err.message)
+    onError:(err)=>notify.error(err.message)
   });
   const visibleTasks=useMemo(()=>
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
@@ -576,7 +576,7 @@ export function Workspace() {
                   removeSavedFilter.mutate(saved.id);
               }}>Excluir</button>
           </div>)}
-          <ToastNotice message={filterNotice} tone="info"/>
+          <ToastNotice message={filterNotice} tone="success"/>
         </div>
       </details>
       {(role.isPending || tasks.isPending) && <p className="empty-state" role="status">Carregando tarefas…</p>}
