@@ -1,4 +1,5 @@
 import {useMemo,useState} from "react";
+import {notify} from "../../components/ui/Toasts";
 import {useQuery} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {ClipboardCopy,Download,Eye,FileText} from "lucide-react";
@@ -10,7 +11,6 @@ export function DocumentLibrary({taskId,userId,owner,onCreate}:{
   taskId:string;userId:string;owner:boolean;onCreate:()=>void;
 }){
   const [selectedId,setSelectedId]=useState<string|null>(null);
-  const [feedback,setFeedback]=useState("");
   const query=useQuery({
     queryKey:["documents",userId,taskId],
     queryFn:async()=>{
@@ -79,8 +79,8 @@ export function DocumentLibrary({taskId,userId,owner,onCreate}:{
         <div className="qa-document-library-actions">
           <Button size="sm" variant="secondary" onPress={()=>{
             void navigator.clipboard.writeText(selected.conteudo)
-              .then(()=>setFeedback("Documento copiado."))
-              .catch(()=>setFeedback("Não foi possível copiar; selecione o texto."));
+              .then(()=>notify.success("Documento copiado."))
+              .catch(()=>notify.error("Não foi possível copiar; selecione o texto."));
           }}><ClipboardCopy size={15} aria-hidden="true"/> Copiar</Button>
           <Button size="sm" variant="secondary" onPress={()=>
             download(selected.conteudo,selected.titulo)}>
@@ -89,6 +89,5 @@ export function DocumentLibrary({taskId,userId,owner,onCreate}:{
         </div>
       </div>}
     </div>}
-    {feedback&&<p className="notice" role="status">{feedback}</p>}
   </section>;
 }

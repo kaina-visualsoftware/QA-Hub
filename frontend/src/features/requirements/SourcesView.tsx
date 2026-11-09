@@ -1,4 +1,5 @@
 import { useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { Download, FileUp } from "lucide-react";
 import type { Task } from "../../lib/contracts";
@@ -105,7 +106,7 @@ export default function SourcesView({
       <span className="count-pill">{records.length}</span>
     </div>
     {loading && <p role="status" className="notice">Carregando fontes privadas…</p>}
-    {error && <p role="alert" className="notice error">{error}</p>}
+    <ToastNotice message={error} tone="error"/>
     {!loading && !error && records.length === 0 &&
       <p className="text-muted text-sm">Nenhuma fonte salva na TF.</p>}
     {records.map((item) => <article key={item.id} className="requirement-row">
@@ -128,7 +129,7 @@ export default function SourcesView({
         <textarea readOnly className="mt-3" rows={6} value={item.texto_extraido} />
       </details>}
     </article>)}
-    {message && <p role="status" className="notice">{message}</p>}
-    {failure && <p role="alert" className="notice error">{failure}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={failure} tone="error"/>
   </div>;
 }

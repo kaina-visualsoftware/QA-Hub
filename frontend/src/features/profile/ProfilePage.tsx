@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { Check, RotateCcw, Save, Settings2, ShieldCheck } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
@@ -91,8 +92,8 @@ export default function ProfilePage({isAdmin}: {isAdmin:boolean}){
             <Save size={16}/> {busy?"Salvando…":"Salvar preferências"}
           </Button>
         </div>
-        {message&&<p className="notice" role="status">{message}</p>}
-        {error&&<p className="notice error" role="alert">{error}</p>}
+        <ToastNotice message={message} tone="success"/>
+        <ToastNotice message={error} tone="error"/>
       </section>
     </div>
     <section className="panel qa-f5-profile-teams" aria-label="Gerenciar equipes">

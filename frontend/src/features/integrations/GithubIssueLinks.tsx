@@ -1,4 +1,5 @@
 import {useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {ExternalLink,Link2,RefreshCw} from "lucide-react";
@@ -96,7 +97,7 @@ export function GithubIssueLinks({taskId,userId,owner}:{
           }}>Desvincular</Button>}
       </div>
     </article>)}
-    {message&&<p role="status" className="notice">{message}</p>}
-    {error&&<p role="alert" className="notice error">{error}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
   </section>;
 }

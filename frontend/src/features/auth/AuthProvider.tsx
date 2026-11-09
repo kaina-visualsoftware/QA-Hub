@@ -5,6 +5,7 @@ import type { PropsWithChildren } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@heroui/react";
 import { ShieldCheck } from "lucide-react";
+import {ToastNotice,useToastStore} from "../../components/ui/Toasts";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, authRedirectUrl } from "../../lib/supabase";
 import { useFocus } from "../../stores/focus";
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setLoading(false);
       if (event === "PASSWORD_RECOVERY") setRecovering(true);
       if (event === "SIGNED_OUT") {
+        useToastStore.getState().clear();
         // An explicit sign-out must not leave the opt-in QA draft readable
         // in the same tab by a subsequent account or shared-device user.
         if (previousUserId.current) discardNewTaskDraft(previousUserId.current);
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const id = user?.id ?? null;
     if (previousUserId.current && previousUserId.current !== id) {
       client.clear();
+      useToastStore.getState().clear();
     }
     previousUserId.current = id;
     setFocusUser(id);
@@ -100,7 +103,7 @@ export function RecoveryScreen() {
     <Button className="mt-4" isDisabled={busy || password.length < 8} onPress={() => void save()}>
       Atualizar senha
     </Button>
-    {message && <p role="alert" className="text-error mt-3">{message}</p>}
+    <ToastNotice message={message} tone="error"/>
   </section></div>;
 }
 
@@ -169,12 +172,12 @@ export function AuthScreen() {
           {busy ? "Processando…" : mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"}
         </Button>
       </form>
-      {(error || callbackError) && <p role="alert" className="notice error mt-4">
-        {error || (callbackError === "otp_expired"
+      <ToastNotice tone="error" message={error || (callbackError
+        ? callbackError === "otp_expired"
           ? "Link expirado ou já utilizado. Entre ou solicite novo link."
-          : "Não foi possível validar o link de autenticação.")}
-      </p>}
-      {message && <p role="status" className="notice mt-4">{message}</p>}
+          : "Não foi possível validar o link de autenticação."
+        : "")}/>
+      <ToastNotice message={message} tone="success"/>
       <div className="auth-links mt-5">
         <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(""); }}>
           {mode === "signup" ? "Já tenho conta" : "Criar uma conta"}

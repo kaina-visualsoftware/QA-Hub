@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@heroui/react";
-import { Check, WandSparkles, Wrench } from "lucide-react";
+import { WandSparkles, Wrench } from "lucide-react";
 import { diagramPresets, diagramPresetInstruction } from "../generators/ai-presets";
 import type { Scenario, Task } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
@@ -208,9 +209,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     {repairRequest&&!invalidGenerated&&<p role="status" className="text-muted text-sm">
       Código com erro. Use Corrigir com IA ou ajuste manualmente.
     </p>}
-    {error&&<p role="alert" className="notice error">{error}</p>}
-    {message&&<p role="status" className="qa-diagram-success">
-      <Check size={16} aria-hidden="true"/>{message}
-    </p>}
+    <ToastNotice message={error} tone="error"/>
+    <ToastNotice message={message} tone="success"/>
   </section>;
 }

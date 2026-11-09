@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCopy, Download, FileCheck2, RefreshCw } from "lucide-react";
@@ -146,8 +147,8 @@ export default function DocumentsPanel({
         {evidenceFiles.isError&&<p className="notice error" role="alert">
           A relação de anexos não foi carregada. O PDF poderá ser exportado sem ela.
         </p>}
-        {note && <p className="notice" role="status">{note}</p>}
-        {error && <p className="notice error" role="alert">{error}</p>}
+        <ToastNotice message={note} tone="success"/>
+        <ToastNotice message={error} tone="error"/>
       </div>
     </div>
   </section>;

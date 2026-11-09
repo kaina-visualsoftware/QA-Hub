@@ -128,7 +128,7 @@ try{
   }
   await page.setViewportSize({width:390,height:844});
   await first.getByRole("button",{name:"Funcionou",exact:true}).click();
-  await guided.getByRole("alert").getByText("Rede de teste temporariamente indisponível").waitFor();
+  await page.getByRole("alert").getByText("Rede de teste temporariamente indisponível").waitFor();
   assert.equal(mutations.length,0,"Failed backend save cannot advance to next case");
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(await first.count(),1);

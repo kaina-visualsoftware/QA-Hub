@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice,notify} from "../components/ui/Toasts";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -85,7 +86,7 @@ export function Workspace() {
       setFilterName("");setFilterNotice("Filtro salvo para esta conta.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>setFilterNotice(err.message)
+    onError:(err)=>notify.error(err.message)
   });
   const removeSavedFilter=useMutation({
     mutationFn:(id:string)=>deleteFilter(userId,id),
@@ -93,7 +94,7 @@ export function Workspace() {
       setFilterNotice("Filtro removido.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>setFilterNotice(err.message)
+    onError:(err)=>notify.error(err.message)
   });
   const visibleTasks=useMemo(()=>
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
@@ -443,8 +444,8 @@ export function Workspace() {
             </label>
           </div>
         </details>
-        {draftStorageError&&<p role="alert" className="notice error">{draftStorageError}</p>}
-        {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
+        <ToastNotice message={draftStorageError} tone="error"/>
+        <ToastNotice message={extractionNotice} tone="info"/>
         {localReview && <section className="generator-context stack"
           aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
@@ -511,7 +512,7 @@ export function Workspace() {
           <Button type="submit" data-next="scenario"
             isDisabled={create.isPending}>Salvar e adicionar cenário</Button>
         </div>
-        {create.isError && <p className="notice error" role="alert">{create.error.message}</p>}
+        <ToastNotice message={create.isError?create.error.message:null} tone="error"/>
       </form>
     </QAModal>
 
@@ -575,7 +576,7 @@ export function Workspace() {
                   removeSavedFilter.mutate(saved.id);
               }}>Excluir</button>
           </div>)}
-          {filterNotice&&<p role="status" className="text-muted text-sm">{filterNotice}</p>}
+          <ToastNotice message={filterNotice} tone="success"/>
         </div>
       </details>
       {(role.isPending || tasks.isPending) && <p className="empty-state" role="status">Carregando tarefas…</p>}

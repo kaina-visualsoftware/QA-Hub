@@ -405,14 +405,14 @@ try{
   await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
   await linkPanel.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
   await linkPanel.getByRole("button",{name:"Vincular release"}).click();
-  await linkPanel.getByText("Release vinculada à TF sem alterar seus testes.").waitFor();
+  await page.getByText("Release vinculada à TF sem alterar seus testes.").waitFor();
   assert.equal(releaseSaves,1);
   assert.equal(releases[0].versao,"12.10.06.0000");
   await linkPanel.getByRole("tab",{name:"Referências"}).click();
   await linkPanel.getByLabel("Título").fill("Checklist de desconto");
   await linkPanel.getByLabel("Conteúdo").fill("Verificar a atualização do total.");
   await linkPanel.getByRole("button",{name:"Salvar referência"}).click();
-  await linkPanel.getByText("Referência privada salva.").waitFor();
+  await page.getByText("Referência privada salva.").waitFor();
   assert.equal(referenceSaves,1);
   assert.equal(referenceRows.length,1);
   await linkPanel.getByRole("tab",{name:"Comparações"}).click();
@@ -424,7 +424,7 @@ try{
   assert.equal(comparisonSaves,0,"Diff local não grava conteúdo nem metadados automaticamente");
   page.once("dialog",(dialog)=>void dialog.accept());
   await recordCounts.click();
-  await linkPanel.getByText("Somente os indicadores foram registrados na TF. Os textos permanecem no navegador.").waitFor();
+  await page.getByText("Somente os indicadores foram registrados na TF. Os textos permanecem no navegador.").waitFor();
   assert.equal(comparisonSaves,1);
   assert.equal(comparisonRows[0].tipo,"diff_texto");
   assert.equal(comparisonRows[0].adicionados,1);
@@ -433,12 +433,12 @@ try{
   await linkPanel.getByLabel("XML A (original)").fill("<root><valor id='1'>antigo</valor></root>");
   await linkPanel.getByLabel("XML B (novo)").fill("<root><valor id='1'>novo</valor></root>");
   await linkPanel.getByRole("button",{name:"Comparar XML"}).click();
-  await linkPanel.getByText(/VALOR.*antigo.*novo/).waitFor();
+  await page.getByText(/VALOR.*antigo.*novo/).waitFor();
   assert.equal(comparisonSaves,1,"Análise XML não deve ser salva automaticamente");
   await linkPanel.getByLabel("XML A (original)").fill(
     "<!DOCTYPE root [<!ENTITY sample 'x'>]><root>&sample;</root>");
   await linkPanel.getByRole("button",{name:"Comparar XML"}).click();
-  await linkPanel.getByText(/XML com DTD, entidades/).waitFor();
+  await page.getByText(/XML com DTD, entidades/).waitFor();
   assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
@@ -452,7 +452,7 @@ try{
     buffer:makePdf("RF001: O sistema deve atualizar o pedido.")
   });
   await reqPanel.getByRole("button",{name:"Verificar arquivo"}).click();
-  await reqPanel.getByText(/Arquivo verificado/).waitFor({timeout:25000});
+  await page.getByText(/Arquivo verificado/).waitFor({timeout:25000});
   const preview=reqPanel.getByLabel("Texto que será associado ao arquivo (prévia de leitura)");
   assert.match(await preview.inputValue(),/RF001: O sistema deve atualizar o pedido/);
   await fileInput.setInputFiles({
@@ -461,7 +461,7 @@ try{
     buffer:await makeDocx("RF002: O campo desconto deve aceitar revisao.")
   });
   await reqPanel.getByRole("button",{name:"Verificar arquivo"}).click();
-  await reqPanel.getByText(/Arquivo verificado/).waitFor({timeout:25000});
+  await page.getByText(/Arquivo verificado/).waitFor({timeout:25000});
   assert.match(await preview.inputValue(),/RF002: O campo desconto deve aceitar revisao/);
   assert.equal(await reqPanel.getByRole("button",{name:"Anexar versão privada"}).isDisabled(),false);
   // Selecting and extracting locally must never write any file into Storage.

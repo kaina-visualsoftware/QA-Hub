@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from "react";
+import {notify,ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
@@ -16,7 +17,6 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
   const [svg,setSvg]=useState<string|null>(null);
   const [previewError,setPreviewError]=useState("");
   const [rendering,setRendering]=useState(false);
-  const [notice,setNotice]=useState("");
   const diagrams=useQuery({
     queryKey:["diagrams",userId,taskId],
     queryFn:()=>listDiagrams(taskId)
@@ -46,7 +46,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
   const remove=useMutation({
     mutationFn:(id:string)=>removeDiagram(taskId,id),
     onSuccess:async()=>{
-      setSelectedId(null);setNotice("Diagrama excluído.");
+      setSelectedId(null);notify.success("Diagrama excluído.");
       await queryClient.invalidateQueries({queryKey:["diagrams",userId,taskId]});
     }
   });
@@ -111,7 +111,6 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
       {previewError&&<p role="alert" className="notice error">{previewError}</p>}
       {svg&&<DiagramViewer key={selected.id} svg={svg} title={selected.titulo}/>}
     </QAModal>}
-    {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
-    {notice&&<p role="status" className="notice">{notice}</p>}
+    <ToastNotice message={remove.isError?remove.error.message:null} tone="error"/>
   </section>;
 }

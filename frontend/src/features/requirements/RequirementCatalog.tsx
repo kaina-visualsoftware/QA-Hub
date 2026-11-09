@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import type { Task } from "../../lib/contracts";
@@ -269,7 +270,7 @@ export default function RequirementCatalog({
         </div>
       </form>}
     </article>)}
-    {message && <p className="notice" role="status">{message}</p>}
-    {error && <p className="notice error" role="alert">{error}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
   </div>;
 }

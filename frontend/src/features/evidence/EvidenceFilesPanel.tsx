@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {Button} from "@heroui/react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Download,Eye,FilePlus2,FileText,Image as ImageIcon,X} from "lucide-react";
@@ -121,8 +122,8 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId}:{
       </div>
       <p className="qa-files-privacy">Privado para a conta proprietária.
         Remova dados sensíveis antes de enviar; arquivos não passam por antivírus.</p>
-      {message&&<p className="notice" role="status">{message}</p>}
-      {error&&<p className="notice error" role="alert">{error}</p>}
+      <ToastNotice message={message} tone="success"/>
+      <ToastNotice message={error} tone="error"/>
     </form>
     {files.isPending&&<p className="text-muted text-sm" role="status">Carregando arquivos…</p>}
     {files.isError&&<p className="notice error" role="alert">

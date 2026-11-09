@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, WandSparkles } from "lucide-react";
@@ -183,8 +184,8 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
             setShowEditor(false);
           }}>Novo diagrama</Button>}
       </div>
-      {save.isError&&<p role="alert" className="notice error">{save.error.message}</p>}
-      {message&&<p role="status" className="qa-diagram-success">{message}</p>}
+      <ToastNotice message={save.isError?save.error.message:null} tone="error"/>
+      <ToastNotice message={message} tone="success"/>
     </form> :
     <button type="button" className="qa-diagram-manual-toggle"
       onClick={()=>setShowEditor(true)}>Criar manualmente com Mermaid</button>}

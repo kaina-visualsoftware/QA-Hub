@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice,notify} from "../components/ui/Toasts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -119,7 +120,7 @@ export default function TaskPage() {
   const [pending, setPending] = useState<{ scenario: Scenario; status: ExecutionResult["status"] } | null>(null);
   const [observed, setObserved] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "failed">("all");
-  const [saved, setSaved] = useState("");
+  const setSaved = notify.success;
   // TanStack Router reuses TaskPage for different TF IDs. Do not display a
   // previous task's success notice or keep its pending-focus state.
   useEffect(()=>{
@@ -218,7 +219,7 @@ export default function TaskPage() {
   function startPendingExecution() {
     setActiveTab("tests");
     setExecutionMode("guided");
-    setSaved(pendingCount ? "" :
+    if(!pendingCount)notify.info(
       "Não há casos pendentes. Adicione um cenário ou consulte os resultados registrados.");
   }
 
@@ -264,7 +265,7 @@ export default function TaskPage() {
     setExecutionMode("guided");
     setFilter("pending");
     setResumeFocus(true);
-    setSaved(pendingCount ? "" :
+    if(!pendingCount)notify.info(
       "Não há casos pendentes nesta TF. Adicione um cenário ou consulte outros filtros.");
     void navigate({
       to: "/tarefa/$taskId",
@@ -494,8 +495,8 @@ export default function TaskPage() {
         pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
         onViewTests={()=>setActiveTab("tests")}/>
     </section>
-    {saved && <div className="notice mt-4" role="status">{saved}</div>}
-    {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
+
+    <ToastNotice message={importWarning} tone="error"/>
 
     {editing && <QAModal open={editing} title="Editar TF" eyebrow="DADOS DO REGISTRO"
       description="Atualize os dados do chamado sem sair da execução." size="lg"
@@ -530,7 +531,7 @@ export default function TaskPage() {
           <Button type="button" variant="secondary" onPress={closeTaskEditor}>Cancelar</Button>
           <Button type="submit" isDisabled={saveTask.isPending||task.user_id!==userId}>Salvar alterações</Button>
         </div>
-        {saveTask.isError && <p className="notice error" role="alert">{saveTask.error.message}</p>}
+        <ToastNotice message={saveTask.isError?saveTask.error.message:null} tone="error"/>
       </form>
     </QAModal>}
 
@@ -650,7 +651,7 @@ export default function TaskPage() {
             {editingScenario ? "Salvar cenário" : "Adicionar cenário"}
           </Button>
         </div>
-        {createScenario.isError && <p role="alert" className="notice error">{createScenario.error.message}</p>}
+        <ToastNotice message={createScenario.isError?createScenario.error.message:null} tone="error"/>
       </form>
       </section>
     </QAModal>}
@@ -746,9 +747,8 @@ export default function TaskPage() {
           </details>
         </article>)}
       </div>
-      {(saveResult.isError || deleteScenarioMutation.isError) && <p className="notice error mt-4" role="alert">
-        {saveResult.error?.message || deleteScenarioMutation.error?.message}
-      </p>}
+      <ToastNotice tone="error"
+        message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
     </section>
 
     </section>
@@ -785,10 +785,8 @@ export default function TaskPage() {
           }}>Excluir TF</Button>
         </div>
       </div>
-      {(updateStatus.isError || deleteTaskMutation.isError) &&
-        <p role="alert" className="notice error mt-3">
-          {updateStatus.error?.message || deleteTaskMutation.error?.message}
-        </p>}
+      <ToastNotice tone="error"
+        message={updateStatus.error?.message || deleteTaskMutation.error?.message}/>
     </section>
     <section className="panel mt-4" aria-label="Compartilhamento público">
       <div className="section-heading">
@@ -824,7 +822,7 @@ export default function TaskPage() {
       </div> : <p className="text-muted text-sm mt-3">
         A publicação só pode ser alterada pelo autor da TF, inclusive em consulta administrativa.
       </p>}
-      {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
+      <ToastNotice message={publication.isError?publication.error.message:null} tone="error"/>
     </section>
 
 
@@ -851,7 +849,7 @@ export default function TaskPage() {
             onPress={closeResult}>Cancelar</Button>
           <Button type="submit" isDisabled={saveResult.isPending||!observed.trim()}>Salvar resultado</Button>
         </div>
-        {saveResult.isError&&<p role="alert" className="notice error">{saveResult.error.message}</p>}
+        <ToastNotice message={saveResult.isError?saveResult.error.message:null} tone="error"/>
       </form>
     </QAModal>}
   </div>;

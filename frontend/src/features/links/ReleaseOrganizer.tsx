@@ -1,4 +1,5 @@
 import { useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { ClipboardCopy, ListChecks, PackageCheck } from "lucide-react";
 import {
@@ -152,8 +153,8 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
           </Button>
         </div>
       </div>}
-      {error && <p className="notice error" role="alert">{error}</p>}
-      {message && <p className="notice" role="status">{message}</p>}
+      <ToastNotice message={error} tone="error"/>
+      <ToastNotice message={message} tone="success"/>
     </div>
   </details>;
 }

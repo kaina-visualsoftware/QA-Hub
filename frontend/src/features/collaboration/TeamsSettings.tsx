@@ -1,4 +1,5 @@
 import {useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {Users,UserPlus} from "lucide-react";
@@ -169,7 +170,7 @@ export default function TeamsSettings({userId}:{userId:string}){
      }}>Excluir equipe</Button>
    </>}
   </div>}
-  {notice&&<p role="status" className="notice">{notice}</p>}
-  {error&&<p role="alert" className="notice error">{error}</p>}
+  <ToastNotice message={notice} tone="success"/>
+  <ToastNotice message={error} tone="error"/>
  </section>;
 }

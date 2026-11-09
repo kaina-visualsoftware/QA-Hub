@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, NotebookPen, Save, Trash2 } from "lucide-react";
@@ -105,7 +106,7 @@ export default function ReferenceLibrary({userId}:{userId:string}){
       </div>
       <p className="text-sm mt-3 qa-reference-text">{item.conteudo}</p>
     </article>)}
-    {message&&<p className="notice" role="status">{message}</p>}
-    {failure&&<p className="notice error" role="alert">{failure}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={failure} tone="error"/>
   </section>;
 }
