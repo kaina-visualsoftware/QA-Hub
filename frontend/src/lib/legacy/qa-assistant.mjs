@@ -1,4 +1,5 @@
 import { parseReport } from './qa-parser.mjs';
+import { cleanQaSourceText, formatQaSentenceCase } from './qa-text-cleaner.mjs';
 
 // All extraction runs in the browser. Never send QA reports to an external API.
 export const ASSIST_FIELD_LIMITS = Object.freeze({
@@ -28,16 +29,19 @@ export function normalizeDraft(raw) {
       if(kind==='BUILD'||kind==='RELEASE') fields[key]=kind;
       continue;
     }
-    const value=clean(raw[key]).slice(0,max);
+    const input=clean(raw[key]);
+    const value=(key==='codigo'||key==='versao'
+      ? cleanQaSourceText(input)
+      : formatQaSentenceCase(input)).slice(0,max);
     if(value)fields[key]=value;
   }
   const scenarios=Array.isArray(raw.cenarios) ? raw.cenarios.slice(0,ASSIST_SCENARIO_LIMIT).map((item,index)=>({
     ordem:index+1,
-    titulo:safeTitle(item?.titulo||('Cenário '+(index+1))),
-    passos:clean(item?.passos).slice(0,30000),
-    esperado:clean(item?.esperado).slice(0,30000),
-    obtido:clean(item?.obtido).slice(0,30000),
-    observacoes:clean(item?.observacoes).slice(0,30000),
+    titulo:safeTitle(formatQaSentenceCase(item?.titulo||('Cenário '+(index+1)))),
+    passos:formatQaSentenceCase(item?.passos).slice(0,30000),
+    esperado:formatQaSentenceCase(item?.esperado).slice(0,30000),
+    obtido:formatQaSentenceCase(item?.obtido).slice(0,30000),
+    observacoes:formatQaSentenceCase(item?.observacoes).slice(0,30000),
     // Extracted text must not be interpreted as an executed or approved test.
     status:'nao_executado'
   })) : [];
@@ -71,7 +75,8 @@ function splitSections(text){
 export function extractLocalDraft(raw){
   if(typeof raw!=='string'||!raw.trim())throw Error('Cole o texto da TF para analisar.');
   if(raw.length>30000)throw Error('Para o preenchimento rápido, use até 30.000 caracteres.');
-  const text=raw.replace(/\r\n?/g,'\n').trim();
+  const text=cleanQaSourceText(raw);
+  if(!text)throw Error('O conteúdo contém somente controles da interface. Cole as informações da TF.');
   const sections=splitSections(text);
   let report=null;
   try {report=parseReport(text);} catch { /* Freeform QA notes are allowed. */ }
