@@ -85,9 +85,13 @@ describe("limpeza do conteúdo enviado à NVIDIA",()=>{
     expect(draft.cenarios[0].esperado).toBe("O checkbox deve lembrar o último estado.");
     const values:Record<string,string>={};
     const setValue=vi.fn((key:string,value:string)=>{values[key]=value;});
-    applyTaskAiFields({setValue} as unknown as Pick<UseFormReturn<TaskDraft>,"setValue">,draft);
+    applyTaskAiFields({setValue} as unknown as Pick<UseFormReturn<TaskDraft>,"setValue">,
+      draft,{cleanDescription:copiedReport});
     expect(values.titulo).toBe("Persistência do checkbox por usuário e por terminal");
     expect(values.causa).not.toContain("Google Drive");
+    expect(values.descricao).toContain("Cliente quer que o checkbox");
+    expect(values.descricao).not.toContain("Google Drive");
+    expect(values.descricao).not.toMatch(/^preview$|^download$|^abrir$/im);
     expect(values.correcao).toContain("telas.ini");
   });
 
