@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
@@ -109,6 +110,6 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
       </div>}
     </div>}
     {remove.isError&&<p role="alert" className="notice error">{remove.error.message}</p>}
-    {notice&&<p role="status" className="notice">{notice}</p>}
+    <ToastNotice message={notice} tone="success"/>
   </section>;
 }
