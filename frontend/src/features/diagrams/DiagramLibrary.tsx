@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from "react";
-import {notify} from "../../components/ui/Toasts";
+import {notify,ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {Eye,GitBranchPlus,Pencil,Trash2,Workflow} from "lucide-react";
