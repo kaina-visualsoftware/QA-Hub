@@ -34,6 +34,7 @@ import {
   needsObservationResetConfirmation, quickExecutionResult
 } from "../features/executions/quick-result";
 import { QAModal } from "../components/ui/QAModal";
+import {splitScenarioNotes} from "../lib/legacy/qa-assistant.mjs";
 import {getTaskById} from "../features/tasks/task-search-data";
 import {getTaskRights} from "../features/collaboration/team-data";
 import type {TaskRights} from "../features/collaboration/team-data";
@@ -884,7 +885,9 @@ export default function TaskPage() {
         {scenarios.data.length ? "Nenhum cenário neste filtro." : "Esta TF ainda não possui cenários. Cadastre o primeiro."}
       </p>}
       <div className="scenarios">
-        {visible.map((scenario, index) => <article className="scenario" key={scenario.id}>
+        {visible.map((scenario, index) => {
+          const notes=splitScenarioNotes(scenario.observacoes);
+          return <article className="scenario" key={scenario.id}>
           <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(scenario.ordem).padStart(2, "0")}</span>
               <h3>{scenario.titulo}</h3></div><span className={"status-chip " + scenario.status}>
                 {scenarioStatusLabels[scenario.status]}</span></div>
@@ -917,11 +920,17 @@ export default function TaskPage() {
           </div>
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}
           <details className="scenario-details"><summary><CircleHelp size={16} /> Passos e resultado esperado</summary>
-            <div><strong>Passos</strong><p>{scenario.passos || "Não informado"}</p></div>
-            <div><strong>Esperado</strong><p>{scenario.esperado || "Não informado"}</p></div>
-            {scenario.observacoes && <div><strong>Observações</strong><p>{scenario.observacoes}</p></div>}
+            <div><strong>Passos</strong><p style={{whiteSpace:"pre-wrap"}}>{scenario.passos || "Não informado"}</p></div>
+            <div><strong>Esperado</strong><p style={{whiteSpace:"pre-wrap"}}>
+              {scenario.esperado ? scenario.esperado.split("\n").map(line=>
+                /^[-•*]\s/.test(line)?line:"- "+line).join("\n") : "Não informado"}
+            </p></div>
+            {notes.objetivo && <div><strong>Objetivo</strong>
+              <p style={{whiteSpace:"pre-wrap"}}>{notes.objetivo}</p></div>}
+            {notes.observacoes && <div><strong>Observações</strong>
+              <p style={{whiteSpace:"pre-wrap"}}>{notes.observacoes}</p></div>}
           </details>
-        </article>)}
+        </article>;})}
       </div>
       <ToastNotice tone="error"
         message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
