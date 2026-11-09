@@ -48,6 +48,7 @@ async function mock(route){
     writes.push(method+" "+path);return send({message:"Writes not permitted in this test"},500);
   }
   if(path.endsWith("/rest/v1/qa_documentos"))return send(documents);
+  if(path.endsWith("/rest/v1/qa_requisitos"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   problems.push(method+" "+path);return send({message:"Unexpected API"},500);
 }
