@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables
@@ -39,6 +39,7 @@ const EvidencePanel = lazy(() => import("../features/evidence/EvidencePanel"));
 const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 const ExecutionHistoryPanel = lazy(() => import("../features/history/ExecutionHistoryPanel"));
 const TaskCollaborationPanel = lazy(() => import("../features/collaboration/TaskCollaborationPanel"));
+const ScenarioLibraryPanel=lazy(()=>import("../features/scenario-library/ScenarioLibraryPanel"));
 
 export default function TaskPage() {
   const { taskId } = useParams({ from: "/tarefa/$taskId" });
@@ -86,6 +87,7 @@ export default function TaskPage() {
   const [showLinks, setShowLinks] = useState(false);
   const [showHistory,setShowHistory]=useState(false);
   const [showCollaboration,setShowCollaboration]=useState(false);
+  const [showLibrary,setShowLibrary]=useState(false);
 
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
@@ -96,6 +98,7 @@ export default function TaskPage() {
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);setShowDocuments(false);
     setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
     setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
+    setShowLibrary(false);
     setEditingScenario(null);setPending(null);setObserved("");
   },[taskId]);
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
@@ -132,6 +135,7 @@ export default function TaskPage() {
   function closeToolPanels() {
     setAiMode(null);setShowDocuments(false);setShowRequirements(false);
     setShowEvidence(false);setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
+    setShowLibrary(false);
   }
   function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste"|"history"|"collaboration") {
     closeToolPanels();
@@ -529,6 +533,13 @@ export default function TaskPage() {
           onExecuted={invalidate}/>
       </Suspense>
     </QAModal>
+    <QAModal open={showLibrary} title="Biblioteca de cenários" eyebrow="REUTILIZAÇÃO"
+      size="lg" onClose={()=>setShowLibrary(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando biblioteca…</p>}>
+        <ScenarioLibraryPanel key={task.id} task={task} userId={userId}
+          scenarios={scenarios.data||[]} onImported={invalidate}/>
+      </Suspense>
+    </QAModal>
     <QAModal open={showHistory} keepMounted title="Histórico e comparações"
       eyebrow="RASTREABILIDADE" size="full" onClose={()=>setShowHistory(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando histórico…</p>}>
@@ -627,6 +638,9 @@ export default function TaskPage() {
           <Button variant="secondary" onPress={()=>openTool("teste")}>
             <ListChecks size={16} aria-hidden="true"/> Gerar casos
           </Button>
+          {own&&<Button variant="secondary" onPress={()=>{
+            closeToolPanels();setShowLibrary(true);
+          }}><BookCopy size={16} aria-hidden="true"/> Biblioteca</Button>}
         </div>
       </div>
       <div className="qa-execution-switch" role="group" aria-label="Modo de execução">
