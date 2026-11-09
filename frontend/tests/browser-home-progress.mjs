@@ -102,6 +102,16 @@ try{
   const ownerRow=page.locator(".task-list-entry").filter({hasText:"Validar desconto"});
   await ownerRow.getByText("1/2 executados · 1 pendente(s)").waitFor({timeout:25000});
   assert.equal(await ownerRow.getByRole("link",{name:"Continuar testes"}).count(),1);
+  const deleteOnList=ownerRow.getByRole("button",{name:"Excluir TF: Validar desconto"});
+  assert.equal(await deleteOnList.count(),1,
+    "Owners must have a direct delete action on the task list");
+  await deleteOnList.click();
+  const confirmDelete=page.getByRole("dialog",{name:"Excluir esta TF?"});
+  await confirmDelete.waitFor();
+  await confirmDelete.getByText("Validar desconto",{exact:true}).waitFor();
+  await confirmDelete.getByRole("button",{name:"Cancelar"}).click();
+  assert.equal(await confirmDelete.count(),0);
+  assert.equal(writes.length,0,"Cancel must never delete the TF");
 
   const zeroRow=page.locator(".task-list-entry").filter({hasText:"TF sem casos"});
   await zeroRow.getByText("0/0 executados · 0 pendente(s)").waitFor();
@@ -111,6 +121,8 @@ try{
   await anotherRow.getByText("0/1 executados · 1 pendente(s)").waitFor();
   assert.equal(await anotherRow.getByRole("link",{name:"Continuar testes"}).count(),0,
     "Admin can inspect but must not be given a quick execution link to someone else's TF");
+  assert.equal(await anotherRow.getByRole("button",{name:/Excluir TF/}).count(),0,
+    "Users cannot delete another QA's task from the list");
 
   const largeRow=page.locator(".task-list-entry").filter({hasText:"TF com muitos cenários"});
   await largeRow.getByText("500/501 executados · 1 pendente(s)").waitFor();
@@ -124,6 +136,11 @@ try{
 
   await ownerRow.getByRole("link",{name:"Continuar testes"}).click();
   await page.getByRole("heading",{name:"Validar desconto"}).waitFor();
+  await page.getByRole("button",{name:"Excluir TF",exact:true}).click();
+  const detailConfirmation=page.getByRole("dialog",{name:"Excluir esta TF?"});
+  await detailConfirmation.waitFor();
+  await detailConfirmation.getByRole("button",{name:"Cancelar"}).click();
+  assert.equal(writes.length,0,"Cancel in task detail must not delete the TF");
   await page.getByRole("group",{name:"Cenários na execução guiada"})
     .getByRole("button",{name:/Pendentes/}).waitFor({timeout:20000});
   await page.waitForFunction(()=>
