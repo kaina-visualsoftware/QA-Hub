@@ -1,4 +1,5 @@
 import {useMemo,useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {ExternalLink,MessageCircle,Users,Workflow} from "lucide-react";
@@ -272,7 +273,7 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
      onPress={()=>setShowCount(n=>n+12)}>Mostrar mais resultados</Button>}
    </>}
   </section>}
-  {message&&<p className="notice" role="status">{message}</p>}
-  {error&&<p className="notice error" role="alert">{error}</p>}
+  <ToastNotice message={message} tone="success"/>
+  <ToastNotice message={error} tone="error"/>
  </div>;
 }
