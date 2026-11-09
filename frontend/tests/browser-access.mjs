@@ -162,7 +162,7 @@ try{
     "- Abrir pedido 67866",
     "RESULTADO ESPERADO: O desconto deve zerar."
   ].join("\n"));
-  await normal.getByRole("button",{name:"Extrair campos sem IA"}).click();
+  await normal.getByRole("button",{name:"Extrair sem IA"}).click();
   await waitForReview(normal,"Deterministic extraction");
   assert.equal(await normal.getByRole("checkbox",{name:/Remover desconto do pedido/}).isChecked(),false,
     "Extração local não pode anexar cenários por padrão");
@@ -175,7 +175,7 @@ try{
   assert.equal(await normal.getByText("Assistente local avançado (opcional)").count(),0);
   assert.equal(await normal.getByRole("button",{name:"Gerar com IA NVIDIA"}).isDisabled(),true,
     "NVIDIA must require explicit consent to the current text");
-  await normal.getByText("Informações adicionais (opcional)").click();
+  await normal.getByText("Mais opções").click();
   assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"12.08.08.0000");
   await normal.getByRole("button",{name:"Cancelar",exact:true}).click();
   await normal.goto(origin+"#/admin");
