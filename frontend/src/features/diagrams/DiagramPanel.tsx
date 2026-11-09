@@ -59,7 +59,6 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
     setPreviewError("");setRepairRequest(null);
     void preview(record.conteudo);
   // Deliberately initialize once per editor mount, not for every edit keystroke.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[editDiagramId,diagrams.data]);
 
   // Generated Mermaid is only a local draft until the human explicitly saves it.
