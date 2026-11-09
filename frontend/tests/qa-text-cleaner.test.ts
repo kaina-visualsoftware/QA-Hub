@@ -82,7 +82,7 @@ describe("limpeza do conteúdo enviado à NVIDIA",()=>{
     expect(draft.fields.versao).toBe("12.08.10.0000");
     expect(draft.fields.tipo_teste).toBe("BUILD");
     expect(draft.cenarios[0].titulo).toBe("Validar estado persistido do checkbox");
-    expect(draft.cenarios[0].passos).toBe("Acessar relatórios > vendas > resumos > vendedor");
+    expect(draft.cenarios[0].passos).toBe("1. Acessar relatórios > vendas > resumos > vendedor");
     expect(draft.cenarios[0].esperado).toBe("O checkbox deve lembrar o último estado.");
     const values:Record<string,string>={};
     const setValue=vi.fn((key:string,value:string)=>{values[key]=value;});
