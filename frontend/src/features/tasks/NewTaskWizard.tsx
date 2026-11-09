@@ -390,6 +390,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   }
 
   const totalSelected=cases.filter(item=>item.selected).length;
+  const caseHeadingsReceived=(streamText.match(/^##\s+Cen[áa]rio\b/gim)||[]).length;
+  const filledFields=Object.values(draft).filter(value=>typeof value==="string"&&value.trim()).length;
   const taskContextLength=combine("TEXTO DA TAREFA",sourceText,taskFiles).length;
   const fullTaskReview=Object.entries(draft)
     .filter(([,value])=>Boolean(value?.trim()))
@@ -441,18 +443,62 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {["Conteúdo","Dados da TF","Casos de teste"].map((title,index)=>
         <span key={title} className={step===index+1?"is-current":step>index+1?"is-done":""}
           aria-current={step===index+1?"step":undefined}>
-          <b>{index+1}</b> {title}
+          <b>{step>index+1?<Check size={14} aria-hidden="true"/>:index+1}</b>
+          <span>{title}</span>
         </span>)}
     </div>
+    <div className="qa-wizard-save-hint"><ShieldCheck size={15} aria-hidden="true"/>
+      A TF será salva somente após a finalização.
+    </div>
+    {work&&<section className="qa-wizard-work" data-process={work.kind}>
+      <div className="qa-wizard-work-heading">
+        <span className="qa-wizard-work-icon"><LoaderCircle aria-hidden="true" size={20}/></span>
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <strong>{WORK_LABELS[work.kind]}</strong>
+          <p>{work.detail}</p>
+        </div>
+        {work.kind==="cases"&&<button type="button" className="qa-wizard-work-cancel"
+          onClick={()=>controller.current?.abort()}>Cancelar</button>}
+      </div>
+      <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
+      <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
+        {WORK_STEPS[work.kind].map((label,index)=><li key={label}
+          className={index<work.phase?"is-complete":index===work.phase?"is-active":""}>
+          {index<work.phase?<CheckCircle2 size={15} aria-hidden="true"/>:
+            index===work.phase?<LoaderCircle size={15} aria-hidden="true"/>:
+              <span className="qa-wizard-work-dot" aria-hidden="true"/>}
+          <span>{label}</span>
+        </li>)}
+      </ol>
+      {work.total!==undefined&&work.total>0&&
+        <p className="qa-wizard-work-metric">
+          {Math.min(work.current??0,work.total)} de {work.total} arquivo(s) processado(s)
+        </p>}
+      {work.kind==="cases"&&streamText.length>0&&<p className="qa-wizard-work-metric">
+        {streamText.length.toLocaleString("pt-BR")} caracteres recebidos
+        {caseHeadingsReceived>0?" · "+caseHeadingsReceived+" cenário(s) encontrados no texto recebido":""}
+      </p>}
+    </section>}
+    {error&&<ToastNotice message={error} tone="error"/>}
     {step===1&&<section className="qa-wizard-step stack">
-      <label className="field">Informações da tarefa
-        <textarea id="qa-wizard-source" rows={9} maxLength={30000} disabled={busy}
-          value={sourceText} onChange={event=>alterSource(event.target.value)}
-          placeholder="Cole aqui o problema, a análise de viabilidade, a correção, os testes realizados e demais informações da TF."/>
-      </label>
-      {filePicker(false)}
-      <p className="text-muted text-sm">TXT, MD, PDF ou DOCX (até 10 MB por arquivo).
-        Os arquivos serão registrados de forma privada na TF ao finalizar.</p>
+      <div className="qa-wizard-section-intro">
+        <span className="qa-wizard-section-mark"><FileText size={18} aria-hidden="true"/></span>
+        <div><span className="qa-wizard-kicker">01 · ORIGEM</span>
+          <h3>Conteúdo da tarefa</h3>
+          <p>Cole o chamado completo e adicione os documentos que a IA deve considerar.</p>
+        </div>
+      </div>
+      <div className="qa-wizard-source-panel">
+        <label className="field">Informações da tarefa
+          <textarea id="qa-wizard-source" rows={8} maxLength={30000} disabled={busy}
+            value={sourceText} onChange={event=>alterSource(event.target.value)}
+            placeholder="Cole o problema, a análise de viabilidade, a correção e demais informações da TF."/>
+        </label>
+        <div className="qa-wizard-attachment-line">
+          {filePicker(false)}
+          <p>TXT, MD, PDF ou DOCX · até 10 MB por arquivo</p>
+        </div>
+      </div>
       {!!taskContextLength&&<p className="qa-wizard-size">
         {taskContextLength.toLocaleString("pt-BR")} / {TASK_LIMIT.toLocaleString("pt-BR")} caracteres
         para a análise da NVIDIA
@@ -461,15 +507,27 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         O texto e os arquivos ultrapassam 20.000 caracteres. Remova ou divida os documentos
         para analisar todo o conteúdo, sem perder partes silenciosamente.
       </p>}
-      <label className="qa-wizard-consent">
-        <input type="checkbox" checked={consentTask} disabled={busy||!taskContextLength}
-          onChange={event=>setConsentTask(event.target.checked)}/>
-        Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
-      </label>
-      <Button isDisabled={busy||!consentTask||!taskContextLength||taskContextLength>TASK_LIMIT}
-        onPress={()=>void generateTask()}>
-        <Sparkles size={17}/>{analyzing?"Analisando tarefa…":"Gerar tarefa com IA"}
-      </Button>
+      <div className="qa-wizard-ai-panel">
+        <div className="qa-wizard-ai-panel-title">
+          <Sparkles size={17} aria-hidden="true"/>
+          <div><strong>Preenchimento inteligente</strong>
+            <p>A NVIDIA organiza os campos para você revisar na próxima etapa.</p>
+          </div>
+        </div>
+        <label className="qa-wizard-consent">
+          <input type="checkbox" checked={consentTask} disabled={busy||!taskContextLength}
+            onChange={event=>setConsentTask(event.target.checked)}/>
+          Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
+        </label>
+        <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
+          !taskContextLength||taskContextLength>TASK_LIMIT}
+          onPress={()=>void generateTask()}>
+          {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
+            <Sparkles size={17} aria-hidden="true"/>}
+          {analyzing?"Analisando tarefa…":"Gerar tarefa com IA"}
+          {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
+        </Button>
+      </div>
       <div className="qa-wizard-manual">
         <span>ou</span>
         <button type="button" disabled={busy} onClick={continueManual}>Continuar manualmente</button>
@@ -495,11 +553,21 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </label>
     </section>}
     {step===2&&<section className="qa-wizard-step stack">
-      <div className="qa-wizard-step-heading">
-        <strong>{aiUsed?"Campos preenchidos com IA":"Dados preenchidos manualmente"}</strong>
-        <p>Você pode editar qualquer campo antes de continuar.</p>
+      <div className="qa-wizard-section-intro">
+        <span className="qa-wizard-section-mark"><ClipboardList size={18} aria-hidden="true"/></span>
+        <div><span className="qa-wizard-kicker">02 · CONFERÊNCIA</span>
+          <h3>Revise os dados da TF</h3>
+          <p>Confira e ajuste as informações antes de criar os casos de teste.</p>
+        </div>
       </div>
-      <div className="qa-wizard-form-grid">
+      <div className="qa-wizard-review-indicator">
+        <CheckCircle2 size={17} aria-hidden="true"/>
+        <span>{aiUsed?"Análise concluída com IA":"Preenchimento manual"}</span>
+        <b>{filledFields} campo(s) preenchido(s)</b>
+      </div>
+      <div className="qa-wizard-fields-panel">
+        <h4>Identificação</h4>
+        <div className="qa-wizard-form-grid">
         <label className="field" style={{gridColumn:"1/-1"}}>Título da tarefa
           <input id="qa-wizard-title" value={draft.titulo} maxLength={240}
             disabled={busy} onChange={event=>update("titulo",event.target.value)}/>
@@ -517,9 +585,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </label>
         {field("versao","Versão")}
         {field("sistema","Sistema / módulo")}
+        </div>
       </div>
-      {field("descricao","Resumo do problema / descrição",true)}
-      <details className="qa-wizard-more" open={false}>
+      <div className="qa-wizard-fields-panel">
+        <h4>Descrição do problema</h4>
+        {field("descricao","Resumo do problema / descrição",true)}
+      </div>
+      <details className="qa-wizard-more">
         <summary>Análise técnica e demais informações</summary>
         <div className="stack mt-3">
           {field("explicacao","Como funciona",true)}
@@ -543,6 +615,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
     </section>}
     {step===3&&<section className="qa-wizard-step stack">
+      <div className="qa-wizard-section-intro">
+        <span className="qa-wizard-section-mark"><FileCheck2 size={18} aria-hidden="true"/></span>
+        <div><span className="qa-wizard-kicker">03 · COBERTURA</span>
+          <h3>Casos de teste</h3>
+          <p>Gere casos fundamentados na TF e nos requisitos, sem repetir cenários.</p>
+        </div>
+      </div>
       <div className="qa-wizard-task-summary">
         <strong>{draft.titulo}</strong>
         <span>{draft.codigo?draft.codigo+" · ":""}{draft.tipo_teste}
@@ -556,27 +635,37 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <FileText size={16}/> {cases.length} cenário(s) já identificado(s) na tarefa.
         A geração buscará novos casos sem repetir os existentes.
       </p>}
-      <label className="field">Requisitos e critérios de aceite (opcional)
-        <textarea id="qa-wizard-requirement" rows={5} maxLength={20000}
-          value={requirementText} disabled={busy}
-          onChange={event=>{setRequirementText(event.target.value);setConsentCases(false);}}
-          placeholder="Cole os requisitos funcionais, regras de negócio, exceções e critérios de aceite."/>
-      </label>
-      {filePicker(true)}
-      <label className="qa-wizard-consent">
-        <input type="checkbox" checked={consentCases} disabled={busy}
-          onChange={event=>setConsentCases(event.target.checked)}/>
-        Autorizo enviar o contexto da TF e os requisitos à NVIDIA para gerar casos.
-      </label>
-      <Button variant="secondary" isDisabled={busy||!consentCases}
-        onPress={()=>void generateCases()}>
-        <Sparkles size={17}/>{generating?"Gerando casos…":
-          cases.length?"Ampliar cobertura com IA":"Gerar casos de teste com IA"}
-      </Button>
-      {generating&&<div role="status" className="qa-wizard-generating">
-        A NVIDIA está analisando regras, exceções, fluxos alternativos e regressões…
-        {streamText&&<small>Resposta recebida: {streamText.length.toLocaleString("pt-BR")} caracteres</small>}
-        <button type="button" onClick={()=>controller.current?.abort()}>Cancelar geração</button>
+      <div className="qa-wizard-source-panel">
+        <label className="field">Requisitos e critérios de aceite (opcional)
+          <textarea id="qa-wizard-requirement" rows={5} maxLength={20000}
+            value={requirementText} disabled={busy}
+            onChange={event=>{setRequirementText(event.target.value);setConsentCases(false);}}
+            placeholder="Cole os requisitos funcionais, regras de negócio, exceções e critérios de aceite."/>
+        </label>
+        <div className="qa-wizard-attachment-line">
+          {filePicker(true)}
+          <p>Anexe PDFs, DOCX, TXT ou MD com regras complementares.</p>
+        </div>
+      </div>
+      <div className="qa-wizard-ai-panel">
+        <div className="qa-wizard-ai-panel-title">
+          <Sparkles size={17} aria-hidden="true"/>
+          <div><strong>Cobertura sugerida pela IA</strong>
+            <p>Fluxos positivos, negativos, alternativos e regressões quando previstos nos documentos.</p>
+          </div>
+        </div>
+        <label className="qa-wizard-consent">
+          <input type="checkbox" checked={consentCases} disabled={busy}
+            onChange={event=>setConsentCases(event.target.checked)}/>
+          Autorizo enviar o contexto da TF e os requisitos à NVIDIA para gerar casos.
+        </label>
+        <Button className="qa-wizard-primary" isDisabled={busy||!consentCases}
+          onPress={()=>void generateCases()}>
+          {generating?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
+            <Sparkles size={17} aria-hidden="true"/>}
+          {generating?"Gerando casos…":
+            cases.length?"Ampliar cobertura com IA":"Gerar casos de teste com IA"}
+        </Button>
       </div>}
       {cases.length>0&&<div className="qa-wizard-case-review">
         <div className="qa-wizard-case-head">
@@ -626,11 +715,5 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
     </section>}
     {notice&&<ToastNotice message={notice} tone="info"/>}
-    {error&&<ToastNotice message={error} tone="error"/>}
-    {busy&&<p className="qa-wizard-busy" role="status">
-      {finishing?"Salvando a tarefa, os anexos e os casos de teste…":
-        reading?"Lendo documentos localmente…":analyzing?"Interpretando a tarefa com NVIDIA…":
-          generating?"Gerando casos de teste…":""}
-    </p>}
   </QAModal>;
 }
