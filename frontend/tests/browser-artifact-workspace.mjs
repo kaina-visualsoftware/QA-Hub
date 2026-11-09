@@ -96,7 +96,7 @@ try{
   await page.waitForFunction(()=>Boolean(document.querySelector(
     'iframe[title="Diagrama: Fluxo de descontos"]')?.getAttribute("srcdoc")),null,
     {timeout:25000});
-  assert.match((await diagramFrame.getAttribute("sandbox"))??"","^$",
+  assert.equal(await diagramFrame.getAttribute("sandbox"),"",
     "Saved diagrams must be sandboxed");
 
   const posts=deliverables.locator(".qa-artifact-browser").nth(1);
