@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, GitCompareArrows, GitMerge, NotebookPen, Save, X } from "lucide-react";
@@ -236,7 +237,7 @@ export default function LinksPanel({
         </article>)}
       </div>}
     </>}
-    {message && <p className="notice mt-4" role="status">{message}</p>}
-    {failure && <p className="notice error mt-4" role="alert">{failure}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={failure} tone="error"/>
   </section>;
 }
