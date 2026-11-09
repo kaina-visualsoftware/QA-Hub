@@ -483,7 +483,7 @@ export function Workspace() {
               };
               const draft = localReview.draft;
               for (const [name,value] of Object.entries(draft.fields)) {
-                if (!value || name === "tipo_teste" || !(name in textLimits)) continue;
+                if (!value || name === "tipo_teste" || name === "descricao" || !(name in textLimits)) continue;
                 const key = name as Exclude<keyof TaskDraft,"tipo_teste">;
                 form.setValue(key, value.slice(0,textLimits[name]), {
                   shouldValidate:true, shouldDirty:true
