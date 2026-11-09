@@ -1531,7 +1531,7 @@
 .qa-diagram-library-row.selected{border-color:#86b9b6;background:#f6fbf9}
 .qa-diagram-library-title{min-width:0;flex:1 1 140px;display:flex;flex-direction:column;gap:4px}
 .qa-diagram-library-title strong{font-size:.81rem;overflow-wrap:anywhere;color:#27545f}
-.qa-diagram-library-title small{font-size:.7rem;color:#657d85}
+.qa-diagram-library-title small{font-size:.75rem;color:#405d68}
 .qa-diagram-library-actions{display:flex;flex-wrap:wrap;gap:4px}
 .qa-diagram-library-actions button{display:inline-flex;align-items:center;justify-content:center;
  gap:5px;min-height:40px;padding:7px 8px;border-radius:8px;
