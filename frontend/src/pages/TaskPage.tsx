@@ -614,7 +614,7 @@ export default function TaskPage() {
                     taskForm.watch("descricao").length>20000}
                   onChange={event=>setTaskAiConsent(event.target.checked
                     ?taskForm.getValues("descricao"):null)}/>
-                <span>Autorizo enviar a descrição à NVIDIA.</span>
+                <span>Autorizo enviar a descrição atual à NVIDIA.</span>
               </label>
               <Button type="button" className="qa-task-ai-generate"
                 isDisabled={taskAiBusy||saveTask.isPending||
