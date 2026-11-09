@@ -16,12 +16,9 @@ const FIELD_LIMITS:Readonly<Partial<Record<keyof TaskDraft,number>>>={
   conclusao:30000,observacoes:30000
 };
 
-/** Use the same structured summaries on creation and regeneration. */
-export function applyTaskAiFields(
-  form:Pick<UseFormReturn<TaskDraft>,"setValue">,
-  draft:LocalDraft
-):number{
-  let applied=0;
+/** Shared field normalization for new TFs and AI regeneration. */
+export function taskAiFieldValues(draft:LocalDraft):Partial<TaskDraft>{
+  const fields:Partial<TaskDraft>={};
   for(const [name,limit] of Object.entries(FIELD_LIMITS)){
     const value=draft.fields[name]?.trim();
     if(!value)continue;
@@ -31,19 +28,45 @@ export function applyTaskAiFields(
     const normalized=name==="descricao"
       ?cleaned.replace(/\s*\n+\s*/g," ").replace(/\s+/g," ").slice(0,650).trim()
       :cleaned.slice(0,limit);
-    if(!normalized)continue;
-    form.setValue(name as keyof typeof FIELD_LIMITS,normalized,{
+    if(normalized)(fields as Record<string,string>)[name]=normalized;
+  }
+  if(draft.fields.tipo_teste==="BUILD"||draft.fields.tipo_teste==="RELEASE")
+    fields.tipo_teste=draft.fields.tipo_teste;
+  return fields;
+}
+
+/** For creation, retain user-entered fields, but summarize the raw source with AI.
+ *  A no-AI import may detect fields without replacing the user's original text. */
+export function mergeTaskAiCreation(
+  original:TaskDraft,draft:LocalDraft,{keepDescription=false}:{keepDescription?:boolean}={}
+):TaskDraft{
+  const merged={...original};
+  const generated=taskAiFieldValues(draft);
+  for(const [name,value] of Object.entries(generated)){
+    if(!value)continue;
+    if(name==="descricao"&&keepDescription)continue;
+    if(name==="descricao"||!String((merged as Record<string,unknown>)[name]??"").trim()){
+      (merged as Record<string,unknown>)[name]=value;
+    }else if(name==="tipo_teste"&&value==="RELEASE"&&original.tipo_teste==="BUILD"){
+      // BUILD is the default on new TFs. Explicit RELEASE in the report wins.
+      merged.tipo_teste="RELEASE";
+    }
+  }
+  return merged;
+}
+
+/** Use the same structured summaries on creation and regeneration. */
+export function applyTaskAiFields(
+  form:Pick<UseFormReturn<TaskDraft>,"setValue">,
+  draft:LocalDraft
+):number{
+  const values=taskAiFieldValues(draft);
+  for(const [name,value] of Object.entries(values)){
+    form.setValue(name as keyof TaskDraft,value as never,{
       shouldValidate:true,shouldDirty:true,shouldTouch:true
     });
-    applied++;
   }
-  if(draft.fields.tipo_teste==="BUILD"||draft.fields.tipo_teste==="RELEASE"){
-    form.setValue("tipo_teste",draft.fields.tipo_teste,{
-      shouldValidate:true,shouldDirty:true,shouldTouch:true
-    });
-    applied++;
-  }
-  return applied;
+  return Object.keys(values).length;
 }
 
 function identity(item:Pick<SuggestedScenario,"titulo"|"passos"|"esperado">){
