@@ -88,9 +88,9 @@ export function TaskOverview({
 export type DeliverableKind =
   | "post" | "diagrams" | "documents" | "requirements" | "evidence" | "links" | "history" | "collaboration";
 
-export function TaskDeliverables({onOpen,diagrams,documents}:{
+export function TaskDeliverables({onOpen,diagrams,documents,owner}:{
   onOpen:(kind:DeliverableKind,primary?:boolean)=>void;
-  diagrams:ReactNode;documents:ReactNode;
+  diagrams:ReactNode;documents:ReactNode;owner:boolean;
 }){
   return <div className="qa-task-deliverables qa-task-deliverables-organized">
     <div className="qa-task-section-heading">
@@ -102,7 +102,7 @@ export function TaskDeliverables({onOpen,diagrams,documents}:{
       {diagrams}
       {documents}
     </div>
-    <h3 className="qa-deliverables-subtitle">Criar</h3>
+    {owner&&<><h3 className="qa-deliverables-subtitle">Criar</h3>
     <div className="qa-deliverables-group" aria-label="Criar entregáveis">
       <button type="button" className="qa-deliverable-action"
         onClick={()=>onOpen("post",true)}>
@@ -123,6 +123,7 @@ export function TaskDeliverables({onOpen,diagrams,documents}:{
         <ArrowRight className="qa-deliverable-arrow" size={17} aria-hidden="true"/>
       </button>
     </div>
+    </>}
     <h3 className="qa-deliverables-subtitle">Consultar e gerenciar</h3>
     <div className="qa-workbench-tools-grid" role="group" aria-label="Ferramentas da TF">
       <button type="button" aria-label="Requisitos e cobertura"
