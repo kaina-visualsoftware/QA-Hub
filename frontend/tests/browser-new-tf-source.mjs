@@ -142,8 +142,15 @@ try{
   assert.equal(await modal.getByLabel("Título da tarefa").inputValue(),
     "Validação dos descontos no pedido");
   assert.equal(await source.inputValue(),normalized,"The form must show the clean, sentence-case description before saving");
-  assert.equal(await modal.getByRole("checkbox",{name:/Remover desconto da compra/}).isChecked(),
-    true,"Suggested scenarios should be selected by default");
+  const aiScenario=modal.getByRole("checkbox",{name:/Remover desconto da compra/});
+  assert.equal(await aiScenario.isChecked(),true,
+    "Suggested scenarios should be selected by default");
+  assert.equal(await modal.locator(".qa-ai-draft-fields").count(),1,
+    "Generated fields should have a compact review instead of a long list");
+  await modal.getByRole("button",{name:"Limpar seleção"}).click();
+  assert.equal(await aiScenario.isChecked(),false);
+  await modal.getByRole("button",{name:"Selecionar todos"}).click();
+  assert.equal(await aiScenario.isChecked(),true);
   await modal.getByRole("button",{name:"Salvar e adicionar cenário"}).click();
   await page.getByRole("heading",{name:"Validação dos descontos no pedido"}).waitFor();
   const firstEditor=page.getByRole("dialog",{name:"Cadastrar cenário"});
@@ -162,9 +169,33 @@ try{
   const edit=page.getByRole("dialog",{name:"Editar TF"});
   await edit.waitFor();
   await edit.getByText("Regerar dados da TF com IA").click();
+
+  // Regression from the user's screenshot: the consent row incorrectly grew
+  // 205px tall when placed in the modal's vertical flex layout.
+  for(const viewport of [{width:1366,height:768},{width:390,height:844}]){
+    await page.setViewportSize(viewport);
+    const layout=await edit.evaluate(dialog=>{
+      const body=dialog.querySelector(".qa-task-ai-regenerate-body");
+      const consent=dialog.querySelector(".qa-ai-consent-compact");
+      const action=dialog.querySelector(".qa-task-ai-generate");
+      if(!body||!consent||!action)throw Error("Missing AI generation controls");
+      const c=consent.getBoundingClientRect(),a=action.getBoundingClientRect();
+      return {bodyHeight:body.getBoundingClientRect().height,
+        gap:a.top-c.bottom,overflow:document.documentElement.scrollWidth-innerWidth};
+    });
+    assert.ok(layout.bodyHeight<(viewport.width<500?330:230),
+      "AI editor must not contain a large empty area: "+JSON.stringify(layout));
+    assert.ok(layout.gap<=17,
+      "Generate button must be adjacent to consent: "+JSON.stringify(layout));
+    assert.ok(layout.overflow<=1,
+      "AI editor must not overflow horizontally: "+JSON.stringify(layout));
+  }
   await edit.getByRole("checkbox",{name:/Autorizo enviar a descrição atual à NVIDIA/}).check();
   await edit.getByRole("button",{name:"Regerar TF com IA NVIDIA"}).click();
   await edit.getByRole("region",{name:"Revisão da regeração por IA"}).waitFor({timeout:20000});
+  await edit.getByRole("button",{name:"Conferir campos"}).click();
+  assert.equal(await edit.locator("details.generator-context").getAttribute("open"),"",
+    "Review action must expose generated technical fields");
   assert.equal(await edit.getByRole("textbox",{name:"Título"}).inputValue(),
     "Validação dos descontos corrigida");
   const proposals=edit.locator(".qa-task-ai-scenario");
