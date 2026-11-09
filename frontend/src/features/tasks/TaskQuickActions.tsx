@@ -25,6 +25,8 @@ export function TaskQuickActions({owner,canExecute,onAction}:{
   const trigger=useRef<HTMLButtonElement>(null);
   useEffect(()=>{
     if(!open)return;
+    const frame=requestAnimationFrame(()=>root.current?.querySelector<HTMLButtonElement>(
+      ".qa-task-fab-items button:not(:disabled)")?.focus());
     function dismiss(event:PointerEvent){
       if(event.target instanceof Node&&!root.current?.contains(event.target))setOpen(false);
     }
@@ -35,6 +37,7 @@ export function TaskQuickActions({owner,canExecute,onAction}:{
     document.addEventListener("pointerdown",dismiss);
     document.addEventListener("keydown",keydown);
     return ()=>{
+      cancelAnimationFrame(frame);
       document.removeEventListener("pointerdown",dismiss);
       document.removeEventListener("keydown",keydown);
     };
