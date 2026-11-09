@@ -377,28 +377,96 @@ export function Workspace() {
             }}>Extrair sem IA</Button>
         </div>
         <div className="qa-tf-nvidia-compact" role="group" aria-label="Preenchimento com NVIDIA">
-          <label className="qa-tf-consent">
-            <input type="checkbox" checked={onlineConsentText!==null&&
-              onlineConsentText===form.watch("descricao")}
-              disabled={fileBusy||onlineBusy||!form.watch("descricao").trim()||
-                form.watch("descricao").length>20000}
-              onChange={event=>setOnlineConsentText(event.target.checked
-                ?form.getValues("descricao"):null)}/>
-            <span>Autorizo enviar este texto à NVIDIA.</span>
-          </label>
-          <Button type="button" size="sm"
-            isDisabled={fileBusy||onlineBusy||
-              onlineConsentText!==form.watch("descricao")||
-              !form.watch("descricao").trim()||form.watch("descricao").length>20000}
-            onPress={()=>void analyzeOnline()}>
-            <Sparkles size={16} aria-hidden="true"/>
-            {onlineBusy?"Gerando…":"Gerar com IA NVIDIA"}
-          </Button>
+          <div className="qa-tf-nvidia-heading">
+            <strong><Sparkles size={17} aria-hidden="true"/> Gerar dados com IA</strong>
+            <small>Preenche os campos e sugere cenários para revisão.</small>
+          </div>
+          <div className="qa-tf-nvidia-row">
+            <label className="qa-tf-consent">
+              <input type="checkbox" checked={onlineConsentText!==null&&
+                onlineConsentText===form.watch("descricao")}
+                disabled={fileBusy||onlineBusy||!form.watch("descricao").trim()||
+                  form.watch("descricao").length>20000}
+                onChange={event=>setOnlineConsentText(event.target.checked
+                  ?form.getValues("descricao"):null)}/>
+              <span>Autorizo enviar esta descrição à NVIDIA.</span>
+            </label>
+            <Button type="button" size="sm"
+              isDisabled={fileBusy||onlineBusy||
+                onlineConsentText!==form.watch("descricao")||
+                !form.watch("descricao").trim()||form.watch("descricao").length>20000}
+              onPress={()=>void analyzeOnline()}>
+              <Sparkles size={16} aria-hidden="true"/>
+              {onlineBusy?"Gerando…":"Gerar com IA NVIDIA"}
+            </Button>
+          </div>
+          {onlineBusy&&<p className="qa-ai-run-status" role="status">
+            Analisando o texto e preenchendo os dados da TF…
+          </p>}
           {form.watch("descricao").length>20000&&
             <small role="status" className="text-error">
               A NVIDIA aceita até 20.000 caracteres. Reduza o texto para gerar.
             </small>}
         </div>
+        <ToastNotice message={draftStorageError} tone="error"/>
+        <ToastNotice message={extractionNotice} tone="info"/>
+        {localReview&&<section className="generator-context qa-ai-draft-preview"
+          aria-label="Prévia dos campos sugeridos">
+          <h3>{localReview.mode==="nvidia"?"Sugestão da IA pronta":"Campos encontrados no texto"}</h3>
+          <p className="qa-ai-preview-hint">{localReview.mode==="nvidia"
+            ? "Os campos já foram preenchidos. Confira os dados e os cenários antes de salvar."
+            : "Confira a extração e aplique os campos que deseja aproveitar."}</p>
+          <details className="qa-ai-draft-fields">
+            <summary>Ver {Object.entries(localReview.draft.fields)
+              .filter(([key,value])=>key!=="descricao"&&Boolean(value)).length} campo(s) identificado(s)</summary>
+            <div className="local-preview-grid">
+              {Object.entries(localReview.draft.fields)
+                .filter(([key,value])=>key!=="descricao"&&Boolean(value))
+                .map(([key,value])=><div key={key} className="local-preview-item">
+                  <strong>{key.replaceAll("_"," ")}</strong>
+                  <span>{value.slice(0,320)}</span>
+                </div>)}
+            </div>
+          </details>
+          <div className="qa-ai-preview-actions">
+            {localReview.mode==="manual"&&<Button variant="secondary" type="button" onPress={()=>{
+              if(form.getValues("descricao")!==localReview.source){
+                setExtractionNotice("O texto foi alterado. Analise novamente antes de preencher.");
+                setLocalReview(null);setExtracted([]);
+                return;
+              }
+              applyTaskAiFields(form,localReview.draft);
+              setLocalReview(null);
+              setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
+            }}>Aplicar campos revisados</Button>}
+            <Button type="button" variant="secondary" onPress={()=>{
+              setLocalReview(null);
+              if(localReview.mode!=="nvidia")setExtracted([]);
+              setExtractionNotice(localReview.mode==="nvidia"
+                ? "Resumo ocultado. Dados e cenários sugeridos permanecem prontos para salvar."
+                : "Análise descartada. O formulário não foi modificado.");
+            }}>{localReview.mode==="nvidia"?"Ocultar resumo":"Descartar prévia"}</Button>
+          </div>
+        </section>}
+        {extracted.length>0&&<fieldset className="extracted-cases">
+          <div className="qa-ai-selection-head">
+            <strong>Cenários sugeridos — {extracted.filter(item=>item.selected).length} de {extracted.length} selecionado(s)</strong>
+            <div className="qa-task-ai-select-actions" role="group" aria-label="Selecionar cenários sugeridos">
+              <button type="button" onClick={()=>setExtracted(items=>items.map(item=>({...item,selected:true})))}>
+                Selecionar todos
+              </button>
+              <button type="button" onClick={()=>setExtracted(items=>items.map(item=>({...item,selected:false})))}>
+                Limpar seleção
+              </button>
+            </div>
+          </div>
+          {extracted.map((item,index)=><label key={index} className="extracted-case">
+            <input type="checkbox" checked={item.selected}
+              onChange={e=>setExtracted(items=>items.map((v,i)=>i===index?
+                {...v,selected:e.target.checked}:v))}/>
+            <span><strong>{item.titulo}</strong><small>{item.passos.slice(0,180)}</small></span>
+          </label>)}
+        </fieldset>}
         <details className="qa-task-optional">
           <summary>Mais opções</summary>
           <div className="qa-tf-more">
@@ -446,53 +514,6 @@ export function Workspace() {
             </label>
           </div>
         </details>
-        <ToastNotice message={draftStorageError} tone="error"/>
-        <ToastNotice message={extractionNotice} tone="info"/>
-        {localReview && <section className="generator-context stack"
-          aria-label="Prévia dos campos sugeridos">
-          <h3 className="font-semibold">Conferir campos identificados</h3>
-          <p className="text-muted text-sm">{localReview.mode==="nvidia"
-            ? "Os campos identificados pela IA já foram preenchidos no formulário. Confira e ajuste o que precisar antes de salvar. O texto original foi preservado na descrição."
-            : "Nada será aplicado até você confirmar. Campos não identificados permanecem como estão."}</p>
-          <div className="local-preview-grid">
-            {Object.entries(localReview.draft.fields)
-              .filter(([key,value]) => key !== "descricao" && Boolean(value))
-              .map(([key,value]) => <div key={key} className="local-preview-item">
-                <strong>{key.replaceAll("_", " ")}</strong>
-                <span>{value.slice(0,320)}</span>
-              </div>)}
-          </div>
-          <p className="text-sm"><strong>{localReview.draft.cenarios.length}</strong> cenário(s)
-            extraído(s), {extracted.length} com passos e resultado esperado suficientes.
-            Os demais exigem preenchimento manual.</p>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="secondary" type="button" onPress={() => {
-              if (form.getValues("descricao") !== localReview.source) {
-                setExtractionNotice("O texto foi alterado. Analise novamente antes de preencher.");
-                setLocalReview(null); setExtracted([]);
-                return;
-              }
-              applyTaskAiFields(form,localReview.draft);
-              setLocalReview(null);
-              setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
-            }}>{localReview.mode==="nvidia"?"Reaplicar sugestões da IA":"Aplicar campos revisados"}</Button>
-            <Button type="button" variant="secondary" onPress={() => {
-              setLocalReview(null);
-              if(localReview.mode!=="nvidia")setExtracted([]);
-              setExtractionNotice(localReview.mode==="nvidia"
-                ? "Prévia ocultada. Os dados e cenários sugeridos permanecem prontos para salvar."
-                : "Análise descartada. O formulário não foi modificado.");
-            }}>{localReview.mode==="nvidia"?"Ocultar prévia":"Descartar prévia"}</Button>
-          </div>
-        </section>}
-        {extracted.length > 0 && <fieldset className="extracted-cases">
-          <legend className="font-semibold">Cenários identificados — {extracted.filter(item=>item.selected).length} selecionado(s) para salvar</legend>
-          {extracted.map((item, index) => <label key={index} className="extracted-case">
-            <input type="checkbox" checked={item.selected} onChange={(e) =>
-              setExtracted((items) => items.map((v, i) => i === index ? {...v, selected: e.target.checked} : v))} />
-            <span><strong>{item.titulo}</strong><small>{item.passos.slice(0, 180)}</small></span>
-          </label>)}
-        </fieldset>}
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
