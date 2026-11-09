@@ -184,7 +184,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
             setShowEditor(false);
           }}>Novo diagrama</Button>}
       </div>
-      {save.isError&&<p role="alert" className="notice error">{save.error.message}</p>}
+      <ToastNotice message={save.isError?save.error.message:null} tone="error"/>
       <ToastNotice message={message} tone="success"/>
     </form> :
     <button type="button" className="qa-diagram-manual-toggle"
