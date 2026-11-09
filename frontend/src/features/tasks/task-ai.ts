@@ -3,6 +3,7 @@ import type {Scenario,TaskDraft} from "../../lib/contracts";
 import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
+import {cleanQaSourceText} from "../../lib/legacy/qa-text-cleaner.mjs";
 
 export type SuggestedScenario={
   titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean;
@@ -87,8 +88,13 @@ export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
   const source=text.trim();
   if(!source||source.length>20000)
     throw Error("Informe uma descrição de até 20.000 caracteres para gerar com IA.");
+  // Keep the user's original report in the form, but exclude copied web controls
+  // from the version sent to NVIDIA. Do not collapse technical lines or evidence.
+  const relevant=cleanQaSourceText(source);
+  if(!relevant||relevant.length<10)
+    throw Error("A descrição contém apenas elementos de interface. Cole o conteúdo da TF.");
   const {data,error}=await supabase.functions.invoke("qa-ai",{
-    body:{text:source},signal:AbortSignal.timeout(65000)
+    body:{text:relevant},signal:AbortSignal.timeout(65000)
   });
   if(error){
     let detail:{message?:string;error?:string}={};
