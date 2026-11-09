@@ -169,12 +169,24 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         </div>
       </details>}
     {proposal.error&&<p role="alert" className="notice error">{proposal.error}</p>}
-    <div className="qa-diagram-privacy">
-      <label className="qa-diagram-consent">
+    <div className="qa-ai-submit-row">
+      <label className="qa-diagram-consent qa-ai-consent-compact">
         <input type="checkbox" checked={consent} disabled={!own||busy||!proposal.text}
           onChange={e=>setConsent(e.target.checked)}/>
         <span>Autorizo enviar este conteúdo à NVIDIA.</span>
       </label>
+      <div className="qa-ai-submit-actions">
+        <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
+          <WandSparkles size={17} aria-hidden="true"/>
+          {busy?"Gerando…":attempts?"Gerar novamente":"Gerar fluxograma com IA"}
+        </Button>
+        {repairCandidate&&<Button variant="secondary" isDisabled={!canGenerate}
+          onPress={()=>void generate(true)}>
+          <Wrench size={16}/> Corrigir com IA
+        </Button>}
+      </div>
+    </div>
+    <div className="qa-diagram-privacy">
       <details className="qa-diagram-payload">
         <summary>Ver dados enviados</summary>
         <p className="text-muted text-xs">A IA recebe o contexto abaixo. Ao corrigir um erro,
@@ -182,16 +194,6 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         <textarea readOnly aria-label="Contexto enviado à IA" rows={5}
           value={proposal.text}/>
       </details>
-    </div>
-    <div className="qa-diagram-quick-actions">
-      <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
-        <WandSparkles size={17} aria-hidden="true"/>
-        {busy?"Gerando…":attempts?"Gerar novamente":"Gerar fluxograma com IA"}
-      </Button>
-      {repairCandidate&&<Button variant="secondary" isDisabled={!canGenerate}
-        onPress={()=>void generate(true)}>
-        <Wrench size={16}/> Corrigir com IA
-      </Button>}
     </div>
     {invalidGenerated&&<div className="qa-diagram-error-details">
       <details className="qa-diagram-options">
