@@ -96,7 +96,7 @@ try {
   await page.getByRole("heading", { name: "Suas tarefas de teste" }).waitFor();
 
   await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   await page.getByRole("button", { name: "Salvar e adicionar cenário" }).click();
   assert.equal(calls.task, 0, "An invalid form must not create a task");
   await page.getByLabel("Título da tarefa").fill("Nova TF com primeiro caso");
@@ -105,7 +105,7 @@ try {
   await page.getByRole("heading", { name: "Nova TF com primeiro caso" }).waitFor();
   const editor = page.getByRole("dialog", { name: "Cadastrar cenário" });
   await editor.waitFor({ timeout: 20000 });
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   assert.equal(calls.task, 1);
   assert.equal(calls.case, 0, "Opening the editor must not insert an empty scenario");
   assert.equal(savedTasks[0].status, "rascunho");
@@ -131,7 +131,7 @@ try {
   await page.getByText("Cenário salvo. Preencha o próximo.").waitFor();
   assert.equal(calls.case, 2);
   assert.equal(await editor.count(), 1, "Editor should stay open for the next case");
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   assert.equal(await editor.getByRole("textbox", { name: "Título" }).inputValue(), "",
     "Continuing with the next case must clear the previous draft");
   const cancelEditor = editor.getByRole("button", { name: "Cancelar" });
@@ -147,7 +147,7 @@ try {
 
   await page.getByRole("link", { name: "Todas as TFs" }).click();
   await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "descricao");
   await page.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
   await page.getByRole("button", { name: "Salvar e abrir TF" }).click();
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();
