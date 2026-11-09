@@ -30,7 +30,7 @@ export function buildDiagramPrompt(input:{
   const ids=new Set(selectedScenarioIds);
   const picked=scenarios.filter(s=>s.tarefa_id===task.id && ids.has(s.id));
   if(picked.length!==ids.size)throw Error("Seleção de cenários desatualizada ou de outra TF.");
-  if(picked.length>18)throw Error("Selecione até 18 cenários para gerar o diagrama.");
+
   const reqIds=new Set(selectedRequirementIds);
   const selectedReqs=requirements.filter(r=>r.tarefa_id===task.id && reqIds.has(r.id));
   if(selectedReqs.length!==reqIds.size)throw Error("Requisitos não pertencem à TF selecionada.");
