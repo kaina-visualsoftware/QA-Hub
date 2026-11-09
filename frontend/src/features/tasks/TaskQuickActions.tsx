@@ -1,20 +1,34 @@
 import {useEffect,useRef,useState} from "react";
 import type {KeyboardEvent} from "react";
-import {BookText,ClipboardList,FileText,FolderOpen,GitBranchPlus,ListChecks,Plus,Sparkles,Workflow,X} from "lucide-react";
+import {
+  BookText,ClipboardList,FileText,FolderOpen,GitBranchPlus,GitMerge,History,
+  ListChecks,Plus,Sparkles,Users,Workflow,X
+} from "lucide-react";
 
 export type QuickActionId=
-  "run"|"scenario"|"cases"|"post"|"diagram"|"view-diagrams"|"documents"|"evidence"|"requirements";
+  "run"|"scenario"|"cases"|"post"|"diagram"|"report"|"view-diagrams"|
+  "documents"|"evidence"|"requirements"|"links"|"history"|"collaboration";
 
-const entries:{id:QuickActionId;label:string;icon:typeof Plus;ownerOnly?:boolean}[]=[
-  {id:"run",label:"Executar testes",icon:ListChecks},
-  {id:"scenario",label:"Novo cenário",icon:Plus,ownerOnly:true},
-  {id:"cases",label:"Gerar casos com IA",icon:Sparkles,ownerOnly:true},
-  {id:"post",label:"Gerar post com IA",icon:FileText,ownerOnly:true},
-  {id:"diagram",label:"Criar diagrama",icon:GitBranchPlus,ownerOnly:true},
-  {id:"view-diagrams",label:"Visualizar diagramas",icon:Workflow},
-  {id:"documents",label:"Relatórios e documentos",icon:FolderOpen},
-  {id:"evidence",label:"Evidências",icon:ClipboardList},
-  {id:"requirements",label:"Requisitos",icon:BookText}
+const groups:{label:string;items:{id:QuickActionId;label:string;icon:typeof Plus;ownerOnly?:boolean}[]}[]=[
+  {label:"Testes",items:[
+    {id:"run",label:"Executar testes",icon:ListChecks},
+    {id:"scenario",label:"Novo cenário",icon:Plus,ownerOnly:true},
+    {id:"cases",label:"Gerar casos com IA",icon:Sparkles,ownerOnly:true}
+  ]},
+  {label:"Criar",items:[
+    {id:"post",label:"Gerar post com IA",icon:FileText,ownerOnly:true},
+    {id:"diagram",label:"Criar diagrama",icon:GitBranchPlus,ownerOnly:true},
+    {id:"report",label:"Gerar relatório",icon:ClipboardList,ownerOnly:true}
+  ]},
+  {label:"Consultar",items:[
+    {id:"view-diagrams",label:"Visualizar diagramas",icon:Workflow},
+    {id:"documents",label:"Posts e relatórios salvos",icon:FolderOpen},
+    {id:"evidence",label:"Evidências",icon:ClipboardList},
+    {id:"requirements",label:"Requisitos",icon:BookText},
+    {id:"links",label:"Releases e referências",icon:GitMerge},
+    {id:"history",label:"Histórico de execuções",icon:History},
+    {id:"collaboration",label:"Equipe e comentários",icon:Users}
+  ]}
 ];
 
 export function TaskQuickActions({owner,canExecute,onAction}:{
@@ -65,13 +79,21 @@ export function TaskQuickActions({owner,canExecute,onAction}:{
         </button>
       </div>
       <div className="qa-task-fab-items">
-        {entries.filter(item=>!item.ownerOnly||owner).map(item=>{
-          const Icon=item.icon;
-          return <button key={item.id} type="button"
-            disabled={item.id==="run"&&!canExecute}
-            onClick={()=>choose(item.id)}>
-            <Icon size={17} aria-hidden="true"/><span>{item.label}</span>
-          </button>;
+        {groups.map(group=>{
+          const items=group.items.filter(item=>!item.ownerOnly||owner);
+          if(!items.length)return null;
+          return <div key={group.label} className="qa-task-fab-section"
+            role="group" aria-label={group.label}>
+            <p className="qa-task-fab-section-label" aria-hidden="true">{group.label}</p>
+            {items.map(item=>{
+              const Icon=item.icon;
+              return <button key={item.id} type="button"
+                disabled={item.id==="run"&&!canExecute}
+                onClick={()=>choose(item.id)}>
+                <Icon size={17} aria-hidden="true"/><span>{item.label}</span>
+              </button>;
+            })}
+          </div>;
         })}
       </div>
     </div>}
