@@ -20,6 +20,47 @@ const sectionHeads = [
   ['observacoes', /^(?:OBS(?:ERVA[CÇ][ÕO]ES)?\s*(?:ADD|ADICIONAIS)?|RESSALVAS)\s*[:?—-]*\s*(.*)$/i]
 ];
 
+/**
+ * A pasted test and an AI-generated test share one canonical representation.
+ * The database has no separate objective column, so it lives inside observations.
+ * Already-written outcomes are retained as notes, never marked as approved.
+ */
+export function splitScenarioNotes(value){
+  const text=formatQaSentenceCase(value||'').trim();
+  const matched=text.match(/^Objetivo:\s*([\s\S]*?)(?=\n\s*\n(?:Observa[cç][õo]es|Resultado observado na TF):|$)/i);
+  if(!matched)return {objetivo:'',observacoes:text};
+  return {
+    objetivo:matched[1].trim(),
+    observacoes:text.slice(matched[0].length).replace(/^\s*(?:Observa[cç][õo]es:\s*)?/i,'').trim()
+  };
+}
+export function standardizeImportedScenario(item){
+  const titulo=formatQaSentenceCase(item?.titulo||'').trim().replace(/^Cen[áa]rio\s*\d+\s*[-–—:.]\s*/i,'').slice(0,240);
+  const content=formatQaSentenceCase(item?.passos||'').replace(/\\n/g,'\n');
+  const passos=content.split(/\n|;\s+(?=(?:Abrir|Acessar|Entrar|Selecionar|Marcar|Desmarcar|Fechar|Reabrir|Gerar|Conferir|Verificar|Confirmar|Informar|Preencher|Clicar|Comparar|Registrar|Utilizar|Observar|Alterar)\b)/i)
+    .map(line=>line.trim().replace(/^\s*(?:Passos(?: executados)?:\s*|\d{1,3}[.)]\s*|[-*•]\s*|\[\s*[xX ]\s*\]\s*)/i,'').trim())
+    .filter(Boolean)
+    .filter(line=>!/^\s*(?:Cen[áa]rios? testados|Resultado esperado|Objetivo)\s*:?$/i.test(line))
+    .map((line,index)=>(index+1)+'. '+line)
+    .join('\n').slice(0,20000);
+  const esperado=formatQaSentenceCase(item?.esperado||'').replace(/^\s*(?:Resultado esperado|Esperado)\s*:\s*/i,'')
+    .split('\n').map(line=>line.trim().replace(/^[-*•]\s*/,'')).filter(Boolean).join('\n').slice(0,20000);
+  const notes=splitScenarioNotes(item?.observacoes||'');
+  const objetivo=formatQaSentenceCase(item?.objetivo||notes.objetivo||'').trim()
+    || ('Validar o comportamento descrito em "'+titulo+'" conforme o resultado esperado.');
+  const observed=formatQaSentenceCase(item?.obtido||'').trim();
+  let more=notes.observacoes;
+  // If the source already has a recorded observation, preserve it, but do not
+  // claim execution status: only the QA can confirm the run in the app.
+  if(observed && !more.includes(observed)){
+    more+=(more?'\n\n':'')+'Resultado observado na TF:\n'+observed;
+  }
+  return {
+    titulo,passos,esperado,
+    observacoes:('Objetivo:\n'+objetivo+(more?'\n\nObservações:\n'+more:'')).slice(0,20000)
+  };
+}
+
 export function normalizeDraft(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error('Resposta inválida: era esperado um objeto de campos.');
   const fields={};
@@ -37,12 +78,11 @@ export function normalizeDraft(raw) {
   }
   const scenarios=Array.isArray(raw.cenarios) ? raw.cenarios.slice(0,ASSIST_SCENARIO_LIMIT).map((item,index)=>({
     ordem:index+1,
-    titulo:safeTitle(formatQaSentenceCase(item?.titulo||('Cenário '+(index+1)))),
-    passos:formatQaSentenceCase(item?.passos).slice(0,30000),
-    esperado:formatQaSentenceCase(item?.esperado).slice(0,30000),
-    obtido:formatQaSentenceCase(item?.obtido).slice(0,30000),
-    observacoes:formatQaSentenceCase(item?.observacoes).slice(0,30000),
-    // Extracted text must not be interpreted as an executed or approved test.
+    ...standardizeImportedScenario({
+      ...item,titulo:item?.titulo||('Cenário '+(index+1))
+    }),
+    // Retain source outcome as a note, but do not infer an approved execution.
+    obtido:'',
     status:'nao_executado'
   })) : [];
   return {fields,cenarios:scenarios};
