@@ -79,6 +79,7 @@ async function mock(route){
       return send({id});
     }
   }
+  if(path.endsWith("/rest/v1/qa_diagramas"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   if(path.endsWith("/rest/v1/qa_documentos")){
     assert.equal(method,"GET","Reports list is read-only");
