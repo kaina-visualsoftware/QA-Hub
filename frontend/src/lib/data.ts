@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { z } from "zod";
+import {archiveTask,archiveScenario} from "../features/trash/trash-data";
 import {
   scenarioSchema, taskSchema, resultSchema, taskDraftSchema, scenarioDraftSchema
 } from "./contracts";
@@ -16,7 +17,7 @@ export async function getAdminRole(userId: string): Promise<boolean> {
 
 export async function listTasks(userId: string, isAdmin: boolean): Promise<Task[]> {
   let query = supabase.from("qa_tarefas").select("*")
-    .order("executado_em", { ascending: false }).limit(1000);
+    .is("archived_at",null).order("executado_em", { ascending: false }).limit(1000);
   if (!isAdmin) query = query.eq("user_id", userId);
   const { data, error } = await query;
   fail(error);
@@ -25,7 +26,7 @@ export async function listTasks(userId: string, isAdmin: boolean): Promise<Task[
 
 export async function listScenarios(taskId: string): Promise<Scenario[]> {
   const { data, error } = await supabase.from("qa_cenarios").select("*")
-    .eq("tarefa_id", taskId).order("ordem", { ascending: true }).limit(1000);
+    .eq("tarefa_id", taskId).is("archived_at",null).order("ordem", { ascending: true }).limit(1000);
   fail(error);
   return (data || []).map((record) => scenarioSchema.parse(record));
 }
@@ -101,11 +102,9 @@ export async function setTaskStatus(taskId: string, status: Task["status"]): Pro
   if (!data) throw Error("Sem permissão para alterar a situação da TF.");
 }
 
+// Backward-compatible helper name. Deletion is now a reversible archive.
 export async function removeTask(taskId: string): Promise<void> {
-  const { data, error } = await supabase.from("qa_tarefas").delete()
-    .eq("id", taskId).select("id").maybeSingle();
-  fail(error);
-  if (!data) throw Error("Sem permissão para excluir a TF.");
+  await archiveTask(taskId);
 }
 
 export async function editScenario(
@@ -119,11 +118,9 @@ export async function editScenario(
   if (!data) throw Error("Sem permissão para editar o cenário.");
 }
 
+// Backward-compatible helper name. The scenario and its history are retained.
 export async function removeScenario(taskId: string, scenarioId: string): Promise<void> {
-  const { data, error } = await supabase.from("qa_cenarios").delete()
-    .eq("id", scenarioId).eq("tarefa_id", taskId).select("id").maybeSingle();
-  fail(error);
-  if (!data) throw Error("Sem permissão para excluir o cenário.");
+  await archiveScenario(taskId,scenarioId);
 }
 
 export const diagramSchema = z.object({
