@@ -5,10 +5,10 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, CheckCheck, Filter, Paperclip, Plus, Search, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCheck, Filter, Paperclip, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
-import { createTask, updateTask, getAdminRole, addExtractedScenarios } from "../lib/data";
+import { createTask, updateTask, getAdminRole, addExtractedScenarios, removeTask } from "../lib/data";
 import {
   searchTasksPage,taskStatistics,listSavedFilters,saveFilter,
   deleteFilter,normalizeTaskFilters
@@ -21,7 +21,8 @@ import {
 import type {SuggestedScenario} from "../features/tasks/task-ai";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
-import type { TaskDraft } from "../lib/contracts";
+import type { Task, TaskDraft } from "../lib/contracts";
+import {DeleteTaskDialog} from "../features/tasks/DeleteTaskDialog";
 import { useFocus } from "../stores/focus";
 import {
   discardNewTaskDraft, loadNewTaskDraft, saveNewTaskDraft
@@ -32,6 +33,7 @@ export function Workspace() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const [showForm, setShowForm] = useState(false);
+  const [taskToDelete,setTaskToDelete]=useState<Pick<Task,"id"|"titulo"|"codigo">|null>(null);
   const [rememberDraft, setRememberDraft] = useState(false);
   const [recoverableDraft, setRecoverableDraft] = useState<StoredNewTaskDraft | null>(null);
   const [draftStorageError, setDraftStorageError] = useState("");
@@ -98,6 +100,20 @@ export function Workspace() {
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
     onError:(err)=>notify.error(err.message)
+  });
+  const deleteSelectedTask=useMutation({
+    mutationFn:(selected:Pick<Task,"id"|"titulo"|"codigo">)=>removeTask(selected.id),
+    onSuccess:async()=>{
+      setTaskToDelete(null);
+      setFocused(null);
+      await Promise.all([
+        queryClient.invalidateQueries({queryKey:["task-search",userId]}),
+        queryClient.invalidateQueries({queryKey:["task-stats",userId]}),
+        queryClient.invalidateQueries({queryKey:["tasks",userId]}),
+        queryClient.invalidateQueries({queryKey:["public-tasks"]})
+      ]);
+      notify.success("TF excluída.");
+    }
   });
   const visibleTasks=useMemo(()=>
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
@@ -643,9 +659,25 @@ export function Workspace() {
                 className="task-resume-link">
                 {stats.total === 0 ? "Adicionar primeiro caso" : "Continuar testes"}
               </Link>}
+            {own && <button type="button" className="qa-task-row-delete"
+              aria-label={"Excluir TF: "+task.titulo} title="Excluir TF"
+              disabled={deleteSelectedTask.isPending}
+              onClick={()=>{
+                deleteSelectedTask.reset();
+                setTaskToDelete({id:task.id,titulo:task.titulo,codigo:task.codigo});
+              }}>
+              <Trash2 size={16} aria-hidden="true"/>
+            </button>}
           </div>;
         })}
       </div>
+      <DeleteTaskDialog task={taskToDelete} busy={deleteSelectedTask.isPending}
+        error={deleteSelectedTask.error?.message}
+        onClose={()=>{if(!deleteSelectedTask.isPending)setTaskToDelete(null);}}
+        onConfirm={()=>{
+          if(taskToDelete && !deleteSelectedTask.isPending)
+            deleteSelectedTask.mutate(taskToDelete);
+        }}/>
       {tasks.hasNextPage&&<div className="qa-task-more">
         <p className="text-muted text-sm">Exibindo {visibleTasks.length} de {total} TFs</p>
         <Button variant="secondary" isDisabled={tasks.isFetchingNextPage}
