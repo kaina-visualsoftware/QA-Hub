@@ -75,7 +75,8 @@ export async function saveScenarioResult(
 
 export async function addExtractedScenarios(
   taskId: string, userId: string,
-  items: Array<{ titulo: string; passos: string; esperado: string; observacoes: string }>
+  items: Array<{ titulo: string; passos: string; esperado: string; observacoes: string }>,
+  nextOrder=1
 ): Promise<void> {
   if (!items.length) return;
   if (items.length > 50) throw Error("Máximo de 50 cenários por importação.");
@@ -86,7 +87,7 @@ export async function addExtractedScenarios(
       observacoes: item.observacoes || ""
     });
     return {...value, tarefa_id: taskId, user_id: userId,
-      ordem: index + 1, obtido: "", status: "nao_executado"};
+      ordem: Math.max(1,nextOrder) + index, obtido: "", status: "nao_executado"};
   });
   const { error } = await supabase.from("qa_cenarios").insert(rows);
   fail(error);

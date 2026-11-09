@@ -14,8 +14,11 @@ import {
   deleteFilter,normalizeTaskFilters
 } from "../features/tasks/task-search-data";
 import { listTaskProgress } from "../lib/task-progress";
-import { extractLocalDraft, normalizeDraft } from "../lib/legacy/qa-assistant.mjs";
-import { supabase } from "../lib/supabase";
+import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
+import {
+  applyTaskAiFields,freshTaskAiScenarios,generateTaskAiDraft
+} from "../features/tasks/task-ai";
+import type {SuggestedScenario} from "../features/tasks/task-ai";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
@@ -34,9 +37,9 @@ export function Workspace() {
   const [draftStorageError, setDraftStorageError] = useState("");
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousDraftUserRef = useRef("");
-  const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
+  const [extracted, setExtracted] = useState<SuggestedScenario[]>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
-  const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
+  const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft;mode:"nvidia"|"manual"} | null>(null);
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [onlineConsentText, setOnlineConsentText] = useState<string|null>(null);
   const [fileBusy, setFileBusy] = useState(false);
@@ -100,17 +103,14 @@ export function Workspace() {
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
   const total=tasks.data?.pages[0]?.total??0;
   function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
-    setLocalReview({ source, draft });
-    setExtracted(draft.cenarios
-      .filter((item) => item.titulo.trim().length >= 3 &&
-        item.passos.trim().length > 0 && item.esperado.trim().length > 0)
-      .map((item) => ({
-        titulo: item.titulo.slice(0,240), passos: item.passos.slice(0,20000),
-        esperado: item.esperado.slice(0,20000),
-        observacoes: item.observacoes.slice(0,20000), selected: false
-      })));
-    setExtractionNotice(mode === "nvidia"
-      ? "Prévia da NVIDIA pronta. Revise os campos e cenários antes de aplicar."
+    // Apply NVIDIA results immediately: every submit action must persist the
+    // fields shown in the form, even when the user skips the preview controls.
+    if(mode==="nvidia")applyTaskAiFields(form,draft);
+    setLocalReview({source,draft,mode});
+    const suggestions=freshTaskAiScenarios(draft,[],mode==="nvidia");
+    setExtracted(suggestions);
+    setExtractionNotice(mode==="nvidia"
+      ? "Prévia da NVIDIA pronta. Os campos foram preenchidos automaticamente."
       : "Campos extraídos sem IA. Confira o resultado antes de aplicar.");
   }
 
@@ -154,28 +154,11 @@ export function Workspace() {
     if(!source.trim()||source.length>20000||onlineConsentText!==source||onlineBusy)return;
     setOnlineBusy(true);setExtractionNotice("");setLocalReview(null);setExtracted([]);
     try{
-      const {data,error}=await supabase.functions.invoke("qa-ai",{
-        body:{text:source},signal:AbortSignal.timeout(65000)
-      });
-      if(error){
-        let detail: {message?:string;error?:string}={};
-        try{detail=await error.context?.json?.()??{};}catch{}
-        if(detail.error==="nvidia_not_configured")
-          throw Error("A NVIDIA ainda não está configurada. Preencha manualmente ou extraia sem IA.");
-        throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
-      }
+      const suggestion=await generateTaskAiDraft(source);
       if(form.getValues("descricao")!==source){
         setExtractionNotice("O texto mudou durante a análise. Gere uma nova prévia antes de aplicar.");
         return;
       }
-      const raw=data?.draft;
-      if(data?.fallback || data?.provider!=="NVIDIA Build" ||
-         !raw || typeof raw!=="object" || Array.isArray(raw) ||
-         !Object.keys(raw).length)
-        throw Error("A NVIDIA não retornou campos válidos. Tente novamente ou use a extração sem IA.");
-      const suggestion=normalizeDraft(raw);
-      if(!Object.keys(suggestion.fields).length && !suggestion.cenarios.length)
-        throw Error("A NVIDIA não identificou dados suficientes. Preencha manualmente ou extraia sem IA.");
       showReview(source,suggestion,"nvidia");
     }catch(reason){
       setExtractionNotice(reason instanceof Error?reason.message:
@@ -188,10 +171,11 @@ export function Workspace() {
     defaultValues: { titulo: "", descricao: "", codigo: "", tipo_teste: "BUILD", sistema: "", versao: "" }
   });
   const create = useMutation({
-    mutationFn: async ({ draft, openScenario }: { draft: TaskDraft; openScenario: boolean }) => {
+    mutationFn: async ({ draft, openScenario, selected }: {
+      draft: TaskDraft; openScenario: boolean; selected: SuggestedScenario[]
+    }) => {
       const task = await createTask(userId, draft);
       let warning = "";
-      const selected = extracted.filter((item) => item.selected);
       if (selected.length) {
         try { await addExtractedScenarios(task.id, userId, selected); }
         catch (error) { warning = error instanceof Error ? error.message : "Falha ao salvar cenários extraídos"; }
@@ -341,9 +325,11 @@ export function Workspace() {
       description="Preencha o título. O restante é opcional."
       onClose={closeDraft} busy={create.isPending} initialFocus={'input[name="titulo"]'}>
       <form onSubmit={form.handleSubmit((values, event) => {
+        if(onlineBusy||fileBusy||create.isPending)return;
         const submitter = (event?.nativeEvent as SubmitEvent | undefined)?.submitter;
         void create.mutateAsync({
-          draft: values, openScenario: submitter?.getAttribute("data-next") === "scenario"
+          draft:values,openScenario:submitter?.getAttribute("data-next")==="scenario",
+          selected:extracted.filter(item=>item.selected)
         });
       })} className="stack mt-4 qa-tf-compact">
         <div className="qa-tf-primary-row">
@@ -427,6 +413,22 @@ export function Workspace() {
                 <input placeholder="Opcional" {...form.register("versao")}/>
               </label>
             </div>
+            <details className="qa-tf-technical-fields">
+              <summary>Análise técnica e informações adicionais</summary>
+              <div className="form-grid mt-3">
+                <label className="field">Ambiente<input {...form.register("ambiente")}/></label>
+                <label className="field">Base de teste<input {...form.register("base_teste")}/></label>
+                <label className="field">Empresa<input {...form.register("empresa")}/></label>
+                <label className="field">Testador<input {...form.register("testador")}/></label>
+              </div>
+              <div className="stack mt-3">
+                <label className="field">Análise / como funciona<textarea rows={3} {...form.register("explicacao")}/></label>
+                <label className="field">Causa identificada<textarea rows={3} {...form.register("causa")}/></label>
+                <label className="field">Correção realizada<textarea rows={3} {...form.register("correcao")}/></label>
+                <label className="field">Conclusão<textarea rows={3} {...form.register("conclusao")}/></label>
+                <label className="field">Observações<textarea rows={3} {...form.register("observacoes")}/></label>
+              </div>
+            </details>
             <label className="qa-tf-draft-option">
               <input type="checkbox" checked={rememberDraft} onChange={(event)=>{
                 if(event.target.checked){
@@ -449,8 +451,9 @@ export function Workspace() {
         {localReview && <section className="generator-context stack"
           aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
-          <p className="text-muted text-sm">Nada será aplicado até você confirmar.
-            Campos não identificados permanecem como estão.</p>
+          <p className="text-muted text-sm">{localReview.mode==="nvidia"
+            ? "Os campos identificados pela IA já foram preenchidos no formulário. Confira e ajuste o que precisar antes de salvar. O texto original foi preservado na descrição."
+            : "Nada será aplicado até você confirmar. Campos não identificados permanecem como estão."}</p>
           <div className="local-preview-grid">
             {Object.entries(localReview.draft.fields)
               .filter(([key,value]) => key !== "descricao" && Boolean(value))
@@ -469,36 +472,21 @@ export function Workspace() {
                 setLocalReview(null); setExtracted([]);
                 return;
               }
-              const textLimits: Record<string,number> = {
-                titulo:240, descricao:30000, codigo:100, sistema:160, versao:100,
-                ambiente:240, base_teste:240, empresa:240, testador:240,
-                explicacao:30000, causa:30000, correcao:30000,
-                conclusao:30000, observacoes:30000
-              };
-              const draft = localReview.draft;
-              for (const [name,value] of Object.entries(draft.fields)) {
-                if (!value || name === "tipo_teste" || name === "descricao" || !(name in textLimits)) continue;
-                const key = name as Exclude<keyof TaskDraft,"tipo_teste">;
-                form.setValue(key, value.slice(0,textLimits[name]), {
-                  shouldValidate:true, shouldDirty:true
-                });
-              }
-              if (draft.fields.tipo_teste === "BUILD" || draft.fields.tipo_teste === "RELEASE") {
-                form.setValue("tipo_teste", draft.fields.tipo_teste, {
-                  shouldValidate:true, shouldDirty:true
-                });
-              }
+              applyTaskAiFields(form,localReview.draft);
               setLocalReview(null);
-              setExtractionNotice("Campos aplicados. Revise o formulário e selecione explicitamente os casos antes de salvar.");
-            }}>Aplicar campos revisados</Button>
+              setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
+            }}>{localReview.mode==="nvidia"?"Reaplicar sugestões da IA":"Aplicar campos revisados"}</Button>
             <Button type="button" variant="secondary" onPress={() => {
-              setLocalReview(null); setExtracted([]);
-              setExtractionNotice("Análise descartada. O formulário não foi modificado.");
-            }}>Descartar prévia</Button>
+              setLocalReview(null);
+              if(localReview.mode!=="nvidia")setExtracted([]);
+              setExtractionNotice(localReview.mode==="nvidia"
+                ? "Prévia ocultada. Os dados e cenários sugeridos permanecem prontos para salvar."
+                : "Análise descartada. O formulário não foi modificado.");
+            }}>{localReview.mode==="nvidia"?"Ocultar prévia":"Descartar prévia"}</Button>
           </div>
         </section>}
         {extracted.length > 0 && <fieldset className="extracted-cases">
-          <legend className="font-semibold">Cenários identificados — nenhum é anexado sem seleção</legend>
+          <legend className="font-semibold">Cenários identificados — {extracted.filter(item=>item.selected).length} selecionado(s) para salvar</legend>
           {extracted.map((item, index) => <label key={index} className="extracted-case">
             <input type="checkbox" checked={item.selected} onChange={(e) =>
               setExtracted((items) => items.map((v, i) => i === index ? {...v, selected: e.target.checked} : v))} />
@@ -508,9 +496,9 @@ export function Workspace() {
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeDraft}>Cancelar</Button>
           <Button type="submit" variant="secondary" data-next="task"
-            isDisabled={create.isPending}>Salvar e abrir TF</Button>
+            isDisabled={create.isPending||onlineBusy||fileBusy}>Salvar e abrir TF</Button>
           <Button type="submit" data-next="scenario"
-            isDisabled={create.isPending}>Salvar e adicionar cenário</Button>
+            isDisabled={create.isPending||onlineBusy||fileBusy}>Salvar e adicionar cenário</Button>
         </div>
         <ToastNotice message={create.isError?create.error.message:null} tone="error"/>
       </form>

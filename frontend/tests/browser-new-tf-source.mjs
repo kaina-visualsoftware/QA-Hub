@@ -35,18 +35,23 @@ async function backend(route){
     aiPayloads.push(body);
     assert.deepEqual(Object.keys(body),["text"]);
     if(fallback)return send({draft:{},fallback:true,provider:"NVIDIA Build"});
+    const isRegeneration=aiPayloads.length===2;
     return send({
       provider:"NVIDIA Build",
       draft:{
-        titulo:"Validação dos descontos no pedido",codigo:"78912",
-        sistema:"Financeiro",versao:"12.08",tipo_teste:"BUILD",
+        titulo:isRegeneration?"Validação dos descontos corrigida":"Validação dos descontos no pedido",
+        codigo:"78912",sistema:"Financeiro",versao:"12.08",tipo_teste:"BUILD",
         descricao:"Verificar o desconto aplicado à compra.",
-        causa:"O rateio antigo ignora descontos negativos.",
+        causa:isRegeneration?"Rateio revisado e validado pela IA.":
+          "O rateio antigo ignora descontos negativos.",
         cenarios:[{
           titulo:"Remover desconto da compra",passos:"Abrir o pedido e remover desconto.",
           esperado:"O total deve ser atualizado.",obtido:"",
           observacoes:"Usar dados sintéticos."
-        }]
+        },...(isRegeneration?[{
+          titulo:"Verificar retorno bancário",passos:"Consultar o retorno e verificar a baixa.",
+          esperado:"A baixa está conciliada.",obtido:"",observacoes:""
+        }]:[])]
       }
     });
   }
@@ -64,6 +69,13 @@ async function backend(route){
       return send(row,201);
     }
     if(method==="GET")return send(tasks);
+    if(method==="PATCH"){
+      const id=url.searchParams.get("id")?.replace("eq.","");
+      const record=tasks.find(row=>row.id===id);
+      if(!record)return send(null,404);
+      Object.assign(record,req.postDataJSON());
+      return send(record);
+    }
   }
   if(path.endsWith("/rest/v1/qa_cenarios")){
     if(method==="POST"){
@@ -124,18 +136,45 @@ try{
   assert.equal(aiPayloads.length,1);
   assert.equal(aiPayloads[0].text,pasted);
   assert.equal(taskWrites,0,"AI preview must not create TF");
-  await modal.getByRole("button",{name:"Aplicar campos revisados"}).click();
+  // Regression: clicking save directly after generation must not discard AI fields.
   assert.equal(await modal.getByLabel("Título da tarefa").inputValue(),
     "Validação dos descontos no pedido");
   assert.equal(await source.inputValue(),pasted,"Pasted source must be preserved");
-  await modal.getByRole("checkbox",{name:/Remover desconto da compra/}).check();
-  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
+  assert.equal(await modal.getByRole("checkbox",{name:/Remover desconto da compra/}).isChecked(),
+    true,"Suggested scenarios should be selected by default");
+  await modal.getByRole("button",{name:"Salvar e adicionar cenário"}).click();
   await page.getByRole("heading",{name:"Validação dos descontos no pedido"}).waitFor();
+  const firstEditor=page.getByRole("dialog",{name:"Cadastrar cenário"});
+  await firstEditor.waitFor();
   assert.equal(taskWrites,1);
-  assert.equal(scenarioWrites,1);
+  assert.equal(scenarioWrites,1,
+    "Save and add scenario must persist the AI suggestions before opening a new editor");
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(scenarios[0].obtido,"");
   assert.equal(tasks[0].codigo,"78912");
+  assert.equal(tasks[0].causa,"O rateio antigo ignora descontos negativos.");
+  assert.equal(tasks[0].descricao,pasted);
+
+  await firstEditor.getByRole("button",{name:"Cancelar"}).click();
+  await page.getByRole("button",{name:"Editar TF"}).click();
+  const edit=page.getByRole("dialog",{name:"Editar TF"});
+  await edit.waitFor();
+  await edit.getByText("Regerar dados da TF com IA").click();
+  await edit.getByRole("checkbox",{name:/Autorizo enviar a descrição atual à NVIDIA/}).check();
+  await edit.getByRole("button",{name:"Regerar TF com IA NVIDIA"}).click();
+  await edit.getByRole("region",{name:"Revisão da regeração por IA"}).waitFor({timeout:20000});
+  assert.equal(await edit.getByRole("textbox",{name:"Título"}).inputValue(),
+    "Validação dos descontos corrigida");
+  const proposals=edit.locator(".qa-task-ai-scenario");
+  assert.equal(await proposals.count(),1,
+    "AI regeneration must omit already registered duplicate scenarios");
+  assert.match(await proposals.first().innerText(),/Verificar retorno bancário/);
+  await edit.getByRole("button",{name:"Salvar alterações"}).click();
+  await page.getByRole("heading",{name:"Validação dos descontos corrigida"}).waitFor();
+  assert.equal(tasks[0].causa,"Rateio revisado e validado pela IA.");
+  assert.equal(scenarioWrites,2,"Existing TF should receive only new selected scenarios");
+  assert.equal(scenarios[1].ordem,2,"Regenerated scenario must follow existing order");
+  assert.equal(tasks[0].descricao,pasted,"Editing with AI must preserve the source text");
 
   await page.goto(ROOT);
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
@@ -148,7 +187,7 @@ try{
   });
   await page.getByText("Arquivo lido e texto inserido.",{exact:false}).waitFor();
   assert.match(await source.inputValue(),/Revisar pagamentos/);
-  assert.equal(aiPayloads.length,1,"File reading must never automatically call NVIDIA");
+  assert.equal(aiPayloads.length,2,"File reading must never automatically call NVIDIA");
   await modal.getByRole("button",{name:"Extrair sem IA"}).click();
   await page.getByText("Campos extraídos sem IA.",{exact:false}).waitFor();
   await modal.getByRole("button",{name:"Aplicar campos revisados"}).click();
@@ -156,7 +195,7 @@ try{
   await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
   await page.getByRole("heading",{name:/Revisar pagamentos/}).waitFor();
   assert.equal(taskWrites,2);
-  assert.equal(aiPayloads.length,1,"No-AI extraction must not send text to provider");
+  assert.equal(aiPayloads.length,2,"No-AI extraction must not send text to provider");
 
   await page.goto(ROOT);
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
@@ -190,6 +229,29 @@ try{
     assert.deepEqual(violations.violations.map(v=>({id:v.id,targets:v.nodes.slice(0,5).map(node=>node.target.join(" "))})),[],"New TF WCAG "+width);
     await page.screenshot({path:"artifacts/new-tf-source/modal-"+width+".png"});
   }
+  // The other submit action must persist the same AI-populated fields.
+  fallback=false;
+  await page.goto(ROOT);
+  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await modal.waitFor();
+  await source.fill(pasted);
+  await modal.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
+  await generate.click();
+  await modal.getByRole("textbox",{name:"Título da tarefa"})
+    .waitFor({state:"visible"});
+  await page.getByText("Prévia da NVIDIA pronta.",{exact:false}).waitFor({timeout:20000});
+  await modal.getByRole("textbox",{name:"Título da tarefa"})
+    .fill("Título revisado pelo QA depois da IA");
+  await modal.getByRole("button",{name:"Salvar e abrir TF"}).click();
+  await page.getByRole("heading",{name:"Título revisado pelo QA depois da IA"}).waitFor();
+  assert.equal(taskWrites,4,"Save and open TF must create once");
+  assert.equal(tasks[3].causa,"O rateio antigo ignora descontos negativos.");
+  assert.equal(tasks[3].titulo,"Título revisado pelo QA depois da IA",
+    "Manual edits after AI must take precedence when saving");
+  assert.equal(scenarioWrites,3,
+    "Save and open TF must persist the automatically selected AI scenario");
+
   assert.deepEqual(errors,[]);
-  console.log("Nova TF: colar sem arquivo, NVIDIA consentida, arquivo opcional, sem IA, manual e fallback protegido.");
+  console.log("Nova TF: ambas as ações salvam campos e cenários da IA, edição regera TF antiga e elimina duplicações.");
 }finally{await browser.close();}
