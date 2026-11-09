@@ -7,7 +7,7 @@ export function collectTaskContext(task,scenarios=[]){
     ['Conclusão',task.conclusao],['Observações',task.observacoes]
   ];
   const values=labels.filter(([,v])=>String(v||'').trim()).map(([k,v])=>k+': '+String(v).trim());
-  for(const [index,s] of scenarios.slice(0,18).entries()){
+  for(const [index,s] of scenarios.entries()){
     values.push('Cenário '+(index+1)+': '+(s.titulo||''));
     if(s.passos)values.push('Passos: '+s.passos);
     if(s.esperado)values.push('Resultado esperado: '+s.esperado);
