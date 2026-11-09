@@ -153,7 +153,7 @@ export default function EvidencePanel({
               <FilePlus2 size={16} /> Salvar evidência
             </Button>
           </div>
-          {save.isError && <p className="notice error mt-3" role="alert">{save.error.message}</p>}
+          <ToastNotice message={save.isError?save.error.message:null} tone="error"/>
           <ToastNotice message={message} tone="success"/>
         </form>
         </details>
