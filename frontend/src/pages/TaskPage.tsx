@@ -5,19 +5,23 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables
 } from "../features/tasks/TaskWorkspaceSections";
 import type { TaskTab } from "../features/tasks/TaskWorkspaceSections";
+import {
+  applyTaskAiFields,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections
+} from "../features/tasks/task-ai";
+import type {SuggestedScenario} from "../features/tasks/task-ai";
 import {TaskQuickActions} from "../features/tasks/TaskQuickActions";
 import type {QuickActionId} from "../features/tasks/TaskQuickActions";
 import { AiStudioTabs } from "../features/generators/AiStudioTabs";
 import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
-  addScenario, getAdminRole, listScenarios, saveScenarioResult, updateTask,
+  addScenario, addExtractedScenarios, getAdminRole, listScenarios, saveScenarioResult, updateTask,
   editScenario, removeScenario, removeTask, setTaskStatus
 } from "../lib/data";
 import {
@@ -84,6 +88,10 @@ export default function TaskPage() {
   const [evidenceTarget, setEvidenceTarget] = useState<string|null>(null);
   const [evidenceRequest, setEvidenceRequest] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [taskAiConsent,setTaskAiConsent]=useState<string|null>(null);
+  const [taskAiBusy,setTaskAiBusy]=useState(false);
+  const [taskAiScenarios,setTaskAiScenarios]=useState<SuggestedScenario[]>([]);
+  const [taskAiPreviewSource,setTaskAiPreviewSource]=useState<string|null>(null);
   const [showSettings,setShowSettings]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
@@ -106,6 +114,7 @@ export default function TaskPage() {
     setActiveTab("summary");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
+    setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);
     setEditingDiagramId(null);setDiagramEditorRevision(0);
     setShowDocuments(false);
@@ -169,7 +178,8 @@ export default function TaskPage() {
       if(!window.confirm("Descartar as alterações não salvas da TF?"))return;
       taskForm.reset();
     }
-    setEditing(false);
+    setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
+    setTaskAiPreviewSource(null);
   }
   function closeScenarioEditor(){
     if(createScenario.isPending)return;
@@ -324,9 +334,75 @@ export default function TaskPage() {
     ]);
   };
   const saveTask = useMutation({
-    mutationFn: (data: TaskDraft) => updateTask(taskId, data),
-    onSuccess: async () => { setEditing(false); setSaved("Alterações da TF salvas."); await invalidate(); }
+    mutationFn: async ({draft,suggested}:{
+      draft:TaskDraft;suggested:SuggestedScenario[]
+    })=>{
+      // Save the current form first, regardless of how it was populated.
+      const updated=await updateTask(taskId,draft);
+      let warning="";
+      let appended=0;
+      if(suggested.length){
+        try{
+          const current=await listScenarios(taskId);
+          const fresh=onlyNewTaskAiSelections(suggested,current);
+          if(fresh.length){
+            const nextOrder=Math.max(0,...current.map(item=>item.ordem))+1;
+            await addExtractedScenarios(taskId,userId,fresh,nextOrder);
+            appended=fresh.length;
+          }
+        }catch(reason){
+          warning=reason instanceof Error?reason.message:"Falha ao salvar os cenários sugeridos.";
+        }
+      }
+      return {updated,warning,appended};
+    },
+    onSuccess:async ({warning,appended})=>{
+      await invalidate();
+      if(warning){
+        notify.warning("Dados da TF salvos, mas os cenários sugeridos não foram adicionados: "+
+          warning+". Revise e tente salvar novamente.");
+        // Keep the editor and selected candidates so they can be retried.
+        return;
+      }
+      setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
+      setTaskAiPreviewSource(null);
+      setSaved("Alterações da TF salvas."+(appended?
+        " "+appended+" cenário(s) novo(s) adicionado(s).":""));
+    }
   });
+
+  async function regenerateTaskWithAi(){
+    if(!own||taskAiBusy||saveTask.isPending)return;
+    const source=taskForm.getValues("descricao");
+    if(!source.trim()||source.length>20000){
+      notify.error("Informe uma descrição de até 20.000 caracteres para usar a IA.");
+      return;
+    }
+    if(taskAiConsent!==source){
+      notify.warning("Autorize o envio da descrição atual à NVIDIA.");
+      return;
+    }
+    if(taskForm.formState.isDirty&&!window.confirm(
+      "A geração pode substituir campos já alterados neste formulário. Deseja continuar?"
+    ))return;
+    setTaskAiBusy(true);
+    try{
+      const result=await generateTaskAiDraft(source);
+      if(taskForm.getValues("descricao")!==source){
+        notify.warning("A descrição mudou durante a análise. Gere novamente antes de aplicar.");
+        return;
+      }
+      const applied=applyTaskAiFields(taskForm,result);
+      const suggestions=freshTaskAiScenarios(result,scenarios.data??[]);
+      setTaskAiScenarios(suggestions);setTaskAiPreviewSource(source);
+      notify.success(applied+" campo(s) preenchido(s) pela IA."+
+        (suggestions.length?" "+suggestions.length+" cenário(s) novo(s) para revisar.":""));
+    }catch(reason){
+      notify.error(reason instanceof Error?reason.message:"Falha ao regerar a TF com IA.");
+    }finally{
+      setTaskAiBusy(false);setTaskAiConsent(null);
+    }
+  }
   const createScenario = useMutation({
     mutationFn: ({ draft }: { draft: ScenarioDraft; another: boolean }) => editingScenario
       ? editScenario(taskId, editingScenario.id, draft)
@@ -461,6 +537,7 @@ export default function TaskPage() {
           <span className={"status-chip " + task.status}>{taskStatusLabels[task.status]}</span>
           <Button variant="secondary" isDisabled={task.user_id!==userId} onPress={() => {
             closeToolPanels();setShowScenarioForm(false);setShowSettings(false);
+            setTaskAiScenarios([]);setTaskAiPreviewSource(null);setTaskAiConsent(null);
             setEditing(true);
           }}>
             <FilePenLine size={16} /> Editar TF
@@ -500,8 +577,11 @@ export default function TaskPage() {
 
     {editing && <QAModal open={editing} title="Editar TF" eyebrow="DADOS DO REGISTRO"
       description="Atualize os dados do chamado sem sair da execução." size="lg"
-      busy={saveTask.isPending} initialFocus={'input[name="titulo"]'} onClose={closeTaskEditor}>
-      <form onSubmit={taskForm.handleSubmit((values) => void saveTask.mutateAsync(values))} className="stack mt-4">
+      busy={saveTask.isPending||taskAiBusy} initialFocus={'input[name="titulo"]'} onClose={closeTaskEditor}>
+      <form onSubmit={taskForm.handleSubmit((values) => {
+        if(saveTask.isPending||taskAiBusy)return;
+        void saveTask.mutateAsync({draft:values,suggested:taskAiScenarios.filter(item=>item.selected)});
+      })} className="stack mt-4">
         <div className="form-grid">
           <label className="field grow-2">Título<input {...taskForm.register("titulo")} />
             {taskForm.formState.errors.titulo && <small className="text-error">{taskForm.formState.errors.titulo.message}</small>}</label>
@@ -529,7 +609,7 @@ export default function TaskPage() {
         </details>
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeTaskEditor}>Cancelar</Button>
-          <Button type="submit" isDisabled={saveTask.isPending||task.user_id!==userId}>Salvar alterações</Button>
+          <Button type="submit" isDisabled={saveTask.isPending||taskAiBusy||task.user_id!==userId}>Salvar alterações</Button>
         </div>
         <ToastNotice message={saveTask.isError?saveTask.error.message:null} tone="error"/>
       </form>
