@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, FileCheck2, Send, WandSparkles, RotateCcw } from "lucide-react";
@@ -385,7 +386,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         </Button>
       </div>}
     </section>}
-    {message && <p className="notice mt-4" role="status">{message}</p>}
-    {error && <p className="notice error mt-4" role="alert">{error}</p>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
   </section>;
 }
