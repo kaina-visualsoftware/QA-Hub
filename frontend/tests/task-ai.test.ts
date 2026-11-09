@@ -3,7 +3,7 @@ import type {UseFormReturn} from "react-hook-form";
 import type {TaskDraft} from "../src/lib/contracts";
 import {normalizeDraft} from "../src/lib/legacy/qa-assistant.mjs";
 import {
-  applyTaskAiFields,freshTaskAiScenarios,onlyNewTaskAiSelections
+  applyTaskAiFields,freshTaskAiScenarios,onlyNewTaskAiSelections,mergeTaskAiCreation
 } from "../src/features/tasks/task-ai";
 
 describe("TF com IA: persistência e revisão",()=>{
@@ -32,6 +32,43 @@ describe("TF com IA: persistência e revisão",()=>{
     expect(setValue).toHaveBeenCalledWith("titulo","Conferência de descontos",{
       shouldDirty:true,shouldTouch:true,shouldValidate:true
     });
+  });
+
+  it("preenche uma TF nova sem título antes de salvá-la, como na regeração",()=>{
+    const entered={
+      titulo:"",descricao:"Relatório original completo do QA",
+      codigo:"",sistema:"",versao:"",tipo_teste:"BUILD"
+    } as TaskDraft;
+    const merged=mergeTaskAiCreation(entered,draft);
+    expect(merged.titulo).toBe("Conferência de descontos");
+    expect(merged.descricao).toBe("Resumo reformulado pela IA");
+    expect(merged.causa).toContain("Rateio ignora");
+    expect(merged.codigo).toBe("78912");
+    expect(merged.tipo_teste).toBe("BUILD");
+  });
+  it("preserva o título e os campos preenchidos manualmente ao criar",()=>{
+    const entered={
+      titulo:"Título definido pelo QA",descricao:"Relatório original longo",
+      codigo:"99999",sistema:"Módulo informado",versao:"",tipo_teste:"BUILD"
+    } as TaskDraft;
+    const merged=mergeTaskAiCreation(entered,draft);
+    expect(merged.titulo).toBe("Título definido pelo QA");
+    expect(merged.codigo).toBe("99999");
+    expect(merged.sistema).toBe("Módulo informado");
+    expect(merged.descricao).toBe("Resumo reformulado pela IA");
+    const local=mergeTaskAiCreation(entered,draft,{keepDescription:true});
+    expect(local.descricao).toBe("Relatório original longo");
+    expect(local.causa).toContain("Rateio ignora");
+  });
+  it("identifica RELEASE explícito no texto mesmo com padrão inicial BUILD",()=>{
+    const next=mergeTaskAiCreation({
+      titulo:"",descricao:"O QUE FOI TESTADO: ...",codigo:"",sistema:"",versao:"",
+      tipo_teste:"BUILD"
+    } as TaskDraft,normalizeDraft({
+      titulo:"Validar reemissão",tipo_teste:"RELEASE"
+    }));
+    expect(next.tipo_teste).toBe("RELEASE");
+    expect(next.titulo).toBe("Validar reemissão");
   });
 
   it("marca sugestões novas e elimina repetições dentro da resposta da IA",()=>{
