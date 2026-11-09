@@ -1,7 +1,6 @@
-import {useMemo,useRef,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import type {PointerEvent} from "react";
-import {Expand,Maximize2,Minus,Plus,Scan} from "lucide-react";
-import {QAModal} from "../../components/ui/QAModal";
+import {Maximize2,Minus,Plus,Scan} from "lucide-react";
 
 const MIN_ZOOM=0.5;
 const MAX_ZOOM=3;
@@ -28,9 +27,7 @@ function isolatedDocument(svg:string){
     '</style></head><body>'+svg+'</body></html>';
 }
 
-function DiagramCanvas({svg,title,expanded,onExpand}:{
-  svg:string;title:string;expanded?:boolean;onExpand?:()=>void;
-}){
+export function DiagramViewer({svg,title}:{svg:string;title:string}){
   const [zoom,setZoom]=useState(1);
   const [dragging,setDragging]=useState(false);
   const viewport=useRef<HTMLDivElement>(null);
@@ -38,14 +35,23 @@ function DiagramCanvas({svg,title,expanded,onExpand}:{
   const doc=useMemo(()=>isolatedDocument(svg),[svg]);
   const {width,height}=useMemo(()=>dimensions(svg),[svg]);
 
+  // Center the diagram when the modal opens and after changing zoom.
+  // If the artwork exceeds the viewport, start in its central region.
+  useEffect(()=>{
+    const frame=requestAnimationFrame(()=>{
+      const node=viewport.current;
+      if(!node)return;
+      node.scrollLeft=Math.max(0,(node.scrollWidth-node.clientWidth)/2);
+      node.scrollTop=Math.max(0,(node.scrollHeight-node.clientHeight)/2);
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[zoom,svg]);
+
   function changeZoom(delta:number){
     setZoom(current=>Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,
       Math.round((current+delta)*100)/100)));
   }
-  function fit(){
-    setZoom(1);
-    viewport.current?.scrollTo({left:0,top:0,behavior:"instant"});
-  }
+  function fit(){setZoom(1);}
   function onPointerDown(event:PointerEvent<HTMLDivElement>){
     if(event.pointerType!=="mouse"||event.button!==0)return;
     const node=event.currentTarget;
@@ -66,11 +72,11 @@ function DiagramCanvas({svg,title,expanded,onExpand}:{
     }
   }
 
-  return <div className={"qa-diagram-viewer"+(expanded?" qa-diagram-viewer--expanded":"")}>
+  return <div className="qa-diagram-viewer qa-diagram-viewer--expanded">
     <div className="qa-diagram-viewer-toolbar" role="group"
       aria-label={"Controles de visualização de "+title}>
       <span className="qa-diagram-viewer-help">
-        {expanded?"Arraste para mover ou use as barras de rolagem.":"Visualização interativa"}
+        Diagrama centralizado · escala inicial 100%
       </span>
       <div className="qa-diagram-viewer-tools">
         <button type="button" title="Diminuir zoom" aria-label="Diminuir zoom"
@@ -83,13 +89,8 @@ function DiagramCanvas({svg,title,expanded,onExpand}:{
           disabled={zoom>=MAX_ZOOM} onClick={()=>changeZoom(STEP)}>
           <Plus size={17} aria-hidden="true"/>
         </button>
-        <button type="button" title="Ajustar à largura" aria-label="Ajustar à largura"
+        <button type="button" title="Voltar para 100%" aria-label="Voltar para 100%"
           onClick={fit}><Scan size={17} aria-hidden="true"/></button>
-        {!expanded&&<button type="button" className="qa-diagram-viewer-expand"
-          title="Abrir visualização ampliada" aria-label="Abrir visualização ampliada"
-          onClick={onExpand}>
-          <Expand size={17} aria-hidden="true"/><span>Ampliar</span>
-        </button>}
       </div>
     </div>
     <div ref={viewport}
@@ -98,7 +99,7 @@ function DiagramCanvas({svg,title,expanded,onExpand}:{
       onPointerDown={onPointerDown} onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd}>
       <div className="qa-diagram-zoom-layer" style={{
-        width:zoom*100+"%",aspectRatio:width+" / "+height
+        width:Math.max(1,width*zoom)+"px",height:Math.max(1,height*zoom)+"px"
       }}>
         <iframe className="qa-diagram-viewer-frame"
           title={"Diagrama: "+title} sandbox="" referrerPolicy="no-referrer"
@@ -107,22 +108,8 @@ function DiagramCanvas({svg,title,expanded,onExpand}:{
     </div>
     <p className="qa-diagram-viewer-caption">
       <Maximize2 size={13} aria-hidden="true"/>
-      Zoom de 50% a 300%. Use as setas do teclado para percorrer o conteúdo.
+      Zoom de 50% a 300%. Arraste com o mouse, deslize na tela ou use as setas.
     </p>
   </div>;
 }
 
-export function DiagramViewer({svg,title}:{svg:string;title:string}){
-  const [expanded,setExpanded]=useState(false);
-  return <>
-    <DiagramCanvas key={title+":"+svg.length} svg={svg} title={title}
-      onExpand={()=>setExpanded(true)}/>
-    {expanded&&<QAModal open title={"Visualizar diagrama — "+title}
-      eyebrow="DIAGRAMA SALVO" size="full"
-      description="Consulte o fluxograma ampliado sem entrar no modo de edição."
-      initialFocus=".qa-diagram-viewer--expanded .qa-diagram-stage"
-      onClose={()=>setExpanded(false)}>
-      <DiagramCanvas svg={svg} title={title} expanded/>
-    </QAModal>}
-  </>;
-}
