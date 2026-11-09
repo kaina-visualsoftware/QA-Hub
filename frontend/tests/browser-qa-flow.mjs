@@ -240,7 +240,7 @@ try{
   assert.equal(await studio.getByRole("button",{name:"Post"}).count(),1);
   assert.equal(await studio.getByRole("button",{name:"Diagrama"}).count(),1);
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("regressao");
-  const generate=page.getByRole("button",{name:"Gerar roteiro",exact:true});
+  const generate=page.getByRole("button",{name:"Gerar casos",exact:true});
   assert.equal(await generate.isDisabled(),true);
   assert.equal(aiCalls,0);
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
