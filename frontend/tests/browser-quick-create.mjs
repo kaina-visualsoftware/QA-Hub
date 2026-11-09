@@ -95,19 +95,25 @@ try {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("heading", { name: "Suas tarefas de teste" }).waitFor();
 
-  await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
-  await page.getByRole("button", { name: "Salvar e adicionar cenário" }).click();
-  assert.equal(calls.task, 0, "An invalid form must not create a task");
-  await page.getByLabel("Título da tarefa").fill("Nova TF com primeiro caso");
-  await page.getByLabel("Descrição / problema").fill("Conferir criação e execução manual.");
-  await page.getByRole("button", { name: "Salvar e adicionar cenário" }).click();
-  await page.getByRole("heading", { name: "Nova TF com primeiro caso" }).waitFor();
-  const editor = page.getByRole("dialog", { name: "Cadastrar cenário" });
-  await editor.waitFor({ timeout: 20000 });
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
-  assert.equal(calls.task, 1);
-  assert.equal(calls.case, 0, "Opening the editor must not insert an empty scenario");
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  const wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  assert.equal(calls.task,0,"Empty title must not create the TF");
+  await wizard.getByLabel("Título da tarefa").fill("Nova TF com primeiro caso");
+  await wizard.getByLabel("Resumo do problema / descrição")
+    .fill("Conferir criação e execução manual.");
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  assert.equal(calls.task,0,"The TF is only persisted on finish");
+  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
+  await page.getByRole("heading",{name:"Nova TF com primeiro caso"}).waitFor();
+  assert.equal(calls.task,1);
+  assert.equal(calls.case,0,"Skipping cases must not create an empty scenario");
+  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Novo cenário"}).click();
+  const editor=page.getByRole("dialog",{name:"Cadastrar cenário"});
+  await editor.waitFor({timeout:20000});
   assert.equal(savedTasks[0].status, "rascunho");
   await page.waitForFunction(() => !window.location.hash.includes("newScenario"));
   await editor.getByRole("textbox", { name: "Título" }).fill("Primeiro cenário da TF");
@@ -154,10 +160,11 @@ try {
   assert.equal(calls.task, 1, "Refreshing the task must not recreate it");
 
   await page.getByRole("link", { name: "Todas as TFs" }).click();
-  await page.getByRole("button", { name: "Nova TF" }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute("name") === "titulo");
-  await page.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
-  await page.getByRole("button", { name: "Salvar e abrir TF" }).click();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
+  await wizard.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();
   assert.equal(await page.getByRole("dialog", { name: "Cadastrar cenário" }).count(), 0);
   assert.equal(calls.task, 2);
