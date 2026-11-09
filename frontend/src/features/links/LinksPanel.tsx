@@ -58,7 +58,7 @@ async function fetchComparisons(taskId: string) {
 
 export default function LinksPanel({
   task, userId, onClose
-}: { task: Task; userId: string; onClose: () => void }) {
+}: { task: Task; userId: string; onClose?: () => void }) {
   const own = task.user_id === userId;
   const client = useQueryClient();
   const [tab, setTab] = useState<"releases" | "references" | "comparisons">("releases");
@@ -130,7 +130,7 @@ export default function LinksPanel({
       <div><p className="eyebrow">HISTÓRICO E CONTEXTO</p><h2 id="links-heading">Releases e referências</h2>
         <p className="text-muted">Vincule a TF a uma versão e consulte conhecimento técnico privado.</p>
       </div>
-      <button type="button" aria-label="Fechar releases e referências" onClick={onClose}><X size={18}/></button>
+      {onClose&&<button type="button" aria-label="Fechar releases e referências" onClick={onClose}><X size={18}/></button>}
     </div>
     {!own ? <p className="notice error mt-4" role="alert">
       Os vínculos e referências desta TF estão disponíveis somente ao proprietário.
