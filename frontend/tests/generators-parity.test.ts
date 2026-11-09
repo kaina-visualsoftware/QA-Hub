@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sanitizeAiContext, composeFullTaskContext } from "../src/lib/legacy/qa-test-context.mjs";
 import { formatGeneratedPost, validatePostStructure } from "../src/lib/legacy/qa-post-format.mjs";
-import { markScenarioDuplicates, validateReviewedCases } from "../src/lib/legacy/qa-workspace.mjs";
+import { markScenarioDuplicates, onlyNewScenarioCandidates, validateReviewedCases } from "../src/lib/legacy/qa-workspace.mjs";
 
 const task = {
   id: "75e95c7e-bc4a-43dc-90de-9ffddf249b11",
@@ -45,6 +45,23 @@ describe("post e revisão de casos", () => {
     expect(post).toContain("[Caminho a ser confirmado]");
     expect(post).toContain("[Imagem: captura-da-funcionalidade.png]");
     expect(post).toContain("**TAREFA:** 78912");
+  });
+  it("mantém só cenários realmente novos, filtrando existentes e repetidos na resposta", () => {
+    const existing={source_index:1,titulo:"Validar pedido",passos:"Abrir pedido",
+      esperado:"Valor certo",observacoes:"",selected:true};
+    const fresh={...existing,source_index:3,titulo:"Verificar estorno",
+      passos:"Solicitar estorno",esperado:"Saldo atualizado"};
+    const result=onlyNewScenarioCandidates([
+      {...existing,source_index:2,titulo:" VALIDAR PEDIDO ",
+        passos:"Abrir   pedido",esperado:"VALOR CERTO"},
+      fresh,
+      {...fresh,source_index:4},
+      {...fresh,source_index:5,titulo:"Validar outra regra",selected:false}
+    ],[existing]);
+    expect(result.map(item=>item.source_index)).toEqual([3,5]);
+    expect(result[0].selected).toBe(true);
+    expect(result[1].selected).toBe(false);
+    expect(result.every(item=>!item.duplicate)).toBe(true);
   });
   it("marca duplicações e exige passos + esperado em cada caso", () => {
     const first = { source_index: 1, titulo: "Validar pedido", passos: "Abrir pedido",

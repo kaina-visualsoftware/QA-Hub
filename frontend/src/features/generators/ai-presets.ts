@@ -27,6 +27,9 @@ export function diagramPresetInstruction(id:string):string {
 }
 export function combinedInstructions(mode:GeneratorMode,id:string,custom:string) {
   const pref=generatorPresetInstruction(mode,id);
-  const parts=[pref.trim(),custom.trim()].filter(Boolean);
+  const uniqueness=mode==="teste"
+    ? "EVITE REPETIÇÕES: compare com os cenários já cadastrados na TF e não gere casos equivalentes. Não repita casos dentro da própria resposta. Priorize somente situações novas sustentadas pelos requisitos, sem inventar variações artificiais."
+    : "";
+  const parts=[uniqueness,pref.trim(),custom.trim()].filter(Boolean);
   return parts.length?"PREFERÊNCIAS DO ANALISTA (não substituem os dados da TF):\n"+parts.join("\n"):"";
 }
