@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice} from "../components/ui/Toasts";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -443,8 +444,8 @@ export function Workspace() {
             </label>
           </div>
         </details>
-        {draftStorageError&&<p role="alert" className="notice error">{draftStorageError}</p>}
-        {extractionNotice && <p role="status" className="notice">{extractionNotice}</p>}
+        <ToastNotice message={draftStorageError} tone="error"/>
+        <ToastNotice message={extractionNotice} tone="info"/>
         {localReview && <section className="generator-context stack"
           aria-label="Prévia dos campos sugeridos">
           <h3 className="font-semibold">Conferir campos identificados</h3>
@@ -575,7 +576,7 @@ export function Workspace() {
                   removeSavedFilter.mutate(saved.id);
               }}>Excluir</button>
           </div>)}
-          {filterNotice&&<p role="status" className="text-muted text-sm">{filterNotice}</p>}
+          <ToastNotice message={filterNotice} tone="info"/>
         </div>
       </details>
       {(role.isPending || tasks.isPending) && <p className="empty-state" role="status">Carregando tarefas…</p>}
