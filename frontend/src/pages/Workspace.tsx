@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {lazy,Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles } from "lucide-react";
+import { ArchiveRestore, ArrowRight, CheckCheck, Filter, Plus, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
 import { createTask, getAdminRole, addExtractedScenarios } from "../lib/data";
@@ -20,6 +20,8 @@ import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
+import "../features/trash/trash.css";
+const TrashPanel=lazy(()=>import("../features/trash/TrashPanel"));
 import {
   discardNewTaskDraft, loadNewTaskDraft, saveNewTaskDraft
 } from "../features/tasks/local-draft";
@@ -29,6 +31,7 @@ export function Workspace() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const [showForm, setShowForm] = useState(false);
+  const [showTrash,setShowTrash]=useState(false);
   const [rememberDraft, setRememberDraft] = useState(false);
   const [recoverableDraft, setRecoverableDraft] = useState<StoredNewTaskDraft | null>(null);
   const [draftStorageError, setDraftStorageError] = useState("");
@@ -356,11 +359,22 @@ export function Workspace() {
   return <div className="page">
     <div className="page-heading">
       <div><h1>Suas tarefas de teste</h1></div>
-      <Button onPress={() => {
-        if (showForm) closeDraft();
-        else setShowForm(true);
-      }}><Plus size={17} /> Nova TF</Button>
+      <div className="qa-home-heading-actions">
+        <Button variant="secondary" onPress={()=>setShowTrash(true)}>
+          <ArchiveRestore size={17} aria-hidden="true"/> Lixeira
+        </Button>
+        <Button onPress={() => {
+          if (showForm) closeDraft();
+          else setShowForm(true);
+        }}><Plus size={17} /> Nova TF</Button>
+      </div>
     </div>
+    <QAModal open={showTrash} title="Lixeira e recuperação" eyebrow="REGISTROS ARQUIVADOS"
+      size="lg" onClose={()=>setShowTrash(false)}>
+      <Suspense fallback={<p role="status" className="notice">Carregando lixeira…</p>}>
+        <TrashPanel userId={userId}/>
+      </Suspense>
+    </QAModal>
     <section className="qa-home-metrics" aria-label="Resumo">
       <div><strong>{stats.data?.total??0}</strong><span>TFs</span></div>
       <div><strong>{pending}</strong><span>Em andamento</span></div>
