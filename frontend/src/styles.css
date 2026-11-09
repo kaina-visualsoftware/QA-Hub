@@ -1957,3 +1957,115 @@
   .qa-task-hero-controls .qa-task-header-delete{font-size:.77rem;padding:8px}
   .qa-task-delete-actions>*{flex:1 1 auto}
 }
+
+
+/* Three-step TF creation: source -> reviewed metadata -> case coverage. */
+.qa-wizard-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;margin:14px 0 24px}
+.qa-wizard-progress span{display:flex;align-items:center;justify-content:center;
+  gap:7px;padding:11px 6px;border-radius:11px;background:#f4f8f9;
+  border:1px solid #e0eaed;color:#667e86;font-size:.79rem;font-weight:650;
+  text-align:center;min-width:0}
+.qa-wizard-progress b{display:grid;place-items:center;width:23px;height:23px;
+  min-width:23px;border-radius:50%;background:#e0eaec;color:#405f6b;font-size:.74rem}
+.qa-wizard-progress .is-current{background:#e6f6f3;border-color:#91cac2;color:#135c5c}
+.qa-wizard-progress .is-current b,.qa-wizard-progress .is-done b{
+  background:#177b77;color:#fff}
+.qa-wizard-progress .is-done{background:#f1faf8;color:#357a77}
+.qa-wizard-step{gap:15px}
+.qa-wizard-step .field>textarea{resize:vertical;min-height:90px}
+.qa-wizard-step .field input,.qa-wizard-step .field textarea,
+.qa-wizard-step .field select{width:100%;min-width:0}
+.qa-wizard-attachments{display:flex;flex-direction:column;gap:8px}
+.qa-wizard-attach-button{display:inline-flex;gap:9px;align-items:center;
+  width:max-content;max-width:100%;padding:10px 13px;border-radius:10px;
+  border:1px dashed #8ab9bc;background:#f8fcfc;color:#175e68;
+  font-size:.85rem;font-weight:700;cursor:pointer;position:relative}
+.qa-wizard-attach-button:hover{background:#eaf8f7}
+.qa-wizard-attach-button:focus-within{outline:2px solid #187f7c;outline-offset:2px}
+.qa-wizard-attach-button input{position:absolute;inset:0;width:100%;height:100%;
+  opacity:0;cursor:pointer}
+.qa-wizard-file-list{display:grid;gap:6px}
+.qa-wizard-file{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;
+  border:1px solid #dbe8e9;background:#f8fbfb;border-radius:10px;min-width:0}
+.qa-wizard-file>div{flex:1;min-width:0}
+.qa-wizard-file strong{display:block;font-size:.84rem;overflow-wrap:anywhere}
+.qa-wizard-file small{display:block;font-size:.73rem;color:#627b85;margin-top:3px;
+  overflow-wrap:anywhere}
+.qa-wizard-file button{flex:0 0 32px;width:32px;height:32px;display:grid;place-items:center;
+  border:1px solid transparent;border-radius:8px;color:#95515a}
+.qa-wizard-file button:hover{background:#fbeceb;border-color:#e5b9bc}
+.qa-wizard-size{font-size:.73rem;color:#526f7a;margin-top:-2px}
+.qa-wizard-consent,.qa-wizard-draft{display:flex;align-items:flex-start;gap:9px;
+  font-size:.83rem;line-height:1.5;color:#375965}
+.qa-wizard-consent input,.qa-wizard-draft input{margin-top:3px;flex-shrink:0}
+.qa-wizard-manual{display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:5px;border-top:1px solid #edf1f2;padding-top:12px}
+.qa-wizard-manual span{font-size:.76rem;color:#748991}
+.qa-wizard-manual button{padding:9px 15px;border-radius:8px;color:#176b70;
+  font-size:.85rem;font-weight:720;cursor:pointer}
+.qa-wizard-manual button:hover{background:#eaf6f4}
+.qa-wizard-recover{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:12px;background:#f6fafb;border:1px solid #dbe8ea;border-radius:10px}
+.qa-wizard-recover strong{width:100%;font-size:.84rem}
+.qa-wizard-recover p{width:100%;font-size:.78rem;color:#526f7a}
+.qa-wizard-step-heading{display:grid;gap:3px}
+.qa-wizard-step-heading strong{font-size:1rem;color:#173f4a}
+.qa-wizard-step-heading p{font-size:.82rem;color:#6a828a}
+.qa-wizard-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:13px}
+.qa-wizard-more{padding:12px;border:1px solid #e0e9ea;border-radius:12px}
+.qa-wizard-more>summary{font-weight:750;color:#315d67;cursor:pointer}
+.qa-wizard-actions{display:flex;align-items:center;justify-content:flex-end;
+  flex-wrap:wrap;gap:9px;margin-top:13px;padding-top:15px;border-top:1px solid #e6eeee}
+.qa-wizard-actions>button{min-height:43px}
+.qa-wizard-skip{margin-right:auto;color:#406c73;font-size:.83rem;
+  font-weight:680;padding:10px;cursor:pointer}
+.qa-wizard-skip:hover{background:#eff7f6;border-radius:8px}
+.qa-wizard-task-summary{background:#f7fafb;border:1px solid #dce8ea;
+  border-radius:12px;padding:14px 16px;display:grid;gap:5px}
+.qa-wizard-task-summary strong{overflow-wrap:anywhere;color:#1c4d59}
+.qa-wizard-task-summary>span{font-size:.75rem;color:#51717c}
+.qa-wizard-task-summary p{font-size:.83rem;color:#435f69;white-space:pre-wrap}
+.qa-wizard-task-summary details summary{font-size:.78rem;color:#2f7378;
+  font-weight:700;cursor:pointer}
+.qa-wizard-task-summary pre{white-space:pre-wrap;overflow-wrap:anywhere;
+  padding:10px;margin-top:9px;font-family:inherit;font-size:.76rem;
+  background:#fff;border-radius:8px}
+.qa-wizard-existing{display:flex;align-items:center;gap:8px;color:#2a726e;
+  font-size:.82rem}
+.qa-wizard-generating{display:flex;flex-wrap:wrap;gap:9px;align-items:center;
+  padding:11px;border-radius:10px;background:#eff8f8;color:#34656a;font-size:.82rem}
+.qa-wizard-generating small{display:block;width:100%}
+.qa-wizard-generating button{color:#a44852;font-weight:700}
+.qa-wizard-case-review{display:grid;gap:10px}
+.qa-wizard-case-head{display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px}
+.qa-wizard-case-head>strong{font-size:.84rem}
+.qa-wizard-case-head>div{display:flex;gap:10px}
+.qa-wizard-case-head button{color:#166e73;font-size:.79rem;font-weight:700}
+.qa-wizard-cases{display:grid;gap:8px;max-height:310px;overflow-y:auto;
+  padding-right:3px}
+.qa-wizard-case{border:1px solid #dae6e7;border-radius:10px;padding:12px;
+  background:#fff}
+.qa-wizard-case>label{display:flex;align-items:flex-start;gap:9px;min-width:0}
+.qa-wizard-case>label input{margin-top:4px;flex-shrink:0}
+.qa-wizard-case>label strong{font-size:.84rem;overflow-wrap:anywhere}
+.qa-wizard-case>p{font-size:.78rem;color:#657a83;margin:5px 0 8px 25px}
+.qa-wizard-case details{margin-left:25px}
+.qa-wizard-case details summary{font-size:.78rem;font-weight:700;
+  color:#296e73;cursor:pointer}
+.qa-wizard-case details .field{margin-top:9px}
+.qa-wizard-busy{font-size:.79rem;color:#376c72;margin-top:10px}
+@media(max-width:640px){
+  .qa-wizard-progress{gap:4px;margin:9px 0 17px}
+  .qa-wizard-progress span{padding:8px 3px;gap:4px;flex-direction:column;
+    font-size:.67rem;line-height:1.2}
+  .qa-wizard-progress b{width:22px;height:22px}
+  .qa-wizard-form-grid{grid-template-columns:minmax(0,1fr)}
+  .qa-wizard-step{gap:12px}
+  .qa-wizard-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa-wizard-actions .qa-wizard-skip{grid-column:1/-1;text-align:center;margin:0}
+  .qa-wizard-actions>button:last-child{grid-column:1/-1}
+  .qa-wizard-actions>button{min-width:0;justify-content:center}
+}
