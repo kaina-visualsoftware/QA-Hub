@@ -135,7 +135,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     setAttempts(n=>n+1);
     try{
       const result=await requestAiDiagram({
-        db:supabase,text:diagramText.text,
+        db:supabase,text:diagramText.text,strict:mode==="task",
         ...(repair&&repairCandidate?
           {repair:{mermaid:repairCandidate.code,syntaxError:repairCandidate.error}}:{})
       });
@@ -263,7 +263,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     <div className="qa-diagram-quick-actions">
       <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
         <WandSparkles size={17} aria-hidden="true"/>
-        {busy?"Gerando…":attempts?"Gerar diagrama novamente":"Gerar diagrama da TF"}
+        {busy?"Gerando…":attempts?"Gerar diagrama novamente":mode==="task"?"Gerar diagrama da TF":"Gerar diagrama"}
       </Button>
       {repairCandidate&&<Button variant="secondary"
         isDisabled={!canGenerate} onPress={()=>void generate(true)}>
