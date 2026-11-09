@@ -1565,3 +1565,56 @@
  .qa-artifact-browser{padding:12px}
  .qa-diagram-library-actions{width:100%;justify-content:flex-start}
 }
+
+
+/* Read-only diagram viewer: prioritize the content over its creation controls. */
+.qa-artifact-collections{grid-template-columns:minmax(0,1fr)}
+.qa-diagram-library-layout{display:grid;
+ grid-template-columns:minmax(230px,290px) minmax(0,1fr);gap:14px;align-items:start}
+.qa-diagram-library-list{max-height:520px;overflow-y:auto;overscroll-behavior:contain}
+.qa-diagram-library-preview{min-width:0}
+.qa-diagram-viewer{display:flex;flex-direction:column;gap:0;min-width:0}
+.qa-diagram-viewer-toolbar{display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:10px;padding:9px 10px;background:#f6faf9;
+ border:1px solid #dbe7e7;border-radius:10px 10px 0 0}
+.qa-diagram-viewer-help{font-size:.75rem;color:#52717b;font-weight:650}
+.qa-diagram-viewer-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.qa-diagram-viewer-tools button{display:inline-flex;align-items:center;justify-content:center;
+ gap:6px;min-height:38px;min-width:38px;border:1px solid #d8e5e5;border-radius:8px;
+ color:#225560;background:#fff;padding:7px 9px;font-size:.76rem;font-weight:750}
+.qa-diagram-viewer-tools button:hover:not(:disabled){background:#e4f4f0;border-color:#80b8b0}
+.qa-diagram-viewer-tools button:focus-visible{outline:3px solid #288f98;outline-offset:2px}
+.qa-diagram-viewer-tools button:disabled{opacity:.45;cursor:not-allowed}
+.qa-diagram-viewer-expand{margin-left:4px}
+.qa-diagram-zoom-value{min-width:48px;text-align:center;font-size:.77rem;
+ font-weight:800;color:#20545f;font-variant-numeric:tabular-nums}
+.qa-diagram-stage{height:clamp(290px,42vw,500px);width:100%;min-width:0;
+ border:1px solid #dbe7e7;border-top:0;border-radius:0 0 10px 10px;
+ background-color:#f9fbfc;
+ background-image:radial-gradient(#d5e5e6 0.8px,transparent 0.8px);
+ background-size:18px 18px;overflow:auto;overscroll-behavior:contain;
+ touch-action:pan-x pan-y;cursor:grab;scrollbar-width:thin}
+.qa-diagram-stage.is-dragging{cursor:grabbing;user-select:none}
+.qa-diagram-stage:focus-visible{outline:3px solid #288f98;outline-offset:2px}
+.qa-diagram-zoom-layer{position:relative;margin-inline:auto;min-height:80px;min-width:0}
+.qa-diagram-viewer-frame,.qa-diagram-library-preview .qa-diagram-viewer-frame{
+ display:block;width:100%!important;height:100%!important;min-height:0!important;
+ max-height:none!important;border:0!important;border-radius:0!important;
+ pointer-events:none;background:white}
+.qa-diagram-viewer-caption{display:flex;align-items:center;gap:6px;
+ font-size:.71rem;color:#607b82;line-height:1.45;margin:8px 2px 0}
+.qa-diagram-viewer--expanded .qa-diagram-stage{height:min(68dvh,730px);min-height:360px}
+@media(max-width:900px){
+ .qa-diagram-library-layout{grid-template-columns:minmax(0,1fr)}
+ .qa-diagram-library-list{max-height:220px}
+}
+@media(max-width:640px){
+ .qa-diagram-viewer-help{flex:1 1 100%}
+ .qa-diagram-viewer-toolbar{padding:8px;gap:5px}
+ .qa-diagram-viewer-tools{gap:4px}
+ .qa-diagram-viewer-tools button{min-width:36px;min-height:40px;padding:7px}
+ .qa-diagram-viewer-expand{margin-left:0}
+ .qa-diagram-stage{height:320px}
+ .qa-diagram-viewer--expanded .qa-diagram-stage{
+   height:min(65dvh,580px);min-height:240px}
+}
