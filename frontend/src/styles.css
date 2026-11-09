@@ -1913,3 +1913,47 @@
 @media(max-width:380px){
  .qa-diagram-summary-coverage{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Destructive TF action: visible in the task list and detail header, never on a nested link. */
+.qa-task-row-delete{
+  flex:0 0 40px;width:40px;height:40px;display:grid;place-items:center;
+  border:1px solid transparent;border-radius:10px;margin-right:7px;
+  background:transparent;color:#687e86;cursor:pointer;
+}
+.qa-task-row-delete:hover,.qa-task-row-delete:focus-visible{
+  background:#fff1f0;color:#a82b34;border-color:#f0c4c6;
+}
+.qa-task-row-delete:disabled,.qa-task-header-delete:disabled{
+  opacity:.55;cursor:not-allowed;
+}
+.qa-task-hero-controls .qa-task-header-delete,
+.qa-task-hero-controls button.qa-task-header-delete:not(.qa-task-config-button){
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 12px;min-height:42px;border-radius:10px;
+  background:#fff!important;color:#a3313b!important;
+  border:1px solid #edc7c9!important;font-size:.83rem;font-weight:700;
+  cursor:pointer;
+}
+.qa-task-hero-controls .qa-task-header-delete:hover,
+.qa-task-hero-controls button.qa-task-header-delete:not(.qa-task-config-button):hover{
+  background:#fff1f0!important;
+}
+.qa-task-delete-label{font-size:.75rem;font-weight:750;color:#657981;margin-bottom:6px}
+.qa-task-delete-target{display:flex;flex-direction:column;gap:3px;
+  padding:12px 14px;border:1px solid #dae5e7;border-radius:10px;
+  background:#f8fbfb;overflow-wrap:anywhere}
+.qa-task-delete-target strong{font-size:.9rem}
+.qa-task-delete-target small{color:#657981}
+.qa-task-delete-warning{margin-top:14px;color:#435b65;line-height:1.55;font-size:.87rem}
+.qa-task-delete-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:20px}
+.qa-task-delete-confirm{display:inline-flex;align-items:center;justify-content:center;
+  gap:7px;min-height:42px;padding:10px 15px;border:1px solid #ab333c;
+  border-radius:10px;background:#a82f39;color:white;font-weight:730;cursor:pointer}
+.qa-task-delete-confirm:hover:not(:disabled){background:#892630}
+.qa-task-delete-confirm:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:640px){
+  .qa-task-row-delete{margin:0 6px 0 4px}
+  .qa-task-hero-controls .qa-task-header-delete{font-size:.77rem;padding:8px}
+  .qa-task-delete-actions>*{flex:1 1 auto}
+}
