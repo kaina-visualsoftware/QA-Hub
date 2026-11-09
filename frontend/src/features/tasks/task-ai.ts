@@ -3,7 +3,7 @@ import type {Scenario,TaskDraft} from "../../lib/contracts";
 import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
-import {cleanQaSourceText} from "../../lib/legacy/qa-text-cleaner.mjs";
+import {cleanQaSourceText,formatQaSentenceCase} from "../../lib/legacy/qa-text-cleaner.mjs";
 
 export type SuggestedScenario={
   titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean;
@@ -23,7 +23,8 @@ const FIELD_LIMITS:Readonly<Partial<Record<keyof TaskDraft,number>>>={
  */
 export function applyTaskAiFields(
   form:Pick<UseFormReturn<TaskDraft>,"setValue">,
-  draft:LocalDraft
+  draft:LocalDraft,
+  options?:{cleanDescription?:string}
 ):number{
   let applied=0;
   for(const [name,limit] of Object.entries(FIELD_LIMITS)){
@@ -39,6 +40,15 @@ export function applyTaskAiFields(
       shouldValidate:true,shouldDirty:true,shouldTouch:true
     });
     applied++;
+  }
+  if(options?.cleanDescription!==undefined){
+    const normalized=formatQaSentenceCase(options.cleanDescription).slice(0,30000);
+    if(normalized&&normalized!==options.cleanDescription){
+      form.setValue("descricao",normalized,{
+        shouldValidate:true,shouldDirty:true,shouldTouch:true
+      });
+      applied++;
+    }
   }
   return applied;
 }
