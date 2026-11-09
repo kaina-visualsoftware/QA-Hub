@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { router } from "./app/router";
 import "./styles.css";
+import {ToastCenter} from "./components/ui/Toasts";
 
 const root = document.getElementById("root");
 if (!root) throw Error("Elemento #root não encontrado.");
@@ -16,6 +17,7 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={client}>
       <AuthProvider><RouterProvider router={router} /></AuthProvider>
+      <ToastCenter/>
     </QueryClientProvider>
   </StrictMode>
 );
