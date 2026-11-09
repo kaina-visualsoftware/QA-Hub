@@ -34,6 +34,26 @@ export function splitScenarioNotes(value){
     observacoes:text.slice(matched[0].length).replace(/^\s*(?:Observa[cç][õo]es:\s*)?/i,'').trim()
   };
 }
+const ACTION_VERBS=Object.freeze([
+  [/^Acessad[oa]\b/i,'Acessar'],[/^Selecionad[oa]\b/i,'Selecionar'],
+  [/^Utilizad[oa]\b/i,'Utilizar'],[/^Entrad[oa]\b/i,'Entrar'],
+  [/^Abert[oa]\b|^Aberto\b/i,'Abrir'],[/^Marcado\b/i,'Marcar'],
+  [/^Desmarcado\b/i,'Desmarcar'],[/^Fechad[oa]\b/i,'Fechar'],
+  [/^Reabert[oa]\b/i,'Reabrir'],[/^Gerad[oa]\b/i,'Gerar'],
+  [/^Anotad[oa]\b/i,'Anotar'],[/^Conferid[oa]\b/i,'Conferir'],
+  [/^Verificad[oa]\s+que\b/i,'Verificar se'],
+  [/^Confirmad[oa]\s+que\b/i,'Verificar se'],
+  [/^Preenchid[oa]\b/i,'Preencher'],[/^Informad[oa]\b/i,'Informar'],
+  [/^Observad[oa]\b/i,'Observar'],[/^Clicad[oa]\b/i,'Clicar']
+]);
+function actionInstruction(raw){
+  let result=raw;
+  for(const [pattern,replacement] of ACTION_VERBS){
+    if(pattern.test(result)){result=result.replace(pattern,replacement);break;}
+  }
+  return result;
+}
+
 export function standardizeImportedScenario(item){
   const titulo=formatQaSentenceCase(item?.titulo||'').trim().replace(/^Cen[áa]rio\s*\d+\s*[-–—:.]\s*/i,'').slice(0,240);
   const content=formatQaSentenceCase(item?.passos||'').replace(/\\n/g,'\n');
@@ -41,13 +61,13 @@ export function standardizeImportedScenario(item){
     .map(line=>line.trim().replace(/^\s*(?:Passos(?: executados)?:\s*|\d{1,3}[.)]\s*|[-*•]\s*|\[\s*[xX ]\s*\]\s*)/i,'').trim())
     .filter(Boolean)
     .filter(line=>!/^\s*(?:Cen[áa]rios? testados|Resultado esperado|Objetivo)\s*:?$/i.test(line))
-    .map((line,index)=>(index+1)+'. '+line)
+    .map((line,index)=>(index+1)+'. '+actionInstruction(line))
     .join('\n').slice(0,20000);
   const esperado=formatQaSentenceCase(item?.esperado||'').replace(/^\s*(?:Resultado esperado|Esperado)\s*:\s*/i,'')
     .split('\n').map(line=>line.trim().replace(/^[-*•]\s*/,'')).filter(Boolean).join('\n').slice(0,20000);
   const notes=splitScenarioNotes(item?.observacoes||'');
   const objetivo=formatQaSentenceCase(item?.objetivo||notes.objetivo||'').trim()
-    || ('Validar o comportamento descrito em "'+titulo+'" conforme o resultado esperado.');
+    || ('Validar o resultado esperado do cenário "'+titulo+'": '+(esperado||'revisar o resultado esperado.') );
   const observed=formatQaSentenceCase(item?.obtido||'').trim();
   let more=notes.observacoes;
   // If the source already has a recorded observation, preserve it, but do not
