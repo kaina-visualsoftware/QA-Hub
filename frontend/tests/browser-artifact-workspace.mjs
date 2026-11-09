@@ -107,6 +107,25 @@ try{
     {timeout:25000});
   assert.equal(await diagramFrame.getAttribute("sandbox"),"",
     "Saved diagrams must be sandboxed");
+  const initialFrame=await diagramFrame.getAttribute("srcdoc");
+  assert.match(initialFrame,/default-src 'none'/,
+    "Preview must forbid external scripts and network resources");
+  const preview=gallery.locator(".qa-diagram-library-preview");
+  await preview.getByRole("button",{name:"Aumentar zoom"}).click();
+  await preview.getByText("125%").waitFor();
+  await preview.getByRole("button",{name:"Ajustar à largura"}).click();
+  await preview.getByText("100%").waitFor();
+  await preview.getByRole("button",{name:"Abrir visualização ampliada"}).click();
+  const expanded=page.getByRole("dialog",{name:"Visualizar diagrama — Fluxo de descontos"});
+  await expanded.waitFor();
+  await expanded.getByRole("button",{name:"Aumentar zoom"}).click();
+  await expanded.getByText("125%").waitFor();
+  assert.equal(await expanded.locator('iframe[title="Diagrama: Fluxo de descontos"]')
+    .getAttribute("sandbox"),"",
+    "Expanded diagram must retain strict sandbox");
+  await page.getByRole("button",{name:"Fechar Visualizar diagrama — Fluxo de descontos"}).click();
+  assert.equal(await page.getByRole("dialog").count(),0,
+    "Closing expanded viewer must not open an editor");
 
   const posts=deliverables.locator(".qa-artifact-browser").nth(1);
   await posts.getByText("Post de homologação").waitFor();
