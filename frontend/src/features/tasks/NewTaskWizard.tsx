@@ -125,6 +125,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     return ()=>clearTimeout(id);
   },[open,remember,userId,draft,sourceText]);
 
+  useEffect(()=>{
+    if(!open||!remember||!userId)return;
+    const flush=()=>saveNewTaskDraft(userId,{...draft,descricao:sourceText});
+    window.addEventListener("pagehide",flush);
+    return ()=>window.removeEventListener("pagehide",flush);
+  },[open,remember,userId,draft,sourceText]);
+
   function close(){
     if(busy)return;
     if((sourceText.trim() || taskFiles.length || draft.titulo.trim() ||
