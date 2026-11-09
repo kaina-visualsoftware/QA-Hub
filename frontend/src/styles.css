@@ -1838,3 +1838,20 @@
  .qa-task-ai-select-actions button{flex:1 1 auto}
  .qa-ai-draft-preview>.qa-ai-preview-actions>button{flex:1 1 100%}
 }
+
+
+/* The same permission + generation control layout for posts, cases and diagrams. */
+.qa-ai-submit-row{display:flex;align-items:center;flex-wrap:wrap;gap:11px;
+ padding:11px 12px;border:1px solid #dce8e9;border-radius:11px;background:#f8fbfb;
+ min-width:0}
+.qa-ai-submit-row>.qa-ai-consent-compact{flex:1 1 300px;min-width:0}
+.qa-ai-submit-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+ flex:0 1 auto;min-width:0}
+.qa-ai-submit-actions>button{min-height:44px}
+.qa-ai-submit-row .qa-diagram-consent{margin:0;min-height:44px}
+.qa-ai-submit-row:focus-within{border-color:#9acaca}
+@media(max-width:640px){
+ .qa-ai-submit-row>.qa-ai-consent-compact{flex:1 1 100%}
+ .qa-ai-submit-actions{flex:1 1 100%}
+ .qa-ai-submit-actions>button{flex:1 1 100%;min-height:44px}
+}
