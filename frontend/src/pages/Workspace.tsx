@@ -16,7 +16,6 @@ import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft, normalizeDraft } from "../lib/legacy/qa-assistant.mjs";
 import { supabase } from "../lib/supabase";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
-import type { LocalModelClient } from "../lib/legacy/qa-ai-open.mjs";
 import { taskDraftSchema, taskStatusLabels } from "../lib/contracts";
 import type { TaskDraft } from "../lib/contracts";
 import { useFocus } from "../stores/focus";
@@ -37,14 +36,9 @@ export function Workspace() {
   const [extracted, setExtracted] = useState<Array<{titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean}>>([]);
   const [extractionNotice, setExtractionNotice] = useState("");
   const [localReview, setLocalReview] = useState<{source:string;draft:LocalDraft} | null>(null);
-  const [allowModel, setAllowModel] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiProgress, setAiProgress] = useState("");
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [onlineConsentText, setOnlineConsentText] = useState<string|null>(null);
   const [fileBusy, setFileBusy] = useState(false);
-  const modelRef = useRef<LocalModelClient | null>(null);
-  const aiRunRef = useRef(0);
   const { newTask } = useSearch({ from: "/" });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -104,12 +98,7 @@ export function Workspace() {
   const visibleTasks=useMemo(()=>
     tasks.data?.pages.flatMap(page=>page.items)??[],[tasks.data]);
   const total=tasks.data?.pages[0]?.total??0;
-  useEffect(() => () => {
-    aiRunRef.current++;
-    modelRef.current?.dispose();
-    modelRef.current = null;
-  }, []);
-  function showReview(source: string, draft: LocalDraft, viaModel: boolean | "online") {
+  function showReview(source: string, draft: LocalDraft, mode: "nvidia" | "manual") {
     setLocalReview({ source, draft });
     setExtracted(draft.cenarios
       .filter((item) => item.titulo.trim().length >= 3 &&
@@ -119,52 +108,9 @@ export function Workspace() {
         esperado: item.esperado.slice(0,20000),
         observacoes: item.observacoes.slice(0,20000), selected: false
       })));
-    setExtractionNotice(viaModel === "online"
-      ? "Prévia da IA NVIDIA pronta para revisão. Confira cada campo: a IA pode errar ou inventar informações."
-      : viaModel
-        ? "Sugestão de IA preparada no seu dispositivo. Confira cada campo: a IA pode errar ou inventar informações."
-        : "Prévia preparada localmente. Confirme os campos e selecione os cenários desejados.");
-  }
-
-  async function analyzeWithModel() {
-    const source = form.getValues("descricao");
-    if (!allowModel || aiBusy) return;
-    if (!source.trim() || source.length > 6000) {
-      setExtractionNotice("A IA local aceita entre 1 e 6.000 caracteres. Para textos maiores, use a extração sem IA.");
-      return;
-    }
-    const run = ++aiRunRef.current;
-    let activeClient: LocalModelClient | null = null;
-    setAiBusy(true); setAiProgress("Preparando o worker local…");
-    setLocalReview(null); setExtracted([]);
-    try {
-      const { createOpenModelClient } = await import("../lib/legacy/qa-ai-open.mjs");
-      if (aiRunRef.current !== run) return;
-      modelRef.current?.dispose();
-      const client = createOpenModelClient();
-      activeClient = client;
-      modelRef.current = client;
-      const draft = await client.extract(source, (message) => {
-        if (aiRunRef.current === run) setAiProgress(message);
-      });
-      if (aiRunRef.current !== run) return;
-      if (form.getValues("descricao") !== source) {
-        setExtractionNotice("O texto mudou durante a análise. Execute a IA novamente para gerar uma prévia atualizada.");
-        return;
-      }
-      showReview(source, draft, true);
-    } catch (error) {
-      if (aiRunRef.current === run) {
-        setExtractionNotice(error instanceof Error ? error.message :
-          "Não foi possível usar o modelo neste dispositivo. Use a extração sem IA.");
-      }
-    } finally {
-      if (aiRunRef.current === run) {
-        setAiBusy(false); setAiProgress("");
-      }
-      activeClient?.dispose();
-      if (modelRef.current === activeClient) modelRef.current = null;
-    }
+    setExtractionNotice(mode === "nvidia"
+      ? "Prévia da NVIDIA pronta. Revise os campos e cenários antes de aplicar."
+      : "Campos extraídos sem IA. Confira o resultado antes de aplicar.");
   }
 
   async function importReport(file:File | undefined){
@@ -226,14 +172,6 @@ export function Workspace() {
     }catch(reason){
       setExtractionNotice(reason instanceof Error?reason.message:"A IA online está indisponível. Use a análise local.");
     }finally{setOnlineBusy(false);setOnlineConsentText(null);}
-  }
-
-  function cancelModel() {
-    aiRunRef.current++;
-    modelRef.current?.dispose();
-    modelRef.current = null;
-    setAiBusy(false); setAiProgress("");
-    setExtractionNotice("Análise com modelo local cancelada. Você pode usar a extração sem IA.");
   }
 
   const form = useForm<TaskDraft>({
@@ -324,7 +262,6 @@ export function Workspace() {
     if (create.isPending) return;
     if (form.formState.isDirty && !rememberDraft &&
       !window.confirm("Descartar os campos não salvos desta TF?")) return;
-    cancelModel();
     setShowForm(false); setLocalReview(null); setExtracted([]);
     setExtractionNotice("");
     if (!rememberDraft) form.reset();
