@@ -118,6 +118,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [streamText,setStreamText] = useState("");
   const [work,setWork]=useState<WorkStatus|null>(null);
   const controller=useRef<AbortController|null>(null);
+  const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const busy=reading||analyzing||generating||finishing;
@@ -134,6 +135,19 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }
     wasOpen.current=open;
   },[open,userId]);
+
+  // Every transition starts at the top of the modal; keyboard and screen-reader
+  // users land on the new step's heading instead of staying on an old footer.
+  useEffect(()=>{
+    if(!open || step===1)return;
+    const frame=requestAnimationFrame(()=>{
+      const content=stepperRef.current?.closest<HTMLElement>(".qa-modal-content");
+      content?.scrollTo({top:0,behavior:"auto"});
+      content?.querySelector<HTMLElement>("#qa-wizard-stage-heading")
+        ?.focus({preventScroll:true});
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[open,step]);
 
   useEffect(()=>{
     if(!open || !remember || !userId)return;
@@ -439,7 +453,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         "Gere casos para a maior cobertura possível ou finalize sem casos."}
     initialFocus={step===1?"#qa-wizard-source":step===2?"#qa-wizard-title":"#qa-wizard-requirement"}
     busy={busy} onClose={close}>
-    <div className="qa-wizard-progress" role="group" aria-label="Etapas da criação">
+    <div ref={stepperRef} className="qa-wizard-progress" role="group" aria-label="Etapas da criação">
       {["Conteúdo","Dados da TF","Casos de teste"].map((title,index)=>
         <span key={title} className={step===index+1?"is-current":step>index+1?"is-done":""}
           aria-current={step===index+1?"step":undefined}>
@@ -472,7 +486,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </ol>
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
-          {Math.min(work.current??0,work.total)} de {work.total} arquivo(s) processado(s)
+          {work.kind==="files"?"Lendo":"Registrando"} arquivo
+          {work.total>1?"s":""} · {Math.min(work.current??0,work.total)} de {work.total}
         </p>}
       {work.kind==="cases"&&streamText.length>0&&<p className="qa-wizard-work-metric">
         {streamText.length.toLocaleString("pt-BR")} caracteres recebidos
@@ -484,7 +499,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileText size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">01 · ORIGEM</span>
-          <h3>Conteúdo da tarefa</h3>
+          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Conteúdo da tarefa</h3>
           <p>Cole o chamado completo e adicione os documentos que a IA deve considerar.</p>
         </div>
       </div>
@@ -556,7 +571,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><ClipboardList size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">02 · CONFERÊNCIA</span>
-          <h3>Revise os dados da TF</h3>
+          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Revise os dados da TF</h3>
           <p>Confira e ajuste as informações antes de criar os casos de teste.</p>
         </div>
       </div>
@@ -618,7 +633,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileCheck2 size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">03 · COBERTURA</span>
-          <h3>Casos de teste</h3>
+          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Casos de teste</h3>
           <p>Gere casos fundamentados na TF e nos requisitos, sem repetir cenários.</p>
         </div>
       </div>
