@@ -17,8 +17,7 @@ import {
 import { listTaskProgress } from "../lib/task-progress";
 import { extractLocalDraft } from "../lib/legacy/qa-assistant.mjs";
 import {
-  applyTaskAiFields,archiveTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,
-  mergeTaskAiCreation
+  archiveTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,mergeTaskAiCreation
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
 import type { LocalDraft } from "../lib/legacy/qa-assistant.mjs";
@@ -127,7 +126,13 @@ export function Workspace() {
     // Apply NVIDIA results immediately: every submit action must persist the
     // fields shown in the form, even when the user skips the preview controls.
     if(mode==="nvidia"){
-      applyTaskAiFields(form,draft);
+      const merged=mergeTaskAiCreation(form.getValues(),draft);
+      for(const [name,value] of Object.entries(merged)){
+        if((form.getValues() as Record<string,unknown>)[name]!==value)
+          form.setValue(name as keyof TaskDraft,value as never,{
+            shouldDirty:true,shouldTouch:true,shouldValidate:true
+          });
+      }
       setAnalyzedSource(source);
     }
     setLocalReview({source,draft,mode});
@@ -562,7 +567,15 @@ export function Workspace() {
                 setLocalReview(null);setExtracted([]);
                 return;
               }
-              applyTaskAiFields(form,localReview.draft);
+              const merged=mergeTaskAiCreation(form.getValues(),localReview.draft,{
+                keepDescription:true
+              });
+              for(const [name,value] of Object.entries(merged)){
+                if((form.getValues() as Record<string,unknown>)[name]!==value)
+                  form.setValue(name as keyof TaskDraft,value as never,{
+                    shouldDirty:true,shouldTouch:true,shouldValidate:true
+                  });
+              }
               setAnalyzedSource(localReview.source);
               setLocalReview(null);
               setExtractionNotice("Campos aplicados. Confira os dados e selecione os cenários antes de salvar.");
