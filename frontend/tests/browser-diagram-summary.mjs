@@ -102,7 +102,7 @@ try{
  assert.equal(await dialog.getByText("30",{exact:true}).count(),1);
  assert.equal(await dialog.getByRole("checkbox",{name:/cenário/i}).count(),0,
    "No individual scenario selection is needed");
- const readSource=dialog.getByRole("textbox",{name:"Contexto completo da TF"});
+ const readSource=dialog.locator('textarea[aria-label="Contexto completo da TF"]');
  assert.equal(await readSource.count(),1);
  const source=await readSource.inputValue();
  assert.match(source,/CENÁRIO 30/);
