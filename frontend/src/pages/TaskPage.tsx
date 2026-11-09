@@ -354,14 +354,25 @@ export default function TaskPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks", userId] }),
         queryClient.invalidateQueries({ queryKey: ["task-search", userId] }),
-        queryClient.invalidateQueries({ queryKey: ["task-stats", userId] })
+        queryClient.invalidateQueries({ queryKey: ["task-stats", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["qa-trash", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["qa-insights", userId] }),
+        queryClient.invalidateQueries({ queryKey: ["public-tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["public-task", taskId] })
       ]);
       await navigate({ to: "/" });
     }
   });
   const deleteScenarioMutation = useMutation({
     mutationFn: (id: string) => removeScenario(taskId, id),
-    onSuccess: async () => { setSaved("Cenário excluído."); await invalidate(); }
+    onSuccess: async () => {
+      setSaved("Cenário movido para a lixeira. Você poderá restaurá-lo.");
+      await Promise.all([
+        invalidate(),
+        queryClient.invalidateQueries({queryKey:["qa-trash",userId]}),
+        queryClient.invalidateQueries({queryKey:["qa-insights",userId]})
+      ]);
+    }
   });
 
   useEffect(() => {
@@ -696,9 +707,9 @@ export default function TaskPage() {
                 setShowScenarioForm(true);
               }}>Editar cenário</button>
               <button type="button" disabled={deleteScenarioMutation.isPending} onClick={() => {
-                if (window.confirm("Excluir permanentemente este cenário?"))
+                if (window.confirm("Mover este cenário para a lixeira? O resultado e o histórico serão preservados."))
                   void deleteScenarioMutation.mutateAsync(scenario.id);
-              }}>Excluir cenário</button>
+              }}>Mover cenário para lixeira</button>
             </div>
           </details>}
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
@@ -744,8 +755,8 @@ export default function TaskPage() {
           isDisabled={nextStatus === task.status || updateStatus.isPending || task.user_id!==userId}>Atualizar situação</Button>
         <div className="ml-auto">
           <Button variant="secondary" isDisabled={deleteTaskMutation.isPending || task.user_id!==userId} onPress={() => {
-            if (window.confirm("Excluir permanentemente esta TF e seus cenários?")) void deleteTaskMutation.mutateAsync();
-          }}>Excluir TF</Button>
+            if (window.confirm("Mover esta TF para a lixeira? Seus cenários e histórico serão preservados. Se estiver publicada, ficará privada.")) void deleteTaskMutation.mutateAsync();
+          }}>Mover TF para lixeira</Button>
         </div>
       </div>
       {(updateStatus.isError || deleteTaskMutation.isError) &&
