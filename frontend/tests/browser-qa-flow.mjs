@@ -373,7 +373,7 @@ try{
   assert.equal(evidenceFiles[0].tamanho_bytes,samplePng.length);
   assert.equal(evidenceFiles[0].descricao,"Captura sintética do pedido");
   assert.equal(tasks[0].status,"rascunho","Anexar arquivo não aprova a TF.");
-  await page.getByRole("button",{name:"Visualizar"}).click();
+  await page.getByRole("group",{name:"Arquivos da TF"}).getByRole("button",{name:"Visualizar"}).click();
   await page.getByRole("region",{name:"Prévia do anexo privado"}).waitFor({timeout:8000});
   await page.getByRole("button",{name:"Fechar prévia do arquivo"}).click();
   await page.getByText("Adicionar observação ou link").click();
