@@ -66,6 +66,7 @@ try{
   assert.equal(await page.getByLabel("Título da tarefa").count(),0,
     "Saved draft must NOT silently overwrite a new form");
   await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
+  await page.getByText("Mais opções").click();
   assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
     "Rascunho que deve sobreviver ao refresh");
   assert.equal(await page.getByLabel("Descrição / problema").inputValue(),
@@ -79,12 +80,12 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
   await recovery.waitFor({timeout:10000});
   await recovery.getByRole("button",{name:"Recuperar rascunho"}).click();
+  await page.getByText("Mais opções").click();
   assert.equal(await page.getByLabel("Título da tarefa").inputValue(),
     "Rascunho atualizado","Pagehide must flush pending form changes");
 
   // Explicit opt-out immediately removes the copy and subsequent reloads
   // must not propose or reuse the user's previous text.
-  await page.getByText("Mais opções").click();
   await page.getByRole("checkbox",{name:/Guardar rascunho nesta aba/}).uncheck();
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
