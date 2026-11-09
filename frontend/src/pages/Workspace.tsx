@@ -346,7 +346,7 @@ export function Workspace() {
             (localReview?[]:(()=>{
               try{return freshTaskAiScenarios(extractLocalDraft(values.descricao),[],true);}
               catch{return [];}
-            })())),
+            })()),
           source:localReview?.mode==="nvidia"?localReview.source:undefined
         });
       })} className="stack mt-4 qa-tf-compact">
