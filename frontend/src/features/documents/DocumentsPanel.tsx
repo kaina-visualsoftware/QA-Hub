@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ClipboardCopy, Download, FileCheck2, FileText, RefreshCw } from "lucide-react";
+import { ClipboardCopy, Download, FileCheck2, RefreshCw } from "lucide-react";
 import { listEvidenceFiles } from "../evidence/evidence-files";
 import { buildQaReportPdf } from "./qa-report-pdf";
 import type { Task, Scenario } from "../../lib/contracts";
@@ -9,7 +9,6 @@ import { supabase } from "../../lib/supabase";
 import {
   buildExecutionReport, buildTestedSummary, cleanDocumentName, executionSummary, saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
-import type { TfDocument } from "../../lib/legacy/qa-phase2.mjs";
 
 function downloadMarkdown(content: string, name: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -26,29 +25,16 @@ export default function DocumentsPanel({
 }: { task: Task; scenarios: Scenario[]; userId: string; focusOnOpen?: boolean }) {
   const queryClient = useQueryClient();
   const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   // null means live, generated from saved scenarios; "" is a real, editable empty draft.
   const [draft, setDraft] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busyPdf,setBusyPdf]=useState(false);
-  const docs = useQuery({
-    queryKey: ["documents", userId, task.id],
-    queryFn: async () => {
-      const { data, error: queryError } = await supabase.from("qa_documentos")
-        .select("id,tarefa_id,tipo,titulo,conteudo,versao,created_at")
-        .eq("tarefa_id", task.id).order("created_at", { ascending: false }).limit(100);
-      if (queryError) throw queryError;
-      return (data ?? []) as TfDocument[];
-    }
-  });
   const evidenceFiles = useQuery({
     queryKey:["evidence-files",userId,task.id],
     queryFn:()=>listEvidenceFiles(supabase,task.id),
     enabled:task.user_id===userId
   });
-  const selected = useMemo(() => docs.data?.find((item) => item.id === selectedId),
-    [docs.data, selectedId]);
   const report = useMemo(() => buildExecutionReport(task, scenarios), [task, scenarios]);
   const testedSummary = useMemo(() => buildTestedSummary(scenarios), [scenarios]);
   const counts = useMemo(() => executionSummary(scenarios), [scenarios]);
@@ -98,10 +84,9 @@ export default function DocumentsPanel({
     <div className="section-heading">
       <div>
         <p className="eyebrow">HISTÓRICO VINCULADO</p>
-        <h2 id="documents-heading" ref={headingRef} tabIndex={-1}>Posts e relatórios</h2>
-        <p className="text-muted">Versões privadas imutáveis, consultáveis sem acessar o gerador antigo.</p>
+        <h2 id="documents-heading" ref={headingRef} tabIndex={-1}>Criar relatório</h2>
+        <p className="text-muted">Os posts e relatórios salvos são visualizados na aba Entregáveis.</p>
       </div>
-      <span className="count-pill">{docs.data?.length ?? 0} documento(s)</span>
     </div>
     <div className="generator-docs mt-5">
       <div className="stack">
@@ -164,37 +149,6 @@ export default function DocumentsPanel({
         {note && <p className="notice" role="status">{note}</p>}
         {error && <p className="notice error" role="alert">{error}</p>}
       </div>
-      <div>
-        <h3 className="font-semibold">Versões existentes</h3>
-        {docs.isPending && <p className="text-muted mt-3" role="status">Carregando documentos…</p>}
-        {docs.isError && <p className="notice error mt-3" role="alert">{docs.error.message}</p>}
-        {docs.isSuccess && docs.data.length === 0 &&
-          <p className="text-muted mt-3 text-sm">Nenhum post ou relatório salvo nesta TF.</p>}
-        <div className="stack mt-3">
-          {docs.data?.map((item) => <button key={item.id}
-            className={"document-choice " + (item.id === selectedId ? "selected" : "")}
-            onClick={() => setSelectedId((id) => id === item.id ? null : item.id)}>
-            <FileText size={18} />
-            <span><strong>{item.titulo}</strong>
-              <small>{item.tipo === "post" ? "Post" : "Relatório"} · versão {item.versao} ·
-                {" " + new Date(item.created_at).toLocaleDateString("pt-BR")}</small>
-            </span>
-          </button>)}
-        </div>
-      </div>
     </div>
-    {selected && <div className="stack mt-6">
-      <h3 className="font-semibold">{selected.titulo} — versão {selected.versao}</h3>
-      <textarea className="readonly-doc" readOnly rows={14} value={selected.conteudo}
-        aria-label="Conteúdo do documento selecionado" />
-      <div className="flex flex-wrap gap-2">
-        <Button isDisabled={busyPdf} onPress={()=>void downloadPdf(selected.conteudo,selected.titulo)}>
-          <Download size={16}/> Exportar versão em PDF
-        </Button>
-        <Button variant="secondary" onPress={() => downloadMarkdown(selected.conteudo, selected.titulo)}>
-          <Download size={16} /> Baixar Markdown
-        </Button>
-      </div>
-    </div>}
   </section>;
 }
