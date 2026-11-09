@@ -1,3 +1,9 @@
+/** A previous tab can hold references to hashed Vite chunks removed by a deploy. */
+export function isMissingModuleChunk(reason: unknown): boolean {
+  const message=reason instanceof Error?reason.message:String(reason??"");
+  return /failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module|loading chunk [\w-]+ failed|chunkloaderror/i.test(message);
+}
+
 // Validate against the same Mermaid v12 parser that renders the preview.
 // Model output is always treated as data; never evaluate returned code.
 export function mermaidErrorMessage(reason: unknown): string {
