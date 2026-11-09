@@ -210,8 +210,6 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       Código com erro. Use Corrigir com IA ou ajuste manualmente.
     </p>}
     <ToastNotice message={error} tone="error"/>
-    {message&&<p role="status" className="qa-diagram-success">
-      <Check size={16} aria-hidden="true"/>{message}
-    </p>}
+    <ToastNotice message={message} tone="success"/>
   </section>;
 }
