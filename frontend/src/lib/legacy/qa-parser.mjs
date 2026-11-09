@@ -1,61 +1,72 @@
 /**
- * Returns only clearly delimited, explicitly described test cases.
- * We do not infer scenarios from a narrative, a title, or LLM-generated lists.
+ * Extract only scenarios explicitly delimited in a pasted QA report.
+ * Supports checklist steps, numbered actions and action logs from completed
+ * tests. Observed outcomes remain notes, not an automatic approval.
  */
 export function extractExplicitScenarios(raw){
   if(typeof raw!=='string'||raw.length>200000)return [];
   const lines=raw.replace(/\r\n?/g,'\n').replace(/\\n/g,'\n').split('\n');
-  const scenarioHeader=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIO|CASO DE TESTE)\s*(?:N[º°.]?\s*)?(\d{1,3})\s*(?:[-–—:]|\.\s+)\s*(.+?)(?:\*\*)?\s*$/i;
-  const stopper=/^(?:#{1,6}\s*)?(?:\*\*)?(?:O QUE FOI TESTADO|VALIDA[CÇ][ÃA]O FINAL|CONCLUS[ÃA]O|OBSERVA[CÇ][ÕO]ES(?:\s+ADICIONAIS)?|OBS\s+ADD|QUAL [ÉE] O PROBLEMA|PROBLEMA IDENTIFICADO|CAUSA RAIZ|AN[ÁA]LISE DE VIABILIDADE|O QUE (?:O DESENVOLVEDOR )?ALTEROU|CORRE[CÇ][ÃA]O APLICADA|RESULTADO FINAL|OBJETIVO(?: DO TESTE)?|EXPLICA[CÇ][ÃA]O|COMO FUNCIONA|TIPO DE TESTE|DADOS DA TF|RESUMO)\b/i;
-  const section=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIOS? TESTADOS|CEN[ÁA]RIOS? EXECUTADOS|CASOS DE TESTE EXECUTADOS)\s*:?\s*(?:\*\*)?$/i;
-  let current=null, mode='steps', active=false;
+  const scenarioHeader=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIO|CASO DE TESTE)\s*(?:N[º°.]?\s*)?(\d{1,3})\s*(?:[-–—:]|\.\s+)(.+?)(?:\*\*)?\s*$/i;
+  const section=/^(?:#{1,6}\s*)?(?:\*\*)?(?:CEN[ÁA]RIOS? TESTADOS|CEN[ÁA]RIOS? EXECUTADOS|CASOS DE TESTE EXECUTADOS)\s*:?(?:\*\*)?$/i;
+  const stopper=/^(?:#{1,6}\s*)?(?:\*\*)?(?:O QUE FOI TESTADO|VALIDA[CÇ][ÃA]O FINAL|CONCLUS[ÃA]O|QUAL [ÉE] O PROBLEMA|PROBLEMA IDENTIFICADO|CAUSA RAIZ|AN[ÁA]LISE DE VIABILIDADE|O QUE (?:O DESENVOLVEDOR )?ALTEROU|CORRE[CÇ][ÃA]O APLICADA|RESULTADO FINAL|EXPLICA[CÇ][ÃA]O|COMO FUNCIONA|TIPO DE TESTE|DADOS DA TF|RESUMO|DESENVOLVIMENTO)\s*[:?—-]*(?:\*\*)?$/i;
+  const labels=/^(PASSOS(?: EXECUTADOS)?|ETAPAS|RESULTADO ESPERADO|ESPERADO|RESULTADO OBTIDO|RESULTADO OBSERVADO|OBTIDO|OBJETIVO(?: DO CEN[ÁA]RIO)?|OBSERVA[CÇ][ÕO]ES)\s*[:：]\s*(.*)$/i;
+  const action=/^(?:\d{1,3}[.)]\s+|[-*•]\s+|\[\s*[xX ]\s*\]\s+|(?:Acessad[oa]|Aberto|Abert[oa]|Entrad[oa]|Selecionad[oa]|Utilizad[oa]|Informad[oa]|Preenchid[oa]|Clicad[oa]|Marcado|Desmarcado|Fechad[oa]|Reabert[oa]|Gerad[oa]|Anotad[oa]|Conferid[oa]|Verificad[oa]|Confirmad[oa]|Observad[oa]|Comparad[oa]|Com\s+o\s+mesmo\s+usu[áa]rio)\b)/i;
   const result=[];
+  let current=null,mode='steps';
   function commit(){
-    if(current && current.evidence && current.passos.length && current.titulo.length>2){
+    if(current&&current.passos.length&&current.titulo.length>2){
+      const expected=current.esperado.join('\n').trim() ||
+        (current.objetivo.length?current.objetivo.join(' ').replace(/^Validar\s+que\s+/i,''):'') ||
+        (current.obtido.length?current.obtido[0].replace(/^(?:Confirmado|Verificado|Observado)\s+que\s+/i,''):'') ||
+        ('Verificar o comportamento descrito: '+current.titulo+'.');
       result.push({
-        ordem:result.length+1,
-        titulo:current.titulo.slice(0,240),
-        passos:current.passos.join('\n').trim().slice(0,30000),
-        esperado:current.esperado.join('\n').trim().slice(0,30000),
-        obtido:current.obtido.join('\n').trim().slice(0,30000),
-        observacoes:'',
+        ordem:result.length+1,titulo:current.titulo.slice(0,240),
+        passos:current.passos.join('\n').slice(0,30000),
+        esperado:expected.slice(0,30000),
+        obtido:current.obtido.join('\n').slice(0,30000),
+        objetivo:current.objetivo.join('\n').slice(0,20000),
+        observacoes:current.observacoes.join('\n').slice(0,20000),
         status:'nao_executado'
       });
     }
     current=null;mode='steps';
   }
   for(const original of lines){
-    const line=original.trim();
-    const normalized=line.replace(/^\*{2}/,'').replace(/\*{2}$/,'').trim();
-    if(section.test(normalized)){commit();active=true;continue;}
-    if(stopper.test(normalized)){
-      commit();active=false;continue;
-    }
-    const heading=normalized.match(scenarioHeader);
-    if(heading){
+    const line=original.trim().replace(/^\*\*(.*?)\*\*$/,'$1');
+    if(section.test(line)){commit();continue;}
+    const header=line.match(scenarioHeader);
+    if(header){
       commit();
-      current={titulo:heading[2].trim(),passos:[],esperado:[],obtido:[],evidence:false};
-      active=true;mode='steps';continue;
+      current={titulo:header[2].trim(),passos:[],esperado:[],obtido:[],objetivo:[],observacoes:[]};
+      mode='steps';continue;
     }
-    if(/^#{1,6}\s+/.test(line) && current){commit();active=false;continue;}
-    if(!current || !active)continue;
-    if(!line || /^[-—–]{3,}$/.test(line))continue;
-    const label=normalized.match(/^(?:PASSOS(?: EXECUTADOS)?|ETAPAS|RESULTADO ESPERADO|ESPERADO|RESULTADO OBTIDO|RESULTADO OBSERVADO|OBTIDO)\s*[:：]\s*(.*)$/i);
-    if(label){
-      const tag=label[0].toUpperCase();
-      mode=/(?:ESPERADO)/.test(tag)?'esperado':/(?:OBTIDO|OBSERVADO)/.test(tag)?'obtido':'steps';
-      if(label[1]){
-        if(mode==='steps'){current.passos.push(label[1]);current.evidence=true;}
-        else current[mode].push(label[1]);
-      }
+    if(stopper.test(line)||/^#{1,6}\s+/.test(line)&&current){
+      commit();continue;
+    }
+    if(!current||!line||/^[-—–]{3,}$/.test(line))continue;
+    const match=line.match(labels);
+    if(match){
+      const field=match[1].toLocaleLowerCase('pt-BR');
+      mode=field.startsWith('objetivo')?'objetivo':
+        field.startsWith('observa')?'observacoes':
+        field.includes('esperado')?'esperado':
+        field.includes('obtido')||field.includes('observado')?'obtido':'steps';
+      if(match[2])current[mode==='steps'?'passos':mode].push(match[2]);
       continue;
     }
     if(mode!=='steps'){current[mode].push(line);continue;}
-    // Only genuine step lines count, not free-form explanatory paragraphs.
-    if(/^(?:[-*•]\s+|\d{1,2}[.)]\s+|\[\s*[xX ]\s*\]\s+)/.test(line)){
-      current.passos.push(line.replace(/^[-*•]\s+/, '- ').slice(0,2500));
-      current.evidence=true;
-    }
+    if(/\.(?:png|jpe?g|webp|pdf)$/i.test(line)&&!action.test(line))continue;
+    if(!action.test(line))continue;
+    const cleaned=line.replace(/\s*\d{8}-\d{6}-[a-f0-9-]+\.(?:png|jpe?g|webp)$/i,'').trim();
+    // Completed test logs often state "Confirmado que ..." instead of an
+    // expected-result heading. Keep this outcome separately as source evidence.
+    if(/^(?:[-*•]\s*)?(?:Confirmad[oa]|Verificad[oa])\s+que\b/i.test(cleaned)){
+      current.obtido.push(cleaned.replace(/^[-*•]\s*/,''));
+      // A confirmation is also an explicit action recorded by the tester.
+      current.passos.push(cleaned);
+    }else if(/^[-*•]\s+.*\bdeve(?:r[áa])?\b/i.test(cleaned) && current.passos.length){
+      current.esperado.push(cleaned.replace(/^[-*•]\s*/,''));
+    }else current.passos.push(cleaned);
   }
   commit();
   return result.slice(0,50);
