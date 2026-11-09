@@ -90,6 +90,7 @@ export default function TaskPage() {
   const [editing, setEditing] = useState(false);
   const [taskAiConsent,setTaskAiConsent]=useState<string|null>(null);
   const [taskAiBusy,setTaskAiBusy]=useState(false);
+  const [taskAiAppliedCount,setTaskAiAppliedCount]=useState(0);
   const [taskAiScenarios,setTaskAiScenarios]=useState<SuggestedScenario[]>([]);
   const [taskAiPreviewSource,setTaskAiPreviewSource]=useState<string|null>(null);
   const [showSettings,setShowSettings]=useState(false);
@@ -115,6 +116,7 @@ export default function TaskPage() {
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
+    setTaskAiAppliedCount(0);
     setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);
     setEditingDiagramId(null);setDiagramEditorRevision(0);
     setShowDocuments(false);
@@ -150,6 +152,7 @@ export default function TaskPage() {
   const [focusNextPending, setFocusNextPending] = useState(false);
   const [resumeFocus, setResumeFocus] = useState(false);
   const editorRef = useRef<HTMLElement | null>(null);
+  const technicalDetailsRef=useRef<HTMLDetailsElement|null>(null);
   const executionRef = useRef<HTMLElement | null>(null);
   const pendingCount = (scenarios.data ?? []).filter((item) =>
     item.status === "nao_executado").length;
@@ -179,7 +182,7 @@ export default function TaskPage() {
       taskForm.reset();
     }
     setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
-    setTaskAiPreviewSource(null);
+    setTaskAiPreviewSource(null);setTaskAiAppliedCount(0);
   }
   function closeScenarioEditor(){
     if(createScenario.isPending)return;
@@ -365,7 +368,7 @@ export default function TaskPage() {
         return;
       }
       setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
-      setTaskAiPreviewSource(null);
+      setTaskAiPreviewSource(null);setTaskAiAppliedCount(0);
       setSaved("Alterações da TF salvas."+(appended?
         " "+appended+" cenário(s) novo(s) adicionado(s).":""));
     }
@@ -392,9 +395,10 @@ export default function TaskPage() {
         notify.warning("A descrição mudou durante a análise. Gere novamente antes de aplicar.");
         return;
       }
-      const applied=applyTaskAiFields(taskForm,result);
+      const applied=applyTaskAiFields(taskForm,result,{cleanDescription:source});
       const suggestions=freshTaskAiScenarios(result,scenarios.data??[]);
       setTaskAiScenarios(suggestions);setTaskAiPreviewSource(source);
+      setTaskAiAppliedCount(applied);
       notify.success(applied+" campo(s) preenchido(s) pela IA."+
         (suggestions.length?" "+suggestions.length+" cenário(s) novo(s) para revisar.":""));
     }catch(reason){
@@ -538,6 +542,7 @@ export default function TaskPage() {
           <Button variant="secondary" isDisabled={task.user_id!==userId} onPress={() => {
             closeToolPanels();setShowScenarioForm(false);setShowSettings(false);
             setTaskAiScenarios([]);setTaskAiPreviewSource(null);setTaskAiConsent(null);
+            setTaskAiAppliedCount(0);
             setEditing(true);
           }}>
             <FilePenLine size={16} /> Editar TF
@@ -592,42 +597,62 @@ export default function TaskPage() {
         </div>
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
         <details className="qa-task-ai-regenerate">
-          <summary><Sparkles size={17} aria-hidden="true"/> Regerar dados da TF com IA</summary>
+          <summary>
+            <Sparkles size={18} aria-hidden="true"/>
+            <span>Regerar dados da TF com IA</span>
+          </summary>
           <div className="qa-task-ai-regenerate-body">
-            <p>Use a descrição atual para preencher novamente título, código, módulo,
-              análise, causa e correção. Os campos retornados pela IA serão mostrados
-              neste formulário para revisão, mas só serão gravados ao salvar.</p>
-            <p className="text-muted text-sm">A descrição original será preservada.
-              Cenários já existentes não serão alterados e os novos poderão ser selecionados.</p>
-            <label className="qa-tf-consent">
-              <input type="checkbox"
-                checked={taskAiConsent!==null&&taskAiConsent===taskForm.watch("descricao")}
-                disabled={taskAiBusy||saveTask.isPending||
+            <p className="qa-ai-helper-copy">A NVIDIA analisa a descrição da TF e sugere dados
+              para o formulário. Você revisa tudo antes de salvar; os cenários existentes
+              e seus resultados não serão alterados.</p>
+            <div className="qa-task-ai-control-row">
+              <label className="qa-ai-consent-compact">
+                <input type="checkbox"
+                  checked={taskAiConsent!==null&&taskAiConsent===taskForm.watch("descricao")}
+                  disabled={taskAiBusy||saveTask.isPending||
+                    !taskForm.watch("descricao")?.trim()||
+                    taskForm.watch("descricao").length>20000}
+                  onChange={event=>setTaskAiConsent(event.target.checked
+                    ?taskForm.getValues("descricao"):null)}/>
+                <span>Autorizo enviar a descrição atual à NVIDIA.</span>
+              </label>
+              <Button type="button" className="qa-task-ai-generate"
+                isDisabled={taskAiBusy||saveTask.isPending||
+                  taskAiConsent!==taskForm.watch("descricao")||
                   !taskForm.watch("descricao")?.trim()||
                   taskForm.watch("descricao").length>20000}
-                onChange={event=>setTaskAiConsent(event.target.checked
-                  ?taskForm.getValues("descricao"):null)}/>
-              <span>Autorizo enviar a descrição atual à NVIDIA para regerar os dados.</span>
-            </label>
-            <Button type="button" variant="secondary"
-              isDisabled={taskAiBusy||saveTask.isPending||
-                taskAiConsent!==taskForm.watch("descricao")||
-                !taskForm.watch("descricao")?.trim()||
-                taskForm.watch("descricao").length>20000}
-              onPress={()=>void regenerateTaskWithAi()}>
-              <Sparkles size={16} aria-hidden="true"/>
-              {taskAiBusy?"Gerando dados…":"Regerar TF com IA NVIDIA"}
-            </Button>
+                onPress={()=>void regenerateTaskWithAi()}>
+                <Sparkles size={16} aria-hidden="true"/>
+                {taskAiBusy?"Gerando dados…":"Regerar TF com IA NVIDIA"}
+              </Button>
+            </div>
+            {taskAiBusy&&<p className="qa-task-ai-progress" role="status">
+              Analisando a descrição e preparando sugestões…
+            </p>}
             {taskForm.watch("descricao").length>20000&&
               <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
             {taskAiPreviewSource!==null&&<div className="qa-task-ai-result" role="region"
               aria-label="Revisão da regeração por IA">
-              <strong>Dados preenchidos no formulário</strong>
-              <p>Confira os campos acima e em “Análise técnica e informações adicionais”.
-                Ao salvar, os campos editados e os cenários selecionados serão registrados.</p>
+              <div className="qa-task-ai-result-top">
+                <div>
+                  <strong>Resultado pronto para revisão</strong>
+                  <p><b>{taskAiAppliedCount}</b> campo(s) preenchido(s) ·
+                    <b> {taskAiScenarios.length}</b> cenário(s) novo(s) identificado(s).
+                    Nada foi salvo ainda.</p>
+                </div>
+                <button type="button" className="qa-ai-review-fields"
+                  onClick={()=>{
+                    const details=technicalDetailsRef.current;
+                    if(!details)return;
+                    details.open=true;
+                    requestAnimationFrame(()=>details.scrollIntoView({
+                      behavior:"auto",block:"nearest"
+                    }));
+                  }}>Conferir campos</button>
+              </div>
               {taskAiScenarios.length>0?
                 <fieldset className="qa-task-ai-scenarios">
-                  <legend>Novos cenários sugeridos — {taskAiScenarios.filter(item=>item.selected).length} selecionado(s)</legend>
+                  <legend>Cenários sugeridos ({taskAiScenarios.filter(item=>item.selected).length} selecionado(s))</legend>
                   <div className="qa-task-ai-select-actions" role="group" aria-label="Selecionar cenários sugeridos">
                     <button type="button" onClick={()=>setTaskAiScenarios(items=>items.map(item=>({...item,selected:true})))}>
                       Selecionar todos
@@ -644,11 +669,12 @@ export default function TaskPage() {
                       <small>{item.passos.slice(0,150)}</small></span>
                   </label>)}
                 </fieldset>
-                :<p>Não foram identificados cenários novos. Os existentes permanecerão intactos.</p>}
+                :<p className="qa-ai-helper-copy">Nenhum cenário novo identificado.
+                  Os casos existentes serão preservados.</p>}
             </div>}
           </div>
         </details>
-        <details className="generator-context">
+        <details ref={technicalDetailsRef} className="generator-context">
           <summary>Análise técnica e informações adicionais</summary>
           <div className="form-grid mt-4">
             <label className="field">Ambiente<input {...taskForm.register("ambiente")} /></label>

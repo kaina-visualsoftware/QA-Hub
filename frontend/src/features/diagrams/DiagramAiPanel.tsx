@@ -225,8 +225,8 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
           rows={6} value={evidence.source}/>
       </details>
     </>}
-    <div className="qa-diagram-privacy">
-      <label className="qa-diagram-consent">
+    <div className="qa-diagram-privacy qa-ai-submit-row">
+      <label className="qa-diagram-consent qa-ai-consent-compact">
         <input type="checkbox" checked={consent} disabled={!own||busy||summarizing}
           onChange={e=>setConsent(e.target.checked)}/>
         <span>Autorizo enviar {mode==="task"?"os dados da TF":"este texto"} à NVIDIA.</span>
