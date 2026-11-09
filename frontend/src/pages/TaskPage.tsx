@@ -5,19 +5,16 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles, Trash2, FileText, FileChartColumnIncreasing, GitBranchPlus, History } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
 import {
-  TaskViewTabs, TaskOverview, TaskDeliverables
+  TaskViewTabs, TaskOverview, TaskDeliverables, TaskResultsDashboard, TaskResourceTabs
 } from "../features/tasks/TaskWorkspaceSections";
-import type { TaskTab } from "../features/tasks/TaskWorkspaceSections";
+import type { TaskTab,TaskResourceView } from "../features/tasks/TaskWorkspaceSections";
 import {
   applyTaskAiFields,archiveTaskAiSource,loadTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
-import {TaskQuickActions} from "../features/tasks/TaskQuickActions";
-import type {QuickActionId} from "../features/tasks/TaskQuickActions";
-import { AiStudioTabs } from "../features/generators/AiStudioTabs";
 import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -86,6 +83,7 @@ export default function TaskPage() {
     enabled: Boolean(task)
   });
   const [activeTab, setActiveTab] = useState<TaskTab>("summary");
+  const [resourceView,setResourceView]=useState<TaskResourceView>("requirements");
   const [executionMode, setExecutionMode] = useState<"list"|"guided">("list");
   const [evidenceTarget, setEvidenceTarget] = useState<string|null>(null);
   const [evidenceRequest, setEvidenceRequest] = useState(0);
@@ -99,32 +97,26 @@ export default function TaskPage() {
   const [showDeleteTask,setShowDeleteTask]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
-  const [visitedAi, setVisitedAi] = useState<AiStudioMode[]>([]);
   const [focusDiagramAi, setFocusDiagramAi] = useState(false);
   const [editingDiagramId,setEditingDiagramId]=useState<string|null>(null);
   const [diagramEditorRevision,setDiagramEditorRevision]=useState(0);
   const [showDocuments, setShowDocuments] = useState(false);
   const [focusReport, setFocusReport] = useState(false);
-  const [showRequirements, setShowRequirements] = useState(false);
-  const [showEvidence, setShowEvidence] = useState(false);
-  const [showLinks, setShowLinks] = useState(false);
   const [showHistory,setShowHistory]=useState(false);
-  const [showCollaboration,setShowCollaboration]=useState(false);
   const [showLibrary,setShowLibrary]=useState(false);
 
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
   useEffect(()=>{
-    setActiveTab("summary");setExecutionMode("list");
+    setActiveTab("summary");setResourceView("requirements");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
     setTaskAiAppliedCount(0);
-    setAiMode(null);setVisitedAi([]);setFocusDiagramAi(false);
+    setAiMode(null);setFocusDiagramAi(false);
     setEditingDiagramId(null);setDiagramEditorRevision(0);
     setShowDocuments(false);
-    setFocusReport(false);setShowRequirements(false);setShowEvidence(false);
-    setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
+    setFocusReport(false);setShowHistory(false);
     setShowLibrary(false);
     setEditingScenario(null);setPending(null);setObserved("");
   },[taskId]);
@@ -160,23 +152,17 @@ export default function TaskPage() {
   const pendingCount = (scenarios.data ?? []).filter((item) =>
     item.status === "nao_executado").length;
 
+  // Create/edit operations use modals. Existing information is viewed
+  // directly in its dedicated workspace tab, not in a second modal.
   function closeToolPanels() {
-    setAiMode(null);setShowDocuments(false);setShowRequirements(false);
-    setShowEvidence(false);setShowLinks(false);setShowHistory(false);setShowCollaboration(false);
-    setShowLibrary(false);
+    setAiMode(null);setShowDocuments(false);setShowHistory(false);setShowLibrary(false);
   }
-  function openTool(kind:"diagrams"|"documents"|"requirements"|"evidence"|"links"|"post"|"teste"|"history"|"collaboration") {
+  function openTool(kind:"diagrams"|"documents"|"post"|"teste"|"history") {
     closeToolPanels();
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);
-    if(kind==="diagrams"||kind==="post"||kind==="teste") {
-      setAiMode(kind);
-      setVisitedAi(previous=>previous.includes(kind)?previous:[...previous,kind]);
-    } else if(kind==="documents")setShowDocuments(true);
-    else if(kind==="requirements")setShowRequirements(true);
-    else if(kind==="evidence")setShowEvidence(true);
-    else if(kind==="links")setShowLinks(true);
+    if(kind==="diagrams"||kind==="post"||kind==="teste")setAiMode(kind);
+    else if(kind==="documents")setShowDocuments(true);
     else if(kind==="history")setShowHistory(true);
-    else if(kind==="collaboration")setShowCollaboration(true);
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
@@ -214,24 +200,6 @@ export default function TaskPage() {
     openTool("documents");
   }
 
-  function quickAction(id:QuickActionId){
-    switch(id){
-      case "run":startPendingExecution();break;
-      case "scenario":startScenario();break;
-      case "cases":openTool("teste");break;
-      case "post":openTool("post");break;
-      case "diagram":openDiagramEditor();break;
-      case "report":openReportEditor();break;
-      case "view-diagrams":setActiveTab("deliverables");break;
-      case "documents":setActiveTab("deliverables");break;
-      case "evidence":openTool("evidence");break;
-      case "requirements":openTool("requirements");break;
-      case "links":openTool("links");break;
-      case "history":openTool("history");break;
-      case "collaboration":openTool("collaboration");break;
-    }
-  }
-
   function startPendingExecution() {
     setActiveTab("tests");
     setExecutionMode("guided");
@@ -243,7 +211,8 @@ export default function TaskPage() {
     if(task?.user_id!==userId)return;
     setEvidenceTarget(scenario.id);
     setEvidenceRequest(n=>n+1);
-    openTool("evidence");
+    setResourceView("files");
+    setActiveTab("resources");
   }
 
 
@@ -595,13 +564,9 @@ export default function TaskPage() {
     </header>
     <TaskViewTabs value={activeTab} onChange={setActiveTab}
       scenarioCount={scenarios.data?.length ?? 0}/>
-    <TaskQuickActions key={task.id} owner={!!own} canExecute={canExecute}
-      onAction={quickAction}/>
     <section id="qa-task-panel-summary" role="tabpanel" aria-labelledby="qa-task-tab-summary"
       className="qa-task-panel" hidden={activeTab !== "summary"}>
-      <TaskOverview description={task.descricao} cause={task.causa} correction={task.correcao}
-        pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
-        onViewTests={()=>setActiveTab("tests")}/>
+      {activeTab==="summary"&&<TaskOverview task={task}/>}
     </section>
 
     <ToastNotice message={importWarning} tone="error"/>
@@ -726,29 +691,6 @@ export default function TaskPage() {
 
 
 
-    <QAModal open={showRequirements} keepMounted title="Requisitos e cobertura"
-      eyebrow="RASTREABILIDADE" size="full" onClose={()=>setShowRequirements(false)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando requisitos…</p>}>
-        <RequirementsPanel key={task.id} task={task} userId={userId}
-          scenarios={scenarios.data || []} onClose={() => setShowRequirements(false)}/>
-      </Suspense>
-    </QAModal>
-    <QAModal open={showEvidence} keepMounted title="Evidências e auditoria"
-      eyebrow="REGISTROS" size="full" onClose={()=>setShowEvidence(false)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando evidências…</p>}>
-        <EvidencePanel key={task.id} task={task} userId={userId}
-          scenarios={scenarios.data || []}
-          prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
-      </Suspense>
-    </QAModal>
-    <QAModal open={showCollaboration} keepMounted title="Equipe e integrações"
-      eyebrow="COLABORAÇÃO" size="md" onClose={()=>setShowCollaboration(false)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando colaboração…</p>}>
-        <TaskCollaborationPanel key={task.id} task={task}
-          scenarios={scenarios.data||[]} userId={userId} rights={rights}
-          onExecuted={invalidate}/>
-      </Suspense>
-    </QAModal>
     <QAModal open={showLibrary} title="Biblioteca de cenários" eyebrow="REUTILIZAÇÃO"
       size="lg" onClose={()=>setShowLibrary(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando biblioteca…</p>}>
@@ -763,24 +705,13 @@ export default function TaskPage() {
           scenarios={scenarios.data||[]} userId={userId}/>
       </Suspense>
     </QAModal>
-    <QAModal open={showLinks} keepMounted title="Releases e referências"
-      eyebrow="VÍNCULOS" size="full" onClose={()=>setShowLinks(false)}>
-      <Suspense fallback={<p role="status" className="notice">Carregando releases…</p>}>
-        <LinksPanel key={task.id} task={task} userId={userId} onClose={() => setShowLinks(false)}/>
-      </Suspense>
-    </QAModal>
     <QAModal key={task.id+"-ai-studio"} open={aiMode!==null} keepMounted
       title={aiMode==="post"?"Gerar post com IA":
         aiMode==="diagrams"?(editingDiagramId?"Editar diagrama":"Criar diagrama"):"Gerar casos com IA"}
       eyebrow="CENTRAL DE IA" size={aiMode==="diagrams"?"lg":"full"}
       initialFocus={aiMode==="diagrams"?(editingDiagramId?"#diagram-code-editor":"#diagram-ai-heading"):undefined}
       onClose={()=>setAiMode(null)}>
-      <AiStudioTabs active={aiMode??"teste"} onChange={mode=>{
-        setAiMode(mode);
-        setVisitedAi(previous=>previous.includes(mode)?previous:[...previous,mode]);
-        setFocusDiagramAi(mode==="diagrams");
-      }}/>
-      {visitedAi.includes("teste")&&<div hidden={aiMode!=="teste"}
+      {aiMode==="teste"&&<div
         className="qa-ai-studio-panel">
         <Suspense fallback={<p role="status" className="notice">Carregando casos…</p>}>
           <GeneratorPanel key={task.id+"-teste"} task={task} userId={userId}
@@ -788,7 +719,7 @@ export default function TaskPage() {
             />
         </Suspense>
       </div>}
-      {visitedAi.includes("post")&&<div hidden={aiMode!=="post"}
+      {aiMode==="post"&&<div
         className="qa-ai-studio-panel">
         <Suspense fallback={<p role="status" className="notice">Carregando post…</p>}>
           <GeneratorPanel key={task.id+"-post"} task={task} userId={userId}
@@ -796,7 +727,7 @@ export default function TaskPage() {
             />
         </Suspense>
       </div>}
-      {visitedAi.includes("diagrams")&&<div hidden={aiMode!=="diagrams"}
+      {aiMode==="diagrams"&&<div
         className="qa-ai-studio-panel">
         <Suspense fallback={<p role="status" className="notice">Carregando diagramas…</p>}>
           <DiagramPanel key={task.id+"-"+diagramEditorRevision}
