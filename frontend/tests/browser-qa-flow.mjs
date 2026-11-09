@@ -143,6 +143,7 @@ async function mock(route){
     return send(evidenceFiles);
   }
   if(p.endsWith("/rest/v1/qa_documentos"))return send(documents);
+  if(p.endsWith("/rest/v1/qa_diagramas"))return send([]);
   if(p.endsWith("/rest/v1/qa_evidencias")){
     if(m==="POST"){
       evidenceSaves++;
