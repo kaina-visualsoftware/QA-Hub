@@ -16,5 +16,6 @@ export function requestAiDiagram(options:{
   db: Pick<SupabaseClient,"functions">;
   text:string;
   repair?: {mermaid:string;syntaxError:string}|null;
+  strict?:boolean;
   onProgress?:(message:string)=>void;
 }):Promise<{code:string;fallback:boolean}>;
