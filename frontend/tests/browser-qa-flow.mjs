@@ -210,7 +210,7 @@ async function mock(route){
       return send({message:"IA indisponível na simulação"},503);
     }
     const text=payload.mode==="teste"
-      ? "# ROTEIRO\n## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n"
+      ? "# ROTEIRO\n## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n## Cenário 02 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n"
       : "# DESCONTO EM PAGAMENTOS\n\nFoi implementada correção do desconto.\n\nAnteriormente, descontos negativos eram ignorados. Agora, são processados.\n\n**Caminho de acesso:**\nFinanceiro >> Pagamentos >> Remover desconto\n\n[Imagem: captura-do-desconto.png]\n\n**Comportamento detalhado**\n1. **Desconto**\n   A operação remove o desconto corretamente.\n\n**TAREFA:** 78912\n**JUSTIFICATIVA:** Corrigir divergência relatada.";
     return route.fulfill({status:200,
       headers:{...cors,"Content-Type":"text/event-stream; charset=utf-8"},
@@ -247,6 +247,15 @@ try{
   await generate.click();
   const attach=page.getByRole("button",{name:/Anexar 1 caso/});
   await attach.waitFor({timeout:20000});
+  assert.equal(await page.locator(".qa-ai-case-review").count(),1,
+    "Repeated AI cases must be removed from the review, not shown disabled");
+  assert.equal(await page.locator(".qa-ai-case-review")
+    .filter({hasText:/duplicado/i}).count(),0);
+  await page.getByRole("button",{name:"Limpar seleção"}).click();
+  assert.equal(await attach.isDisabled(),true,
+    "Nothing should be attached without explicit selection");
+  await page.getByRole("button",{name:"Selecionar todos"}).click();
+  assert.equal(await attach.isDisabled(),false);
   assert.match(aiPayloads[0].requisito,/casos de regressão/i);
   assert.equal(attachCalls,0,"IA não pode persistir execução automaticamente");
   const caseReview=page.locator(".qa-ai-case-review").first();
@@ -278,6 +287,9 @@ try{
   assert.equal(scenarios.length,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await page.getByText("Nenhum caso novo para adicionar").waitFor({timeout:20000});
+  assert.equal(await page.locator(".qa-ai-case-review").count(),0,
+    "Newly saved cases must disappear from the review");
   // One focused tool at a time: close the generator before opening posts.
   await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
   await page.getByRole("tab",{name:"Entregáveis"}).click();
