@@ -1783,3 +1783,53 @@
  .qa-task-ai-regenerate-body>button{width:100%}
  .qa-task-ai-select-actions button{flex:1 1 auto}
 }
+
+
+/* Diagram synthesis: full-TF coverage before Mermaid. */
+.qa-diagram-summary-coverage{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+ gap:6px;min-width:0}
+.qa-diagram-summary-coverage>div{border:1px solid #d7e8e7;border-radius:10px;
+ background:#fff;padding:10px 7px;display:flex;flex-direction:column;
+ align-items:center;gap:3px;text-align:center;min-width:0}
+.qa-diagram-summary-coverage strong{color:#194d55;font-size:1.22rem;
+ line-height:1.3;font-variant-numeric:tabular-nums}
+.qa-diagram-summary-coverage span{color:#547078;font-size:.7rem}
+.qa-diagram-summary-explainer{font-size:.79rem;color:#496b74;line-height:1.58;
+ margin:0;overflow-wrap:anywhere}
+.qa-diagram-summary-explainer b{color:#24606a}
+.qa-diagram-summary-action{display:flex;align-items:center;gap:11px;
+ flex-wrap:wrap}
+.qa-diagram-summary-action button{min-height:44px;flex:0 0 auto}
+.qa-diagram-summary-progress{color:#296a76;font-size:.78rem;line-height:1.5;
+ flex:1 1 180px}
+.qa-diagram-summary-review{display:flex;flex-direction:column;gap:10px;
+ min-width:0;background:#fff;border:1px solid #cfe5e2;
+ border-radius:12px;padding:15px}
+.qa-diagram-summary-review-heading{display:flex;gap:8px;
+ align-items:center;justify-content:space-between;flex-wrap:wrap}
+.qa-diagram-summary-review-heading strong{display:flex;gap:7px;
+ align-items:center;font-size:.88rem;color:#215c60}
+.qa-diagram-summary-review-heading span{color:#668087;font-size:.72rem}
+.qa-diagram-summary-review .field{margin:0;font-size:.8rem}
+.qa-diagram-summary-review textarea{width:100%;font-size:.81rem;
+ line-height:1.6;min-height:180px;resize:vertical;border:1px solid #d8e7e8;
+ border-radius:8px;padding:12px;color:#264b55}
+.qa-diagram-summary-review small{color:#54727a;font-size:.75rem;
+ line-height:1.55}
+.qa-diagram-summary-verified{display:flex;align-items:flex-start;gap:9px;
+ background:#f0f8f6;border-radius:8px;padding:10px 12px;
+ color:#32636c;font-size:.76rem;line-height:1.55}
+.qa-diagram-summary-verified svg{flex:0 0 16px;margin-top:2px}
+.qa-diagram-summary-warning{padding:10px 12px;border:1px solid #e7c9b0;
+ border-radius:9px;color:#865326;background:#fff9f3;
+ font-size:.79rem;line-height:1.5}
+.qa-diagram-summary-review textarea:focus-visible{outline:3px solid #81bcb6;
+ outline-offset:2px}
+@media(max-width:650px){
+ .qa-diagram-summary-coverage{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .qa-diagram-summary-review{padding:12px}
+ .qa-diagram-summary-action button{width:100%}
+}
+@media(max-width:380px){
+ .qa-diagram-summary-coverage{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
