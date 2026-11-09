@@ -135,6 +135,12 @@ try{
 
   await first.getByRole("button",{name:"Funcionou",exact:true}).click();
   await guided.getByRole("group",{name:"Registrar resultado de Retirar desconto"}).waitFor();
+  // Confirm that save feedback is rendered only in the global toast, not a test card.
+  const saveMessage="Execução registrada. A situação da TF não foi alterada automaticamente.";
+  await page.locator(".qa-toast").filter({hasText:saveMessage}).waitFor();
+  assert.equal(await page.locator(".qa-task-panel .notice")
+    .filter({hasText:saveMessage}).count(),0,
+    "Execution confirmation must not be injected into cards or panels");
   assert.deepEqual(mutations[0],{
     id:scenarios[0].id,status:"aprovado",obtido:""
   });
