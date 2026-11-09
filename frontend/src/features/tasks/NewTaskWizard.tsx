@@ -154,7 +154,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         for(const [name,value] of Object.entries(previouslyFilled)){
           const key=name as keyof TaskDraft;
           // Preserve anything the QA has manually changed since analysis.
-          if(next[key]===value) (next as Record<string,string>)[key]=defaults[key];
+          if(next[key]===value) (next as Record<string,string>)[key]=defaults[key]??"";
         }
         return next;
       });
