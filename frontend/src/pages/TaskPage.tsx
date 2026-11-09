@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {ToastNotice} from "../components/ui/Toasts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
@@ -494,8 +495,8 @@ export default function TaskPage() {
         pendingCount={pendingCount} total={scenarios.data?.length ?? 0}
         onViewTests={()=>setActiveTab("tests")}/>
     </section>
-    {saved && <div className="notice mt-4" role="status">{saved}</div>}
-    {importWarning && <div className="notice error mt-4" role="alert">{importWarning}</div>}
+    <ToastNotice message={saved} tone="success"/>
+    <ToastNotice message={importWarning} tone="error"/>
 
     {editing && <QAModal open={editing} title="Editar TF" eyebrow="DADOS DO REGISTRO"
       description="Atualize os dados do chamado sem sair da execução." size="lg"
