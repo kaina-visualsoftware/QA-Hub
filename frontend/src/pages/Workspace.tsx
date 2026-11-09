@@ -134,11 +134,15 @@ export function Workspace() {
         extracted=result.text;warning=result.warning;
       }else throw Error("Use um relatório TXT, MD, PDF ou DOCX.");
       if(!extracted)throw Error(warning||"O arquivo não contém texto selecionável.");
+      if(extracted.length>30000){
+        extracted=extracted.slice(0,30000);
+        warning="Texto limitado a 30.000 caracteres; confira o trecho importado. "+warning;
+      }
       if(form.getValues("descricao").trim() &&
-         !window.confirm("Substituir a descrição existente pelo texto do arquivo?")) return;
+         !window.confirm("Substituir o texto colado pelo conteúdo do arquivo?")) return;
       form.setValue("descricao",extracted,{shouldDirty:true,shouldValidate:true});
       setLocalReview(null);setExtracted([]);setOnlineConsentText(null);
-      setExtractionNotice("Relatório carregado localmente. Revise antes de salvar. "+warning);
+      setExtractionNotice("Arquivo lido e texto inserido. Você pode gerar com NVIDIA ou preencher sem IA. "+warning);
     }catch(reason){
       setExtractionNotice(reason instanceof Error?reason.message:"Não foi possível ler o relatório.");
     }finally{setFileBusy(false);}
@@ -162,15 +166,17 @@ export function Workspace() {
         return;
       }
       const raw=data?.draft;
-      const local=extractLocalDraft(source);
-      const suggestion=raw&&typeof raw==="object"&&!Array.isArray(raw)
-        ? normalizeDraft({...local.fields,...raw,
-            cenarios:Array.isArray(raw.cenarios)?raw.cenarios:local.cenarios}) : local;
-      showReview(source,suggestion,"online");
-      if(data?.fallback||!raw||!Object.keys(raw).length)
-        setExtractionNotice("A IA não retornou campos utilizáveis; foi preparada uma prévia local para revisão.");
+      if(data?.fallback || data?.provider!=="NVIDIA Build" ||
+         !raw || typeof raw!=="object" || Array.isArray(raw) ||
+         !Object.keys(raw).length)
+        throw Error("A NVIDIA não retornou campos válidos. Tente novamente ou use a extração sem IA.");
+      const suggestion=normalizeDraft(raw);
+      if(!Object.keys(suggestion.fields).length && !suggestion.cenarios.length)
+        throw Error("A NVIDIA não identificou dados suficientes. Preencha manualmente ou extraia sem IA.");
+      showReview(source,suggestion,"nvidia");
     }catch(reason){
-      setExtractionNotice(reason instanceof Error?reason.message:"A IA online está indisponível. Use a análise local.");
+      setExtractionNotice(reason instanceof Error?reason.message:
+        "A NVIDIA está indisponível. Você pode preencher manualmente ou extrair sem IA.");
     }finally{setOnlineBusy(false);setOnlineConsentText(null);}
   }
 
