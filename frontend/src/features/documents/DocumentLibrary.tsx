@@ -1,4 +1,5 @@
 import {useMemo,useState} from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import {useQuery} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {ClipboardCopy,Download,Eye,FileText} from "lucide-react";
@@ -89,6 +90,6 @@ export function DocumentLibrary({taskId,userId,owner,onCreate}:{
         </div>
       </div>}
     </div>}
-    {feedback&&<p className="notice" role="status">{feedback}</p>}
+    <ToastNotice message={feedback} tone="success"/>
   </section>;
 }
