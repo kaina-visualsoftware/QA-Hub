@@ -11,6 +11,7 @@ const suites = [
   "browser-f1-guided.mjs",
   "browser-f4-search-history.mjs",
   "browser-f5-collaboration.mjs",
+  "browser-f6-insights-library.mjs",
   "browser-profile-utilities.mjs",
   "browser-execution-next.mjs",
   "browser-home-progress.mjs",

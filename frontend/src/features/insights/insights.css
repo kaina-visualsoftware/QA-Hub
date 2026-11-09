@@ -1,0 +1,37 @@
+.qa-f6-insights{display:flex;flex-direction:column;gap:16px;min-width:0}
+.qa-f6-insights-head{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap}
+.qa-f6-insights-head>div{min-width:0;flex:1 1 280px}
+.qa-f6-insights h3,.qa-f6-insights h4{display:flex;align-items:center;gap:8px;
+  font-weight:780;color:#254c57;font-size:.97rem}
+.qa-f6-insights-head .field{flex:0 1 160px;min-width:130px}
+.qa-f6-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.qa-f6-summary>div{border:1px solid #dce7e9;background:#f8fbfb;border-radius:11px;
+  padding:13px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.qa-f6-summary strong{font-size:1.55rem;color:#225e68;line-height:1.1}
+.qa-f6-summary span{font-size:.77rem;color:#506e79;overflow-wrap:anywhere}
+.qa-f6-summary svg{color:#497984}
+.qa-f6-section{border:1px solid #dfebed;border-radius:12px;padding:16px;
+  display:flex;flex-direction:column;gap:12px;min-width:0}
+.qa-f6-metric{display:flex;flex-direction:column;gap:7px}
+.qa-f6-metric-heading{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;
+  align-items:baseline;font-size:.84rem;color:#345964}
+.qa-f6-metric-heading strong{overflow-wrap:anywhere}
+.qa-f6-metric-heading span{color:#416f7c;font-size:.78rem}
+.qa-f6-track{width:100%;height:8px;overflow:hidden;background:#e7f0f0;border-radius:999px}
+.qa-f6-track>span{display:block;height:100%;background:#287784;border-radius:999px}
+.qa-f6-metric small,.qa-f6-section>small{font-size:.75rem;color:#58747e}
+.qa-f6-versions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.qa-f6-version{border:1px solid #e4ecee;border-radius:9px;padding:11px;min-width:0}
+.qa-f6-version>div{font-size:.83rem;color:#2a5965;overflow-wrap:anywhere}
+.qa-f6-version>div span{color:#597681}
+.qa-f6-version p{font-size:.76rem;color:#59717b;margin-top:5px}
+.qa-f6-month{display:flex;gap:12px;align-items:baseline;justify-content:space-between;
+  padding:9px 0;border-bottom:1px solid #e6eeee;font-size:.82rem;flex-wrap:wrap}
+.qa-f6-month strong{color:#305965}
+.qa-f6-month span{color:#58757f;overflow-wrap:anywhere}
+@media(max-width:560px){
+ .qa-f6-summary{grid-template-columns:1fr}
+ .qa-f6-versions{grid-template-columns:1fr}
+ .qa-f6-section{padding:11px}
+ .qa-f6-insights-head .field{flex:1 1 100%}
+}
