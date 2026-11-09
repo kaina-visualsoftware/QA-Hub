@@ -1743,31 +1743,81 @@
 .qa-diagram-unavailable button{min-height:42px}
 
 
-/* AI-assisted TF creation and repair: one predictable save flow. */
+/* QA AI workflows — compact, predictable actions and scannable reviews. */
 .qa-tf-technical-fields{border-top:1px solid #e0eaeb;padding-top:10px}
 .qa-tf-technical-fields>summary{cursor:pointer;min-height:42px;display:flex;
  align-items:center;color:#29636e;font-size:.8rem;font-weight:750}
-.qa-task-ai-regenerate{border:1px solid #d7e7e7;border-radius:12px;background:#f7fbfb}
-.qa-task-ai-regenerate>summary{display:flex;align-items:center;gap:8px;
- min-height:46px;padding:11px 14px;font-size:.84rem;font-weight:760;color:#24636e;
- cursor:pointer}
-.qa-task-ai-regenerate>summary::marker{color:#4f7881}
+
+/* Shared creation UI: source → permission + action → review. */
+.qa-tf-nvidia-compact{display:flex;flex-direction:column;align-items:stretch;gap:10px;
+ padding:13px 14px}
+.qa-tf-nvidia-heading{display:flex;align-items:center;gap:8px;justify-content:space-between;
+ flex-wrap:wrap;min-width:0}
+.qa-tf-nvidia-heading strong{display:inline-flex;align-items:center;gap:7px;
+ color:#1b505b;font-size:.87rem;font-weight:780}
+.qa-tf-nvidia-heading small{font-size:.76rem;color:#526e77;line-height:1.45}
+.qa-tf-nvidia-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;min-width:0}
+.qa-tf-nvidia-row .qa-tf-consent{flex:1 1 250px;min-width:0;min-height:44px}
+.qa-tf-nvidia-row>button{min-height:44px;flex:0 1 auto}
+.qa-ai-run-status{font-size:.78rem;line-height:1.5;color:#2c6572}
+.qa-ai-draft-preview{min-width:0;display:flex;flex-direction:column;gap:10px}
+.qa-ai-draft-preview>h3{color:#1c4f5b;font-size:.93rem;margin:0}
+.qa-ai-draft-preview>.qa-ai-preview-hint{line-height:1.55;font-size:.79rem;
+ color:#516c75;margin:0}
+.qa-ai-draft-preview .local-preview-grid{margin:8px 0 0}
+.qa-ai-draft-fields{border-top:1px solid #dae8e9;padding-top:10px}
+.qa-ai-draft-fields>summary{cursor:pointer;min-height:39px;
+ font-size:.79rem;color:#28626f;font-weight:730}
+.qa-ai-selection-head{display:flex;align-items:center;justify-content:space-between;
+ gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.qa-ai-selection-head>strong{font-size:.81rem;color:#245965}
+.qa-ai-selection-head .qa-task-ai-select-actions{margin:0}
+.qa-ai-draft-preview>.qa-ai-preview-actions{display:flex;align-items:center;
+ flex-wrap:wrap;gap:8px}
+
+/* Edit existing TF: checkbox and primary action share a row, never a tall flex column. */
+.qa-task-ai-regenerate{border:1px solid #d7e7e7;border-radius:12px;background:#f7fbfb;
+ min-width:0}
+.qa-task-ai-regenerate>summary{display:flex;align-items:center;gap:9px;
+ min-height:49px;padding:12px 15px;font-size:.84rem;font-weight:760;color:#24636e;
+ cursor:pointer;line-height:1.45}
+.qa-task-ai-regenerate>summary svg{flex:0 0 18px}
+.qa-task-ai-regenerate>summary:focus-visible{outline:3px solid #167987;outline-offset:2px}
 .qa-task-ai-regenerate[open]>summary{border-bottom:1px solid #e0eaea}
-.qa-task-ai-regenerate-body{padding:13px 14px;display:flex;flex-direction:column;
- align-items:flex-start;gap:12px}
-.qa-task-ai-regenerate-body>p,.qa-task-ai-result>p{font-size:.79rem;line-height:1.6;
- color:#476874}
-.qa-task-ai-regenerate-body>.qa-tf-consent{display:flex;align-items:flex-start;
- max-width:100%}
-.qa-task-ai-regenerate-body>button{min-height:42px}
-.qa-task-ai-result{width:100%;padding:13px;border:1px solid #cfe2e0;
- border-radius:10px;background:white;display:flex;flex-direction:column;gap:8px;min-width:0}
-.qa-task-ai-result>strong{font-size:.86rem;color:#235861}
-.qa-task-ai-scenarios{min-width:0;margin-top:5px;border-top:1px solid #e0eaea;
+.qa-task-ai-regenerate-body{display:flex;flex-direction:column;align-items:stretch;
+ justify-content:flex-start;gap:11px;padding:14px 15px;min-height:0}
+.qa-ai-helper-copy{margin:0;font-size:.79rem;line-height:1.6;
+ color:#486976;max-width:77ch}
+.qa-task-ai-control-row{display:flex;align-items:center;gap:10px;
+ flex-wrap:wrap;padding:10px 12px;background:#fff;border:1px solid #dce8e9;
+ border-radius:10px;min-width:0;min-height:62px}
+.qa-ai-consent-compact{display:flex;align-items:center;gap:9px;
+ min-width:0;min-height:42px;flex:1 1 260px;
+ margin:0;font-size:.81rem;line-height:1.45;color:#365e68;cursor:pointer}
+.qa-ai-consent-compact input{width:21px;height:21px;flex:0 0 21px;margin:0;
+ accent-color:#197981;cursor:pointer}
+.qa-ai-consent-compact span{min-width:0;overflow-wrap:anywhere}
+.qa-task-ai-control-row>.qa-task-ai-generate{min-height:44px;flex:0 0 auto}
+.qa-task-ai-progress{font-size:.78rem;line-height:1.5;color:#246c76;
+ margin:0}
+.qa-task-ai-result{width:100%;padding:12px 13px;border:1px solid #cfe2e0;
+ border-radius:10px;background:#fff;display:flex;flex-direction:column;
+ gap:10px;min-width:0}
+.qa-task-ai-result-top{display:flex;align-items:center;justify-content:space-between;
+ gap:10px;flex-wrap:wrap}
+.qa-task-ai-result-top>div{flex:1 1 220px;min-width:0}
+.qa-task-ai-result-top strong{display:block;font-size:.86rem;color:#235861}
+.qa-task-ai-result-top p{margin:4px 0 0;font-size:.77rem;line-height:1.5;color:#52727c}
+.qa-task-ai-result-top b{font-variant-numeric:tabular-nums;color:#204f5b}
+.qa-ai-review-fields{min-height:40px;padding:8px 12px;border-radius:8px;
+ border:1px solid #cce1e1;background:#f6fbfa;color:#24636e;
+ font-size:.78rem;font-weight:730}
+.qa-ai-review-fields:hover{background:#e7f4f2}
+.qa-task-ai-scenarios{min-width:0;margin:0;border-top:1px solid #e0eaea;
  padding-top:10px;width:100%}
-.qa-task-ai-scenarios legend{font-size:.79rem;font-weight:750;color:#23555f}
+.qa-task-ai-scenarios legend{padding:0 4px;font-size:.79rem;font-weight:750;color:#23555f}
 .qa-task-ai-select-actions{display:flex;align-items:center;gap:7px;
- flex-wrap:wrap;margin:10px 0}
+ flex-wrap:wrap;margin:8px 0 4px}
 .qa-task-ai-select-actions button{border:1px solid #ccdedf;border-radius:8px;
  padding:8px 11px;min-height:39px;background:#f7fbfb;color:#26616a;
  font-size:.76rem;font-weight:700}
@@ -1779,7 +1829,38 @@
 .qa-task-ai-scenario strong{font-size:.82rem;color:#254f59;overflow-wrap:anywhere}
 .qa-task-ai-scenario small{font-size:.75rem;color:#5c7880;line-height:1.45;overflow-wrap:anywhere}
 @media(max-width:640px){
+ .qa-tf-nvidia-compact{padding:11px}
+ .qa-tf-nvidia-row>button{flex:1 1 100%}
  .qa-task-ai-regenerate-body{padding:12px}
- .qa-task-ai-regenerate-body>button{width:100%}
+ .qa-task-ai-control-row{padding:10px}
+ .qa-task-ai-control-row>.qa-task-ai-generate{flex:1 1 100%;width:100%}
+ .qa-task-ai-result-top>.qa-ai-review-fields{flex:1 1 100%}
  .qa-task-ai-select-actions button{flex:1 1 auto}
+ .qa-ai-draft-preview>.qa-ai-preview-actions>button{flex:1 1 100%}
 }
+
+
+/* The same permission + generation control layout for posts, cases and diagrams. */
+.qa-ai-submit-row{display:flex;align-items:center;flex-wrap:wrap;gap:11px;
+ padding:11px 12px;border:1px solid #dce8e9;border-radius:11px;background:#f8fbfb;
+ min-width:0}
+.qa-ai-submit-row>.qa-ai-consent-compact{flex:1 1 300px;min-width:0}
+.qa-ai-submit-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+ flex:0 1 auto;min-width:0}
+.qa-ai-submit-actions>button{min-height:44px}
+.qa-ai-submit-row .qa-diagram-consent{margin:0;min-height:44px}
+.qa-ai-submit-row:focus-within{border-color:#9acaca}
+@media(max-width:640px){
+ .qa-ai-submit-row>.qa-ai-consent-compact{flex:1 1 100%}
+ .qa-ai-submit-actions{flex:1 1 100%}
+ .qa-ai-submit-actions>button{flex:1 1 100%;min-height:44px}
+}
+
+
+.qa-ai-privacy-note{margin:0;font-size:.74rem;line-height:1.5;color:#506c76}
+/* Keep every target in the new-TF form unobscured, especially its
+   advanced-options summary at 320px. The modal itself already scrolls. */
+.qa-tf-compact .qa-modal-actions{position:relative;bottom:auto;z-index:auto}
+.qa-tf-compact .qa-task-optional>summary{min-height:52px;margin:0;
+ padding:13px 8px;line-height:24px}
+.qa-tf-compact .qa-task-optional{flex:0 0 auto;min-width:0}

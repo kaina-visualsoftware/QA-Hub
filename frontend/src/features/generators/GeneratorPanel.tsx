@@ -325,20 +325,25 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         <label className="field mt-3">Contexto da TF<textarea readOnly rows={9} value={context.taskContext.text} /></label>
         <label className="field mt-3">Requisitos e complemento<textarea readOnly rows={5} value={context.approved.text} /></label>
       </details>
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-        Autorizo enviar os textos exibidos à NVIDIA para gerar este conteúdo. A ocultação automática de dados sensíveis pode falhar; revise antes de enviar.
-      </label>
-      <div className="flex gap-2 flex-wrap">
-        <Button isDisabled={!canSend} onPress={() => void generate()}>
-          {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
-          {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
-            : mode === "post" ? "Gerar post" : "Gerar casos"}
-        </Button>
-        {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
-          Cancelar geração
-        </Button>}
+      <div className="qa-ai-submit-row">
+        <label className="qa-ai-consent-compact">
+          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
+          <span>Autorizo enviar os textos exibidos à NVIDIA.</span>
+        </label>
+        <div className="qa-ai-submit-actions">
+          <Button isDisabled={!canSend} onPress={() => void generate()}>
+            {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
+            {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
+              : mode === "post" ? "Gerar post" : "Gerar casos"}
+          </Button>
+          {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
+            Cancelar geração
+          </Button>}
+        </div>
       </div>
+      <p className="qa-ai-privacy-note">
+        A ocultação automática de dados sensíveis pode falhar; confira o contexto antes de enviar.
+      </p>
     </div>}
 
     {(generating || raw || content || cases.length>0) && <section className="mt-6" aria-label="Resultado da IA">

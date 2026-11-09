@@ -102,7 +102,7 @@ function responder({admin=false}={}){
 }
 async function waitForReview(page, phase) {
   try {
-    await page.getByRole("heading",{name:"Conferir campos identificados"}).waitFor({timeout:20000});
+    await page.getByRole("heading",{name:"Campos encontrados no texto"}).waitFor({timeout:20000});
   } catch (error) {
     const state=await page.evaluate(()=>({
       hash:location.hash,
