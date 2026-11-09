@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, ClipboardList, FilePlus2, Link2 } from "lucide-react";
@@ -153,7 +154,7 @@ export default function EvidencePanel({
             </Button>
           </div>
           {save.isError && <p className="notice error mt-3" role="alert">{save.error.message}</p>}
-          {message && <p className="notice mt-3" role="status">{message}</p>}
+          <ToastNotice message={message} tone="success"/>
         </form>
         </details>
         <h3 className="font-semibold mt-4">Observações e referências anteriores</h3>
