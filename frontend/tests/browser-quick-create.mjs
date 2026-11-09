@@ -120,8 +120,9 @@ try {
   assert.equal(savedCases[0].status, "nao_executado");
   assert.equal(savedTasks[0].status, "rascunho");
 
-  await page.getByRole("region", { name: "Fluxo rápido de QA" })
-    .getByRole("button", { name: "Cenário", exact: true }).click();
+  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
+  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    .getByRole("button",{name:"Novo cenário"}).click();
   await editor.waitFor();
   await editor.getByRole("textbox", { name: "Título" }).fill("Segundo cenário consecutivo");
   await editor.getByRole("textbox", { name: "Passos" }).fill("Abrir o painel de pagamentos");
