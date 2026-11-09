@@ -531,7 +531,7 @@ export default function TaskPage() {
           <Button type="button" variant="secondary" onPress={closeTaskEditor}>Cancelar</Button>
           <Button type="submit" isDisabled={saveTask.isPending||task.user_id!==userId}>Salvar alterações</Button>
         </div>
-        {saveTask.isError && <p className="notice error" role="alert">{saveTask.error.message}</p>}
+        <ToastNotice message={saveTask.isError?saveTask.error.message:null} tone="error"/>
       </form>
     </QAModal>}
 
@@ -651,7 +651,7 @@ export default function TaskPage() {
             {editingScenario ? "Salvar cenário" : "Adicionar cenário"}
           </Button>
         </div>
-        {createScenario.isError && <p role="alert" className="notice error">{createScenario.error.message}</p>}
+        <ToastNotice message={createScenario.isError?createScenario.error.message:null} tone="error"/>
       </form>
       </section>
     </QAModal>}
@@ -825,7 +825,7 @@ export default function TaskPage() {
       </div> : <p className="text-muted text-sm mt-3">
         A publicação só pode ser alterada pelo autor da TF, inclusive em consulta administrativa.
       </p>}
-      {publication.isError && <p className="notice error mt-3" role="alert">{publication.error.message}</p>}
+      <ToastNotice message={publication.isError?publication.error.message:null} tone="error"/>
     </section>
 
 
@@ -852,7 +852,7 @@ export default function TaskPage() {
             onPress={closeResult}>Cancelar</Button>
           <Button type="submit" isDisabled={saveResult.isPending||!observed.trim()}>Salvar resultado</Button>
         </div>
-        {saveResult.isError&&<p role="alert" className="notice error">{saveResult.error.message}</p>}
+        <ToastNotice message={saveResult.isError?saveResult.error.message:null} tone="error"/>
       </form>
     </QAModal>}
   </div>;
