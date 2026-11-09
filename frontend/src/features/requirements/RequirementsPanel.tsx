@@ -10,7 +10,7 @@ import SourcesView from "./SourcesView";
 import UsageView from "./UsageView";
 import { BookText, ChartNoAxesColumn, FileText, History, X } from "lucide-react";
 
-type Props = { task: Task; userId: string; scenarios: Scenario[]; onClose: () => void };
+type Props = { task: Task; userId: string; scenarios: Scenario[]; onClose?: () => void };
 type View = "catalog" | "coverage" | "sources" | "history";
 
 export default function RequirementsPanel({ task, userId, scenarios, onClose }: Props) {
@@ -52,7 +52,7 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
       <div><p className="eyebrow">R1–R4 · TF PRIVADA</p><h2 id="requirements-heading">Requisitos e cobertura</h2>
         <p className="text-muted">Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura.</p>
       </div>
-      <button type="button" aria-label="Fechar requisitos" onClick={onClose}><X size={18} /></button>
+      {onClose&&<button type="button" aria-label="Fechar requisitos" onClick={onClose}><X size={18} /></button>}
     </div>
     {!owned ? <p className="notice error mt-4" role="alert">
       Os requisitos pertencem ao criador da TF e não são exibidos na consulta administrativa.
