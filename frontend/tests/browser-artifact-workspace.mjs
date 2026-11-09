@@ -99,33 +99,38 @@ try{
   assert.equal(await gallery.getByRole("textbox",{name:"Código Mermaid"}).count(),0);
   assert.equal(await page.getByRole("dialog").count(),0,
     "Read-only diagram browsing must never open the creation modal");
-  await gallery.getByRole("button",{name:"Visualizar"}).click();
-  const diagramFrame=gallery.locator('iframe[title="Diagrama: Fluxo de descontos"]');
+  assert.equal(await gallery.locator("iframe").count(),0,
+    "Diagram gallery must not render a preview before opening the modal");
+  await gallery.getByRole("button",{name:"Visualizar diagrama Fluxo de descontos"}).click();
+  const viewer=page.getByRole("dialog",{name:"Visualizar diagrama — Fluxo de descontos"});
+  await viewer.waitFor();
+  const diagramFrame=viewer.locator('iframe[title="Diagrama: Fluxo de descontos"]');
   await diagramFrame.waitFor({timeout:25000});
-  await page.waitForFunction(()=>Boolean(document.querySelector(
-    'iframe[title="Diagrama: Fluxo de descontos"]')?.getAttribute("srcdoc")),null,
-    {timeout:25000});
   assert.equal(await diagramFrame.getAttribute("sandbox"),"",
-    "Saved diagrams must be sandboxed");
-  const initialFrame=await diagramFrame.getAttribute("srcdoc");
-  assert.match(initialFrame,/default-src 'none'/,
-    "Preview must forbid external scripts and network resources");
-  const preview=gallery.locator(".qa-diagram-library-preview");
-  await preview.getByRole("button",{name:"Aumentar zoom"}).click();
-  await preview.getByText("125%").waitFor();
-  await preview.getByRole("button",{name:"Ajustar à largura"}).click();
-  await preview.getByText("100%").waitFor();
-  await preview.getByRole("button",{name:"Abrir visualização ampliada"}).click();
-  const expanded=page.getByRole("dialog",{name:"Visualizar diagrama — Fluxo de descontos"});
-  await expanded.waitFor();
-  await expanded.getByRole("button",{name:"Aumentar zoom"}).click();
-  await expanded.getByText("125%").waitFor();
-  assert.equal(await expanded.locator('iframe[title="Diagrama: Fluxo de descontos"]')
-    .getAttribute("sandbox"),"",
-    "Expanded diagram must retain strict sandbox");
-  await page.getByRole("button",{name:"Fechar Visualizar diagrama — Fluxo de descontos"}).click();
+    "Saved diagrams must remain sandboxed");
+  assert.match(await diagramFrame.getAttribute("srcdoc"),/default-src 'none'/,
+    "Viewer must not allow scripts or external resources");
+  await viewer.getByText("100%",{exact:true}).waitFor();
+  const centering=await viewer.locator(".qa-diagram-stage").evaluate(stage=>{
+    const art=stage.querySelector(".qa-diagram-zoom-layer");
+    if(!art)throw new Error("Missing diagram canvas");
+    const s=stage.getBoundingClientRect(),a=art.getBoundingClientRect();
+    return {
+      horizontal:a.width>s.width+1 || Math.abs((a.left+a.right-s.left-s.right)/2)<4,
+      vertical:a.height>s.height+1 || Math.abs((a.top+a.bottom-s.top-s.bottom)/2)<4
+    };
+  });
+  assert.ok(centering.horizontal&&centering.vertical,
+    "100% diagram should be visually centered when it fits");
+  await viewer.getByRole("button",{name:"Aumentar zoom"}).click();
+  await viewer.getByText("125%",{exact:true}).waitFor();
+  await viewer.getByRole("button",{name:"Voltar para 100%"}).click();
+  await viewer.getByText("100%",{exact:true}).waitFor();
+  await page.keyboard.press("Escape");
   assert.equal(await page.getByRole("dialog").count(),0,
-    "Closing expanded viewer must not open an editor");
+    "Escape must close only the diagram viewer");
+  assert.equal(await gallery.locator("iframe").count(),0,
+    "Closing the viewer must not leave an inline preview");
 
   const posts=deliverables.locator(".qa-artifact-browser").nth(1);
   await posts.getByText("Post de homologação").waitFor();
