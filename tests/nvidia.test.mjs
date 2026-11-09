@@ -42,9 +42,25 @@ test('Edge Function has auth, secret env, free model allowlist and no hardcoded 
  const code=readFileSync(new URL('../supabase/functions/qa-ai/index.ts',import.meta.url),'utf8');
  assert.match(code,/Deno.env.get\("NVIDIA_API_KEY"\)/);
  assert.match(code,/auth.getUser\(token\)/);
- assert.match(code,/qa_ai_claim_request/);
+ assert.match(code,/qa_ai_claim_minute_request/);
+ assert.match(code,/Retry-After/);
+ assert.doesNotMatch(code,/12 usos por dia/);
  assert.match(code,/nvidia\/nemotron-3.5-lightning-30b-a3b/);
  assert.match(code,/z-ai\/glm-5-3-flash/);
  assert.match(code,/Não invente|Nunca invente/);
  assert.doesNotMatch(code,/nvapi-[a-zA-Z0-9_-]+/);
+});
+
+test('NVIDIA AI uses a global rolling 15/minute limit without daily quota',()=>{
+ const sql=readFileSync(new URL('../supabase/qa_ai_quota.sql',import.meta.url),'utf8');
+ const code=readFileSync(new URL('../supabase/functions/qa-ai/index.ts',import.meta.url),'utf8');
+ assert.match(sql,/count_recent\s*>=\s*15/);
+ assert.match(sql,/interval '60 seconds'/);
+ assert.match(sql,/pg_advisory_xact_lock/);
+ assert.match(sql,/enable row level security/);
+ assert.match(sql,/qa_ai_claim_minute_request/);
+ assert.match(sql,/not consulted/i);
+ assert.match(code,/retry_after_seconds/);
+ assert.match(code,/Não há limite diário no QA Hub/);
+ assert.doesNotMatch(code,/qa_ai_claim_request"/);
 });
