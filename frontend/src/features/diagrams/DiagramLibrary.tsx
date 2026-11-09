@@ -8,8 +8,8 @@ import {ensureMermaidSyntax,isMissingModuleChunk,mermaidErrorMessage} from "./me
 import {DiagramViewer} from "./DiagramViewer";
 import {QAModal} from "../../components/ui/QAModal";
 
-export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
-  taskId:string;userId:string;owner:boolean;
+export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit,showCreate=true}:{
+  taskId:string;userId:string;owner:boolean;showCreate?:boolean;
   onCreate:()=>void;onEdit:(id:string)=>void;
 }){
   const queryClient=useQueryClient();
@@ -65,7 +65,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
         </h3>
         <p>Consulte os fluxos salvos aqui. A criação e a edição abrem um modal separado.</p>
       </div>
-      {owner&&<Button size="sm" onPress={onCreate}>
+      {owner&&showCreate&&<Button size="sm" onPress={onCreate}>
         <GitBranchPlus size={16} aria-hidden="true"/> Novo diagrama
       </Button>}
     </header>
@@ -78,7 +78,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit}:{
     </div>}
     {diagrams.isSuccess&&diagrams.data.length===0&&
       <p className="qa-artifact-empty">Nenhum diagrama salvo nesta TF.
-        {owner?" Crie o primeiro usando o botão acima.":""}
+        {owner?" Use a ação Criar diagrama acima.":""}
       </p>}
     {!!diagrams.data?.length&&<div className="qa-diagram-library-layout qa-diagram-catalog">
       <div className="qa-diagram-library-list" aria-label="Diagramas existentes">
