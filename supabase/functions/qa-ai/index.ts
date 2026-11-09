@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { parseNvidiaDraft } from "./response.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
+import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
 
 // Only models verified in NVIDIA Build's Free Endpoint catalog.
 // The runtime also attempts GET /v1/models and skips unavailable IDs.
@@ -100,6 +101,7 @@ Deno.serve(async req => {
   }
   const text=typeof (body as {text?:unknown})?.text==="string" ? (body as {text:string}).text.trim():"";
   const diagramMode=(body as {mode?:unknown})?.mode==="diagram";
+  const summaryMode=(body as {mode?:unknown})?.mode==="diagram-summary";
   const previousMermaid=typeof (body as {mermaid?:unknown})?.mermaid==="string"
     ? (body as {mermaid:string}).mermaid.trim():"";
   const syntaxError=typeof (body as {syntaxError?:unknown})?.syntaxError==="string"
@@ -146,9 +148,10 @@ Deno.serve(async req => {
         },
         body:JSON.stringify({
           model,
-          messages:diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):promptForReport(text),
+          messages:diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):
+            summaryMode?diagramSummaryMessages(text):promptForReport(text),
           temperature:0.1,
-          max_tokens:diagramMode?2400:4800,
+          max_tokens:diagramMode?3200:summaryMode?2800:4800,
           stream:false,
           ...(model.startsWith("nvidia/nemotron-")?{
             chat_template_kwargs:{enable_thinking:false}
@@ -173,6 +176,9 @@ Deno.serve(async req => {
       if(diagramMode){
         const mermaid=extractDiagramFromNvidia(response);
         if(mermaid)return respond(origin,200,{mermaid,model,provider:"NVIDIA Build"});
+      }else if(summaryMode){
+        const summary=extractDiagramSummary(response);
+        if(summary)return respond(origin,200,{summary,model,provider:"NVIDIA Build"});
       }else{
         const extracted=parseNvidiaDraft(response);
         if(extracted)return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
@@ -186,6 +192,10 @@ Deno.serve(async req => {
     }
   }
   if(hadReply){
+    if(summaryMode)return respond(origin,502,{
+      error:"summary_incomplete",
+      message:"A NVIDIA não concluiu um resumo confiável. Tente novamente sem perder os dados da TF."
+    });
     // A provider replied but did not produce recognizable fields; the client
     // will transparently use the local original-report parser.
     return respond(origin,200,diagramMode ? {
