@@ -25,8 +25,8 @@ function validateXmlInput(value: string, label: string) {
   }
 }
 
-export default function ComparisonTool({ task, userId = "", initialMode = "text" }:
-  { task?: Task; userId?: string; initialMode?: "text" | "xml" }) {
+export default function ComparisonTool({ task, userId = "", initialMode = "text", embedded=false }:
+  { task?: Task; userId?: string; initialMode?: "text" | "xml"; embedded?:boolean }) {
   const client = useQueryClient();
   const [mode, setMode] = useState<"text" | "xml">(initialMode);
   const [original, setOriginal] = useState("");
@@ -109,13 +109,15 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
     } catch (reason) { setError((reason as Error).message); }
     finally { setSaving(false); }
   }
-  return <section className="stack" aria-labelledby="comparison-tool-title">
-    <div>
+  return <section className="stack" aria-label={embedded?"Editor de comparações":undefined}
+    aria-labelledby={embedded?undefined:"comparison-tool-title"}>
+    {!embedded&&<div>
       <h3 id="comparison-tool-title" className="font-semibold">Comparação local de texto e XML</h3>
       <p className="text-muted text-sm mt-2">Nenhum conteúdo digitado é transmitido ou salvo.
         {task ? " Opcionalmente, registre somente as contagens na TF." : " A comparação é local e não precisa de TF."}</p>
-    </div>
-    <div className="flex flex-wrap gap-2">
+    </div>}
+    <div className={embedded?"qa-tools-compare-switch":"flex flex-wrap gap-2"}
+      role={embedded?"group":undefined} aria-label={embedded?"Formato da comparação":undefined}>
       <button type="button" className={"filter-chip " + (mode === "text" ? "selected" : "")}
         aria-pressed={mode === "text"} onClick={() => { setMode("text"); invalidateResult(); }}>
         Texto linha a linha
@@ -125,7 +127,7 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
         XML por estrutura
       </button>
     </div>
-    <div className="compare-grid">
+    <div className="compare-grid qa-tools-compare-inputs">
       <label className="field">
         {mode === "xml" ? "XML A (original)" : "Texto A (original)"}
         <textarea rows={9} spellCheck={false} maxLength={LIMIT}
@@ -145,7 +147,7 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
       Ignorar espaços nas extremidades de valores XML (atributos, namespaces e hierarquia
       continuam sendo comparados).
     </label>}
-    <div className="flex flex-wrap gap-2">
+    <div className={embedded?"qa-tools-compare-actions":"flex flex-wrap gap-2"}>
       <Button isDisabled={!original.trim() || !updated.trim()} onPress={compare}>
         <ArrowLeftRight size={16} /> Comparar {mode === "xml" ? "XML" : "textos"}
       </Button>
@@ -154,7 +156,7 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
       </Button>
     </div>
     {result && <div className="stack">
-      <div className="generator-stats">
+      <div className="generator-stats qa-tools-result-summary">
         <span><strong>{added}</strong> adicionado(s)</span>
         <span><strong>{removed}</strong> removido(s)</span>
         <span><strong>{changed}</strong> alterado(s)</span>
