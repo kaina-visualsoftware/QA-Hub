@@ -17,8 +17,9 @@ export function resolveAuthRedirectUrl({
 }: AuthRedirectOptions): string {
   if (production) {
     // Only the QA Hub's exact, HTTPS production callback is permitted.
-    return configuredUrl?.trim() === QA_HUB_EMAIL_CALLBACK_URL
-      ? configuredUrl.trim() : QA_HUB_EMAIL_CALLBACK_URL;
+    const candidate = configuredUrl?.trim();
+    return candidate === QA_HUB_EMAIL_CALLBACK_URL
+      ? candidate : QA_HUB_EMAIL_CALLBACK_URL;
   }
   // During local development keep the callback on the local Vite instance.
   const localBase = new URL(baseUrl, origin ?? "http://localhost:8765");
