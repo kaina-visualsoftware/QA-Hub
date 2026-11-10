@@ -107,12 +107,12 @@ export default function RequirementCatalog({
     finally { setBusy(false); }
   }
   return <div className="stack">
-    <div className="generator-stats">
+    {!readOnly&&<div className="generator-stats">
       <span><strong>{records.length}</strong> cadastrados</span>
       <span><strong>{records.filter((r) => r.estado === "aprovado").length}</strong> aprovados</span>
       <span><strong>{records.filter((r) => r.estado === "rascunho").length}</strong> rascunhos</span>
       <span><strong>{records.filter((r) => r.estado === "arquivado").length}</strong> arquivados</span>
-    </div>
+    </div>}
     {!readOnly&&<details className="generator-context" open={records.length === 0}>
       <summary>Importar requisitos de texto (prévia e revisão)</summary>
       <div className="stack mt-4">
