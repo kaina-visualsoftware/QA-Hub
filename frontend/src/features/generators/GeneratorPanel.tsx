@@ -308,7 +308,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <p>{postMode ? "O documento está disponível na área de relatórios." :
           "Os casos foram registrados como não executados. Você pode iniciar os testes na aba Cenários."}</p>
       </div>
-    </div>
+    </div>}
     {!generating && hasOutput && !showSetup && <div className="qa-generator-setup-toggle">
       <span><CheckCircle2 size={16} aria-hidden="true"/>
         Conteúdo gerado. Revise antes de confirmar.</span>
