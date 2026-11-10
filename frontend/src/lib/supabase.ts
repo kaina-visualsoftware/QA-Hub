@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, publishableKey, {
 });
 
 // Sign-up and recovery always use the dedicated React auth callback in production.
- // A stale localhost override must never leak into links emailed to users.
+// A stale localhost override must never leak into links emailed to users.
 export const authRedirectUrl = resolveAuthRedirectUrl({
   production: import.meta.env.PROD,
   baseUrl: import.meta.env.BASE_URL,
