@@ -25,6 +25,8 @@ import {
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
+import { markdownToBbcode, validateBbcodePost } from "./post-format";
+import type {PostOutputFormat} from "./post-format";
 import type { ActivityPhase, JourneyStage } from "./GeneratorJourney";
 import type { GeneratorMode } from "./stream";
 
@@ -55,6 +57,7 @@ function editableCopy(items: GeneratedCase[]) {
 export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyChange }: Props) {
   const client = useQueryClient();
   const [extra, setExtra] = useState("");
+  const [postFormat, setPostFormat] = useState<PostOutputFormat>("markdown");
   const [preset, setPreset] = useState("essencial");
   const [selected, setSelected] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
@@ -97,7 +100,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   }, [generating, busySave, onBusyChange]);
   useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
-    setPreset("essencial");setExtra("");
+    setPreset("essencial");setExtra("");setPostFormat("markdown");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
   }, [task.id, mode]);
@@ -136,7 +139,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     item.titulo.trim().length < 3 || !item.passos.trim() || !item.esperado.trim());
   const allSelected = available.length > 0 && chosen.length === available.length;
   const postIssues = mode === "post" && content
-    ? validatePostStructure(content) : [];
+    ? postFormat === "bbcode" ? validateBbcodePost(content) : validatePostStructure(content) : [];
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
     if (Object.keys(patch).some(key => key !== "selected")) setDirtyOutput(true);
@@ -183,7 +186,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         const formatted = formatGeneratedPost(response.text, {
           taskText: context.taskContext.text
         });
-        setContent(formatted);
+        setContent(postFormat === "bbcode" ? markdownToBbcode(formatted) : formatted);
       } else {
         const candidates = parseGeneratedCases(response.text);
         const fresh = onlyNewScenarioCandidates(candidates, scenarios);
@@ -219,7 +222,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     onBusyChange?.(true);
     setBusySave(true); setError(""); setMessage("");
     try {
-      const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim().slice(0,240) || "Post da TF";
+      const title = (postFormat === "bbcode"
+        ? content.match(/^\[size=\d+\]\[b\](.+)\[\/b\]\[\/size\]/m)?.[1]
+        : content.match(/^#\s+(.+)$/m)?.[1])?.trim().slice(0,240) || "Post da TF";
       const saved = await saveTfDocument(supabase, {
         taskId: task.id, type: "post", title, content,
         source: dirtyOutput ? "manual" : "gerado"
@@ -388,6 +393,25 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           </div>
         </details>
       </div>
+      {postMode && <fieldset className="qa-post-format">
+        <legend>Formato do post</legend>
+        <div className="qa-post-format-choices">
+          <label><input type="radio" name="post-output-format"
+            value="markdown" checked={postFormat==="markdown"}
+            disabled={generating||busySave}
+            onChange={()=>setPostFormat("markdown")}/>
+            <span><strong>Markdown</strong><small>Para editores com # e **negrito**</small></span>
+          </label>
+          <label><input type="radio" name="post-output-format"
+            value="bbcode" checked={postFormat==="bbcode"}
+            disabled={generating||busySave}
+            onChange={()=>setPostFormat("bbcode")}/>
+            <span><strong>BBCode</strong><small>Para fóruns com [b] e [size]</small></span>
+          </label>
+        </div>
+        <p>O formato selecionado será usado na prévia, ao copiar e ao salvar.
+          Imagens permanecem como marcadores para você substituir.</p>
+      </fieldset>}
       {missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
@@ -440,7 +464,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </div>
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
-        <label className="field">Post formatado (edite antes de salvar)
+        <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={content} disabled={busySave}
             onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>

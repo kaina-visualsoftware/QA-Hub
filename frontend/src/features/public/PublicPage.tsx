@@ -4,7 +4,7 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck, X } from "lucide-react";
 import { Button } from "@heroui/react";
 import { z } from "zod";
-import { listPublishedTasks, loadPublishedTask } from "./public-data";
+import { listPublishedTasks, loadPublishedTask, publicEvidenceImageUrl } from "./public-data";
 import { useModalFocus } from "../../lib/useModalFocus";
 import type { PublicDiagram, PublicTaskDetail } from "./public-data";
 
@@ -154,10 +154,20 @@ export default function PublicPage() {
               </p>
             </div>
           </div>
+            <div className="qa-public-test-summary" role="group" aria-label="Resumo dos resultados publicados">
+              {([
+                ["aprovado","Aprovados"],["reprovado","Reprovados"],
+                ["bloqueado","Bloqueados"],["nao_executado","Pendentes"]
+              ] as const).map(([status,label])=>
+                <span key={status} className={"qa-public-test-count "+status}>
+                  <strong>{detail.data!.scenarios.filter(s=>s.status===status).length}</strong>
+                  {label}
+                </span>)}
+            </div>
           <section className="panel" aria-labelledby="public-summary">
             <h2 id="public-summary" className="font-semibold">Resumo</h2>
             <div className="public-react-facts mt-4">
-              {fields(facts.map(([key, label]): [string, string] => [label, String(detail.data!.task[key] ?? "")]))}
+              {fields(facts.map(([key, label]): [string, string] => [label, key==="status" ? ({em_teste:"Em teste",rascunho:"Rascunho",concluida:"Concluída",finalizada:"Finalizada"} as Record<string,string>)[String(detail.data!.task[key])]||String(detail.data!.task[key]??"") : String(detail.data!.task[key] ?? "")]))}
             </div>
           </section>
           <section className="panel" aria-labelledby="public-scenarios">
@@ -166,7 +176,15 @@ export default function PublicPage() {
               <p className="text-muted mt-3">Nenhum cenário publicado.</p>}
             <div className="stack mt-4">
               {detail.data.scenarios.map((scenario, index) => <article className="requirement-row" key={scenario.id}>
-                <h3 className="font-semibold">{index+1}. {scenario.titulo}</h3>
+                <div className="qa-public-scenario-heading">
+                  <h3 className="font-semibold">{index+1}. {scenario.titulo}</h3>
+                  <span className={"status-chip "+(scenario.status||"nao_executado")}>
+                    {({
+                      aprovado:"Aprovado",reprovado:"Reprovado",
+                      bloqueado:"Bloqueado",nao_executado:"Não executado"
+                    } as Record<string,string>)[scenario.status||""]||"Situação não informada"}
+                  </span>
+                </div>
                 <div className="public-react-facts mt-3">
                   {fields([
                     ["Passos", scenario.passos ?? ""],
@@ -175,6 +193,22 @@ export default function PublicPage() {
                     ["Observações", scenario.observacoes ?? ""]
                   ])}
                 </div>
+                {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id).length>0&&
+                  <div className="qa-public-case-images" aria-label={"Capturas publicadas de "+scenario.titulo}>
+                    <h4>Capturas do teste</h4>
+                    <div className="qa-public-case-gallery">
+                      {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id)
+                        .map(file=><figure key={file.id}>
+                          <a href={publicEvidenceImageUrl(file.id)} target="_blank"
+                            rel="noopener noreferrer" aria-label={"Ampliar "+file.nome_original}>
+                            <img loading="lazy" referrerPolicy="no-referrer"
+                              src={publicEvidenceImageUrl(file.id)}
+                              alt={file.descricao||"Evidência: "+file.nome_original}/>
+                          </a>
+                          <figcaption>{file.descricao||file.nome_original}</figcaption>
+                        </figure>)}
+                    </div>
+                  </div>}
               </article>)}
             </div>
           </section>

@@ -3195,3 +3195,76 @@
     background:#82bdc0;border-radius:99px
   }
 }
+
+/* Diagram assistant follows the same single-surface configure/review journey as posts. */
+.qa-modal-surface-diagram .qa-modal-content{background:#f6f9fa;padding:clamp(14px,2.4vw,24px)}
+.qa-modal-surface-diagram .qa-diagram-workspace{min-width:0}
+.qa-modal-surface-diagram .qa-ai-step-flow{margin-bottom:14px}
+.qa-modal-surface-diagram .qa-diagram-composer[hidden]{display:none!important}
+.qa-modal-surface-diagram .qa-diagram-quick-heading .qa-generator-eyebrow{display:none}
+.qa-modal-surface-diagram .qa-diagram-quick-heading{margin-bottom:4px}
+.qa-modal-surface-diagram .qa-diagram-quick .qa-diagram-consent input[type=checkbox]{
+  box-sizing:border-box!important;width:18px!important;height:18px!important;
+  min-width:18px!important;max-width:18px!important;
+  min-height:18px!important;max-height:18px!important;flex:0 0 18px!important;
+  margin:0!important;align-self:center;accent-color:#177a72;
+}
+.qa-modal-surface-diagram .qa-diagram-privacy{width:100%;min-width:0}
+.qa-modal-surface-diagram .qa-diagram-consent{min-width:0;flex:1 1 auto;max-width:100%;
+  display:flex;gap:10px;align-items:center;margin:0}
+.qa-modal-surface-diagram .qa-diagram-consent span{min-width:0;overflow-wrap:anywhere}
+.qa-modal-surface-diagram .qa-diagram-quick .qa-diagram-stage-track{display:none}
+.qa-modal-surface-diagram .qa-diagram-result{
+  box-shadow:0 3px 14px #183f4a08;
+}
+.qa-modal-surface-diagram .qa-diagram-savebar{position:sticky;bottom:-9px;z-index:2;
+  background:#fff;border-top:1px solid #e2ecec;padding:13px 0 3px}
+.qa-modal-surface-diagram .qa-diagram-quick-actions{border-top:1px solid #e3eceb;
+  padding-top:13px;position:sticky;bottom:-10px;background:#fff;z-index:2}
+.qa-modal-surface-diagram .qa-diagram-quick-modes input[type=radio]{
+  box-sizing:border-box;flex:0 0 18px;width:18px;height:18px;min-width:18px;
+  accent-color:#177a72;margin:0 7px 0 0;
+}
+/* The public detail is a test report, not just a list of instructions. */
+.qa-public-test-summary{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 15px}
+.qa-public-test-count{display:inline-flex;align-items:center;gap:8px;border:1px solid #deebeb;
+  border-radius:9px;padding:8px 11px;background:#f8fbfb;color:#315b65;
+  font-size:.76rem;font-weight:690}
+.qa-public-test-count strong{font-size:1.08rem;font-weight:800;font-variant-numeric:tabular-nums}
+.qa-public-test-count.aprovado{background:#eff8f1;border-color:#bfdfcc;color:#245d42}
+.qa-public-test-count.reprovado{background:#fff4f2;border-color:#edccc7;color:#823d32}
+.qa-public-test-count.bloqueado{background:#fff8ec;border-color:#ead8b0;color:#75572d}
+.qa-public-scenario-heading{display:flex;align-items:start;justify-content:space-between;
+  flex-wrap:wrap;gap:9px}
+.qa-public-case-images{margin-top:15px;border-top:1px solid #e2ecec;padding-top:14px}
+.qa-public-case-images h4{font-size:.83rem;color:#264f5c;font-weight:750;margin:0 0 10px}
+.qa-public-case-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px}
+.qa-public-case-gallery figure{min-width:0;margin:0;border:1px solid #dfe9e9;
+  background:#f8fbfb;border-radius:11px;overflow:hidden}
+.qa-public-case-gallery a{display:block;min-height:100px}
+.qa-public-case-gallery img{width:100%;height:clamp(140px,22vw,210px);object-fit:contain;
+  background:#edf3f3}
+.qa-public-case-gallery figcaption{font-size:.75rem;color:#365b66;
+  line-height:1.5;overflow-wrap:anywhere;padding:9px 11px}
+.qa-scenario-evidence-toggle{margin-top:10px}
+.qa-scenario-evidence-toggle>summary{min-height:44px;display:flex;align-items:center;
+  font-size:.79rem;color:#29656d;cursor:pointer;font-weight:730}
+@media(max-width:640px){
+ .qa-modal-surface-diagram .qa-diagram-composer,
+ .qa-modal-surface-diagram .qa-diagram-result{padding:14px}
+ .qa-public-case-gallery{grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr))}
+}
+
+/* Diagram setup keeps the context summary compact on phones. */
+@media(max-width:640px){
+  .qa-modal-surface-diagram .qa-diagram-summary-coverage{
+    display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;
+    padding-bottom:5px;scrollbar-width:thin;scrollbar-color:#a7c9c7 transparent;
+  }
+  .qa-modal-surface-diagram .qa-diagram-summary-coverage>div{
+    display:flex;align-items:baseline;gap:5px;min-width:max-content;
+    flex:0 0 auto;padding:8px 10px;
+  }
+  .qa-modal-surface-diagram .qa-diagram-summary-coverage strong{font-size:.91rem}
+  .qa-modal-surface-diagram .qa-diagram-summary-coverage span{font-size:.7rem}
+}

@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles, Trash2, FileText, FileChartColumnIncreasing, GitBranchPlus, History } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
+import {ScenarioEvidenceToggle} from "../features/evidence/ScenarioEvidencePanel";
 import {
   TaskViewTabs, TaskOverview, TaskDeliverables, TaskResultsDashboard, TaskResourceTabs
 } from "../features/tasks/TaskWorkspaceSections";
@@ -921,7 +922,7 @@ export default function TaskPage() {
           onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
       </div>
       <div hidden={executionMode!=="guided"} className="qa-guided-container">
-        <GuidedExecution key={task.id} scenarios={scenarios.data ?? []} owner={canExecute}
+        <GuidedExecution key={task.id} task={task} userId={userId} scenarios={scenarios.data ?? []} owner={canExecute}
           canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
           onEvidence={openGuidedEvidence} onNewScenario={startScenario}/>
       </div>
@@ -982,6 +983,7 @@ export default function TaskPage() {
               onClick={() => choose(scenario, "nao_executado")}>Desfazer execução</button>}
           </div>
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}
+          {own&&<ScenarioEvidenceToggle task={task} userId={userId} scenario={scenario}/>}
           <details className="scenario-details"><summary><CircleHelp size={16} /> Passos e resultado esperado</summary>
             <div><strong>Passos</strong><p style={{whiteSpace:"pre-wrap"}}>{scenario.passos || "Não informado"}</p></div>
             <div><strong>Esperado</strong><p style={{whiteSpace:"pre-wrap"}}>

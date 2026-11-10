@@ -169,6 +169,10 @@ try {
       await modal.waitFor();
       assert.equal(await modal.locator(".qa-post-steps li").count(),3);
       assert.equal(await modal.locator(".qa-post-configuration").count(),1);
+      const bbcode=modal.getByRole("radio",{name:/BBCode/});
+      await bbcode.check();
+      assert.equal(await bbcode.isChecked(),true,"BBCode must be selectable before generation");
+      await modal.getByRole("radio",{name:/Markdown/}).check();
       assert.equal(await modal.locator(".qa-post-empty-preview").count(),1,
         "The initial post modal should show an empty review panel, not an editor full of placeholders");
       assert.equal(await modal.getByRole("checkbox",{name:/Autorizo enviar/}).count(),1);

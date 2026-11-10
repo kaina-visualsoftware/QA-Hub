@@ -25,6 +25,8 @@ const suites = [
   "browser-draft-recovery.mjs",
   "browser-auth-callback.mjs",
   "browser-accessibility.mjs",
+  "browser-scenario-paste.mjs",
+  "browser-public-evidence.mjs",
   "browser-publication-gate.mjs"
 ];
 

@@ -208,7 +208,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         placeholder="Ex.: Receber pedido, conferir valores, emitir nota e verificar falhas"
         onChange={e=>setManual(e.target.value)}/>
     </label>:<>
-      <div className="qa-diagram-summary-coverage" aria-label="Cobertura da tarefa">
+      <div className="qa-diagram-summary-coverage" aria-label="Cobertura da tarefa" tabIndex={0}>
         <div><strong>{counts?.total??0}</strong><span>Cenários</span></div>
         <div><strong>{counts?.passed??0}</strong><span>Aprovados</span></div>
         <div><strong>{counts?.failed??0}</strong><span>Reprovados</span></div>
