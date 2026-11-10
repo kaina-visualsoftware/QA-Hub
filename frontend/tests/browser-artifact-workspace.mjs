@@ -69,31 +69,23 @@ try{
   assert.equal(await page.getByRole("region",{name:"Fluxo rápido de QA"}).count(),0,
     "No large grid of create actions on summary");
   assert.equal(await page.getByRole("heading",{name:"Execução registrada"}).count(),0);
-  await page.getByRole("heading",{name:"Sobre esta TF"}).waitFor();
-
-  const fab=page.locator(".qa-task-fab-trigger");
-  await fab.click();
-  const menu=page.getByRole("group",{name:"Ações rápidas da TF"});
-  await menu.waitFor();
-  assert.equal(await fab.getAttribute("aria-expanded"),"true");
-  assert.equal(await menu.getByRole("button",{name:"Novo cenário"}).count(),1);
-  await page.keyboard.press("Escape");
-  assert.equal(await fab.getAttribute("aria-expanded"),"false");
-  assert.equal(await menu.count(),0);
-
-  await fab.click();
-  assert.equal(await menu.getByRole("button",{name:"Gerar relatório"}).count(),1);
-  assert.equal(await menu.getByRole("button",{name:"Histórico de execuções"}).count(),1);
-  await menu.getByRole("button",{name:"Posts e relatórios salvos"}).click();
-  const deliverables=page.getByRole("tabpanel",{name:"Entregáveis"});
+  await page.getByRole("heading",{name:"Informações da TF"}).waitFor();
+  assert.equal(await page.locator(".qa-task-fab-trigger").count(),0,
+    "The task screen must not show a duplicate floating actions menu");
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+  const deliverables=page.getByRole("tabpanel",{name:"Relatórios e posts"});
   await deliverables.waitFor();
   assert.equal(await page.getByRole("dialog").count(),0,
-    "Quick view of posts and reports must not open an editor");
+    "Browsing saved reports must not open a creation modal");
+  const actions=deliverables.getByRole("group",{name:"Criar relatórios e publicações"});
+  assert.equal(await actions.getByRole("button",{name:"Criar relatório"}).count(),1);
+  assert.equal(await actions.getByRole("button",{name:"Gerar post"}).count(),1);
+  assert.equal(await actions.getByRole("button",{name:"Criar diagrama"}).count(),1);
   assert.equal(await deliverables.locator(".qa-deliverables-group").count(),0,
     "Do not duplicate creation grids alongside saved artifact galleries");
-  await fab.click();
-  await menu.getByRole("button",{name:"Visualizar diagramas"}).click();
-  const gallery=deliverables.locator(".qa-artifact-browser").first();
+  const gallery=deliverables.locator(".qa-artifact-browser").nth(1);
+  assert.equal(await gallery.getByRole("button",{name:"Novo diagrama"}).count(),0,
+    "Diagram creation belongs only to the tab toolbar");
   await gallery.getByRole("heading",{name:/Diagramas/}).waitFor();
   await gallery.getByText("Fluxo de descontos").waitFor();
   assert.equal(await gallery.getByRole("textbox",{name:"Código Mermaid"}).count(),0);
@@ -132,7 +124,9 @@ try{
   assert.equal(await gallery.locator("iframe").count(),0,
     "Closing the viewer must not leave an inline preview");
 
-  const posts=deliverables.locator(".qa-artifact-browser").nth(1);
+  const posts=deliverables.locator(".qa-artifact-browser").first();
+  assert.equal(await posts.getByRole("button",{name:"Criar relatório"}).count(),0,
+    "Report creation belongs only to the tab toolbar");
   await posts.getByText("Post de homologação").waitFor();
   await posts.getByRole("button",{name:"Visualizar"}).click();
   await posts.getByRole("heading",{name:"Post de homologação"}).waitFor();
@@ -151,14 +145,14 @@ try{
   await page.getByRole("button",{name:"Fechar Editar diagrama"}).click();
   assert.equal(await page.getByRole("dialog").count(),0);
 
-  await gallery.getByRole("button",{name:"Novo diagrama"}).click();
+  await actions.getByRole("button",{name:"Criar diagrama"}).click();
   const create=page.getByRole("dialog",{name:"Criar diagrama"});
   await create.waitFor();
   assert.equal(await create.getByRole("textbox",{name:"Título do diagrama"}).count(),0,
     "New diagram starts in a dedicated generator, not in saved detail viewer");
   await page.getByRole("button",{name:"Fechar Criar diagrama"}).click();
 
-  await posts.getByRole("button",{name:"Criar relatório"}).click();
+  await actions.getByRole("button",{name:"Criar relatório"}).click();
   const report=page.getByRole("dialog",{name:"Documentos e relatório"});
   await report.getByRole("heading",{name:"Criar relatório"}).waitFor();
   assert.equal(await report.getByText("Post de homologação").count(),0,
@@ -181,5 +175,5 @@ try{
   }
   assert.deepEqual(writes,[],"Browsing must never write anything");
   assert.deepEqual(problems,[],"No unexpected calls or page errors");
-  console.log("TF: FAB com teclado, galerias read-only, editor separado, 320–1366, WCAG.");
+  console.log("TF v2: four tabs, unique contextual actions, saved artifact galleries, independent editors and WCAG.");
 }finally{await browser.close();}
