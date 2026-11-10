@@ -795,7 +795,7 @@ export default function TaskPage() {
       <div className="qa-execution-switch" role="group" aria-label="Modo de execução">
         <button type="button" aria-pressed={executionMode==="guided"}
           className={executionMode==="guided"?"selected":""}
-          onClick={()=>setExecutionMode("guided")}><ScanEye size={16} aria-hidden="true"/> Guiado</button>
+          onClick={startPendingExecution}><ScanEye size={16} aria-hidden="true"/> Guiado</button>
         <button type="button" aria-pressed={executionMode==="list"}
           className={executionMode==="list"?"selected":""}
           onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
