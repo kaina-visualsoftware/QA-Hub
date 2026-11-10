@@ -199,7 +199,7 @@ try{
   await noteModal.waitFor();
   await noteModal.getByRole("textbox",{name:"Título"}).fill("Regra de descontos");
   await noteModal.getByRole("textbox",{name:"Conteúdo"}).fill("Verificar cálculo após remoção de desconto");
-  await noteModal.getByRole("button",{name:"Salvar referência"}).click();
+  await noteModal.getByRole("button",{name:"Salvar informação"}).click();
   await noteModal.waitFor({state:"detached"});
   await page.getByText("Informação privada salva na biblioteca.").waitFor();
   await page.getByRole("searchbox",{name:"Pesquisar registros"}).fill("Regra de descontos");
