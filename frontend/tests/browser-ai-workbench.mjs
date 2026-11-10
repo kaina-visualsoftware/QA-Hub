@@ -328,8 +328,11 @@ try {
   assert.equal(prompts.length,2,"Repair requires a new explicit AI call");
   assert.ok(prompts[1].syntaxError.length>0);
   assert.equal(diagramSaves,1,"A corrected suggestion is still only an unsaved draft");
+  const correctedSave=page.waitForResponse(response=>
+    response.url().endsWith("/rest/v1/qa_diagramas")&&
+    response.request().method()==="POST",{timeout:20000});
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
-  await page.getByText("Diagrama salvo.",{exact:true}).waitFor();
+  await correctedSave;
   assert.equal(diagramSaves,2,"Only corrected and confirmed Mermaid may be saved");
 
   // Retry is available without sending the invalid code or parser error.
