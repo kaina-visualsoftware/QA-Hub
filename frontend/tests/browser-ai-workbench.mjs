@@ -211,6 +211,7 @@ try {
       await dialog.getByRole("checkbox",{name:/Autorizo enviar/}).check();
       await dialog.getByRole("button",{name:"Gerar casos",exact:true}).click();
       await dialog.getByText("Conectando à NVIDIA").waitFor({timeout:10000});
+      await page.waitForFunction(()=>document.querySelector(".qa-modal-surface-cases .qa-modal-close")?.disabled===true);
       assert.equal(await dialog.getByRole("button",{name:"Fechar Gerar casos com IA"}).isDisabled(),true,
         "Close must be disabled while the API request is active");
       assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Gerar/);
