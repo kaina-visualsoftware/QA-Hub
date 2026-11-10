@@ -244,7 +244,7 @@ try{
  await ownerListing.waitFor();
  assert.equal(await ownerListing.getByRole("combobox",{name:"Escolher sua equipe"}).count(),0,
   "Team view must contain only saved records");
- await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ await ownerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).click();
  const ownerModal=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await ownerModal.waitFor();
  await ownerModal.getByRole("combobox",{name:"Escolher sua equipe"}).selectOption(TEAM);
@@ -274,7 +274,7 @@ try{
  const testerListing=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await testerListing.waitFor();
  assert.equal(await testerListing.getByRole("textbox",{name:"Novo comentário"}).count(),0);
- await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ await testerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).click();
  const testerModal=testerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await testerModal.waitFor();
  await testerModal.getByRole("button",{name:"Conversa"}).click();
@@ -289,7 +289,7 @@ try{
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
  await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ await ownerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).click();
  const reopened=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await reopened.getByRole("combobox",{name:"Designar QA"}).selectOption(TESTER);
  await reopened.getByRole("button",{name:"Atribuir"}).click();
@@ -303,7 +303,7 @@ try{
  await ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true})
   .getByRole("button",{name:"Conversa"}).click();
  await ownerPage.getByText("Revisar o rateio de desconto.").waitFor();
- await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ await ownerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).click();
  const ownerIntegration=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await ownerIntegration.getByRole("button",{name:"Integrações",exact:true}).click();
  await ownerIntegration.getByRole("textbox",{name:"Repositório",exact:true})
@@ -326,7 +326,7 @@ try{
  });
  await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ await testerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).click();
  const integrated=testerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await integrated.getByRole("button",{name:"Integrações",exact:true}).click();
  const linkedIssue=integrated.getByRole("link",{name:"Abrir no GitHub"});
@@ -394,7 +394,7 @@ try{
  await readerModal.getByRole("button",{name:"Conversa"}).click();
  await readerModal.getByText("Conversa da TF").waitFor();
  assert.equal(await readerModal.getByRole("button",{name:"Publicar comentário"}).count(),0);
- assert.equal(await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).count(),0,
+ assert.equal(await testerPage.getByRole("button",{name:"Gerenciar equipe",exact:true}).count(),0,
    "Read-only collaborator must not have access to the management modal");
 
  await testerPage.getByRole("tab",{name:"Cenários"}).click();

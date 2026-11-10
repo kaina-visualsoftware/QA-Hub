@@ -104,7 +104,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
   }
   async function deleteFile(item:EvidenceFile){
     if(!window.confirm("Excluir o arquivo '"+item.nome_original+"' definitivamente?"+
-      (item.publica?" Ele deixará de aparecer na página pública.":"")+
+      (task.publica?" Ele deixará de aparecer na página pública.":"")+
       " A exclusão do anexo não será desfeita."))return;
     setBusyChange(true);setError("");setMessage("");
     try{
@@ -189,7 +189,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
               onClick={()=>void deleteFile(item)}>Excluir</button>
           </>}
         </div>
-        {editingFile===item.id&&<form className="qa-crud-inline-form"
+        {editingFile===item.id&&<QAModal open title="Editar descrição do arquivo" size="md" busy={busyChange} onClose={()=>setEditingFile(null)}><form className="qa-crud-inline-form"
           onSubmit={event=>{event.preventDefault();void editFile(item);}}>
           <label className="field">Descrição do arquivo
             <input value={editedDescription} maxLength={1000}
@@ -200,7 +200,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
             <Button variant="secondary" type="button" isDisabled={busyChange}
               onPress={()=>setEditingFile(null)}>Cancelar</Button>
           </div>
-        </form>}
+        </form></QAModal>}
       </article>)}
     </div>}
     {preview&&<QAModal open title={"Visualizar arquivo — "+preview.file.nome_original}

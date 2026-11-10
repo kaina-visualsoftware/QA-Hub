@@ -90,7 +90,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
   }
   async function deleteImage(file:EvidenceFile){
     if(!window.confirm("Excluir a imagem '"+file.nome_original+"' definitivamente?"+
-      (file.publica?" Ela deixará de aparecer na página pública imediatamente.":"")+
+      (task.publica?" Ela deixará de aparecer na página pública imediatamente.":"")+
       " Esta ação não pode ser desfeita."))return;
     setBusy(true);setError("");setMessage("");
     try{
@@ -121,7 +121,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
           <button type="button" className="qa-scenario-crud-danger" disabled={busy}
             onClick={()=>void deleteImage(file)}>Excluir imagem</button>
         </div>
-        {editingFile===file.id&&<form className="qa-crud-inline-form"
+        {editingFile===file.id&&<QAModal open title="Editar observação da imagem" size="md" busy={busy} onClose={()=>setEditingFile(null)}><form className="qa-crud-inline-form"
           onSubmit={event=>{event.preventDefault();void saveEdited(file);}}>
           <label className="field">Observação da imagem
             <input maxLength={1000} value={editedDescription}
@@ -132,7 +132,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
             <Button size="sm" variant="secondary" type="button"
               onPress={()=>setEditingFile(null)}>Cancelar</Button>
           </div>
-        </form>}
+        </form></QAModal>}
       </article>)}
     </div>}
     <div tabIndex={0} role="group"

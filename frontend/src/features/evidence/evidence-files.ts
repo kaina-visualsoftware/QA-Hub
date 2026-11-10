@@ -142,7 +142,6 @@ export async function updateEvidenceDescription(db:SupabaseClient,file:EvidenceF
 export async function removeEvidenceFile(db:SupabaseClient,file:EvidenceFile,
   userId:string,taskId:string):Promise<void>{
   assertOwnEvidenceFile(file,userId,taskId);
-  if(file.publica)await setEvidencePublic(db,file,userId,taskId,false);
   const {data,error}=await db.from("qa_evidencia_arquivos")
     .delete().eq("id",file.id).eq("tarefa_id",taskId).eq("user_id",userId)
     .select("id").maybeSingle();

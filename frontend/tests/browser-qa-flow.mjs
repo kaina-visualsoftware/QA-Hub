@@ -326,7 +326,7 @@ try{
   await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
   assert.equal(await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio").count(),0,
     "The resource listing must not show inline import forms");
-  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await page.getByRole("button",{name:"Gerenciar requisitos",exact:true}).click();
   const requirementModal=page.getByRole("dialog",{name:"Importar requisitos"});
   await requirementModal.waitFor();
   const sourceField = requirementModal.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
@@ -384,7 +384,7 @@ try{
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.getByRole("textbox",{name:"Descrição (opcional)"}).count(),0,
     "Evidence upload must not appear in the file listings");
-  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await page.getByRole("button",{name:"Adicionar arquivo",exact:true}).click();
   const fileModal=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
   await fileModal.getByRole("button",{name:"Evidência do teste"}).click();
   await fileModal.getByRole("textbox",{name:"Descrição (opcional)"}).fill("Captura sintética do pedido");
@@ -392,7 +392,7 @@ try{
     name:"captura.png",mimeType:"image/png",buffer:samplePng
   });
   await page.getByRole("button",{name:"Anexar arquivo"}).click();
-  await page.getByText(/Anexo privado registrado/).waitFor();
+  await page.getByText(/Anexo registrado/).waitFor();
   assert.equal(uploadedBytes,1);
   assert.equal(fileSaves,1);
   assert.equal(evidenceFiles[0].mime_type,"image/png");
@@ -401,9 +401,9 @@ try{
   assert.equal(tasks[0].status,"rascunho","Anexar arquivo não aprova a TF.");
   await fileModal.getByRole("button",{name:"Fechar Importar arquivos e evidências"}).click();
   await page.getByLabel("Arquivos da TF").getByRole("button",{name:"Visualizar"}).click();
-  await page.getByRole("region",{name:"Prévia do anexo privado"}).waitFor({timeout:8000});
-  await page.getByRole("button",{name:"Fechar prévia do arquivo"}).click();
-  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await page.getByRole("dialog",{name:/Visualizar arquivo/}).waitFor({timeout:8000});
+  await page.keyboard.press("Escape");
+  await page.getByRole("button",{name:"Adicionar arquivo",exact:true}).click();
   await fileModal.getByRole("button",{name:"Evidência do teste"}).click();
   await page.getByText("Adicionar observação ou link").click();
   await page.getByLabel(/Resumo do que foi observado/).fill("Desconto removido com o comportamento esperado.");
@@ -420,7 +420,7 @@ try{
   const linkPanel=page.locator("section[aria-labelledby='links-heading']");
   await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
   assert.equal(await linkPanel.getByLabel(/Versão \(ex/).count(),0);
-  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await page.getByRole("button",{name:"Adicionar vínculo",exact:true}).click();
   const linksModal=page.getByRole("dialog",{name:"Adicionar release ou referência"});
   const editLinks=linksModal.locator("section[aria-labelledby='links-heading']");
   await editLinks.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
@@ -464,7 +464,7 @@ try{
   assert.equal(tasks[0].status,"rascunho");
   await linksModal.getByRole("button",{name:"Fechar Adicionar release ou referência"}).click();
   await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
-  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await page.getByRole("button",{name:"Adicionar arquivo",exact:true}).click();
   const reqPanel=fileModal.locator("section[aria-labelledby='qa-task-source-files-heading']");
   const fileInput=reqPanel.locator('input[type="file"]');
   await fileInput.setInputFiles({
@@ -483,7 +483,7 @@ try{
   await reqPanel.getByRole("button",{name:"Verificar arquivo"}).click();
   await page.getByText(/Arquivo verificado/).waitFor({timeout:25000});
   assert.match(await preview.inputValue(),/RF002: O campo desconto deve aceitar revisao/);
-  assert.equal(await reqPanel.getByRole("button",{name:"Anexar versão privada"}).isDisabled(),false);
+  assert.equal(await reqPanel.getByRole("button",{name:"Anexar documento"}).isDisabled(),false);
   // Selecting and extracting locally must never write any file into Storage.
   assert.deepEqual(failures,[]);
   console.log("E2E sintético React: QA, IA, R1-R4, evidências, release, diff e extração local PDF/DOCX.");

@@ -6,11 +6,11 @@ import type {EvidenceFile} from "../src/features/evidence/evidence-files";
 const uid="11111111-1111-4111-8111-111111111111";
 const task="22222222-2222-4222-8222-222222222222";
 const id="44444444-4444-4444-8444-444444444444";
-const sample=(publica=true):EvidenceFile=>({
+const sample=():EvidenceFile=>({
   id,tarefa_id:task,user_id:uid,cenario_id:"33333333-3333-4333-8333-333333333333",
   nome_original:"screenshot.png",mime_type:"image/png",tamanho_bytes:4096,
   objeto_path:fileStoragePath(uid,task,id,"png"),
-  descricao:"Observação inicial",created_at:"2026-11-10T14:00:00Z",publica
+  descricao:"Observação inicial",created_at:"2026-11-10T14:00:00Z"
 });
 function client(log:string[]) {
  const query={
@@ -37,11 +37,10 @@ describe("CRUD de evidências por proprietário",()=>{
    await updateEvidenceDescription(client(log),sample(),uid,task," Nota atualizada ");
    expect(log).toEqual(['update:{"descricao":"Nota atualizada"}']);
  });
- it("revoga acesso público antes de excluir a linha, depois remove o arquivo órfão",async()=>{
+ it("exclui metadados para revogar acesso, depois remove o arquivo órfão",async()=>{
    const log:string[]=[];
    await removeEvidenceFile(client(log),sample(),uid,task);
    expect(log).toEqual([
-     'update:{"publica":false}',
      "delete-meta",
      "remove-object:"+fileStoragePath(uid,task,id,"png")
    ]);
