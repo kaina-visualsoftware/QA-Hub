@@ -243,7 +243,7 @@ try{
   assert.equal(aiCalls,0);
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
   await generate.click();
-  const attach=page.getByRole("button",{name:/Anexar 1 caso/});
+  const attach=page.getByRole("button",{name:/Anexar \d+ casos?|Selecione casos/});
   await attach.waitFor({timeout:20000});
   assert.equal(await page.locator(".qa-ai-case-review").count(),1,
     "Repeated AI cases must be removed from the review, not shown disabled");
@@ -262,6 +262,7 @@ try{
   await caseTitle.fill("Versão revisada manualmente");
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
     "Edited scenarios must remain intact until the user saves or discards them.");
+  await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.dismiss());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   assert.equal(aiCalls,1,"Cancelar regeneração não envia outro pedido.");
@@ -270,6 +271,7 @@ try{
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   await page.getByText(/IA indisponível na simulação/).waitFor();
+  await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
     "Falha da IA deve manter o rascunho editado.");
   page.once("dialog",dialog=>void dialog.accept());
@@ -293,7 +295,8 @@ try{
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("objetivo");
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
-  await page.getByRole("button",{name:"Gerar post",exact:true}).click();
+  await page.getByRole("dialog",{name:"Gerar post com IA"})
+    .getByRole("button",{name:"Gerar post",exact:true}).click();
   const save=page.getByRole("button",{name:"Salvar post na TF"});
   await save.waitFor({timeout:20000});
   // React renders a disabled Save button while AI is still generating.

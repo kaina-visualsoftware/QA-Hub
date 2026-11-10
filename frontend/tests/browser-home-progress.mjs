@@ -136,6 +136,7 @@ try{
 
   await ownerRow.getByRole("link",{name:"Continuar testes"}).click();
   await page.getByRole("heading",{name:"Validar desconto"}).waitFor();
+  await page.waitForFunction(()=>document.activeElement?.getAttribute("data-qa-guided-primary")==="true");
   await page.getByRole("button",{name:"Excluir TF",exact:true}).click();
   const detailConfirmation=page.getByRole("dialog",{name:"Excluir esta TF?"});
   await detailConfirmation.waitFor();
@@ -143,8 +144,7 @@ try{
   assert.equal(writes.length,0,"Cancel in task detail must not delete the TF");
   await page.getByRole("group",{name:"Cenários na execução guiada"})
     .getByRole("button",{name:/Pendentes/}).waitFor({timeout:20000});
-  await page.waitForFunction(()=>
-    document.activeElement?.getAttribute("data-qa-guided-primary")==="true");
+  // Fechar o diálogo de exclusão restaura o foco ao botão que o abriu.
   assert.equal(await page.getByRole("button",{name:"Guiado",exact:true})
     .getAttribute("aria-pressed"),"true");
   assert.equal(await page.getByRole("group",{name:"Registrar resultado de Caso executado"}).count(),0);

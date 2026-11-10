@@ -4,11 +4,23 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'index.html'
+      - 'qa.html'
+      - 'qa-legacy.html'
+      - 'index-legacy.html'
+      - 'public.html'
+      - 'geradores.html'
       - '.github/workflows/qa-react-visual-audit.yml'
   push:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'index.html'
+      - 'qa.html'
+      - 'qa-legacy.html'
+      - 'index-legacy.html'
+      - 'public.html'
+      - 'geradores.html'
       - '.github/workflows/qa-react-visual-audit.yml'
   workflow_dispatch:
 permissions:
@@ -44,6 +56,12 @@ jobs:
             sleep 1
           done
           node tests/browser-accessibility.mjs
+          python3 -m http.server 8766 --bind 127.0.0.1 --directory .. > /tmp/qa-redirects.log 2>&1 &
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:8766/index.html > /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-compat-redirects.mjs
       - name: Attach route screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -127,6 +127,7 @@ try{
     await page.getByRole("tab",{name:"Arquivos e requisitos"}).click();
     const resources=page.getByRole("tablist",{name:"Documentos e informações de apoio"});
     assert.equal(await resources.getByRole("tab").count(),4);
+    await resources.getByRole("tab",{name:"Requisitos",exact:true}).click();
     await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
     assert.equal(await page.getByRole("button",{name:"Importar",exact:true}).count(),1,
       "Only one Importar action should appear in the resource library");

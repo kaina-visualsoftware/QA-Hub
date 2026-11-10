@@ -44,21 +44,15 @@ describe("whitelist da biblioteca pública", () => {
 });
 
 describe("contrato da projeção pública no servidor", () => {
-  it("prepara a leitura segura no React sem ativá-la no legado ainda publicado", () => {
+  it("usa apenas as RPCs públicas limitadas e encaminha links antigos ao React", () => {
     const reactSource = readFileSync(new URL(
       "../src/features/public/public-data.ts", import.meta.url), "utf8");
-    const legacySource = readFileSync(new URL(
-      "../../public.js", import.meta.url), "utf8");
-    const releasePlan = readFileSync(new URL(
-      "../../docs/LIBERACAO_ISSUE_37.md", import.meta.url), "utf8");
+    const oldEntry = readFileSync(new URL("../../public.html", import.meta.url), "utf8");
     expect(reactSource).toContain('supabase.rpc("qa_public_tasks_v1")');
     expect(reactSource).toContain('supabase.rpc("qa_public_task_v1"');
-    // The additive server-side RPC migration is now deployed. Both public
-    // clients must use the restricted projection before the final lockdown.
-    expect(legacySource).toContain("db.rpc('qa_public_tasks_v1')");
-    expect(legacySource).toContain("db.rpc('qa_public_task_v1'");
-    expect(legacySource).not.toMatch(/db\.from\(['"]qa_(?:tarefas|cenarios|diagramas)['"]\)/);
-    expect(releasePlan).toContain("Fase 3");
+    expect(oldEntry).toContain("#/publicas");
+    expect(oldEntry).toContain("encodeURIComponent(tf)");
+    expect(oldEntry).not.toContain("public.js");
   });
   it("restringe a função privilegiada a campos explícitos e a publica=true", () => {
     const sql = readFileSync(new URL(

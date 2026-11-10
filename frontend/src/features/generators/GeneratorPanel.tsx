@@ -514,7 +514,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
             </div>
             <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || completed}
               onPress={() => void attachCases()}>
-              <Send size={16} /> {completed ? "Casos adicionados" : `Anexar ${chosen.length} caso(s) à TF`}
+              <Send size={16} /> {completed ? "Casos adicionados" : chosen.length === 0 ? "Selecione casos" : `Anexar ${chosen.length} ${chosen.length === 1 ? "caso" : "casos"} à TF`}
             </Button>
           </div>
         </> : !generating && (generatedCount > 0

@@ -18,7 +18,7 @@
       if (callback) {
         target.search = current.search;
         target.hash = current.hash;
-      } else if (/^#\/(?:tarefa\/|publicas|recuperar)/.test(current.hash)) {
+      } else if (/^#\/(?:tarefa\/|publicas|recuperar|painel|ferramentas|perfil|admin)/.test(current.hash)) {
         target.hash = current.hash;
       } else {
         target.hash = "#/";
@@ -32,7 +32,6 @@
     <h1>QA Hub</h1>
     <p>Abrindo o novo ambiente de testes.</p>
     <p><a href="./react/">Entrar no QA Hub</a></p>
-    <p><a href="./qa-legacy.html">Usar a versão anterior</a></p>
   </main>
 </body>
 </html>

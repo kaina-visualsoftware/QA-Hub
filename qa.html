@@ -25,7 +25,7 @@
         target.hash = rawHash;
       } else {
         // Map compatible hash routes; unknown legacy routes safely open home.
-        if (/^#\/(?:tarefa\/|publicas|recuperar)/.test(rawHash)) {
+        if (/^#\/(?:tarefa\/|publicas|recuperar|painel|ferramentas|perfil|admin)/.test(rawHash)) {
           target.hash = rawHash;
         } else {
           const legacyTask = rawHash.match(/^#\/tarefas\/([0-9a-f-]{36})(?:\?.*)?$/i);
@@ -41,7 +41,6 @@
     <h1>QA Hub</h1>
     <p>Abrindo a nova versão da plataforma.</p>
     <p><a href="./react/">Abrir QA Hub React</a></p>
-    <p><a href="./qa-legacy.html">Acessar a versão anterior</a></p>
   </main>
 </body>
 </html>
