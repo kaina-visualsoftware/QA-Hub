@@ -1,6 +1,7 @@
 import {mockF4Rpc} from "./f4-mock-rpc.mjs";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import { mkdirSync } from "node:fs";
 
 const BASE = "http://127.0.0.1:4173/QA-Hub/";
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -84,6 +85,7 @@ async function respond(route) {
   }
   if (path.endsWith("/rest/v1/qa_cenarios")) return send([scenario]);
   if (path.endsWith("/rest/v1/qa_diagramas")) return send([diagram]);
+  if (path.endsWith("/rest/v1/qa_referencias")) return send([]);
   exceptions.push("Unexpected request: " + method + " " + path);
   return send({ message: "Unsupported synthetic endpoint" }, 500);
 }
@@ -125,6 +127,7 @@ async function attach(page, width) {
 }
 
 try {
+  mkdirSync("artifacts/all-pages-a11y",{recursive:true});
   for (const width of [320, 390, 1366]) {
     const page = await browser.newPage({ viewport: { width, height: 844 } });
     await attach(page, width);
@@ -256,6 +259,29 @@ try {
     await page.waitForFunction(()=>document.activeElement?.textContent?.trim()==="Não funcionou");
     assert.equal(await failButton.evaluate((el) => el === document.activeElement), true,
       "Closing the result dialog must restore focus to the status action");
+    // Explicit route sweep: all migrated top-level pages, including the
+    // denied admin state, at narrow and wide viewports.
+    for (const route of [
+      { path:"#/painel", heading:"Visão geral", label:"dashboard" },
+      { path:"#/ferramentas", heading:"Ferramentas", label:"ferramentas" },
+      { path:"#/perfil", heading:"Perfil e configurações", label:"perfil" },
+      { path:"#/admin", heading:"Acesso restrito", label:"admin-sem-permissao" }
+    ]) {
+      await page.goto(BASE + route.path);
+      await page.getByRole("heading",{name:route.heading,exact:true}).waitFor({timeout:15000});
+      await axeAudit(page,route.label,width);
+      await page.screenshot({path:"artifacts/all-pages-a11y/"+route.label+"-"+width+".png"});
+      if(route.path==="#/ferramentas"){
+        const tabs=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
+        for(const [name,label] of [
+          ["Comparações","ferramentas-comparacao"],
+          ["Informações","ferramentas-informacoes"]
+        ]) {
+          await tabs.getByRole("tab",{name:new RegExp(name)}).click();
+          await axeAudit(page,label,width);
+        }
+      }
+    }
     await page.close();
   }
   assert.equal(loadedAssets.length, 0,
@@ -265,7 +291,7 @@ try {
     console.error("Falhas WCAG detectadas:", JSON.stringify(violations, null, 2));
     throw Error(violations.length + " conjuntos de violações WCAG no React.");
   }
-  console.log("WCAG AA: 24 estados em 320/390/1366 px, fluxo rápido, foco de modal e IA lazy.");
+  console.log("WCAG AA: rotas React, estados de autenticação, público, admin, ferramentas, dashboard, perfil, TF e modais em 320/390/1366 px.");
 } finally {
   await browser.close();
 }
