@@ -1,0 +1,48 @@
+/* Review of NVIDIA suggestions is an isolated step, never a live form mutation. */
+.qa-ai-proposal-fields{display:grid;gap:9px;min-width:0;margin:0;padding:0;border:0}
+.qa-ai-proposal-fields legend{
+  padding:0;margin-bottom:9px;color:#214e59;
+  font-size:.81rem;font-weight:750;
+}
+.qa-ai-proposal-field{
+  display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px 13px;
+  border:1px solid #dce9e9;border-radius:10px;background:#f9fbfb;
+  cursor:pointer;
+}
+.qa-ai-proposal-field:has(input:checked){border-color:#91c6bd;background:#f2faf6}
+.qa-ai-proposal-field input{
+  margin:1px 0 0;flex:0 0 24px;width:24px;height:24px;accent-color:#197981;
+}
+.qa-ai-proposal-field>span{display:grid;gap:6px;min-width:0;overflow-wrap:anywhere}
+.qa-ai-proposal-field strong{font-size:.82rem;color:#244f59}
+.qa-ai-proposal-field small{
+  font-size:.76rem;color:#566e76;white-space:pre-wrap;overflow-wrap:anywhere;
+  max-height:110px;overflow:auto;
+}
+.qa-ai-proposal-new{
+  color:#275c58;font-size:.78rem;font-weight:650;line-height:1.55;
+  white-space:pre-wrap;overflow-wrap:anywhere;max-height:170px;overflow:auto;
+}
+.qa-ai-proposal-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:9px;
+  flex-wrap:wrap;padding-top:13px;border-top:1px solid #e1eaeb;
+}
+.qa-ai-proposal-actions button{min-height:44px}
+.qa-ai-proposal-finished{
+  display:flex;align-items:flex-start;gap:10px;min-width:0;
+  padding:12px 14px;border:1px solid #bdded3;
+  border-radius:10px;background:#f0f9f4;color:#235a4c;
+}
+.qa-ai-proposal-finished>svg{flex:0 0 18px;margin-top:2px}
+.qa-ai-proposal-finished strong{display:block;font-size:.84rem}
+.qa-ai-proposal-finished p{margin:5px 0 10px;font-size:.78rem;line-height:1.55}
+.qa-ai-proposal-finished button{min-height:44px}
+@media(max-width:640px){
+  .qa-ai-proposal-actions button{flex:1 1 100%;width:100%}
+  .qa-ai-proposal-field{padding:11px 10px}
+}
+
+.qa-task-ai-result-top h3{margin:0;color:#235861;font-size:.9rem;font-weight:770;line-height:1.4}
+
+/* During review, the confirmation follows the list instead of covering it. */
+.qa-task-ai-review-form .qa-modal-actions{position:static;bottom:auto;z-index:auto;background:#fff;margin-top:14px;padding-top:14px}

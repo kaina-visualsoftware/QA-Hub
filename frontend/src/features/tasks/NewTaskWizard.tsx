@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
+import { AiStepFlow } from "../../components/ui/AiStepFlow";
 import { ToastNotice } from "../../components/ui/Toasts";
 import { createTask, addExtractedScenarios } from "../../lib/data";
 import { taskDraftSchema, scenarioDraftSchema } from "../../lib/contracts";
@@ -98,6 +99,7 @@ function addUnique(previous: SuggestedScenario[], candidates: SuggestedScenario[
 
 export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [step,setStep] = useState<1|2|3>(1);
+  const [caseReview,setCaseReview] = useState(false);
   const [sourceText,setSourceText] = useState("");
   const [taskFiles,setTaskFiles] = useState<PreparedFile[]>([]);
   const [requirementText,setRequirementText] = useState("");
@@ -128,7 +130,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     if(open && !wasOpen.current) setRecoverable(loadNewTaskDraft(userId));
     if(!open && wasOpen.current) {
       controller.current?.abort();
-      setStep(1);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
+      setStep(1);setCaseReview(false);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
       setRequirementText("");setDraft(blank());setCases([]);
       setConsentTask(false);setConsentCases(false);setAiUsed(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);
@@ -308,6 +310,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     setDraft(result.data);
     setDraftErrors({});
     setError("");setNotice("");
+    setCaseReview(cases.length>0);
     setStep(3);
   }
   async function generateCases(){
@@ -352,6 +355,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       const fresh=freshTaskAiScenarios(normalized,cases,true);
       const combined=addUnique(cases,fresh);
       setCases(combined);
+      if(combined.length)setCaseReview(true);
       setNotice(response.truncated
         ? "A resposta da NVIDIA foi interrompida pelo limite do modelo. Confira a lista antes de finalizar."
         : fresh.length
@@ -677,10 +681,17 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileCheck2 size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">03 · COBERTURA</span>
-          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Casos de teste</h3>
-          <p>Gere casos fundamentados na TF e nos requisitos, sem repetir cenários.</p>
+          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>
+            {caseReview?"Revisar casos sugeridos":"Gerar casos de teste"}</h3>
+          <p>{caseReview
+            ?"Confira o que a IA criou, ajuste e selecione os casos antes de gravar."
+            :"Gere casos fundamentados na TF e nos requisitos, sem repetir cenários."}</p>
         </div>
       </div>
+      <AiStepFlow step={finishing?"finalize":generating?"processing":caseReview?"review":"prepare"}
+        label="Etapas da geração de casos para uma nova TF"
+        labels={["Configurar e gerar","Revisar casos","Finalizar TF"]}/>
+      {!generating&&!caseReview&&<>
       <div className="qa-wizard-task-summary">
         <strong>{draft.titulo}</strong>
         <span>{draft.codigo?draft.codigo+" · ":""}{draft.tipo_teste}
@@ -726,7 +737,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             cases.length?"Ampliar cobertura com IA":"Gerar casos de teste com IA"}
         </Button>
       </div>
-      {cases.length>0&&<div className="qa-wizard-case-review">
+      </>}
+      {caseReview&&cases.length>0&&<div className="qa-wizard-case-review">
         <div className="qa-wizard-case-head">
           <strong>{totalSelected} de {cases.length} casos selecionados</strong>
           <div>
@@ -763,15 +775,22 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           </article>)}
         </div>
       </div>}
-      <div className="qa-wizard-actions">
+      {!generating&&<div className="qa-wizard-actions">
         <Button variant="secondary" isDisabled={busy}
-          onPress={()=>{setStep(2);setError("");}}><ArrowLeft size={16}/> Voltar</Button>
-        <button type="button" className="qa-wizard-skip" disabled={busy}
-          onClick={()=>void finish(false)}>Pular e finalizar sem casos</button>
-        <Button isDisabled={busy||totalSelected===0} onPress={()=>void finish(true)}>
-          <Plus size={17}/>{finishing?"Salvando TF…":"Finalizar com "+totalSelected+" caso(s)"}
+          onPress={()=>{if(caseReview)setCaseReview(false);else setStep(2);setError("");}}>
+          <ArrowLeft size={16}/> {caseReview?"Voltar à geração":"Voltar"}
         </Button>
-      </div>
+        <button type="button" className="qa-wizard-skip" disabled={busy}
+          onClick={()=>void finish(false)}>Finalizar sem casos</button>
+        {!caseReview&&cases.length>0&&<Button isDisabled={busy}
+          onPress={()=>{setCaseReview(true);setError("");}}>
+          <ArrowRight size={17}/> Revisar {cases.length} caso(s)
+        </Button>}
+        {caseReview&&<Button isDisabled={busy||totalSelected===0}
+          onPress={()=>void finish(true)}>
+          <Plus size={17}/>{finishing?"Salvando TF…":"Finalizar com "+totalSelected+" caso(s)"}
+        </Button>}
+      </div>}
     </section>}
     {notice&&<ToastNotice message={notice} tone="info"/>}
   </QAModal>;

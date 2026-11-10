@@ -1,0 +1,23 @@
+.qa-ai-busy-status{
+  display:grid;gap:10px;min-width:0;padding:14px;
+  border:1px solid #c3ded9;border-radius:11px;
+  background:#f1faf7;color:#255b57;
+}
+.qa-ai-busy-main{display:flex;align-items:flex-start;gap:11px;min-width:0}
+.qa-ai-busy-main>svg{flex:0 0 19px;margin-top:2px}
+.qa-ai-busy-main>div{min-width:0}
+.qa-ai-busy-main strong{font-size:.85rem}
+.qa-ai-busy-main p{margin:4px 0 0;line-height:1.5;font-size:.78rem}
+.qa-ai-busy-clock{font-size:.75rem;color:#315c5a;font-variant-numeric:tabular-nums}
+.qa-ai-busy-clock strong{margin-left:7px}
+.qa-ai-busy-track{height:4px;background:#dbece7;border-radius:9px;overflow:hidden}
+.qa-ai-busy-track span{
+  display:block;width:30%;height:100%;border-radius:9px;
+  background:#27827a;animation:qa-ai-pending-pulse 1.5s ease-in-out infinite alternate;
+}
+@keyframes qa-ai-pending-pulse{
+  from{transform:translateX(-20%)}to{transform:translateX(260%)}
+}
+@media(prefers-reduced-motion:reduce){
+  .qa-ai-busy-track span{animation:none}
+}

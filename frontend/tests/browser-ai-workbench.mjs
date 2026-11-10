@@ -247,8 +247,11 @@ try {
       assert.equal(await dialog.getByRole("button",{name:"Fechar Gerar casos com IA"}).isEnabled(),true);
       await dialog.getByRole("button",{name:/Alterar modelo ou gerar novamente/}).click();
       assert.equal(await dialog.getByRole("combobox",{name:"Modelo de geração"}).isVisible(),true);
+      assert.equal(await dialog.getByRole("region",{name:"Resultado da IA"}).count(),0,
+        "Only the configuration screen may be visible while editing settings.");
+      await dialog.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true,
-        "Adjusting configuration must preserve the previous draft");
+        "Returning to review must preserve the previous draft");
     }
     await page.getByRole("button",{name:mode==="Post"?
       "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
@@ -325,6 +328,10 @@ try {
   await page.getByText("Diagrama salvo.",{exact:true}).waitFor({timeout:10000});
   assert.equal(diagramSaves,1);
   assert.equal(diagrams.length,1);
+  const savedDiagram=page.getByRole("button",{name:"Diagrama salvo"});
+  await savedDiagram.waitFor();
+  assert.equal(await savedDiagram.isDisabled(),true,
+    "Saving the same diagram twice without changes must be blocked");
   assert.equal(task.status,"em_teste","Generating/saving a diagram never approves a TF");
 
   // A user may paste broken Mermaid into the editor. Such code MUST NOT be

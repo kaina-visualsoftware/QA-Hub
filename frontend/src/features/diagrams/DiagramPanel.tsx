@@ -5,13 +5,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, WandSparkles, LoaderCircle, FileCheck2, Code2 } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { DiagramAiPanel } from "./DiagramAiPanel";
+import { AiStepFlow } from "../../components/ui/AiStepFlow";
 import { ensureMermaidSyntax, isMissingModuleChunk, mermaidErrorMessage } from "./mermaid-validation";
 import {
   diagramDraftSchema, listDiagrams, saveDiagram
 } from "../../lib/data";
 
-export default function DiagramPanel({ task, scenarios, userId, focusAi = false, editDiagramId }: {
-  task:Task; scenarios:Scenario[]; userId:string; focusAi?:boolean; editDiagramId?:string|null
+export default function DiagramPanel({ task, scenarios, userId, focusAi = false, editDiagramId, onBusyChange }: {
+  task:Task; scenarios:Scenario[]; userId:string; focusAi?:boolean; editDiagramId?:string|null;
+  onBusyChange?:(busy:boolean)=>void
 }) {
   const taskId=task.id;
   const own=task.user_id===userId;
@@ -26,6 +28,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   const [previewError, setPreviewError] = useState("");
   const [repairRequest,setRepairRequest]=useState<{code:string;error:string}|null>(null);
   const [busyPreview, setBusyPreview] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (!focusAi) return;
@@ -48,6 +51,11 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
       setMessage("Diagrama salvo."); await invalidate();
     }
   });
+  // The outer modal must remain open until both the NVIDIA call and the
+  // preview/save operations finish; prevent losing confirmation feedback.
+  useEffect(()=>{
+    onBusyChange?.(aiBusy||busyPreview||save.isPending);
+  },[aiBusy,busyPreview,save.isPending,onBusyChange]);
   // Editing opens independently from the read-only library. The task and the
   // selected record are scoped by the existing RLS-aware list query.
   useEffect(()=>{
@@ -66,6 +74,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   function applyAiDraft(generated:string){
     if ((editingId || title.trim() || code !== "flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]") &&
       !window.confirm("Substituir o texto atual do editor por este fluxograma sugerido pela IA?")) return false;
+    save.reset();
     setEditingId(undefined);
     setTitle("Fluxo — " + task.titulo.slice(0,130));
     setCode(generated);setSvg(null);setMessage("");setPreviewError("");setRepairRequest(null);
@@ -85,7 +94,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
     }
     const diagnosis=mermaidErrorMessage(reason);
     setPreviewError("Mermaid inválido: "+diagnosis);
-    setShowEditor(true);setShowComposer(true);
+    setShowEditor(true);setShowComposer(false);
     setRepairRequest(value.trim()?{code:value,error:diagnosis}:null);
   }
   async function preview(value:string){
@@ -104,7 +113,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
     } finally{setBusyPreview(false);}
   }
   async function validateAndSave(){
-    if(!own || save.isPending || busyPreview)return;
+    if(!own || save.isPending || save.isSuccess || busyPreview)return;
     const draft=diagramDraftSchema.safeParse({titulo:title,conteudo:code});
     if(!draft.success){
       setPreviewError(draft.error.issues[0]?.message||"Revise os campos.");
@@ -124,17 +133,20 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
 
   return <section className="qa-diagram-workspace" aria-labelledby="diagram-heading">
     <h2 id="diagram-heading" className="sr-only">Diagramas Mermaid</h2>
+    <AiStepFlow step={showComposer?"prepare":save.isSuccess?"complete":"review"}
+      label="Etapas da criação de diagrama com IA"
+      labels={["Configurar e gerar","Revisar o diagrama","Salvar na TF"]}/>
     <div className="qa-diagram-composer" hidden={!showComposer}>
       <DiagramAiPanel task={task} scenarios={scenarios} userId={userId}
         repairRequest={repairRequest} onRepairHandled={()=>setRepairRequest(null)}
-        onDraft={applyAiDraft}/>
+        onBusyChange={setAiBusy} onDraft={applyAiDraft}/>
     </div>
-    {!showComposer&&own&&<button type="button" className="qa-diagram-regenerate"
-      onClick={()=>{setShowComposer(true);requestAnimationFrame(()=>
+    {!showComposer&&own&&!save.isPending&&<button type="button" className="qa-diagram-regenerate"
+      onClick={()=>{save.reset();setShowComposer(true);requestAnimationFrame(() =>
         document.getElementById("diagram-ai-heading")?.focus({preventScroll:true}));}}>
       <WandSparkles size={16} aria-hidden="true"/> Alterar ou gerar novamente
     </button>}
-    {(title.trim()||svg||showEditor) ?
+    {!showComposer && (title.trim()||svg||showEditor) ?
     <form className="qa-diagram-result" id="diagram-editor"
       aria-label="Revisar e salvar diagrama"
       onSubmit={event=>{event.preventDefault();void validateAndSave();}}>
@@ -160,13 +172,13 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
         <div className="stack qa-diagram-code-fields">
           <label className="field">Título do diagrama
             <input maxLength={160} value={title}
-              onChange={event=>setTitle(event.target.value)}
+              onChange={event=>{setTitle(event.target.value);save.reset();setMessage("");}}
               placeholder="Fluxo de validação"/>
           </label>
           <label className="field">Código Mermaid
             <textarea id="diagram-code-editor" rows={9} maxLength={16000}
               value={code} onChange={event=>{
-                setCode(event.target.value);setSvg(null);
+                setCode(event.target.value);setSvg(null);save.reset();setMessage("");
                 setPreviewError("");setRepairRequest(null);
               }}/>
           </label>
@@ -186,10 +198,10 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
       </div>}
       <div className="qa-diagram-savebar">
         <Button type="submit" id="diagram-save-action"
-          isDisabled={save.isPending||busyPreview||!own||!title.trim()}>
+          isDisabled={save.isPending||save.isSuccess||busyPreview||!own||!title.trim()}>
           {save.isPending?<LoaderCircle size={16} className="qa-ai-spinner" aria-hidden="true"/>:
             <FileCheck2 size={16} aria-hidden="true"/>}
-          {save.isPending?"Salvando diagrama…":"Salvar diagrama"}
+          {save.isPending?"Salvando diagrama…":save.isSuccess?"Diagrama salvo":"Salvar diagrama"}
         </Button>
         <Button type="button" variant="secondary" isDisabled={busyPreview}
           onPress={()=>void preview(code)}>
@@ -198,7 +210,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
         </Button>
         {editingId&&<Button type="button" variant="secondary"
           onPress={()=>{
-            setEditingId(undefined);setTitle("");setSvg(null);setMessage("");
+            setEditingId(undefined);setTitle("");setSvg(null);setMessage("");save.reset();
             setCode("flowchart LR\n  A[Início] --> B[Processo] --> C[Fim]");
             setShowEditor(false);
           }}>Novo diagrama</Button>}
@@ -207,7 +219,7 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
       <ToastNotice message={message} tone="success"/>
     </form> :
     <button type="button" className="qa-diagram-manual-toggle"
-      onClick={()=>setShowEditor(true)}>Criar manualmente com Mermaid</button>}
+      onClick={()=>{setShowComposer(false);setShowEditor(true);}}>Criar manualmente com Mermaid</button>}
     {editDiagramId&&diagrams.isPending&&<p role="status">Carregando diagrama para edição…</p>}
     {editDiagramId&&diagrams.isError&&<p role="alert" className="notice error">{diagrams.error.message}</p>}
     {editDiagramId&&diagrams.isSuccess&&

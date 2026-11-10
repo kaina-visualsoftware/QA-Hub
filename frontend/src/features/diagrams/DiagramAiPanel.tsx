@@ -3,6 +3,7 @@ import {useQuery} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
 import {WandSparkles,Wrench,FileText,CheckCircle2,AlertCircle,LoaderCircle,ShieldCheck} from "lucide-react";
 import {ToastNotice} from "../../components/ui/Toasts";
+import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {diagramPresets,diagramPresetInstruction} from "../generators/ai-presets";
 import type {Scenario,Task} from "../../lib/contracts";
 import {supabase} from "../../lib/supabase";
@@ -23,10 +24,11 @@ type Props={
   onDraft:(code:string,mode:DiagramInputMode)=>boolean;
   repairRequest?:{code:string;error:string}|null;
   onRepairHandled?:()=>void;
+  onBusyChange?:(busy:boolean)=>void;
 };
 const reasonText=(reason:unknown)=>reason instanceof Error?reason.message:"Não foi possível gerar o diagrama.";
 
-export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRepairHandled}:Props){
+export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRepairHandled,onBusyChange}:Props){
   const own=task.user_id===userId;
   const [mode,setMode]=useState<DiagramInputMode>("task");
   const [preset,setPreset]=useState("processo");
@@ -36,6 +38,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   const [summarizing,setSummarizing]=useState(false);
   const [summaryProgress,setSummaryProgress]=useState("");
   const [busy,setBusy]=useState(false);
+  useEffect(()=>{onBusyChange?.(busy||summarizing);},[busy,summarizing,onBusyChange]);
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [attempts,setAttempts]=useState(0);
@@ -91,6 +94,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   async function summarize(){
     if(!canSummarize||!evidence.coverage)return;
     const snapshot=currentSource;
+    onBusyChange?.(true);
     setSummarizing(true);setSummaryProgress("");
     setError("");setMessage("");setSummary("");
     try{
@@ -125,12 +129,13 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     }catch(reason){
       setError(reasonText(reason));
     }finally{
-      setSummarizing(false);setSummaryProgress("");
+      setSummarizing(false);setSummaryProgress("");onBusyChange?.(false);
     }
   }
 
   async function generate(repair=false){
     if(!canGenerate||(repair&&!repairCandidate))return;
+    onBusyChange?.(true);
     setBusy(true);setError("");setMessage("");
     setAttempts(n=>n+1);
     try{
@@ -156,7 +161,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         "A NVIDIA não retornou um diagrama válido. Revise a sugestão local antes de salvar.":
         repair?"Diagrama corrigido.":"Diagrama pronto para revisão.");
     }catch(reason){setError(reasonText(reason));}
-    finally{setBusy(false);}
+    finally{setBusy(false);onBusyChange?.(false);}
   }
 
   const counts=evidence.coverage;
@@ -171,7 +176,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         <p className="text-muted text-sm">Escolha a origem, revise o contexto e gere um fluxo fiel à TF.</p>
       </div>
     </div>
-    {mode==="task"&&<ol className="qa-diagram-stage-track" aria-label="Etapas do diagrama">
+    {mode==="task"&&<ol className="qa-diagram-stage-track" aria-label="Fases de preparação do conteúdo">
       <li className={contextReady?"is-done":""}>
         <span>{contextReady?<CheckCircle2 size={15} aria-hidden="true"/>:"1"}</span>
         Dados da TF
@@ -252,11 +257,8 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
             <FileText size={17} aria-hidden="true"/>}
           {summarizing?"Resumindo a tarefa…":summary?"Resumir novamente com IA":"Resumir TF com IA"}
         </Button>
-        {summarizing&&<div role="status" aria-live="polite" className="qa-diagram-processing">
-          <LoaderCircle className="qa-ai-spinner" size={18} aria-hidden="true"/>
-          <div><strong>Preparando um resumo fiel da TF</strong>
-            <p>{summaryProgress||"Organizando os documentos e cenários."}</p></div>
-        </div>}
+        {summarizing&&<AiBusyStatus title="Preparando um resumo fiel da TF"
+          detail={summaryProgress||"Organizando os documentos e cenários."}/>}
       </div>
       {summary&&<div className="qa-diagram-summary-review">
         <div className="qa-diagram-summary-review-heading">
@@ -287,11 +289,8 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         <Wrench size={16}/> Corrigir com IA
       </Button>}
     </div>
-    {busy&&<div role="status" aria-live="polite" className="qa-diagram-processing">
-      <LoaderCircle className="qa-ai-spinner" size={18} aria-hidden="true"/>
-      <div><strong>Gerando o fluxograma</strong>
-        <p>Aguardando a NVIDIA e validando a sintaxe Mermaid antes de abrir a prévia.</p></div>
-    </div>}
+    {busy&&<AiBusyStatus title="Gerando o fluxograma"
+      detail="Aguardando a NVIDIA e validando a sintaxe Mermaid antes de abrir a prévia."/>}
     {mode==="task"&&!summary&&!summarizing&&<p className="qa-diagram-summary-explainer">
       Primeiro gere e revise o resumo completo; depois o diagrama ficará disponível.
     </p>}

@@ -266,14 +266,19 @@ try{
   page.once("dialog",dialog=>void dialog.dismiss());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   assert.equal(aiCalls,1,"Cancelar regeneração não envia outro pedido.");
+  await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
+  await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente");
+  await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
   failNextGenerator=true;
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   await page.getByText(/IA indisponível na simulação/).waitFor();
+  await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
   await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
     "Falha da IA deve manter o rascunho editado.");
+  await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   await page.getByRole("button",{name:/Anexar 1 caso/}).waitFor();

@@ -105,7 +105,7 @@ try {
     .fill("Conferir criação e execução manual.");
   await wizard.getByRole("button",{name:"Avançar"}).click();
   assert.equal(calls.task,0,"The TF is only persisted on finish");
-  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Nova TF com primeiro caso"}).waitFor();
   assert.equal(calls.task,1);
   assert.equal(calls.case,0,"Skipping cases must not create an empty scenario");
@@ -162,7 +162,7 @@ try {
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
   await wizard.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading", { name: "TF sem cenário imediato" }).waitFor();
   assert.equal(await page.getByRole("dialog", { name: "Cadastrar cenário" }).count(), 0);
   assert.equal(calls.task, 2);

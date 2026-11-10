@@ -223,3 +223,20 @@
     animation:none;transform:none;width:37%;
   }
 }
+
+/* Configuration and review are exclusive surfaces, with a safe return to a draft. */
+.qa-ai-prior-result{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;min-width:0;
+  padding:10px 12px;margin:0 0 13px;border:1px solid #d4e5e1;
+  border-radius:10px;background:#f5faf8;color:#285b57;font-size:.78rem;
+}
+.qa-ai-prior-result span{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.qa-ai-prior-result button{
+  min-height:44px;padding:8px 11px;border:1px solid #bddbd8;
+  border-radius:9px;color:#205b65;background:#fff;font:inherit;
+  font-weight:700;cursor:pointer;
+}
+.qa-ai-prior-result button:hover{background:#eaf5f3}
+.qa-ai-prior-result button:focus-visible{outline:3px solid #238995;outline-offset:2px}
+@media(max-width:640px){.qa-ai-prior-result button{width:100%}}
