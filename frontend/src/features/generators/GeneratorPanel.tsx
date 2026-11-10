@@ -93,8 +93,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     return () => controller.current?.abort();
   }, []);
   useEffect(() => {
-    onBusyChange?.(generating);
-  }, [generating, onBusyChange]);
+    onBusyChange?.(generating || busySave);
+  }, [generating, busySave, onBusyChange]);
   useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");
@@ -140,9 +140,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
     if (Object.keys(patch).some(key => key !== "selected")) setDirtyOutput(true);
+    setCompleted(false);
     setCases(current => current.map((item, i) => i === index ? {...item,...patch} : item));
   }
   function selectAllVisible(value: boolean) {
+    setCompleted(false);
     const visibleIndices = new Set(available.map(item => item.caseIndex));
     setCases(current => current.map((item,index)=>
       visibleIndices.has(index) ? {...item,selected:value} : item));
@@ -299,6 +301,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </div>
     </div>
     <GeneratorSteps stage={stage} postMode={postMode}/>
+    {completed && <div className="qa-generator-complete" role="status">
+      <CheckCircle2 size={20} aria-hidden="true"/>
+      <div>
+        <strong>{postMode ? "Post salvo na TF" : "Casos adicionados à TF"}</strong>
+        <p>{postMode ? "O documento está disponível na área de relatórios." :
+          "Os casos foram registrados como não executados. Você pode iniciar os testes na aba Cenários."}</p>
+      </div>
+    </div>
     {!generating && hasOutput && !showSetup && <div className="qa-generator-setup-toggle">
       <span><CheckCircle2 size={16} aria-hidden="true"/>
         Conteúdo gerado. Revise antes de confirmar.</span>
@@ -423,7 +433,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
-            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setMessage(""); }} />
+            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
@@ -435,10 +445,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div className="qa-post-output-actions">
           <Button type="button" variant="secondary" onPress={() => void navigator.clipboard.writeText(content || raw)}
             isDisabled={!content}><Clipboard size={16} /> Copiar</Button>
-          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating}>
+          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || completed}>
             {busySave?<LoaderCircle className="qa-ai-spinner" size={16} aria-hidden="true"/>:
               <FileCheck2 size={16}/>}
-            {busySave?"Salvando post…":"Salvar post na TF"}
+            {busySave?"Salvando post…":completed?"Post salvo":"Salvar post na TF"}
           </Button>
         </div>
       </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
@@ -498,9 +508,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               {invalidSelection&&<p role="status">
                 Revise título, passos e resultado esperado dos casos selecionados.</p>}
             </div>
-            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating}
+            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || completed}
               onPress={() => void attachCases()}>
-              <Send size={16} /> Anexar {chosen.length} caso(s) à TF
+              <Send size={16} /> {completed ? "Casos adicionados" : `Anexar ${chosen.length} caso(s) à TF`}
             </Button>
           </div>
         </> : !generating && (generatedCount > 0
