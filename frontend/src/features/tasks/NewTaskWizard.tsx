@@ -462,10 +462,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   );
   const field=(name:keyof TaskDraft,label:string,long=false)=><label className="field" key={name}>
     {label}
-    {long?<textarea rows={name==="descricao"?4:3} value={draft[name]||""}
-      maxLength={30000} disabled={busy}
+    {long?<textarea aria-label={label} rows={name==="descricao"?4:3}
+      value={draft[name]||""} maxLength={30000} disabled={busy}
       onChange={event=>update(name,event.target.value)}/>:
-      <input value={draft[name]||""} disabled={busy}
+      <input aria-label={label} value={draft[name]||""} disabled={busy}
         onChange={event=>update(name,event.target.value)}/>}
     {draftErrors[name]&&<small className="text-error" role="alert">{draftErrors[name]}</small>}
   </label>;
