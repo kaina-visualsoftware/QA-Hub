@@ -110,6 +110,9 @@ jobs:
           Generated React build managed by .github/workflows/qa-react-publish.yml.
           Do not edit generated assets directly; edit frontend/ and publish again.
           EOF
+          # Remember the exact source snapshot that produced dist/.
+          # A superseded build must never publish stale JavaScript over newer TF UI changes.
+          bundle_source_sha="$(git rev-parse HEAD)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A react
@@ -123,7 +126,25 @@ jobs:
           pushed=0
           for attempt in 1 2 3; do
             git fetch origin main
-            git rebase origin/main
+            if ! git diff --quiet "$bundle_source_sha" origin/main -- frontend .github/workflows/qa-react-publish.yml; then
+              echo "A newer source or publish workflow changed during the build. Skipping stale bundle; a newer workflow will publish."
+              exit 0
+            fi
+            # Generated paths are Actions-owned. Theirs means OUR generated commit
+            # during rebase, resolving concurrent manifest/index updates safely.
+            git rebase --strategy-option=theirs origin/main
+            # Preserve any hashed chunks added by another successful deploy while
+            # this job was building, so previously opened browser tabs keep working.
+            while IFS= read -r asset; do
+              if [ -n "$asset" ] && [ ! -e "$asset" ]; then
+                mkdir -p "$(dirname "$asset")"
+                git show "origin/main:$asset" > "$asset"
+              fi
+            done < <(git ls-tree -r --name-only origin/main react/assets)
+            git add -A react
+            if ! git diff --cached --quiet; then
+              git commit -m 'build: preservar assets versionados de deploy concorrente'
+            fi
             if git push origin HEAD:main; then
               pushed=1
               break
