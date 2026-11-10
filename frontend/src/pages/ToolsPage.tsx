@@ -1,48 +1,152 @@
 import { useState } from "react";
-import { ArrowLeftRight, FileCode2, NotebookPen, PackageCheck } from "lucide-react";
+import type { KeyboardEvent } from "react";
+import { Button } from "@heroui/react";
+import {
+  ArrowLeftRight, BookOpenText, FileCheck2, FileDiff,
+  FileText, LockKeyhole, NotebookPen, PackageCheck, Plus
+} from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
+import { QAModal } from "../components/ui/QAModal";
+import { ToastNotice } from "../components/ui/Toasts";
 import ComparisonTool from "../features/links/ComparisonTool";
 import ReleaseOrganizer from "../features/links/ReleaseOrganizer";
 import ReferenceLibrary from "../features/links/ReferenceLibrary";
 
-type Tool="release"|"text"|"xml"|"notes";
-const tools=[
-  {id:"release" as const,label:"Releases",Icon:PackageCheck},
-  {id:"text" as const,label:"Comparar textos",Icon:ArrowLeftRight},
-  {id:"xml" as const,label:"Comparar XML",Icon:FileCode2},
-  {id:"notes" as const,label:"Informações",Icon:NotebookPen}
-];
+type Tool = "release" | "comparison" | "notes";
+const tools = [
+  {
+    id: "release", label: "Releases", description: "Organizar listas e comunicados",
+    Icon: PackageCheck
+  },
+  {
+    id: "comparison", label: "Comparações", description: "Conferir diferenças de texto e XML",
+    Icon: ArrowLeftRight
+  },
+  {
+    id: "notes", label: "Informações", description: "Consultar regras, notas e checklists",
+    Icon: NotebookPen
+  }
+] as const;
+
+function onTabKeyDown(event:KeyboardEvent<HTMLButtonElement>,index:number,
+  onChange:(tool:Tool)=>void) {
+  const nextIndex = event.key==="ArrowDown" || event.key==="ArrowRight"
+    ? (index+1)%tools.length
+    : event.key==="ArrowUp" || event.key==="ArrowLeft"
+      ? (index+tools.length-1)%tools.length
+      : event.key==="Home"?0
+        : event.key==="End"?tools.length-1:-1;
+  if(nextIndex===-1)return;
+  event.preventDefault();
+  const id=tools[nextIndex].id;
+  onChange(id);
+  requestAnimationFrame(()=>document.getElementById("qa-tool-tab-"+id)?.focus());
+}
+
+function ToolHeading({icon:Icon,title,description,privacy,children}:{
+  icon:typeof PackageCheck;title:string;description:string;privacy?:string;
+  children?:React.ReactNode;
+}){
+  return <div className="qa-tools-workspace-heading">
+    <span className="qa-tools-workspace-icon" aria-hidden="true"><Icon size={23}/></span>
+    <div className="qa-tools-workspace-heading-text">
+      <h2>{title}</h2>
+      <p>{description}</p>
+      {privacy&&<span className="qa-tools-privacy">
+        <LockKeyhole size={14} aria-hidden="true"/>{privacy}
+      </span>}
+    </div>
+    {children&&<div className="qa-tools-workspace-action">{children}</div>}
+  </div>;
+}
+
 export default function ToolsPage(){
   const {user}=useAuth();
   const [tab,setTab]=useState<Tool>("release");
   const [version,setVersion]=useState("");
-  return <div className="page qa-tools-page">
-    <div className="page-heading"><div><p className="eyebrow">UTILITÁRIOS LOCAIS</p>
-      <h1>Ferramentas</h1>
-      <p className="text-muted text-sm">Recursos independentes de uma tarefa. Posts, cenários e diagramas
-        continuam dentro de Tarefas.</p>
-    </div></div>
+  const [notesOpen,setNotesOpen]=useState(false);
+  const [notice,setNotice]=useState("");
+  return <div className="page qa-tools-page qa-tools-v2">
+    <header className="page-heading qa-tools-page-heading">
+      <div>
+        <h1>Ferramentas</h1>
+        <p>Organize publicações, compare resultados e mantenha suas referências de QA.
+          Cada utilitário funciona de forma independente das tarefas.</p>
+      </div>
+    </header>
     <div className="qa-tools-layout">
-      <nav className="qa-tools-menu" aria-label="Ferramentas disponíveis">
-        {tools.map(({id,label,Icon})=><button type="button" key={id}
-          aria-current={tab===id?"page":undefined}
-          className={"qa-tools-nav-item "+(tab===id?"selected":"")} onClick={()=>setTab(id)}>
-          <Icon size={18} aria-hidden="true"/>{label}</button>)}
+      <nav className="qa-tools-menu" aria-label="Ferramentas disponíveis" role="tablist"
+        aria-orientation="vertical">
+        <div className="qa-tools-menu-header">Escolha uma ferramenta</div>
+        {tools.map(({id,label,description,Icon},index)=>
+          <button type="button" role="tab" key={id}
+            id={"qa-tool-tab-"+id}
+            aria-controls={"qa-tool-panel-"+id}
+            aria-selected={tab===id} tabIndex={tab===id?0:-1}
+            onKeyDown={event=>onTabKeyDown(event,index,setTab)}
+            onClick={()=>setTab(id)}
+            className={"qa-tools-nav-item "+(tab===id?"selected":"")}>
+            <span className="qa-tools-nav-icon" aria-hidden="true"><Icon size={19}/></span>
+            <span className="qa-tools-nav-copy">
+              <strong>{label}</strong>
+              <small>{description}</small>
+            </span>
+          </button>)}
+        <div className="qa-tools-menu-foot">
+          <FileCheck2 size={16} aria-hidden="true"/>
+          Posts, cenários e diagramas são gerados dentro de cada TF.
+        </div>
       </nav>
-      <section className="panel qa-tools-content" aria-label="Ferramenta selecionada">
-        {tab==="release"&&<div className="stack">
-          <div><h2 className="font-semibold">Lista e comunicado de release</h2>
-            <p className="text-muted text-sm mt-2">Organize listas, confira comunicados e gere BBCode
-              no navegador, sem vincular automaticamente nenhuma TF.</p></div>
-          <label className="field">Versão da release
-            <input value={version} maxLength={40} placeholder="12.10.06.0000"
-              onChange={event=>setVersion(event.target.value)}/></label>
-          <ReleaseOrganizer version={version} expanded/>
-        </div>}
-        {tab==="text"&&<ComparisonTool key="text" initialMode="text"/>}
-        {tab==="xml"&&<ComparisonTool key="xml" initialMode="xml"/>}
-        {tab==="notes"&&<ReferenceLibrary userId={user?.id??""}/>}
-      </section>
+      <div className="qa-tools-panels">
+        <section role="tabpanel" id="qa-tool-panel-release"
+          aria-labelledby="qa-tool-tab-release" hidden={tab!=="release"}
+          className="qa-tools-content">
+          <ToolHeading icon={PackageCheck} title="Releases"
+            description="Prepare a lista da versão, revise o comunicado e copie o resultado para publicação."
+            privacy="Processamento local. Nenhuma tarefa é vinculada automaticamente."/>
+          <div className="qa-tools-workspace-body qa-tools-release">
+            <div className="qa-tools-release-version">
+              <label className="field">Versão da release
+                <input value={version} maxLength={40} placeholder="Ex.: 12.10.06.0000"
+                  onChange={event=>setVersion(event.target.value)}/>
+              </label>
+              <p>Informe a versão antes de organizar uma lista ou revisar um comunicado.</p>
+            </div>
+            <ReleaseOrganizer version={version} expanded/>
+          </div>
+        </section>
+        <section role="tabpanel" id="qa-tool-panel-comparison"
+          aria-labelledby="qa-tool-tab-comparison" hidden={tab!=="comparison"}
+          className="qa-tools-content">
+          <ToolHeading icon={FileDiff} title="Comparações"
+            description="Compare o conteúdo original com o atualizado e identifique exatamente o que mudou."
+            privacy="Textos e XML são processados somente no navegador."/>
+          <div className="qa-tools-workspace-body qa-tools-comparison">
+            <ComparisonTool initialMode="text" embedded/>
+          </div>
+        </section>
+        <section role="tabpanel" id="qa-tool-panel-notes"
+          aria-labelledby="qa-tool-tab-notes" hidden={tab!=="notes"}
+          className="qa-tools-content">
+          <ToolHeading icon={BookOpenText} title="Informações importantes"
+            description="Sua biblioteca de notas, regras de negócio e checklists para consultas rápidas."
+            privacy="Registros privados da conta, armazenados com controle de acesso.">
+            <Button onPress={()=>{setNotice("");setNotesOpen(true);}}>
+              <Plus size={17} aria-hidden="true"/> Nova informação
+            </Button>
+          </ToolHeading>
+          <div className="qa-tools-workspace-body qa-tools-notes">
+            <ReferenceLibrary userId={user?.id??""} view="list"/>
+            <ToastNotice message={notice} tone="success"/>
+          </div>
+        </section>
+      </div>
     </div>
+    <QAModal open={notesOpen} title="Nova informação" eyebrow="BIBLIOTECA DE QA"
+      size="md" description="Registre uma regra, nota ou checklist para consultar depois."
+      onClose={()=>setNotesOpen(false)}>
+      {notesOpen&&<ReferenceLibrary userId={user?.id??""} view="form"
+        onCreated={()=>{setNotesOpen(false);setNotice("Informação privada salva na biblioteca.");}}/>}
+    </QAModal>
   </div>;
 }
