@@ -237,7 +237,8 @@ try{
   assert.equal(await page.getByRole("navigation",{name:"Ferramentas da central de IA"}).count(),0,
     "Test-generation dialog must not duplicate other AI tools");
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("regressao");
-  const generate=page.getByRole("button",{name:"Gerar casos",exact:true});
+  const generate=page.getByRole("dialog",{name:"Gerar casos com IA"})
+    .getByRole("button",{name:"Gerar casos",exact:true});
   assert.equal(await generate.isDisabled(),true);
   assert.equal(aiCalls,0);
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
