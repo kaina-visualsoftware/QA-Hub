@@ -6,12 +6,11 @@ import {
 } from "./requirements-data";
 import RequirementCatalog from "./RequirementCatalog";
 import CoverageView from "./CoverageView";
-import SourcesView from "./SourcesView";
 import UsageView from "./UsageView";
-import { BookText, ChartNoAxesColumn, FileText, History, X } from "lucide-react";
+import { BookText, ChartNoAxesColumn, History, X } from "lucide-react";
 
 type Props = { task: Task; userId: string; scenarios: Scenario[]; onClose?: () => void };
-type View = "catalog" | "coverage" | "sources" | "history";
+type View = "catalog" | "coverage" | "history";
 
 export default function RequirementsPanel({ task, userId, scenarios, onClose }: Props) {
   const owned = task.user_id === userId;
@@ -44,7 +43,6 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
   const viewItems = [
     { id: "catalog" as const, text: "Requisitos", icon: BookText },
     { id: "coverage" as const, text: "Cobertura", icon: ChartNoAxesColumn },
-    { id: "sources" as const, text: "Fontes e anexos", icon: FileText },
     { id: "history" as const, text: "Rastreabilidade", icon: History }
   ];
   return <section className="panel mt-5" aria-labelledby="requirements-heading">
@@ -77,9 +75,6 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
           <CoverageView task={task} requirements={reqs.data}
             scenarios={scenarios} links={links.data ?? []}
             loading={links.isPending} error={links.error?.message} onChanged={reload} />}
-        {reqs.isSuccess && view === "sources" &&
-          <SourcesView task={task} userId={userId} records={sources.data ?? []}
-            loading={sources.isPending} error={sources.error?.message} onChanged={reload} />}
         {reqs.isSuccess && view === "history" &&
           <UsageView records={history.data ?? []} loading={history.isPending}
             error={history.error?.message} />}
