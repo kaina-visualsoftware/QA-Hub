@@ -160,6 +160,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   }
 
   const counts=evidence.coverage;
+  const contextReady=Boolean(counts)&&!requirements.isPending&&!requirements.isError&&!evidence.error;
   return <section className="qa-diagram-ai qa-diagram-quick" aria-labelledby="diagram-ai-heading"
     aria-busy={busy||summarizing}>
     <div className="qa-diagram-quick-heading">
@@ -171,11 +172,14 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       </div>
     </div>
     {mode==="task"&&<ol className="qa-diagram-stage-track" aria-label="Etapas do diagrama">
-      <li className="is-done"><span><CheckCircle2 size={15} aria-hidden="true"/></span> Dados da TF</li>
+      <li className={contextReady?"is-done":""}>
+        <span>{contextReady?<CheckCircle2 size={15} aria-hidden="true"/>:"1"}</span>
+        Dados da TF
+      </li>
       <li className={summary?"is-done":summarizing?"is-active":""}>
         <span>{summary?<CheckCircle2 size={15} aria-hidden="true"/>:"2"}</span> Resumo da TF
       </li>
-      <li className={busy?"is-active":""}><span>3</span> Gerar fluxo</li>
+      <li className={busy||summary?"is-active":""}><span>3</span> Gerar fluxo</li>
     </ol>}
     {!own&&<p role="alert" className="notice error">Somente o autor pode gerar diagramas desta TF.</p>}
     <fieldset className="qa-diagram-mode qa-diagram-quick-modes" disabled={!own||busy||summarizing}>
@@ -185,7 +189,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       <label><input type="radio" name="diagram-input-mode" checked={mode==="text"}
         onChange={()=>setMode("text")}/> Texto livre</label>
     </fieldset>
-    <label className="field qa-ai-diagram-model">Tipo de diagrama
+    <label className="field qa-ai-diagram-model">Modelo do diagrama
       <select value={preset} disabled={!own||busy||summarizing}
         onChange={event=>setPreset(event.target.value)}>
         {diagramPresets.map(option=><option key={option.id} value={option.id}>
