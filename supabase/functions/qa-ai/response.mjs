@@ -10,9 +10,9 @@ const fields={
   base_teste:'base_teste base_de_teste base',
   empresa:'empresa cliente',
   testador:'testador responsavel analista',
-  descricao:'descricao descricao_do_teste o_que_foi_testado resumo objetivo description',
+  descricao:'descricao descricao_do_teste o_que_foi_testado resumo objetivo description problema problema_identificado requisito requisitos regra_de_negocio criterios_de_aceite',
   explicacao:'explicacao como_funciona funcionamento fluxo',
-  causa:'causa causa_raiz problema problema_identificado analise',
+  causa:'causa causa_raiz analise analise_de_viabilidade origem_do_problema',
   correcao:'correcao alteracao solucao ajuste mudanca',
   conclusao:'conclusao resultado_final conclusion',
   observacoes:'observacoes obs notas ressalvas'

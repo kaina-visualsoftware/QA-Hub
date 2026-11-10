@@ -12,8 +12,8 @@ const clean = v => typeof v === 'string' ? v.trim() : '';
 const pick = (text,re) => clean(text.match(re)?.[1]);
 const safeTitle = raw => clean(raw).replace(/\s+/g,' ').slice(0,240);
 const sectionHeads = [
-  ['descricao', /^(?:O QUE FOI TESTADO|DESCRI[CÇ][ÃA]O DO TESTE|OBJETIVO DO TESTE)\s*[:?—-]*\s*(.*)$/i],
-  ['causa', /^(?:QUAL [ÉE] O PROBLEMA IDENTIFICADO\??|PROBLEMA(?: E CAUSA)?|CAUSA RAIZ|AN[ÁA]LISE DE VIABILIDADE)\s*[:?—-]*\s*(.*)$/i],
+  ['descricao', /^(?:O QUE FOI TESTADO|DESCRI[CÇ][ÃA]O DO TESTE|OBJETIVO DO TESTE|QUAL [ÉE] O PROBLEMA IDENTIFICADO\??|PROBLEMA(?: IDENTIFICADO)?|REQUISITOS?(?: FUNCIONAIS?)?|CRIT[ÉE]RIOS? DE ACEITE|NECESSIDADE)\s*[:?—-]*\s*(.*)$/i],
+  ['causa', /^(?:PROBLEMA E CAUSA|CAUSA RAIZ|AN[ÁA]LISE DE VIABILIDADE|ORIGEM DO PROBLEMA)\s*[:?—-]*\s*(.*)$/i],
   ['correcao', /^(?:O QUE (?:O DESENVOLVEDOR )?ALTEROU\??|CORRE[CÇ][ÃA]O APLICADA|ALTERA[CÇ][ÃA]O REALIZADA)\s*[:?—-]*\s*(.*)$/i],
   ['explicacao', /^(?:COMO FUNCIONA\??|EXPLICA[CÇ][ÃA]O DO FLUXO)\s*[:?—-]*\s*(.*)$/i],
   ['conclusao', /^(?:CONCLUS[ÃA]O|RESULTADO FINAL)\s*[:?—-]*\s*(.*)$/i],
@@ -134,7 +134,7 @@ function splitSections(text){
 
 export function extractLocalDraft(raw){
   if(typeof raw!=='string'||!raw.trim())throw Error('Cole o texto da TF para analisar.');
-  if(raw.length>30000)throw Error('Para o preenchimento rápido, use até 30.000 caracteres.');
+  if(raw.length>200000)throw Error('Para extração local, use até 200.000 caracteres sem descartar texto.');
   const text=cleanQaSourceText(raw);
   if(!text)throw Error('O conteúdo contém somente controles da interface. Cole as informações da TF.');
   const sections=splitSections(text);
@@ -144,14 +144,24 @@ export function extractLocalDraft(raw){
   const code=pick(text,/\b(?:TF|TAREFA)\s*[#:º°-]?\s*(\d{3,12})\b/i)
     ||pick(text,/\b(?:PEDIDO|CHAMADO)\s*[#:º°-]?\s*(\d{3,12})\b/i);
   const version=pick(text,/\b(?:VERS[ÃA]O|VERSAO|V\.)\s*[:#-]?\s*(\d+(?:\.\d+){1,5})\b/i);
-  const firstRelevant=text.split('\n').map(x=>x.trim()).find(line=>
-    line.length>5 && !/^[-—–\[\]]+$/.test(line) &&
-    !/^(?:TIPO DE TESTE|O QUE FOI TESTADO|CEN[ÁA]RIO|QUAL [ÉE] O PROBLEMA IDENTIFICADO|VALIDA[CÇ][ÃA]O FINAL)\b/i.test(line)
-  )||'';
+  // A requirement or an isolated test is valid input, not necessarily a full TF.
+  // Generic section names must never become the suggested task title.
+  const titleLine=line=>line.trim().replace(/^#{1,6}\s*/, '')
+    .replace(/^[-*•]\s*/, '')
+    .replace(/^REQUISITO\s*(?:\d+)?\s*[:：—-]\s*/i, '').trim();
+  const heading=/^(?:TEXTO DA TAREFA|REQUISITOS?(?: FUNCIONAIS?)?|CRIT[ÉE]RIOS?(?: DE ACEITE)?|REGRAS? DE NEG[ÓO]CIO|CONTEXTO|CEN[ÁA]RIOS?(?: TESTADOS)?|CASOS? DE TESTE|PASSOS|RESULTADO ESPERADO|TESTES?)\s*[:：—-]?$/i;
+  const usefulTitle=value=>value.split('\n').map(titleLine)
+    .find(line=>line.length>5 && !/^[-—–\[\]]+$/.test(line) &&
+      !heading.test(line) &&
+      !/^(?:TIPO DE TESTE|O QUE FOI TESTADO|CEN[ÁA]RIO\s*\d+|QUAL [ÉE] O PROBLEMA IDENTIFICADO|VALIDA[CÇ][ÃA]O FINAL)\b/i.test(line))||'';
+  const firstRelevant=usefulTitle(text);
+  const onlyScenarios=Boolean(report?.cenarios?.length)&&
+    !sections.descricao&&!report?.descricao;
   const description=sections.descricao || report?.descricao ||
-    (!Object.keys(sections).length ? text.slice(0,30000) : '');
-  const rawTitle=explicitTitle || (description.split('\n').find(x=>x.trim().length>5)||'') ||
-    firstRelevant || 'Nova tarefa de teste';
+    (onlyScenarios ? 'Roteiro de testes: '+report.cenarios[0].titulo :
+      !Object.keys(sections).length ? text.slice(0,30000) : '');
+  const rawTitle=explicitTitle || (onlyScenarios ? report.cenarios[0].titulo : '') ||
+    usefulTitle(description) || firstRelevant || 'Nova tarefa de teste';
   let kind=pick(text,/^TIPO DE TESTE\s*:\s*(BUILD|RELEASE)\b/im).toUpperCase();
   if(!kind)kind=/\[\s*[xX]\s*\]\s*RELEASE/i.test(text)?'RELEASE':
     /\[\s*[xX]\s*\]\s*BUILD/i.test(text)?'BUILD':'';

@@ -82,3 +82,24 @@ test('service temporary unavailable falls back but credential errors do not',asy
   const auth={functions:{async invoke(){return {data:null,error:{context:{async json(){return {error:'nvidia_key_invalid',message:'Chave inválida'};}}}};}}};
   await assert.rejects(extractWithNvidia('TF 67866 — Checagem.',auth),/Chave inválida/);
 });
+
+
+test('partial NVIDIA response maps requirement to description rather than root cause',()=>{
+ const response={choices:[{message:{content:JSON.stringify({
+  Requisito:'A baixa de uma venda deve atualizar o saldo da conta.',
+  'Causa raiz':'Rotina ignora movimentos negativos.'
+ })}}]};
+ const draft=parseNvidiaDraft(response);
+ assert.match(draft.descricao,/baixa de uma venda/);
+ assert.match(draft.causa,/movimentos negativos/);
+});
+
+test('partial NVIDIA response maps problem description independently of analysis',()=>{
+ const response={choices:[{message:{content:JSON.stringify({
+  'Problema identificado':'O desconto não é removido ao clicar em X.',
+  'Análise de viabilidade':'O rateio gravou um percentual negativo.'
+ })}}]};
+ const draft=parseNvidiaDraft(response);
+ assert.match(draft.descricao,/desconto não é removido/);
+ assert.match(draft.causa,/percentual negativo/);
+});

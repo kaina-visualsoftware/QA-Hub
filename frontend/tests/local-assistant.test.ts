@@ -89,6 +89,6 @@ describe("extração local de TF (sem IA ou tráfego de rede)", () => {
     expect(ASSIST_SCENARIO_LIMIT).toBe(50);
     expect(extractLocalDraft("O QUE FOI TESTADO:\nUm texto explicativo sem passos.")
       .cenarios).toHaveLength(0);
-    expect(() => extractLocalDraft("X".repeat(30001))).toThrow(/30.000/);
+    expect(() => extractLocalDraft("X".repeat(200001))).toThrow(/200.000/);
   });
 });
