@@ -275,14 +275,18 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       </div>
     </div>
     {postMode&&<ol className="qa-post-steps" aria-label="Etapas da publicação">
-      <li className="is-ready"><span>1</span> Configurar</li>
-      <li className={hasOutput?"is-ready":""}><span>2</span> Revisar</li>
-      <li className={content.trim()&&!postIssues.length?"is-ready":""}><span>3</span> Salvar na TF</li>
+      <li className={context?"is-done":""}><span>1</span> Configurar</li>
+      <li className={content?"is-done":generating?"is-current":""}><span>2</span> Revisar</li>
+      <li className={message.startsWith("Post salvo")?"is-done":
+        content.trim()&&!postIssues.length?"is-current":""}>
+        <span>3</span> Salvar na TF
+      </li>
     </ol>}
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
-    {(support.isLoading || requirements.isLoading) && <p role="status" className="mt-4">Carregando o contexto da TF…</p>}
+    {(support.isLoading || requirements.isLoading) && !postMode &&
+      <p role="status" className="mt-4">Carregando o contexto da TF…</p>}
     {(support.isError || requirements.isError || generationError) &&
       <p className="notice error mt-4" role="alert">
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
@@ -290,6 +294,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       </p>}
     <div className={postMode?"qa-post-workspace"+(hasOutput?" has-output":""):"qa-generator-workspace"}>
     <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
+    {postMode&&(support.isLoading||requirements.isLoading)&&
+      <div className="qa-post-context-loading" role="status">
+        <LoaderCircle size={19} className="qa-ai-spinner" aria-hidden="true"/>
+        <div><strong>Preparando informações da TF</strong>
+          <p>Carregando documentos, cenários e requisitos para a geração.</p></div>
+      </div>}
     {context && <div className="stack qa-generator-setup-body">
       <div className="qa-ai-setup">
         <label className="field">Modelo de geração
@@ -367,7 +377,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     {generating&&<div className="qa-creator-processing" role="status" aria-live="polite">
       <LoaderCircle size={19} aria-hidden="true" className="qa-ai-spinner"/>
       <div><strong>{raw.trim()?"Recebendo a resposta da NVIDIA":"Aguardando a NVIDIA"}</strong>
-        <p>{raw.trim()?raw.length.toLocaleString("pt-BR")+" caracteres recebidos até agora.":
+        <p aria-live="off">{raw.trim()?raw.length.toLocaleString("pt-BR")+" caracteres recebidos até agora.":
           "Analisando o contexto e preparando o conteúdo solicitado."}
           {content?" A versão anterior permanece disponível.":""}</p>
       </div>
@@ -383,7 +393,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           {content.length.toLocaleString("pt-BR")} caracteres
         </span>}
       </div>
-      {generating && <p role="status" className="text-muted text-sm mt-2">
+      {generating && <p className="text-muted text-sm mt-2">
         {raw.trim()?"Recebendo o conteúdo gerado…":"Aguardando o início da resposta…"}
         {content?" A prévia anterior foi preservada.":""}
       </p>}
@@ -391,7 +401,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
-            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); }} />
+            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setMessage(""); }} />
         </label>
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
