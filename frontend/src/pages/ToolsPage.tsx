@@ -9,6 +9,7 @@ import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
 import { ToastNotice } from "../components/ui/Toasts";
 import { VersionInput } from "../components/ui/VersionInput";
+import { normalizeTaskVersion } from "../lib/task-version";
 import ComparisonTool from "../features/links/ComparisonTool";
 import ReleaseOrganizer from "../features/links/ReleaseOrganizer";
 import ReferenceLibrary from "../features/links/ReferenceLibrary";
@@ -120,7 +121,7 @@ export default function ToolsPage(){
               </label>
               <p>Digite os números; a versão será formatada como 00.00.00.0000.</p>
             </div>
-            <ReleaseOrganizer version={version} expanded/>
+            <ReleaseOrganizer version={normalizeTaskVersion(version)} expanded/>
           </div>
         </section>
         <section role="tabpanel" id="qa-tool-panel-comparison"
