@@ -110,9 +110,9 @@ try {
       if(request.mode!=="teste")throw Error("Expected a case-generation request");
       const encoder=new TextEncoder();
       const event=(kind,data)=>encoder.encode(
-        "event: "+kind+"\\ndata: "+JSON.stringify(data)+"\\n\\n");
-      const first="## Cenário 1 — Validar recálculo de desconto\\n### Passos\\n";
-      const second="Abrir pedido e remover o desconto aplicado.\\n### Resultado esperado\\nO valor final é recalculado sem desconto.\\n";
+        "event: "+kind+"\ndata: "+JSON.stringify(data)+"\n\n");
+      const first="## Cenário 1 — Validar recálculo de desconto\n### Passos\n";
+      const second="Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\nO valor final é recalculado sem desconto.\n";
       const stream=new ReadableStream({start(controller){
         setTimeout(()=>controller.enqueue(event("chunk",{text:first})),250);
         setTimeout(()=>controller.enqueue(event("chunk",{text:second})),1100);
