@@ -4,6 +4,9 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useModalFocus } from "../../lib/useModalFocus";
 
+let modalLocks = 0;
+let restorePage: (() => void) | undefined;
+
 type QAModalProps = {
   open:boolean;
   title:string;
@@ -26,7 +29,7 @@ type QAModalProps = {
  * - No form data is discarded here: the caller owns close confirmation.
  */
 export function QAModal({
-  open,title,description,eyebrow="QA HUB",children,onClose,
+  open,title,description,children,onClose,
   size="lg",busy=false,initialFocus,keepMounted=false,surface
 }:QAModalProps){
   const [everOpened,setEverOpened]=useState(open);
@@ -37,14 +40,19 @@ export function QAModal({
 
   useEffect(()=>{
     if(!open)return;
-    const root=document.getElementById("root");
-    const previouslyInert=root?.inert ?? false;
-    const previousOverflow=document.body.style.overflow;
-    if(root)root.inert=true;
-    document.body.style.overflow="hidden";
+    if(modalLocks++===0){
+      const root=document.getElementById("root");
+      const previouslyInert=root?.inert??false;
+      const previousOverflow=document.body.style.overflow;
+      if(root)root.inert=true;
+      document.body.style.overflow="hidden";
+      restorePage=()=>{
+        if(root)root.inert=previouslyInert;
+        document.body.style.overflow=previousOverflow;
+      };
+    }
     return ()=>{
-      if(root)root.inert=previouslyInert;
-      document.body.style.overflow=previousOverflow;
+      if(--modalLocks===0){restorePage?.();restorePage=undefined;}
     };
   },[open]);
 
@@ -60,7 +68,6 @@ export function QAModal({
         tabIndex={-1} className={"qa-modal qa-modal-"+size+(surface?" qa-modal-surface-"+surface:"")}>
         <header className="qa-modal-header">
           <div className="qa-modal-heading">
-            <p className="eyebrow">{eyebrow}</p>
             <h2 id={titleId}>{title}</h2>
             {description&&<p id={descriptionId} className="qa-modal-description">{description}</p>}
           </div>

@@ -21,6 +21,9 @@ const scenario={
 const img=Buffer.from(
  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==","base64");
 const errors=[],requests=[];
+const pdfId="55555555-5555-4555-8555-555555555555";
+const sourceId="66666666-6666-4666-8666-666666666666";
+const docId="77777777-7777-4777-8777-777777777777";
 const browser=await chromium.launch({headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}});
@@ -33,7 +36,10 @@ try{
        headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({
          task,scenarios:[scenario],diagrams:[],
          evidencias:[{id:imageId,cenario_id:scenarioId,nome_original:"captura.png",
-           descricao:"Erro observado após retirar o desconto",mime_type:"image/png"}]
+           descricao:"Erro observado após retirar o desconto",mime_type:"image/png"},
+          {id:pdfId,cenario_id:null,nome_original:"resultado.pdf",descricao:"Relatório do teste",mime_type:"application/pdf"}],
+         sources:[{id:sourceId,tipo_fonte:"arquivo",nome_arquivo:"especificacao.docx",mime:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",versao:1,texto_extraido:"Requisito da especificação",created_at:"2026-11-10"}],
+         documents:[{id:docId,tipo:"post",titulo:"Post publicado",conteudo:"Conteúdo integral da TF",versao:1,created_at:"2026-11-10"}]
        })});
    }
    if(url.pathname.endsWith("/functions/v1/qa-public-evidence")){
@@ -53,6 +59,18 @@ try{
    throw error;
  });
  await page.getByRole("heading",{name:"Cenários de teste"}).waitFor();
+ await page.getByRole("heading",{name:"Arquivos e documentos"}).waitFor();
+ await page.getByRole("link",{name:"Baixar arquivo",exact:true}).waitFor();
+ assert.match(await page.getByRole("link",{name:"Baixar arquivo",exact:true}).getAttribute("href"),new RegExp(pdfId));
+ assert.match(await page.getByRole("link",{name:"Baixar original",exact:true}).getAttribute("href"),/kind=source/);
+ await page.getByRole("button",{name:"Visualizar texto"}).click();
+ const sourceViewer=page.getByRole("dialog",{name:/Visualizar documento — especificacao/});
+ await sourceViewer.getByText("Requisito da especificação").waitFor();
+ await page.keyboard.press("Escape");
+ await page.getByRole("button",{name:"Visualizar",exact:true}).click();
+ const documentViewer=page.getByRole("dialog",{name:"Visualizar documento — Post publicado"});
+ await documentViewer.getByText("Conteúdo integral da TF").waitFor();
+ await page.keyboard.press("Escape");
  await page.getByText("Falha confirmada no teste").waitFor();
  await page.getByText("Valor permaneceu divergente").waitFor();
  assert.equal(await page.getByText("Reprovado",{exact:true}).count(),1);
@@ -74,5 +92,5 @@ try{
    await page.screenshot({path:"artifacts/public-evidence/scenario-"+width+".png"});
  }
  assert.deepEqual(errors,[]);
- console.log("Página pública: status reprovado, observações, imagem autorizada, proxy privado e 4 breakpoints.");
+ console.log("Página pública: status reprovado, observações, anexos e documentos herdados da TF, proxy privado e 4 breakpoints.");
 }finally{await browser.close();}

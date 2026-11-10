@@ -1,3 +1,4 @@
+import {QAModal} from "../../components/ui/QAModal";
 import "./scenario-library.css";
 import {ToastNotice} from "../../components/ui/Toasts";
 import {useMemo,useState} from "react";
@@ -141,7 +142,7 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
                 removing.mutate(item.id);
             }}>Excluir modelo</Button>
         </div>
-        {editingModel?.id===item.id&&<form className="qa-crud-inline-form"
+        {editingModel?.id===item.id&&<QAModal open title="Editar modelo de cenário" size="md" busy={updating.isPending} onClose={()=>setEditingModel(null)}><form className="qa-crud-inline-form"
           aria-label={"Editar modelo "+item.titulo}
           onSubmit={event=>{event.preventDefault();updating.mutate(editingModel);}}>
           <label className="field">Título
@@ -178,7 +179,7 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
             <Button type="button" variant="secondary" onPress={()=>setEditingModel(null)}
               isDisabled={busy}>Cancelar</Button>
           </div>
-        </form>}
+        </form></QAModal>}
       </article>)}
       {listing.data?.length===100&&<small className="text-muted">
         Exibindo os 100 modelos mais recentes desta conta.</small>}

@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
  * closes on Escape, and restores focus to the element that opened it.
  * Does not infer a native browser dialog or modify the route/hash.
  */
+const modalStack: HTMLElement[] = [];
+
 const FOCUSABLE = [
   "button:not([disabled])",
   "a[href]",
@@ -30,6 +32,11 @@ export function useModalFocus(
     if (!dialog) return;
     const origin = document.activeElement instanceof HTMLElement
       ? document.activeElement : null;
+    const previousDialog = modalStack.at(-1);
+    const previousInert = previousDialog?.inert ?? false;
+    if (previousDialog) previousDialog.inert = true;
+    modalStack.push(dialog);
+    const topmost = () => modalStack.at(-1) === dialog;
     const candidates = () => [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
       .filter((element) => !element.hidden && element.getClientRects().length > 0
         && element.getAttribute("aria-hidden") !== "true");
@@ -39,6 +46,7 @@ export function useModalFocus(
     (initial || candidates()[0] || dialog).focus({ preventScroll: true });
 
     function keydown(event: KeyboardEvent) {
+      if (!topmost()) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -66,13 +74,16 @@ export function useModalFocus(
       }
     }
     function guardFocus(event: FocusEvent) {
-      if (dialog && !dialog.contains(event.target as Node)) {
+      if (topmost() && dialog && !dialog.contains(event.target as Node)) {
         (candidates()[0] || dialog).focus({ preventScroll: true });
       }
     }
     document.addEventListener("keydown", keydown, true);
     document.addEventListener("focusin", guardFocus);
     return () => {
+      const position = modalStack.indexOf(dialog);
+      if (position >= 0) modalStack.splice(position, 1);
+      if (previousDialog?.isConnected) previousDialog.inert = previousInert;
       document.removeEventListener("keydown", keydown, true);
       document.removeEventListener("focusin", guardFocus);
       // When QAModal releases an inert page, that cleanup runs after this

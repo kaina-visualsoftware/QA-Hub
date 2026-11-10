@@ -1,8 +1,9 @@
 import {useEffect,useRef,useState} from "react";
+import {QAModal} from "../../components/ui/QAModal";
 import {ToastNotice} from "../../components/ui/Toasts";
 import {Button} from "@heroui/react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {Download,Eye,FilePlus2,FileText,Image as ImageIcon,X} from "lucide-react";
+import {Download,Eye,FilePlus2,FileText,Image as ImageIcon} from "lucide-react";
 import type {Scenario,Task} from "../../lib/contracts";
 import {supabase} from "../../lib/supabase";
 import {
@@ -56,7 +57,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
         file,userId,taskId:task.id,scenarioId:scenarioId||null,
         scenarioIds:scenarios.map(s=>s.id),description
       });
-      setMessage("Anexo privado registrado: "+item.nome_original);
+      setMessage("Anexo registrado: "+item.nome_original);
       setFile(null);setDescription("");
       if(fileInput.current)fileInput.current.value="";
       await Promise.all([
@@ -82,6 +83,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
     }finally{setPreviewBusy(false);}
   }
   async function download(item:EvidenceFile){
+    if(previewBusy)return;
     setError("");setPreviewBusy(true);
     try {
       const blob=await readPrivateEvidence(supabase,item,userId,task.id);
@@ -102,7 +104,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
   }
   async function deleteFile(item:EvidenceFile){
     if(!window.confirm("Excluir o arquivo '"+item.nome_original+"' definitivamente?"+
-      (item.publica?" Ele deixará de aparecer na página pública.":"")+
+      (task.publica?" Ele deixará de aparecer na página pública.":"")+
       " A exclusão do anexo não será desfeita."))return;
     setBusyChange(true);setError("");setMessage("");
     try{
@@ -150,11 +152,12 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
           {busy?"Enviando…":"Anexar arquivo"}
         </Button>
       </div>
-      <p className="qa-files-privacy">Privado para a conta proprietária.
+      <p className="qa-files-privacy">A visibilidade acompanha a configuração geral da TF.
         Remova dados sensíveis antes de enviar; arquivos não passam por antivírus.</p>
-      <ToastNotice message={message} tone="success"/>
-      <ToastNotice message={error} tone="error"/>
+
     </form>}
+    <ToastNotice message={message} tone="success"/>
+    <ToastNotice message={error} tone="error"/>
     {files.isPending&&<p className="text-muted text-sm" role="status">Carregando arquivos…</p>}
     {files.isError&&<p className="notice error" role="alert">
       Não foi possível carregar os anexos: {files.error.message}
@@ -162,20 +165,20 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
     {files.isSuccess&&files.data.length===0&&<p className="qa-files-empty">
       {readOnly?"Nenhum arquivo anexado. Use Importar para adicionar documentos ou capturas.":
         "Nenhum arquivo anexado. Adicione uma captura ou um documento do teste."}</p>}
-    {files.data&&files.data.length>0&&<div className="qa-files-list">
-      {files.data.map(item=><article className="qa-file-item" key={item.id}>
+    {files.data&&files.data.length>0&&<div className="qa-files-list qa-resource-list">
+      {files.data.map(item=><article className="qa-file-item qa-resource-row" key={item.id}>
         <span className="qa-file-icon">{item.mime_type.startsWith("image/")
           ?<ImageIcon size={19} aria-hidden="true"/>:<FileText size={19} aria-hidden="true"/>}</span>
-        <div className="qa-file-meta">
+        <div className="qa-file-meta qa-resource-copy">
           <strong title={item.nome_original}>{item.nome_original}</strong>
           <small>{formatBytes(item.tamanho_bytes)} · {new Date(item.created_at).toLocaleDateString("pt-BR")}
             {" · "}{scenarios.find(s=>s.id===item.cenario_id)?.titulo||"TF geral"}</small>
           {item.descricao&&<p>{item.descricao}</p>}
         </div>
-        <div className="qa-file-actions">
-          <button type="button" disabled={previewBusy} onClick={()=>void view(item)}>
+        <div className="qa-file-actions qa-resource-actions">
+          <button type="button" aria-disabled={previewBusy} onClick={()=>void view(item)}>
             <Eye size={16} aria-hidden="true"/> Visualizar</button>
-          <button type="button" disabled={previewBusy} onClick={()=>void download(item)}>
+          <button type="button" aria-disabled={previewBusy} onClick={()=>void download(item)}>
             <Download size={16} aria-hidden="true"/> Baixar</button>
           {!readOnly&&task.user_id===userId&&<>
             <button type="button" disabled={previewBusy||busyChange} onClick={()=>{
@@ -186,7 +189,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
               onClick={()=>void deleteFile(item)}>Excluir</button>
           </>}
         </div>
-        {editingFile===item.id&&<form className="qa-crud-inline-form"
+        {editingFile===item.id&&<QAModal open title="Editar descrição do arquivo" size="md" busy={busyChange} onClose={()=>setEditingFile(null)}><form className="qa-crud-inline-form"
           onSubmit={event=>{event.preventDefault();void editFile(item);}}>
           <label className="field">Descrição do arquivo
             <input value={editedDescription} maxLength={1000}
@@ -197,15 +200,11 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
             <Button variant="secondary" type="button" isDisabled={busyChange}
               onPress={()=>setEditingFile(null)}>Cancelar</Button>
           </div>
-        </form>}
+        </form></QAModal>}
       </article>)}
     </div>}
-    {preview&&<section className="qa-file-preview" aria-label="Prévia do anexo privado">
-      <header>
-        <strong>{preview.file.nome_original}</strong>
-        <button type="button" onClick={()=>setPreview(null)}
-          aria-label="Fechar prévia do arquivo"><X size={18} aria-hidden="true"/></button>
-      </header>
+    {preview&&<QAModal open title={"Visualizar arquivo — "+preview.file.nome_original}
+      size="lg" onClose={()=>setPreview(null)}><div className="qa-file-preview">
       {preview.file.mime_type.startsWith("image/")&&
         <img src={preview.url} alt={"Evidência: "+preview.file.nome_original}/>}
       {preview.file.mime_type==="application/pdf"&&
@@ -220,6 +219,6 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
           <Download size={16} aria-hidden="true"/> Baixar original
         </Button>
       </div>
-    </section>}
+    </div></QAModal>}
   </section>;
 }

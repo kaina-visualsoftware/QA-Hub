@@ -129,12 +129,12 @@ try{
     assert.equal(await resources.getByRole("tab").count(),4);
     await resources.getByRole("tab",{name:"Requisitos",exact:true}).click();
     await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
-    assert.equal(await page.getByRole("button",{name:"Importar",exact:true}).count(),1,
+    assert.equal(await page.getByRole("button",{name:"Gerenciar requisitos",exact:true}).count(),1,
       "Only one Importar action should appear in the resource library");
     assert.equal(await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio").count(),0,
       "New requirement forms must be kept out of the listing");
     await check(page,width,"arquivos");
-    await page.getByRole("button",{name:"Importar",exact:true}).click();
+    await page.getByRole("button",{name:"Gerenciar requisitos",exact:true}).click();
     const importDialog=page.getByRole("dialog",{name:"Importar requisitos"});
     await importDialog.waitFor();
     assert.equal(await importDialog.getByText("Importar requisitos de texto (prévia e revisão)").count(),1);
@@ -143,7 +143,7 @@ try{
     await page.getByRole("heading",{name:"Documentos e fontes da TF"}).waitFor();
     assert.equal(await page.getByLabel("Selecionar arquivo").count(),0,
       "File uploader must not render in the read-only library");
-    await page.getByRole("button",{name:"Importar",exact:true}).click();
+    await page.getByRole("button",{name:"Adicionar arquivo",exact:true}).click();
     const fileDialog=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
     await fileDialog.waitFor();
     assert.equal(await fileDialog.getByRole("button",{name:"Documento da TF"}).count(),1);

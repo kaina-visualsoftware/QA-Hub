@@ -49,7 +49,7 @@ async function mock(route){
    if(method==="DELETE"){
      assert.equal(url.searchParams.get("tarefa_id"),"eq."+taskId);
      assert.equal(url.searchParams.get("id"),"eq."+scenarioId);
-     assert.equal(evidence.publica,false,"public evidence must be revoked before deletion");
+     assert.equal(evidence.publica,true,"Legacy flag is unchanged; attachments inherit TF visibility");
      log.push("deleted-scenario");
      scenarios=scenarios.filter(x=>x.id!==scenarioId);
      return send({id:scenarioId});
@@ -114,7 +114,8 @@ try{
  });
  await deleteButton.click();
  await page.getByText(/Esta TF ainda não possui cenários/).waitFor({timeout:16000});
- assert.deepEqual(log.slice(-2),["revoked-evidence","deleted-scenario"]);
+ assert.equal(log.at(-1),"deleted-scenario");
+ assert.ok(!log.includes("revoked-evidence"));
  assert.deepEqual(errors,[]);
  mkdirSync("artifacts/scenario-crud",{recursive:true});
  for(const width of [320,390,768,1366]){

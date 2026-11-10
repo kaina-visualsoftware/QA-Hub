@@ -32,11 +32,25 @@ export const publicScenarioSchema = z.object({
   status: z.string().nullish()
 });
 export const publicEvidenceSchema = z.object({
-  id:uuid,cenario_id:uuid,nome_original:z.string(),
-  descricao:z.string(),mime_type:z.enum(["image/png","image/jpeg","image/webp"])
+  id:uuid,cenario_id:uuid.nullable(),nome_original:z.string(),
+  descricao:z.string(),mime_type:z.string()
 });
 export const publicDiagramSchema = z.object({
   id: uuid, titulo: z.string(), conteudo: z.string()
+});
+export const publicDocumentSchema=z.object({
+  id:uuid,tipo:z.string(),titulo:z.string(),conteudo:z.string(),versao:z.number(),created_at:z.string()
+});
+export const publicSourceSchema=z.object({
+  id:uuid,tipo_fonte:z.enum(["texto","arquivo"]),nome_arquivo:z.string().nullish(),
+  mime:z.string().nullish(),versao:z.number(),texto_extraido:z.string(),created_at:z.string()
+});
+export const publicRequirementSchema=z.object({
+  id:uuid,codigo:z.string(),tipo:z.string(),titulo:z.string(),descricao:z.string(),
+  criterios_aceite:z.string(),estado:z.string(),ordem:z.number()
+});
+export const publicNoteSchema=z.object({
+  id:uuid,cenario_id:uuid.nullish(),tipo:z.string(),resumo:z.string(),referencia:z.string(),created_at:z.string()
 });
 export type PublicTaskCard = z.infer<typeof publicTaskCardSchema>;
 export type PublicTaskDetail = z.infer<typeof publicTaskDetailSchema>;
@@ -44,13 +58,15 @@ export type PublicScenario = z.infer<typeof publicScenarioSchema>;
 export type PublicDiagram = z.infer<typeof publicDiagramSchema>;
 export type PublicEvidence = z.infer<typeof publicEvidenceSchema>;
 
-export function publicEvidenceImageUrl(fileId:string):string {
+export function publicAttachmentUrl(fileId:string,kind:"evidence"|"source"="evidence"):string {
   uuid.parse(fileId);
   const base=supabaseUrl;
   if(!/^https:\/\/[a-z0-9.-]+\.supabase\.co\/?$/i.test(base))
     throw Error("Servidor de imagens públicas indisponível.");
-  return base.replace(/\/$/,"")+"/functions/v1/qa-public-evidence?file="+fileId;
+  return base.replace(/\/$/,"")+"/functions/v1/qa-public-evidence?file="+fileId+"&kind="+kind;
 }
+
+export const publicEvidenceImageUrl = (fileId:string) => publicAttachmentUrl(fileId);
 
 export const PUBLIC_TASK_COLUMNS =
   "id,titulo,codigo,tipo_teste,sistema,versao,executado_em";
@@ -75,7 +91,14 @@ export async function loadPublishedTask(taskId: string) {
     task: publicTaskDetailSchema,
     scenarios: z.array(publicScenarioSchema),
     diagrams: z.array(publicDiagramSchema),
-    evidencias:z.array(publicEvidenceSchema).default([])
+    evidencias:z.array(publicEvidenceSchema).default([]),
+    documents:z.array(publicDocumentSchema).default([]),
+    sources:z.array(publicSourceSchema).default([]),
+    requirements:z.array(publicRequirementSchema).default([]),
+    notes:z.array(publicNoteSchema).default([]),
+    coverage:z.array(z.object({id:uuid,requisito_id:uuid,cenario_id:uuid})).default([]),
+    releases:z.array(z.object({id:uuid,versao:z.string()})).default([]),
+    comparisons:z.array(z.object({id:uuid,tipo:z.string(),adicionados:z.number(),removidos:z.number(),alterados:z.number()})).default([])
   }).parse(data);
 }
 export async function updatePublication(taskId: string, userId: string, publish: boolean) {

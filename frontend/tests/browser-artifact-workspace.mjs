@@ -128,9 +128,14 @@ try{
   assert.equal(await posts.getByRole("button",{name:"Criar relatório"}).count(),0,
     "Report creation belongs only to the tab toolbar");
   await posts.getByText("Post de homologação").waitFor();
-  await posts.getByRole("button",{name:"Visualizar"}).click();
-  await posts.getByRole("heading",{name:"Post de homologação"}).waitFor();
-  assert.match(await posts.locator("pre").innerText(),/Teste concluído/);
+  await posts.getByRole("button",{name:"Visualizar documento Post de homologação"}).click();
+  const documentViewer=page.getByRole("dialog",{name:"Visualizar documento — Post de homologação"});
+  await documentViewer.waitFor();
+  assert.match(await documentViewer.locator("pre").innerText(),/Teste concluído/);
+  assert.equal(await posts.locator("pre").count(),0,"Document preview must not expand the listing");
+  await page.keyboard.press("Escape");
+  await documentViewer.waitFor({state:"detached"});
+  assert.equal(await page.evaluate(()=>document.getElementById("root").inert),false);
   assert.equal(await posts.getByRole("textbox",{name:"Prévia do relatório"}).count(),0,
     "Reading a saved document must not mount a report editor");
 

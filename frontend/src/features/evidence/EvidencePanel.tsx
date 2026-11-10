@@ -29,7 +29,7 @@ async function listEvidence(taskId: string): Promise<Evidence[]> {
     .select("id,tarefa_id,user_id,cenario_id,tipo,resumo,referencia,created_at")
     .eq("tarefa_id", taskId).order("created_at", { ascending: false }).limit(101);
   if (error) throw error;
-  if ((data ?? []).length > 100) throw Error("Mais de 100 evidências. Consulte o histórico completo no legado.");
+  if ((data ?? []).length > 100) throw Error("Mais de 100 evidências. Refine a consulta para exibir até 100 registros.");
   return z.array(evidenceSchema).parse(data ?? []);
 }
 async function listAudit(taskId: string, page: number): Promise<AuditEvent[]> {

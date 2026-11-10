@@ -47,8 +47,8 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose, re
   ];
   return <section className="panel mt-5" aria-labelledby="requirements-heading">
     <div className="section-heading">
-      <div><p className="eyebrow">R1–R4 · TF PRIVADA</p><h2 id="requirements-heading">Requisitos e cobertura</h2>
-        <p className="text-muted">{readOnly?"Consulte os requisitos e resultados cadastrados. Para importar ou alterar, use o botão Importar.":"Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura."}</p>
+      <div><h2 id="requirements-heading">Requisitos e cobertura</h2>
+        <p className="text-muted">{readOnly?"Consulte os requisitos e resultados cadastrados. Para importar ou alterar, use Gerenciar requisitos.":"Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura."}</p>
       </div>
       {onClose&&<button type="button" aria-label="Fechar requisitos" onClick={onClose}><X size={18} /></button>}
     </div>
@@ -66,7 +66,7 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose, re
         })}
       </div>
       <div role="tabpanel" className="mt-5">
-        {reqs.isPending && <p className="notice" role="status">Carregando requisitos privados…</p>}
+        {reqs.isPending && <p className="notice" role="status">Carregando requisitos…</p>}
         {reqs.isError && <p className="notice error" role="alert">{reqs.error.message}</p>}
         {reqs.isSuccess && view === "catalog" &&
           <RequirementCatalog task={task} records={reqs.data} sources={sources.data ?? []}

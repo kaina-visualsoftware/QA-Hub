@@ -71,6 +71,8 @@ Os testes usam dados **simulados**; não substituem homologação de integraçã
 
 Os dados publicados devem ser consultados somente pelas RPCs qa_public_tasks_v1 e qa_public_task_v1. Não reabilite leitura anônima direta das tabelas operacionais nem armazene credenciais privilegiadas no frontend.
 
+A visibilidade pública é definida uma única vez na TF e herdada por imagens, arquivos, fontes, requisitos, documentos e demais conteúdos vinculados. A implantação exige a migração e a função descritas em [Padrão de interface e visibilidade](docs/PADRAO_INTERFACE.md).
+
 A remoção da antiga interface não apaga tarefas, arquivos, históricos nem informações do Supabase.
 
 ## Histórico

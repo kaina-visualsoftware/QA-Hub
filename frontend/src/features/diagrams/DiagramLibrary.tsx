@@ -63,7 +63,7 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit,showCreate=t
           <Workflow size={19} aria-hidden="true"/> Diagramas
           <span className="qa-artifact-counter">{diagrams.data?.length??0}</span>
         </h3>
-        <p>Consulte os fluxos salvos aqui. A criação e a edição abrem um modal separado.</p>
+        <p>Consulte e gerencie os diagramas salvos nesta TF.</p>
       </div>
       {owner&&showCreate&&<Button size="sm" onPress={onCreate}>
         <GitBranchPlus size={16} aria-hidden="true"/> Novo diagrama
@@ -81,13 +81,13 @@ export function DiagramLibrary({taskId,userId,owner,onCreate,onEdit,showCreate=t
         {owner?" Use a ação Criar diagrama acima.":""}
       </p>}
     {!!diagrams.data?.length&&<div className="qa-diagram-library-layout qa-diagram-catalog">
-      <div className="qa-diagram-library-list" aria-label="Diagramas existentes">
+      <div className="qa-diagram-library-list qa-resource-list" aria-label="Diagramas existentes">
         {diagrams.data.map(item=><article key={item.id}
-          className="qa-diagram-library-row">
-          <div className="qa-diagram-library-title">
+          className="qa-diagram-library-row qa-resource-row">
+          <div className="qa-diagram-library-title qa-resource-copy">
             <strong>{item.titulo}</strong>
           </div>
-          <div className="qa-diagram-library-actions">
+          <div className="qa-diagram-library-actions qa-resource-actions">
             <button type="button"
               aria-label={"Visualizar diagrama "+item.titulo}
               onClick={()=>setSelectedId(item.id)}>

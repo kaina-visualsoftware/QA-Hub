@@ -38,14 +38,14 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
         <div>
           <h3 id="qa-task-source-files-heading">Documentos e fontes da TF</h3>
           <p>Arquivos originais, requisitos anexados e textos importados.
-            Os documentos permanecem no armazenamento privado.</p>
+            A visibilidade dos documentos acompanha a configuração geral da TF.</p>
         </div>
       </div>
       {own?<SourcesView task={task} userId={userId}
         records={sources.data??[]} loading={sources.isPending}
         error={sources.error?.message} onChanged={refresh} readOnly={readOnly}/>:
         <p className="notice error" role="alert">
-          Os anexos privados desta TF só podem ser consultados pelo proprietário.
+          Para consultar os anexos sem editar, abra a visão pública quando a TF estiver publicada.
         </p>}
     </section>}
     {section!=="sources"&&<section className="qa-task-resource-group"

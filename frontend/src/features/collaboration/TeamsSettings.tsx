@@ -1,3 +1,4 @@
+import {QAModal} from "../../components/ui/QAModal";
 import {useState} from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
@@ -99,7 +100,7 @@ export default function TeamsSettings({userId}:{userId:string}){
      {editingTeamName===null?
        <Button variant="secondary" size="sm" isDisabled={change.isPending}
          onPress={()=>setEditingTeamName(team.nome)}>Renomear equipe</Button>:
-       <form className="qa-crud-inline-form" onSubmit={event=>{
+       <QAModal open title="Renomear equipe" size="md" busy={change.isPending} onClose={()=>setEditingTeamName(null)}><form className="qa-crud-inline-form" onSubmit={event=>{
          event.preventDefault();
          void act(async()=>{
            await renameTeam(team.id,userId,editingTeamName);
@@ -117,7 +118,7 @@ export default function TeamsSettings({userId}:{userId:string}){
            <Button type="button" variant="secondary" isDisabled={change.isPending}
              onPress={()=>setEditingTeamName(null)}>Cancelar</Button>
          </div>
-       </form>}
+       </form></QAModal>}
    </div>}
    <div className="qa-f5-members" aria-label="Integrantes">
     <strong>Integrantes</strong>

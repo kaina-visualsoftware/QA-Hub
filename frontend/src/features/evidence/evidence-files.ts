@@ -16,7 +16,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 export type EvidenceFile = {
   id:string;tarefa_id:string;cenario_id:string|null;user_id:string;
   nome_original:string;mime_type:string;tamanho_bytes:number;
-  objeto_path:string;descricao:string;created_at:string;publica:boolean;
+  objeto_path:string;descricao:string;created_at:string;
 };
 export type FileInput = Pick<File,"name"|"size"|"type"|"slice">;
 
@@ -61,7 +61,7 @@ export function fileStoragePath(userId:string,taskId:string,id:string,extension:
 export async function listEvidenceFiles(db:SupabaseClient,taskId:string):Promise<EvidenceFile[]> {
   if(!UUID.test(taskId))throw Error("TF inválida.");
   const {data,error}=await db.from("qa_evidencia_arquivos")
-    .select("id,tarefa_id,cenario_id,user_id,nome_original,mime_type,tamanho_bytes,objeto_path,descricao,created_at,publica")
+    .select("id,tarefa_id,cenario_id,user_id,nome_original,mime_type,tamanho_bytes,objeto_path,descricao,created_at")
     .eq("tarefa_id",taskId).order("created_at",{ascending:false}).limit(101);
   if(error)throw error;
   if((data??[]).length>100)throw Error("Mais de 100 anexos: consulte o histórico completo.");
@@ -89,7 +89,7 @@ export async function uploadEvidenceFile(db:SupabaseClient,args:{
       id,tarefa_id:taskId,cenario_id:scenarioId,user_id:userId,
       nome_original:file.name,mime_type:mime,tamanho_bytes:file.size,
       objeto_path:path,descricao:description.trim()
-    }).select("id,tarefa_id,cenario_id,user_id,nome_original,mime_type,tamanho_bytes,objeto_path,descricao,created_at,publica").single();
+    }).select("id,tarefa_id,cenario_id,user_id,nome_original,mime_type,tamanho_bytes,objeto_path,descricao,created_at").single();
     if(error)throw error;
     if(!data?.id || data.id!==id || data.objeto_path!==path)
       throw Error("Metadados do arquivo não confirmados pelo banco.");
@@ -122,21 +122,6 @@ export async function readPrivateEvidence(db:SupabaseClient,record:EvidenceFile,
   return data;
 }
 
-/** Explicit per-image publication. The storage bucket remains private. */
-export async function setEvidencePublic(db:SupabaseClient,file:EvidenceFile,
-  userId:string,taskId:string,publish:boolean):Promise<void>{
-  assertOwnEvidenceFile(file,userId,taskId);
-  if(publish && (!file.cenario_id||!file.mime_type.startsWith("image/")))
-    throw Error("Somente imagens vinculadas a um cenário podem ser publicadas.");
-  const {data,error}=await db.from("qa_evidencia_arquivos")
-    .update({publica:publish})
-    .eq("id",file.id).eq("tarefa_id",taskId).eq("user_id",userId)
-    .select("id,publica").single();
-  if(error)throw Error(error.message);
-  if(!data||data.id!==file.id||data.publica!==publish)
-    throw Error("A publicação da evidência não foi confirmada.");
-}
-
 /** Modify editable metadata without replacing an immutable storage object. */
 export async function updateEvidenceDescription(db:SupabaseClient,file:EvidenceFile,
   userId:string,taskId:string,description:string):Promise<void>{
@@ -157,7 +142,6 @@ export async function updateEvidenceDescription(db:SupabaseClient,file:EvidenceF
 export async function removeEvidenceFile(db:SupabaseClient,file:EvidenceFile,
   userId:string,taskId:string):Promise<void>{
   assertOwnEvidenceFile(file,userId,taskId);
-  if(file.publica)await setEvidencePublic(db,file,userId,taskId,false);
   const {data,error}=await db.from("qa_evidencia_arquivos")
     .delete().eq("id",file.id).eq("tarefa_id",taskId).eq("user_id",userId)
     .select("id").maybeSingle();

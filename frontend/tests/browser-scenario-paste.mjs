@@ -11,7 +11,7 @@ const user={id:userId,email:"capturas@fixture.invalid",aud:"authenticated",role:
  app_metadata:{provider:"email",providers:["email"]},user_metadata:{},created_at:"2026-11-10T12:00:00Z"};
 const task={id:taskId,user_id:userId,titulo:"Evidência de teste com captura",
  codigo:"QA-371",descricao:"Dados sintéticos",tipo_teste:"BUILD",status:"em_teste",
- sistema:"Financeiro",versao:"12.10.16.0003",publica:false};
+ sistema:"Financeiro",versao:"12.10.16.0003",publica:true};
 const scenario={id:scenarioId,tarefa_id:taskId,user_id:userId,titulo:"Testar retirada de desconto",
  ordem:1,status:"reprovado",obtido:"Desconto não removido",passos:"Abrir pedido e retirar desconto",
  esperado:"Desconto removido",observacoes:"O cenário tem histórico de falha"};
@@ -42,16 +42,7 @@ async function mock(route){
      files.push(record);
      return send(record,201);
    }
-   if(m==="PATCH"){
-     const patch=req.postDataJSON();
-     assert.deepEqual(patch,{publica:true});
-     assert.equal(url.searchParams.get("user_id"),"eq."+userId);
-     assert.equal(url.searchParams.get("tarefa_id"),"eq."+taskId);
-     const found=files.find(file=>url.searchParams.get("id")==="eq."+file.id);
-     assert.ok(found,"Can publish only uploaded record");
-     Object.assign(found,patch);
-     return send({id:found.id,publica:true});
-   }
+   if(m==="PATCH")throw Error("No per-file publication writes are allowed");
    return send(files);
  }
  if(p.startsWith("/storage/v1/object/")){
@@ -95,13 +86,25 @@ try{
  },png.toString("base64"));
  await page.getByText(/captura-\d+\.png/).first().waitFor();
  await page.getByRole("textbox",{name:"Observação da captura"}).fill("Captura após reprovação do teste");
- await page.getByRole("checkbox",{name:/Permitir exibição na página pública/}).check();
- page.once("dialog",d=>void d.accept());
+ assert.equal(await page.getByRole("checkbox",{name:/pública|publicação/}).count(),0);
  await page.getByRole("button",{name:"Vincular ao teste"}).click();
  await page.getByText("Captura vinculada ao cenário "+scenario.titulo).waitFor({timeout:14000});
- assert.equal(files.length,1);assert.equal(files[0].publica,true);
+ assert.equal(files.length,1);assert.equal(files[0].publica,false,"Legacy flag is ignored; TF visibility controls access");
  assert.equal(stored.length,1);
- await page.getByText("Autorizada para página pública").waitFor();
+ await page.getByText("Pública — acompanha a TF").waitFor();
+ await page.getByRole("button",{name:"Visualizar",exact:true}).click();
+ const preview=page.getByRole("dialog",{name:/Visualizar arquivo/});
+ await preview.waitFor();
+ assert.equal(await page.getByRole("dialog",{includeHidden:true}).count(),2,"Preview may open inside evidence modal");
+ await page.keyboard.press("Tab");
+ assert.equal(await preview.evaluate(dialog=>dialog.contains(document.activeElement)),true);
+ await page.keyboard.press("Escape");
+ await preview.waitFor({state:"detached"});
+ assert.equal(await page.getByRole("dialog").count(),1,"Escape closes only the topmost preview");
+ assert.equal(await page.evaluate(()=>document.getElementById("root").inert),true);
+ assert.equal(await page.getByRole("dialog").evaluate(dialog=>dialog.contains(document.activeElement)),true);
+ assert.equal(await page.getByRole("button",{name:"Visualizar",exact:true}).evaluate(el=>el===document.activeElement),true,
+   "Nested preview must restore focus to its exact opening action");
  mkdirSync("artifacts/scenario-evidence",{recursive:true});
  for(const width of [320,390,768,1366]){
    await page.setViewportSize({width,height:844});
@@ -110,5 +113,5 @@ try{
    await page.screenshot({path:"artifacts/scenario-evidence/paste-"+width+".png"});
  }
  assert.deepEqual(unexpected,[]);
- console.log("Clipboard evidence E2E: paste PNG, scenario linkage, private Storage, opt-in publishing, 4 breakpoints.");
+ console.log("Clipboard evidence E2E: paste PNG, scenario linkage, private Storage, inherited TF visibility and nested modal focus, 4 breakpoints.");
 }finally{await browser.close();}
