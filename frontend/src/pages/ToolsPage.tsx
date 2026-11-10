@@ -8,6 +8,8 @@ import {
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
 import { ToastNotice } from "../components/ui/Toasts";
+import { VersionInput } from "../components/ui/VersionInput";
+import { normalizeTaskVersion } from "../lib/task-version";
 import ComparisonTool from "../features/links/ComparisonTool";
 import ReleaseOrganizer from "../features/links/ReleaseOrganizer";
 import ReferenceLibrary from "../features/links/ReferenceLibrary";
@@ -115,12 +117,11 @@ export default function ToolsPage(){
           <div className="qa-tools-workspace-body qa-tools-release">
             <div className="qa-tools-release-version">
               <label className="field">Versão da release
-                <input value={version} maxLength={40} placeholder="Ex.: 12.10.06.0000"
-                  onChange={event=>setVersion(event.target.value)}/>
+                <VersionInput value={version} onValueChange={setVersion}/>
               </label>
-              <p>Informe a versão antes de organizar uma lista ou revisar um comunicado.</p>
+              <p>Digite os números; a versão será formatada como 00.00.00.0000.</p>
             </div>
-            <ReleaseOrganizer version={version} expanded/>
+            <ReleaseOrganizer version={normalizeTaskVersion(version)} expanded/>
           </div>
         </section>
         <section role="tabpanel" id="qa-tool-panel-comparison"

@@ -432,6 +432,7 @@ select{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
+import {formatTaskVersionInput, normalizeTaskVersion} from './qa-version.mjs';
 import {TASK_UUID} from './qa-workspace.mjs';
 import {createGeneratorReview} from './qa-generator-review.mjs';
 import {createPostDocumentUi} from './qa-post-doc.mjs';
@@ -718,7 +719,7 @@ const DEFCP="MyLocação 12.03.03.0000\nOptoClinic 12.07.00.0000\nMyObras 12.09.
 const cfgGet=()=>{try{return JSON.parse(localStorage.getItem("cfg_v1")||"{}")}catch(e){return{}}},cfgSet=o=>{try{localStorage.setItem("cfg_v1",JSON.stringify({...cfgGet(),...o}))}catch(e){}};
 function toolRelease(){
  $("tool").innerHTML=`<div class="rl">
-  <div class="fv"><label for="rv">Versão da release</label><textarea id="rv" rows="1" placeholder="12.10.06.0000" spellcheck="false"></textarea></div>
+  <div class="fv"><label for="rv">Versão da release</label><textarea id="rv" rows="1" maxlength="13" inputmode="numeric" placeholder="00.00.00.0000" spellcheck="false"></textarea></div>
   <div class="fs"><label for="rst">Status padrão <span>(quando a lista colada não tem cabeçalho)</span></label><select id="rst"><option value="12">Status 12 (já estão em build)</option><option value="11">Status 11 (Aguardando versão)</option></select></div>
   <div class="fe"><label for="rs">Equipe do CQP <span>(um nome por linha)</span></label><textarea id="rs" spellcheck="false"></textarea></div>
   <div class="ft"><label for="ra">Tarefas <span>(cole direto do SIA; aceita cabeçalhos Status 12 e Status 11)</span></label><textarea id="ra" class="big" spellcheck="false"></textarea></div>
@@ -726,9 +727,10 @@ function toolRelease(){
   <div class="fp"><label for="rp">Compatibilidades <span>(uma por linha: Sistema e versão)</span></label><textarea id="rp" style="height:96px" spellcheck="false"></textarea></div><div class="fg"><label for="rg">Assinatura</label><textarea id="rg" rows="1" style="height:46px;resize:none" spellcheck="false"></textarea></div></div>
   <div class="acts"><button class="p" id="b1">Organizar lista</button><button class="s" id="b2">Comparar com o comunicado</button><span id="ts" style="color:var(--mut);font-size:13px"></span></div><div id="to"></div>`;
  $("rs").value=TEAM.join("\n");{const C=cfgGet();if(C.team)$("rs").value=C.team;if(C.rst)$("rst").value=C.rst;$("rs").oninput=()=>cfgSet({team:$("rs").value});$("rst").onchange=()=>cfgSet({rst:$("rst").value});$("rp").value=C.compat||DEFCP;$("rg").value=C.sig||"Vinicius Rafael";$("rp").oninput=()=>cfgSet({compat:$("rp").value});$("rg").oninput=()=>cfgSet({sig:$("rg").value})}
- $("rv").setAttribute("inputmode","numeric");const fv=x=>{const d=x.replace(/\D/g,"").slice(0,10);return[d.slice(0,2),d.slice(2,4),d.slice(4,6),d.slice(6,10)].filter(Boolean).join(".")};
- $("rv").oninput=()=>{$("rv").value=fv($("rv").value)};$("rv").onkeydown=e=>{if(e.key==="Enter")e.preventDefault()};
- $("b1").onclick=()=>{clr();const v=$("rv").value.trim();if(!/^\d{2}\.\d{2}\.\d{2}\.\d{4}$/.test(v)){$("ts").textContent="Versão incompleta: use o formato 12.10.06.0000.";return}$("ts").textContent="";
+ $("rv").oninput=()=>{$("rv").value=formatTaskVersionInput($("rv").value)};
+ $("rv").onblur=()=>{$("rv").value=normalizeTaskVersion($("rv").value)};
+ $("rv").onkeydown=e=>{if(e.key==="Enter")e.preventDefault()};
+ $("b1").onclick=()=>{clr();const v=normalizeTaskVersion($("rv").value);$("rv").value=v;if(!/^\d{2}\.\d{2}\.\d{2}\.\d{4}$/.test(v)){$("ts").textContent="Versão incompleta: use o formato 12.10.06.0000.";return}$("ts").textContent="";
   const team=$("rs").value.split("\n").map(x=>x.trim()).filter(Boolean);let cur=null;const R=[];
   for(const l of $("ra").value.split("\n")){const st=l.match(/^\s*status\s*(\d+)/i);if(st&&!/#\d/.test(l)){cur=st[1];continue}
    if(isStart(l))R.push({st:cur,lines:[l]});else if(R.length&&l.trim())R[R.length-1].lines.push(l)}
@@ -740,7 +742,7 @@ function toolRelease(){
   res("Lista organizada",esc(t),t);if(at.length)res("Conferir (não vai no texto)",esc(at.join("\n")),at.join("\n"));phase3Tools.showRelease({version:v,numbers:R.map(item=>tn(item.lines[0])[0]?.n).filter(Boolean)})};
  $("b2").onclick=()=>{clr();$("ts").textContent="";const R=cmpRel($("ra").value,$("rc").value);
   if(R.err){$("ts").textContent=R.err;return}
-  {const F=fmtBB(R.out,$("rv").value.trim(),$("rp").value,$("rg").value);const pn=F.replace(/\[\/?b\]/g,""),hh=esc(F).replace(/\[b\]/g,"<b>").replace(/\[\/b\]/g,"</b>").replace(/\n/g,"<br>");res("Comunicado no padrão BBCode (pronto para o fórum)",esc(F),F,[["Copiar BBCode",F],["Copiar normal",pn,hh]])}
+  {const F=fmtBB(R.out,normalizeTaskVersion($("rv").value),$("rp").value,$("rg").value);const pn=F.replace(/\[\/?b\]/g,""),hh=esc(F).replace(/\[b\]/g,"<b>").replace(/\[\/b\]/g,"</b>").replace(/\n/g,"<br>");res("Comunicado no padrão BBCode (pronto para o fórum)",esc(F),F,[["Copiar BBCode",F],["Copiar normal",pn,hh]])}
   res("Comunicado revisado (texto original, só tarefas autorizadas)",esc(R.out),R.out);
   res("Relatório da comparação (uso interno, não publicar)",esc(R.rep),R.rep);
   if(R.rt.length)res("Texto removido (confira antes de publicar)",esc(R.rt.join("\\n")),R.rt.join("\\n"))}}

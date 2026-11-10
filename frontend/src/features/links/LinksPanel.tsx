@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, GitCompareArrows, GitMerge, NotebookPen, Save, X } from "lucide-react";
 import { z } from "zod";
 import ComparisonTool from "./ComparisonTool";
+import { VersionInput } from "../../components/ui/VersionInput";
+import { normalizeTaskVersion } from "../../lib/task-version";
 import ReleaseOrganizer from "./ReleaseOrganizer";
 import { supabase } from "../../lib/supabase";
 import type { Task } from "../../lib/contracts";
@@ -13,7 +15,7 @@ import {
 } from "../../lib/legacy/qa-phase3.mjs";
 
 const id = z.uuid();
-const releaseSchema = z.object({ id, versao: z.string(), created_at: z.string() });
+const releaseSchema = z.object({ id, versao: z.string().transform(normalizeTaskVersion), created_at: z.string() });
 const releaseLinkSchema = z.object({ release_id: id, tarefa_id: id });
 const referenceSchema = z.object({
   id, categoria: z.enum(["checklist", "regra", "nota"]),
@@ -87,7 +89,7 @@ export default function LinksPanel({
   const saveRelease = useMutation({
     mutationFn: () => {
       if (!own) throw Error("Somente o proprietário pode vincular releases.");
-      return linkTaskRelease(supabase, { taskId: task.id, version: normalizeReleaseVersion(version) });
+      return linkTaskRelease(supabase, { taskId: task.id, version: normalizeReleaseVersion(normalizeTaskVersion(version)) });
     },
     onSuccess: async () => {
       setVersion(""); setFailure(""); setMessage("Release vinculada à TF sem alterar seus testes.");
@@ -150,8 +152,7 @@ export default function LinksPanel({
         }}>
           <h3 className="font-semibold">Vincular release</h3>
           <label className="field mt-3">Versão (ex.: 12.10.06.0000)
-            <input value={version} maxLength={40}
-              placeholder="12.10.06.0000" onChange={(e) => setVersion(e.target.value)}/>
+            <VersionInput value={version} onValueChange={setVersion}/>
           </label>
           <p className="text-muted text-sm mt-2">
             A associação não altera os resultados da TF nem infere uma release pelo título.
@@ -160,7 +161,7 @@ export default function LinksPanel({
             <Save size={16}/> Vincular release
           </Button></div>
         </form>}
-        {!readOnly&&<ReleaseOrganizer task={task} version={version} />}
+        {!readOnly&&<ReleaseOrganizer task={task} version={normalizeTaskVersion(version)} />}
         <h3 className="font-semibold">Releases vinculadas</h3>
         {releases.isPending && <p role="status">Carregando releases…</p>}
         {releases.isError && <p role="alert" className="notice error">{releases.error.message}</p>}
