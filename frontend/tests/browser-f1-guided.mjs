@@ -184,10 +184,12 @@ try{
   assert.equal(mutations.length,4);
 
   await guided.getByRole("button",{name:"Adicionar evidência"}).click();
-  const evidence=page.getByRole("tabpanel",{name:"Arquivos e evidências"});
+  const evidence=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
   await evidence.waitFor({timeout:18000});
+  await evidence.getByRole("button",{name:"Evidência do teste"}).waitFor();
   await evidence.getByLabel("Cenário relacionado (opcional)").waitFor();
   assert.equal(await evidence.getByLabel("Cenário relacionado (opcional)").inputValue(),scenarios[3].id);
+  await evidence.getByRole("button",{name:"Fechar Importar arquivos e evidências"}).click();
   await page.getByRole("tab",{name:"Cenários"}).click();
 
   await page.getByRole("button",{name:"Lista",exact:true}).click();
