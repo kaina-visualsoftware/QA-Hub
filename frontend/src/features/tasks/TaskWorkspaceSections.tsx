@@ -1,5 +1,5 @@
 import type {KeyboardEvent,ReactNode} from "react";
-import {FileText,FolderOpen,LayoutDashboard,ListChecks,FileChartColumnIncreasing,
+import {FolderOpen,LayoutDashboard,ListChecks,FileChartColumnIncreasing,
   BookOpenText,Paperclip,Link2,Users} from "lucide-react";
 import type {Task,Scenario} from "../../lib/contracts";
 
