@@ -93,9 +93,17 @@
 .qa-generation-activity-copy p{
   margin-top:4px;font-size:.81rem;color:#506f77;line-height:1.55;
 }
-.qa-generation-activity-metric{
-  font-size:.8rem;color:#31646b;font-variant-numeric:tabular-nums;
-  font-weight:750;white-space:nowrap;
+.qa-generation-telemetry{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px 22px;
+  padding:9px 12px;background:#f4f8f8;border:1px solid #e0eaeb;
+  border-radius:9px;font-size:.75rem;color:#4d6971;line-height:1.55;
+}
+.qa-generation-telemetry span{display:inline-flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.qa-generation-telemetry strong{
+  color:#20555d;font-variant-numeric:tabular-nums;font-weight:750;
+}
+.qa-generation-telemetry .qa-generation-slow{
+  flex-basis:100%;color:#805a24;
 }
 .qa-generation-indeterminate{
   height:5px;width:100%;overflow:hidden;
@@ -192,17 +200,26 @@
   .qa-generation-activity-copy strong{font-size:.93rem}
   .qa-generation-events{gap:6px}
   .qa-generation-events li{padding:8px;min-height:47px;font-size:.69rem}
-  .qa-generation-activity-metric{margin-left:49px}
+  .qa-generation-telemetry{gap:5px 15px}
   .qa-generation-activity-footer button{width:100%}
   .qa-generator-setup-toggle button{width:100%;min-height:44px}
 }
 @media(max-width:360px){
   .qa-generation-steps li{font-size:.65rem}
-  .qa-generation-events{grid-template-columns:minmax(0,1fr)}
-  .qa-generation-activity-metric{margin-left:0}
+  .qa-generation-events{
+    grid-template-columns:minmax(0,1fr);gap:0;
+    border:1px solid #dce8e8;border-radius:10px;overflow:hidden;
+  }
+  .qa-generation-events li{
+    min-height:35px;padding:7px 10px;border:0;border-radius:0;
+    border-bottom:1px solid #e2ebeb;
+  }
+  .qa-generation-events li:last-child{border-bottom:0}
+  .qa-generation-events li small{margin-left:auto;flex-basis:auto}
+  .qa-generation-telemetry span{width:100%}
 }
 @media(prefers-reduced-motion:reduce){
   .qa-generation-indeterminate span{
-    animation:none;transform:none;width:100%;
+    animation:none;transform:none;width:37%;
   }
 }
