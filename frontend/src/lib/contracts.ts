@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeTaskVersion, TASK_VERSION_PATTERN } from "./task-version";
 
 export const taskStatuses = ["rascunho", "em_teste", "aprovado", "reprovado", "bloqueado"] as const;
 export const scenarioStatuses = ["nao_executado", "aprovado", "reprovado", "bloqueado"] as const;
@@ -25,7 +26,7 @@ export const taskSchema = z.object({
   tipo_teste: z.enum(["BUILD", "RELEASE"]),
   status: z.enum(taskStatuses),
   sistema: z.string().nullish(),
-  versao: z.string().nullish(),
+  versao: z.string().nullish().transform(value => value == null ? value : normalizeTaskVersion(value)), 
   executado_em: z.string().nullish(),
   publica: z.boolean().nullish(),
   ambiente: z.string().nullish(),
@@ -60,7 +61,10 @@ export const taskDraftSchema = z.object({
   tipo_teste: z.enum(["BUILD", "RELEASE"]),
   codigo: z.string().trim().max(100),
   sistema: z.string().trim().max(160),
-  versao: z.string().trim().max(100),
+  versao: z.string().trim().max(100).transform(normalizeTaskVersion)
+    .refine(value => !value || TASK_VERSION_PATTERN.test(value), {
+      message: "Informe a versão no formato 00.00.00.0000."
+    }),
   ambiente: z.string().trim().max(240).optional(),
   base_teste: z.string().trim().max(240).optional(),
   empresa: z.string().trim().max(240).optional(),

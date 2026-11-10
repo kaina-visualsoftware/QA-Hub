@@ -1,4 +1,5 @@
 import type {UseFormReturn} from "react-hook-form";
+import { normalizeTaskVersion } from "../../lib/task-version";
 import type {Scenario,TaskDraft} from "../../lib/contracts";
 import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
@@ -27,6 +28,7 @@ export function taskAiFieldValues(draft:LocalDraft):Partial<TaskDraft>{
     // Never place the full report, copied UI controls or a test script in the summary.
     const normalized=name==="descricao"
       ?cleaned.replace(/\s*\n+\s*/g," ").replace(/\s+/g," ").slice(0,650).trim()
+      :name==="versao" ? normalizeTaskVersion(cleaned.slice(0,limit))
       :cleaned.slice(0,limit);
     if(normalized)(fields as Record<string,string>)[name]=normalized;
   }

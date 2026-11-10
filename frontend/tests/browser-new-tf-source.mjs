@@ -218,7 +218,7 @@ try{
   assert.match(aiRequests[0].text,/Análise: o rateio ignora descontos negativos/);
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
     "Validar descontos de pedidos");
-  assert.equal(await wizard.getByLabel("Versão").inputValue(),"12.09");
+  assert.equal(await wizard.getByLabel("Versão").inputValue(),"12.09.00.0000");
   assert.equal(await wizard.getByLabel("Resumo do problema / descrição").inputValue(),
     "O desconto não era removido corretamente em certos pedidos.");
   const details=wizard.locator("details.qa-wizard-more");
@@ -245,7 +245,7 @@ try{
   await wizard.getByRole("button",{name:"Analisar novamente"}).click();
   await wizard.getByLabel("Versão").waitFor();
   await page.waitForFunction(()=>[...document.querySelectorAll("input")]
-    .some(item=>item.value==="12.10"));
+    .some(item=>item.value==="12.10.00.0000"));
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),"TF revisada pelo QA",
     "Reanalysis must not overwrite user-entered titles");
   assert.equal(await details.locator("label.field").filter({hasText:"Causa identificada"})
@@ -287,7 +287,7 @@ try{
   assert.equal(taskWrites,1);
   assert.equal(caseWrites,3);
   assert.equal(tasks[0].codigo,"88771");
-  assert.equal(tasks[0].versao,"12.10");
+  assert.equal(tasks[0].versao,"12.10.00.0000");
   assert.equal(tasks[0].descricao,"O desconto não era removido corretamente em certos pedidos.");
   assert.equal(tasks[0].causa,"Causa revisada manualmente.");
   assert.equal(tasks[0].correcao,"A rotina também passou a validar os kits desdobrados.");

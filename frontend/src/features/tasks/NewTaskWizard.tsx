@@ -6,6 +6,7 @@ import { ToastNotice } from "../../components/ui/Toasts";
 import { createTask, addExtractedScenarios } from "../../lib/data";
 import { taskDraftSchema, scenarioDraftSchema } from "../../lib/contracts";
 import type { TaskDraft } from "../../lib/contracts";
+import { formatTaskVersionInput, normalizeTaskVersion } from "../../lib/task-version";
 import { extractLocalDraft, normalizeDraft } from "../../lib/legacy/qa-assistant.mjs";
 import { taskToGeneratorText, parseGeneratedCases } from "../../lib/legacy/qa-workspace.mjs";
 import { sanitizeAiContext } from "../../lib/legacy/qa-test-context.mjs";
@@ -172,7 +173,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     onClose();
   }
   function update(name:keyof TaskDraft,value:string){
-    setDraft(current=>({...current,[name]:value}));
+    setDraft(current=>({...current,[name]:name==="versao"?formatTaskVersionInput(value):value}));
     setDraftErrors(current=>({...current,[name]:""}));
     setConsentCases(false);
   }
@@ -466,7 +467,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       value={draft[name]||""} maxLength={30000} disabled={busy}
       onChange={event=>update(name,event.target.value)}/>:
       <input aria-label={label} value={draft[name]||""} disabled={busy}
-        onChange={event=>update(name,event.target.value)}/>}
+        inputMode={name==="versao"?"numeric":undefined}
+        maxLength={name==="versao"?13:undefined}
+        placeholder={name==="versao"?"00.00.00.0000":undefined}
+        onChange={event=>update(name,event.target.value)}
+        onBlur={name==="versao"?()=>update(name,normalizeTaskVersion(draft.versao)):undefined}/>}
     {draftErrors[name]&&<small className="text-error" role="alert">{draftErrors[name]}</small>}
   </label>;
 

@@ -228,7 +228,7 @@ try {
   await page.getByRole("textbox",{name:"Descreva o processo"}).fill("Iniciar conferência, verificar dados e concluir.");
   await page.getByRole("combobox",{name:"Modelo do diagrama"}).selectOption("decisoes");
   assert.equal(await page.getByRole("button",{name:"Gerar diagrama"}).isDisabled(),true);
-  await page.getByRole("checkbox",{name:/Autorizo enviar este conteúdo à NVIDIA/}).check();
+  await page.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
   await page.getByRole("button",{name:"Gerar diagrama"}).click();
   await page.getByTitle("Visualização do diagrama Mermaid").waitFor({timeout:20000});
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
