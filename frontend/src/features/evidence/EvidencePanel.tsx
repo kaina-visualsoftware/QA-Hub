@@ -42,9 +42,9 @@ async function listAudit(taskId: string, page: number): Promise<AuditEvent[]> {
 }
 
 export default function EvidencePanel({
-  task, userId, scenarios, prefillScenarioId, prefillRequest
+  task, userId, scenarios, prefillScenarioId, prefillRequest, readOnly=false
 }: { task: Task; userId: string; scenarios: Scenario[];
-  prefillScenarioId?: string|null; prefillRequest?: number }) {
+  prefillScenarioId?: string|null; prefillRequest?: number; readOnly?:boolean }) {
   const client = useQueryClient();
   const owner = task.user_id === userId;
   const [tab, setTab] = useState<"evidence" | "audit">("evidence");
@@ -111,17 +111,17 @@ export default function EvidencePanel({
         </button>
       </div>
       {tab === "evidence" && <div role="tabpanel" className="stack mt-5">
-        <label className="field qa-evidence-scenario-picker">Cenário relacionado (opcional)
+        {!readOnly&&<label className="field qa-evidence-scenario-picker">Cenário relacionado (opcional)
           <select value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
             <option value="">TF geral</option>
             {scenarios.map(item=><option value={item.id} key={item.id}>
               {item.titulo}
             </option>)}
           </select>
-        </label>
+        </label>}
         <EvidenceFilesPanel task={task} userId={userId} scenarios={scenarios}
-          scenarioId={scenarioId||null}/>
-        <details className="qa-evidence-text-details">
+          scenarioId={scenarioId||null} readOnly={readOnly}/>
+        {!readOnly&&<details className="qa-evidence-text-details">
           <summary>Adicionar observação ou link <span>Opcional</span></summary>
         <form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault();
@@ -156,7 +156,7 @@ export default function EvidencePanel({
           <ToastNotice message={save.isError?save.error.message:null} tone="error"/>
           <ToastNotice message={message} tone="success"/>
         </form>
-        </details>
+        </details>}
         <h3 className="font-semibold mt-4">Observações e referências anteriores</h3>
         {evidence.isPending && <p role="status">Carregando evidências…</p>}
         {evidence.isError && <p role="alert" className="notice error">{evidence.error.message}</p>}
