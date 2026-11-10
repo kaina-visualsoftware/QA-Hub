@@ -15,9 +15,9 @@ import {githubIssueDraft,readAutomatedResults} from "../integrations/test-result
 import type {ImportedTestResult} from "../integrations/test-results";
 import {GithubIssueLinks} from "../integrations/GithubIssueLinks";
 
-export default function TaskCollaborationPanel({task,scenarios,userId,rights,onExecuted}:{
+export default function TaskCollaborationPanel({task,scenarios,userId,rights,onExecuted,readOnly=false}:{
  task:Task;scenarios:Scenario[];userId:string;
- rights:TaskRights;onExecuted:()=>Promise<void>;
+ rights:TaskRights;onExecuted:()=>Promise<void>;readOnly?:boolean;
 }){
  const client=useQueryClient();
  const owner=task.user_id===userId;
@@ -132,12 +132,12 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
     <strong>Compartilhada com a equipe</strong>
     <p>{list.data?.find(t=>t.id===activeTeamId)?.nome||
      "Equipe "+activeTeamId.slice(0,8)}</p>
-    {owner&&<Button variant="secondary" isDisabled={mutation.isPending}
+    {owner&&!readOnly&&<Button variant="secondary" isDisabled={mutation.isPending}
       onPress={()=>{
        if(window.confirm("Revogar o acesso de toda a equipe a esta TF?"))
         void run(()=>unlinkTask(task.id),"Compartilhamento revogado.");
       }}>Revogar compartilhamento</Button>}
-   </div>:owner?<div className="qa-f5-create">
+   </div>:owner&&!readOnly?<div className="qa-f5-create">
     <label className="field">Escolher sua equipe
      <select value={teamId} onChange={e=>setTeamId(e.target.value)}>
       <option value="">Selecione…</option>
@@ -158,7 +158,7 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
        "Você":"QA "+responsible.data.responsavel_id.slice(0,8))
      :"Nenhum responsável designado."}
    </p>
-   {owner&&<div className="qa-f5-create">
+   {owner&&!readOnly&&<div className="qa-f5-create">
     <label className="field">Designar QA
      <select value={personId} onChange={e=>setPersonId(e.target.value)}>
       <option value="">Escolha o responsável…</option>
@@ -182,7 +182,7 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
   </section>}
   {tab==="comments"&&<section className="qa-f5-tab" aria-label="Comentários da tarefa">
    <h3>Conversa da TF</h3>
-   {rights.canComment&&<form onSubmit={e=>{
+   {rights.canComment&&!readOnly&&<form onSubmit={e=>{
     e.preventDefault();
     void run(async()=>{
      await addTaskComment(task.id,userId,comment);setComment("");
@@ -196,7 +196,7 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
     <Button type="submit" isDisabled={mutation.isPending||!comment.trim()}>
       Publicar comentário</Button>
    </form>}
-   {!rights.canComment&&<p className="text-muted text-sm">
+   {!rights.canComment&&!readOnly&&<p className="text-muted text-sm">
     Seu acesso permite consultar comentários, mas não publicar.</p>}
    {comments.isPending&&<p role="status">Carregando conversa…</p>}
    {comments.isError&&<p role="alert" className="notice error">{comments.error.message}</p>}
@@ -211,22 +211,22 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
    <h3>GitHub Issues</h3>
    <p className="text-muted text-sm">Prepare um rascunho com os dados da TF.
     Confira o conteúdo no GitHub antes de publicar. Nenhum token é solicitado.</p>
-   <label className="field">Repositório GitHub
+   {!readOnly&&<label className="field">Repositório GitHub
     <input placeholder="organização/repositório" value={repo}
      onChange={e=>setRepo(e.target.value)} maxLength={180}/>
-   </label>
-   {repoUrl?<a className="secondary-link" href={repoUrl} target="_blank"
+   </label>}
+   {!readOnly&&(repoUrl?<a className="secondary-link" href={repoUrl} target="_blank"
     rel="noopener noreferrer" onClick={event=>{
      if(!window.confirm("Abrir o rascunho no GitHub enviará o título e a descrição da TF ao GitHub pela URL. Revise e remova dados confidenciais antes de continuar. Abrir mesmo assim?"))
        event.preventDefault();
     }}><ExternalLink size={16}/> Revisar issue no GitHub</a>:
-    <p className="text-muted text-sm">Use o formato organização/repositório.</p>}
-   <GithubIssueLinks key={task.id} taskId={task.id} userId={userId} owner={owner}/>
+    <p className="text-muted text-sm">Use o formato organização/repositório.</p>)}
+   <GithubIssueLinks key={task.id} taskId={task.id} userId={userId} owner={owner&&!readOnly}/>
    <div className="qa-f5-divider"/>
    <h3>Resultados automatizados</h3>
    <p className="text-muted text-sm">Importe um relatório JUnit XML ou Playwright JSON.
     Confira e associe individualmente cada teste ao cenário; não há registro automático.</p>
-   <label className="field qa-files-picker-field">Selecionar relatório (até 2 MB)
+   {!readOnly&&<label className="field qa-files-picker-field">Selecionar relatório (até 2 MB)
     <span className="qa-files-picker">
      <span className="qa-files-picker-button">Escolher arquivo</span>
      <span className="qa-files-picker-name">{fileName||"Nenhum arquivo selecionado"}</span>
@@ -237,9 +237,9 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
       const file=e.target.files?.[0];setFileName(file?.name??"");
       void readFile(file);e.target.value="";
      }}/>
-   </label>
+   </label>}
    {fileBusy&&<p role="status">Lendo arquivo no navegador…</p>}
-   {!!fileResults.length&&<>
+   {!readOnly&&!!fileResults.length&&<>
     <strong>{fileResults.length} resultado(s) para revisão</strong>
     {fileResults.slice(0,showCount).map(entry=>
      <div className="qa-f5-import-row" key={entry.id}>
