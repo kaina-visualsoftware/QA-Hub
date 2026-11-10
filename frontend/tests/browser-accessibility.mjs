@@ -187,7 +187,7 @@ try {
         "Public navigation must remain available on mobile.");
     }
     await page.getByRole("button", { name: "Nova TF" }).click();
-    const taskModal=page.getByRole("dialog",{name:"Nova TF"});
+    const taskModal=page.getByRole("dialog",{name:/Nova TF — etapa/});
     await taskModal.waitFor();
     assert.equal(await page.locator("#root").evaluate(el=>el.inert),true,
       "Background must be inert while a modal is open.");
@@ -195,12 +195,10 @@ try {
     await page.goto(BASE + "#/tarefa/" + TASK);
     await page.getByRole("heading", { name: "Revisão de desconto" }).waitFor();
     await axeAudit(page, "TF com fluxo rápido", width);
-    await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
-    const workflow = page.getByRole("group",{name:"Ações rápidas da TF"});
-    const quickCreate = page.getByRole("tabpanel", { name: /Testes/ })
-      .getByRole("button", { name: "Cenário", exact: true });
-    const runPending = workflow.getByRole("button", { name: "Executar testes" });
-    await runPending.click();
+    await page.getByRole("tab",{name:"Cenários"}).click();
+    const workflow=page.getByRole("tabpanel",{name:"Cenários"});
+    const quickCreate=workflow.getByRole("button",{name:"Cenário",exact:true});
+    await page.getByRole("button",{name:"Guiado",exact:true}).click();
     await page.getByRole("button",{name:"Lista",exact:true}).click();
     await page.getByRole("button",{name:"Pendentes",exact:true}).click();
     await page.locator('[data-qa-next-pending="true"]').waitFor();
