@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { ClipboardCopy, ListChecks, PackageCheck } from "lucide-react";
@@ -25,6 +25,11 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
   const [message, setMessage] = useState("");
   const matches = organized?.numbers.some((item) =>
     String(item) === String(task?.codigo ?? "").trim().replace(/^#/, ""));
+
+  // A result prepared for a prior version must never appear current.
+  useEffect(()=>{
+    setOrganized(null);setReviewed(null);setError("");setMessage("");
+  },[version]);
 
   function clearResults() {
     setOrganized(null); setReviewed(null); setError(""); setMessage("");
