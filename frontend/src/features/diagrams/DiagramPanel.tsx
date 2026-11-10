@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, WandSparkles } from "lucide-react";
+import { Eye, WandSparkles, LoaderCircle, FileCheck2, Code2 } from "lucide-react";
 import type { Scenario, Task } from "../../lib/contracts";
 import { DiagramAiPanel } from "./DiagramAiPanel";
 import { ensureMermaidSyntax, isMissingModuleChunk, mermaidErrorMessage } from "./mermaid-validation";
@@ -136,15 +136,27 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
     </button>}
     {(title.trim()||svg||showEditor) ?
     <form className="qa-diagram-result" id="diagram-editor"
+      aria-label="Revisar e salvar diagrama"
       onSubmit={event=>{event.preventDefault();void validateAndSave();}}>
+      <div className="qa-diagram-editor-heading">
+        <div><span className="qa-generator-eyebrow">REVISÃO FINAL</span>
+          <h3>{editingId?"Editar diagrama salvo":"Prévia do diagrama"}</h3>
+          <p>Confira a representação antes de gravar o resultado na tarefa.</p>
+        </div>
+      </div>
+      {busyPreview&&<div role="status" className="qa-diagram-processing">
+        <LoaderCircle size={18} className="qa-ai-spinner" aria-hidden="true"/>
+        <div><strong>Validando diagrama</strong>
+          <p>Verificando o código Mermaid e preparando a visualização.</p></div>
+      </div>}
       {svg&&<div className="qa-diagram-rendered">
-        <div className="qa-diagram-result-label">Prévia do diagrama</div>
+        <div className="qa-diagram-result-label">Visualização</div>
         <iframe title="Visualização do diagrama Mermaid"
           className="diagram-preview" sandbox="" referrerPolicy="no-referrer" srcDoc={svg}/>
       </div>}
       <details className="qa-diagram-code-options" open={showEditor}
         onToggle={event=>setShowEditor(event.currentTarget.open)}>
-        <summary>Editar título ou código Mermaid</summary>
+        <summary><Code2 size={16} aria-hidden="true"/> Editar título ou código Mermaid</summary>
         <div className="stack qa-diagram-code-fields">
           <label className="field">Título do diagrama
             <input maxLength={160} value={title}
@@ -175,7 +187,9 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
       <div className="qa-diagram-savebar">
         <Button type="submit" id="diagram-save-action"
           isDisabled={save.isPending||busyPreview||!own||!title.trim()}>
-          {save.isPending?"Salvando…":"Salvar diagrama"}
+          {save.isPending?<LoaderCircle size={16} className="qa-ai-spinner" aria-hidden="true"/>:
+            <FileCheck2 size={16} aria-hidden="true"/>}
+          {save.isPending?"Salvando diagrama…":"Salvar diagrama"}
         </Button>
         <Button type="button" variant="secondary" isDisabled={busyPreview}
           onPress={()=>void preview(code)}>
