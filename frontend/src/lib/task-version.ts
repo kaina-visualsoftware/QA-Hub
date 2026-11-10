@@ -31,6 +31,8 @@ export function normalizeTaskVersion(value: string): string {
   const parts = input.includes(".")
     ? input.split(".")
     : formatTaskVersionInput(input).split(".");
+  if (parts.length > GROUP_LENGTHS.length ||
+      parts.some((part, index) => part.length > GROUP_LENGTHS[index])) return input;
   return GROUP_LENGTHS.map((size, index) =>
     (parts[index] || "0").padStart(size, "0")
   ).join(".");
