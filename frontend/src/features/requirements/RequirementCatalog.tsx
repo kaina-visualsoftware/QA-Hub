@@ -35,9 +35,9 @@ function RevisionHistory({ taskId, requirementId }: { taskId: string; requiremen
 }
 
 export default function RequirementCatalog({
-  task, records, sources, onChanged
+  task, records, sources, onChanged, readOnly=false
 }: { task: Task; records: Requirement[]; sources: RequirementSource[];
-     onChanged: () => Promise<void> }) {
+     onChanged: () => Promise<void>; readOnly?:boolean }) {
   const [source, setSource] = useState("");
   const [preparedSource, setPreparedSource] = useState("");
   const [sourceId, setSourceId] = useState("");
@@ -113,7 +113,7 @@ export default function RequirementCatalog({
       <span><strong>{records.filter((r) => r.estado === "rascunho").length}</strong> rascunhos</span>
       <span><strong>{records.filter((r) => r.estado === "arquivado").length}</strong> arquivados</span>
     </div>
-    <details className="generator-context" open={records.length === 0}>
+    {!readOnly&&<details className="generator-context" open={records.length === 0}>
       <summary>Importar requisitos de texto (prévia e revisão)</summary>
       <div className="stack mt-4">
         {sources.some((item) => item.tipo_fonte === "arquivo" && item.texto_extraido.length >= 5) &&
@@ -202,7 +202,7 @@ export default function RequirementCatalog({
           </article>)}
         </div>}
       </div>
-    </details>
+    </details>}
     <div className="section-heading mt-4"><h3 className="font-semibold">Requisitos cadastrados</h3>
       <span className="count-pill">{visible.length}</span></div>
     <div className="flex flex-wrap gap-2">
@@ -219,7 +219,7 @@ export default function RequirementCatalog({
         <div><strong>{item.codigo} · {item.titulo}</strong>
           <p className="text-muted text-sm">{item.tipo} · {item.estado} · revisão {item.versao || 1}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {!readOnly&&<div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onPress={() => {
             setEditItem((current) => current?.id === item.id ? null : { ...item });
             setRevisions(null);
@@ -231,14 +231,17 @@ export default function RequirementCatalog({
           {item.estado !== "arquivado" &&
             <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
               isDisabled={busy}>Arquivar</Button>}
-        </div>
+        </div>}
       </div>
+      <details className="qa-resource-list-detail">
+        <summary>Ver descrição e critérios de aceite</summary>
       <p className="text-sm mt-3">{item.descricao}</p>
       {item.criterios_aceite && <p className="text-sm mt-2"><strong>Aceite:</strong> {item.criterios_aceite}</p>}
       <button type="button" className="secondary-link mt-3" onClick={() =>
         setRevisions((v) => v === item.id ? null : item.id)}>Ver revisões</button>
       {revisions === item.id && <RevisionHistory taskId={task.id} requirementId={item.id} />}
-      {editItem?.id === item.id && <form className="stack mt-4" onSubmit={(event) => {
+      </details>
+      {!readOnly&&editItem?.id === item.id && <form className="stack mt-4" onSubmit={(event) => {
         event.preventDefault();
         void updateSaved(editItem);
       }}>
