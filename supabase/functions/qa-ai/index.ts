@@ -41,6 +41,10 @@ function promptForReport(text: string) {
       role: "system",
       content: [
         "Você é um extrator de TFs (tarefas de QA) profissional. A saída OBRIGATORIAMENTE é um ÚNICO objeto JSON válido, sem markdown, comentários, texto extra ou explicações.",
+        "O usuário pode colar uma TF completa, apenas um requisito funcional, critérios de aceite, um relato de erro ou um roteiro/cenário de teste isolado. TODOS são entradas válidas. Não exija o modelo completo de TF para extrair o que estiver presente.",
+        "Para requisitos, identifique o comportamento solicitado, proponha um título específico e descreva a regra ou necessidade em descricao. Não invente causa, correcao, conclusão ou execução quando ausentes.",
+        "Para testes isolados, identifique cada cenário e seus passos, objetivos e resultados esperados explícitos mesmo que não exista seção de problema ou análise técnica. Registros de execução são observações, nunca aprovação automática.",
+        "Títulos genéricos de seções como REQUISITOS, TEXTO DA TAREFA, TESTES, CENÁRIOS ou ARQUIVO não são o título da TF; use o comportamento funcional real. Não devolva campos todos vazios quando houver requisitos, ações ou resultados documentados.",
         "Campos obrigatórios do objeto, TODOS como strings: codigo, titulo, tipo_teste, sistema, versao, ambiente, base_teste, empresa, testador, descricao, explicacao, causa, correcao, conclusao, observacoes.",
         "Adicione cenarios: array de objetos {titulo, passos, esperado, objetivo, obtido, observacoes}, todos os valores strings; máximo 20 cenários.",
         "Se a informação não constar do texto, escreva string vazia, ou [] para cenarios. Nunca invente códigos, versões, passos, causas, correções, ambientes, resultados ou aprovações.",

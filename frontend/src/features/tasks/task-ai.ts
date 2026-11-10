@@ -1,7 +1,7 @@
 import type {UseFormReturn} from "react-hook-form";
 import { normalizeTaskVersion } from "../../lib/task-version";
 import type {Scenario,TaskDraft} from "../../lib/contracts";
-import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
+import {extractLocalDraft,normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
 import {cleanQaSourceText,formatQaSentenceCase} from "../../lib/legacy/qa-text-cleaner.mjs";
@@ -150,7 +150,49 @@ export async function loadTaskAiSource(taskId:string):Promise<string|null>{
   return data?.texto_extraido||null;
 }
 
-export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
+export type GeneratedTaskDraft=LocalDraft & {extractionSource:"nvidia"|"local"};
+
+/** The provider can respond with HTTP 200 but no structured content. In that
+ * case use the existing deterministic report parser, never an empty "success".
+ * The 200k parser ceiling is explicit; long inputs are never silently truncated.
+ */
+function localSourceDraft(source:string):LocalDraft|null{
+  if(source.length>200000)return null;
+  try{
+    const extracted=extractLocalDraft(source);
+    return Object.keys(extracted.fields).length||extracted.cenarios.length?extracted:null;
+  }catch{return null;}
+}
+
+function completeSourceDraft(fromAi:LocalDraft,local:LocalDraft|null):LocalDraft{
+  if(!local)return fromAi;
+  const localByTitle=new Map(local.cenarios.map(item=>[identity(item),item]));
+  const enriched=fromAi.cenarios.map(item=>{
+    const source=localByTitle.get(identity(item));
+    if(!source)return item;
+    // A partial model reply can omit the expected result of a documented test.
+    return {
+      ...item,
+      passos:item.passos?.trim()?item.passos:source.passos,
+      esperado:item.esperado?.trim()?item.esperado:source.esperado,
+      observacoes:item.observacoes?.trim()?item.observacoes:source.observacoes
+    };
+  });
+  const known=new Set(enriched.map(identity));
+  const additional=local.cenarios.filter(item=>{
+    const key=identity(item);
+    if(!key||known.has(key))return false;
+    known.add(key);
+    return true;
+  });
+  // Never replace meaningful NVIDIA fields or duplicate a source scenario.
+  return {
+    fields:{...local.fields,...fromAi.fields},
+    cenarios:[...enriched,...additional].slice(0,50)
+  };
+}
+
+export async function generateTaskAiDraft(text:string):Promise<GeneratedTaskDraft>{
   const source=text.trim();
   if(!source)throw Error("Informe a descrição da tarefa para gerar com IA.");
   // Preserve the original report separately; do not send copied UI controls to NVIDIA.
@@ -167,12 +209,17 @@ export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
       throw Error("A NVIDIA ainda não está configurada. Preencha manualmente ou tente mais tarde.");
     throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
   }
+  if(data?.provider!=="NVIDIA Build")
+    throw Error("A resposta da análise não foi autenticada como NVIDIA Build.");
+
   const raw=data?.draft;
-  if(data?.fallback||data?.provider!=="NVIDIA Build"||
-    !raw||typeof raw!=="object"||Array.isArray(raw)||!Object.keys(raw).length)
-    throw Error("A NVIDIA não retornou campos válidos. Gere novamente ou preencha manualmente.");
-  const draft=normalizeDraft(raw);
-  if(!Object.keys(draft.fields).length&&!draft.cenarios.length)
-    throw Error("A NVIDIA não identificou dados suficientes. Revise o texto de origem.");
-  return draft;
+  const validRaw=!data?.fallback&&raw&&typeof raw==="object"&&!Array.isArray(raw)&&
+    Object.keys(raw).length>0;
+  const parsed=validRaw?normalizeDraft(raw):null;
+  const usefulAi=Boolean(parsed&&(Object.keys(parsed.fields).length||parsed.cenarios.length));
+  const local=localSourceDraft(relevant);
+  const complete=completeSourceDraft(usefulAi&&parsed?parsed:{fields:{},cenarios:[]},local);
+  if(!Object.keys(complete.fields).length&&!complete.cenarios.length)
+    throw Error("A NVIDIA não estruturou os campos e a extração local não foi suficiente. Revise o texto ou continue manualmente; o conteúdo original foi preservado.");
+  return {...complete,extractionSource:usefulAi?"nvidia":"local"};
 }

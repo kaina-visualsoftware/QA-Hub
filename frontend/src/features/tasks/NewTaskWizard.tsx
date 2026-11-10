@@ -59,7 +59,7 @@ type Props = {
 
 function combine(label: string, pasted: string, files: PreparedFile[]): string {
   return [
-    pasted.trim() ? label + ":\n" + pasted.trim() : "",
+    pasted.trim() ? (label ? label + ":\n" : "") + pasted.trim() : "",
     ...files.filter(item => item.text.trim()).map(item =>
       "ARQUIVO: " + item.file.name + "\n" + item.text.trim()
     )
@@ -108,6 +108,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [consentTask,setConsentTask] = useState(false);
   const [consentCases,setConsentCases] = useState(false);
   const [aiUsed,setAiUsed] = useState(false);
+  const [localFallback,setLocalFallback] = useState(false);
   const [reading,setReading] = useState(false);
   const [analyzing,setAnalyzing] = useState(false);
   const [generating,setGenerating] = useState(false);
@@ -131,7 +132,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       controller.current?.abort();
       setStep(1);setCaseReview(false);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
       setRequirementText("");setDraft(blank());setCases([]);
-      setConsentTask(false);setConsentCases(false);setAiUsed(false);
+      setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
     }
@@ -194,7 +195,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setNotice("A origem da TF mudou. Gere a análise novamente ou revise os campos na etapa 2.");
     }else setNotice("");
     automaticallyFilled.current={};
-    setConsentTask(false);setConsentCases(false);setAiUsed(false);setCases([]);
+    setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
   }
   function alterSource(value:string){
     setSourceText(value);invalidateSource();setError("");
@@ -238,14 +239,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     if(busy||!consentTask)return;
     setAnalyzing(true);setError("");setNotice("");
     setWork({kind:"task",phase:0,detail:"Conferindo o conteúdo e os anexos selecionados."});
-    const snapshot=combine("TEXTO DA TAREFA",sourceText,taskFiles);
+    // Avoid artificial headings in the content submitted to the model.
+    const snapshot=combine("",sourceText,taskFiles);
     try{
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
       const response=await generateTaskAiDraft(snapshot);
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
-      if(snapshot!==combine("TEXTO DA TAREFA",sourceText,taskFiles)){
+      if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
       }
       // In old versions, the pasted source was installed as 'descricao'
@@ -269,15 +271,18 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setDraft(merged);
       setCases(freshTaskAiScenarios(response,[],true));
       setAiUsed(true);
+      setLocalFallback(response.extractionSource==="local");
       setStep(2);
-      setNotice("Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
+      setNotice(response.extractionSource==="local"
+        ? "A NVIDIA não retornou dados estruturados. Foi usada a extração local; revise todos os campos."
+        : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
     finally{setAnalyzing(false);setWork(null);}
   }
   function continueManual(){
     if(busy)return;
     try{
-      const all=combine("TEXTO DA TAREFA",sourceText,taskFiles);
+      const all=combine("",sourceText,taskFiles);
       const extracted=all.trim()?extractLocalDraft(all):null;
       if(extracted){
         const merged=mergeTaskAiCreation({...draft,descricao:sourceText},extracted,{keepDescription:true});
@@ -291,7 +296,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }catch{
       setDraft(current=>({...current,descricao:sourceText}));
     }
-    setAiUsed(false);setError("");setNotice("");
+    setAiUsed(false);setLocalFallback(false);setError("");setNotice("");
     setStep(2);
   }
   function nextStep(){
@@ -434,7 +439,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     ["correcao","Correção realizada"],
     ["conclusao","Conclusão"]
   ] as const).filter(([key])=>!draft[key]?.trim()).map(([,label])=>label);
-  const taskContextLength=combine("TEXTO DA TAREFA",sourceText,taskFiles).length;
+  const taskContextLength=combine("",sourceText,taskFiles).length;
   const fullTaskReview=Object.entries(draft)
     .filter(([,value])=>Boolean(value?.trim()))
     .map(([name,value])=>name.replaceAll("_"," ")+": "+value).join("\n\n");
@@ -604,7 +609,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
-        <span>{aiUsed?"Análise concluída com IA":"Preenchimento manual"}</span>
+        <span>{aiUsed?(localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
       {aiUsed&&<div className="qa-wizard-ai-review">
