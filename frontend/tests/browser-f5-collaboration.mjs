@@ -240,12 +240,18 @@ try{
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
  await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- const ownerModal=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ const ownerListing=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ await ownerListing.waitFor();
+ assert.equal(await ownerListing.getByRole("combobox",{name:"Escolher sua equipe"}).count(),0,
+  "Team view must contain only saved records");
+ await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ const ownerModal=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await ownerModal.waitFor();
  await ownerModal.getByRole("combobox",{name:"Escolher sua equipe"}).selectOption(TEAM);
  await ownerModal.getByRole("button",{name:"Compartilhar com equipe"}).click();
  await ownerModal.getByText(/TF compartilhada somente/).waitFor();
  assert.equal(writes.filter(v=>v.type==="share").length,1);
+ await ownerModal.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
  const tester=await login(browser,users[1]);
  const testerPage=tester.page;
@@ -265,24 +271,31 @@ try{
   "An unassigned QA must not execute the scenario");
  await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- const testerModal=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ const testerListing=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ await testerListing.waitFor();
+ assert.equal(await testerListing.getByRole("textbox",{name:"Novo comentário"}).count(),0);
+ await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ const testerModal=testerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await testerModal.waitFor();
  await testerModal.getByRole("button",{name:"Conversa"}).click();
  await testerModal.getByRole("textbox",{name:"Novo comentário"}).fill("Revisar o rateio de desconto.");
  await testerModal.getByRole("button",{name:"Publicar comentário"}).click();
  await testerModal.getByText("Comentário registrado.").waitFor();
  assert.equal(comments[0].user_id,TESTER);
+ await testerModal.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
  // Owner sees new member after refresh and can explicitly assign them.
  await ownerPage.reload();
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
  await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- const reopened=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ const reopened=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await reopened.getByRole("combobox",{name:"Designar QA"}).selectOption(TESTER);
  await reopened.getByRole("button",{name:"Atribuir"}).click();
  await reopened.getByText("Responsável atualizado.").waitFor();
  assert.equal(assigned.responsavel_id,TESTER);
+ await reopened.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
  await ownerPage.reload();
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
  await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
@@ -290,7 +303,8 @@ try{
  await ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true})
   .getByRole("button",{name:"Conversa"}).click();
  await ownerPage.getByText("Revisar o rateio de desconto.").waitFor();
- const ownerIntegration=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ await ownerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ const ownerIntegration=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await ownerIntegration.getByRole("button",{name:"Integrações",exact:true}).click();
  await ownerIntegration.getByRole("textbox",{name:"Repositório",exact:true})
   .fill("acme/financeiro");
@@ -299,6 +313,7 @@ try{
  await ownerIntegration.getByText("Issue vinculada à TF.").waitFor();
  assert.equal(githubLinks.length,1);
  assert.equal(githubLinks[0].user_id,OWNER);
+ await ownerIntegration.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
  await testerPage.reload();
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();
@@ -311,7 +326,8 @@ try{
  });
  await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
  await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
- const integrated=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
+ await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).click();
+ const integrated=testerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await integrated.getByRole("button",{name:"Integrações",exact:true}).click();
  const linkedIssue=integrated.getByRole("link",{name:"Abrir no GitHub"});
  await linkedIssue.waitFor();
@@ -357,7 +373,8 @@ try{
  assert.equal(scenario.status,"reprovado");
  assert.equal(task.status,"em_teste");
  assert.equal(writes.filter(v=>v.type==="execution").length,1);
- await checkResponsive(testerPage,"collaboration-inline");
+ await checkResponsive(testerPage,"collaboration-modal");
+ await integrated.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
  // Demoting a tester removes execution capability (role from DB, not UI metadata).
  await ownerPage.goto(ROOT+"#/perfil");
@@ -375,8 +392,10 @@ try{
  await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
  const readerModal=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await readerModal.getByRole("button",{name:"Conversa"}).click();
- await readerModal.getByText("Seu acesso permite consultar comentários").waitFor();
+ await readerModal.getByText("Conversa da TF").waitFor();
  assert.equal(await readerModal.getByRole("button",{name:"Publicar comentário"}).count(),0);
+ assert.equal(await testerPage.getByRole("button",{name:"Gerenciar",exact:true}).count(),0,
+   "Read-only collaborator must not have access to the management modal");
 
  await testerPage.getByRole("tab",{name:"Cenários"}).click();
  await testerPage.getByRole("button",{name:"Funcionou"}).first().waitFor();
