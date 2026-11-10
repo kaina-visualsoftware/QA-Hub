@@ -53,8 +53,7 @@ export function GeneratorActivity({ phase, raw, postMode, onCancel }: {
   onCancel: () => void;
 }) {
   const status = phaseCopy[phase];
-  return <section className="qa-generation-activity" aria-label="Andamento da geração com IA"
-    aria-busy={true}>
+  return <section className="qa-generation-activity" aria-label="Andamento da geração com IA">
     <div className="qa-generation-activity-head">
       <span className="qa-generation-activity-icon" aria-hidden="true">
         <LoaderCircle className="qa-ai-spinner" size={22}/>
