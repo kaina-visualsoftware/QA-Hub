@@ -136,3 +136,34 @@ export async function setEvidencePublic(db:SupabaseClient,file:EvidenceFile,
   if(!data||data.id!==file.id||data.publica!==publish)
     throw Error("A publicação da evidência não foi confirmada.");
 }
+
+/** Modify editable metadata without replacing an immutable storage object. */
+export async function updateEvidenceDescription(db:SupabaseClient,file:EvidenceFile,
+  userId:string,taskId:string,description:string):Promise<void>{
+  assertOwnEvidenceFile(file,userId,taskId);
+  const value=description.trim();
+  if(value.length>1000)throw Error("A observação pode ter até 1.000 caracteres.");
+  const {data,error}=await db.from("qa_evidencia_arquivos")
+    .update({descricao:value})
+    .eq("id",file.id).eq("tarefa_id",taskId).eq("user_id",userId)
+    .select("id").maybeSingle();
+  if(error)throw error;
+  if(data?.id!==file.id)throw Error("Não foi possível editar o anexo.");
+}
+
+/** The private Storage DELETE policy allows removal only after metadata is gone.
+ * Revoke public permission first; never leave an authorized public image orphan.
+ */
+export async function removeEvidenceFile(db:SupabaseClient,file:EvidenceFile,
+  userId:string,taskId:string):Promise<void>{
+  assertOwnEvidenceFile(file,userId,taskId);
+  if(file.publica)await setEvidencePublic(db,file,userId,taskId,false);
+  const {data,error}=await db.from("qa_evidencia_arquivos")
+    .delete().eq("id",file.id).eq("tarefa_id",taskId).eq("user_id",userId)
+    .select("id").maybeSingle();
+  if(error)throw error;
+  if(data?.id!==file.id)throw Error("Anexo não encontrado ou sem permissão.");
+  const {error:storageError}=await db.storage.from(EVIDENCE_BUCKET).remove([file.objeto_path]);
+  if(storageError)throw Error("Registro excluído, porém a limpeza do arquivo privado falhou. "+
+    "O arquivo não está mais vinculado nem disponível publicamente. Contate o suporte.");
+}

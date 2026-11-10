@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
-import { ArrowLeft, ArrowRight, Check, ClipboardList, FilePlus2, ListCheck, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardList, FilePlus2, ListCheck, RotateCcw, Pencil, Trash2, X } from "lucide-react";
 import type { ExecutionResult, Scenario, Task } from "../../lib/contracts";
 import { ScenarioEvidenceToggle } from "../evidence/ScenarioEvidencePanel";
 import { scenarioStatusLabels } from "../../lib/contracts";
@@ -11,11 +11,14 @@ type ResultStatus = ExecutionResult["status"];
 type GuidedDraft = "reprovado" | "bloqueado" | null;
 
 export default function GuidedExecution({
-  task, userId, scenarios, owner, canCreateScenario=owner, busy, onSave, onEvidence, onNewScenario
+  task, userId, scenarios, owner, canCreateScenario=owner,canManage=false,
+  busy, onSave, onEvidence, onNewScenario,onEdit,onDelete
 }: {
   task:Task;userId:string;scenarios: Scenario[];
   owner: boolean;
-  canCreateScenario?:boolean;
+  canCreateScenario?:boolean;canManage?:boolean;
+  onEdit?:(scenario:Scenario)=>void;
+  onDelete?:(scenario:Scenario)=>void;
   busy: boolean;
   onSave: (scenario: Scenario, status: ResultStatus, observed: string) => Promise<boolean>;
   onEvidence: (scenario: Scenario) => void;
@@ -132,6 +135,17 @@ export default function GuidedExecution({
             <h4>{current.titulo}</h4></div>
           <span className={"status-chip "+current.status}>{scenarioStatusLabels[current.status]}</span>
         </div>
+        {canManage&&<div className="qa-guided-crud-actions"
+          role="group" aria-label={"Gerenciar "+current.titulo}>
+          <button type="button" disabled={busy}
+            onClick={()=>{if(canLeave())onEdit?.(current);}}>
+            <Pencil size={15} aria-hidden="true"/> Editar cenário
+          </button>
+          <button type="button" className="qa-scenario-crud-danger" disabled={busy}
+            onClick={()=>{if(canLeave())onDelete?.(current);}}>
+            <Trash2 size={15} aria-hidden="true"/> Excluir cenário
+          </button>
+        </div>}
         <div className="qa-guided-details">
           <div><h5>Passos</h5><p>{current.passos||"Não informado"}</p></div>
           <div><h5>Resultado esperado</h5><p>{current.esperado||"Não informado"}</p></div>

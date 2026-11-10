@@ -558,12 +558,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
             </div>)}
       </div>}
     </section>}
-    {postMode&&!hasOutput&&!generating&&<aside className="qa-post-empty-preview">
-      <div><PenLine size={25} aria-hidden="true"/>
-        <h3>Prévia do conteúdo</h3>
-        <p>Após gerar, o post ficará disponível aqui para revisão e edição antes de salvar.</p>
-      </div>
-    </aside>}
+
     </div>
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={error} tone="error"/>

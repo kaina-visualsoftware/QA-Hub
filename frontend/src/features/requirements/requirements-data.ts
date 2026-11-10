@@ -228,3 +228,12 @@ export async function registerRequirementFile(taskId: string, userId: string, it
     throw reason;
   }
 }
+
+export async function deleteRequirement(taskId:string,id:string,userId:string){
+  uuid.parse(taskId);uuid.parse(id);uuid.parse(userId);
+  const {data,error}=await supabase.from("qa_requisitos").delete()
+    .eq("id",id).eq("tarefa_id",taskId).eq("user_id",userId)
+    .select("id").maybeSingle();
+  fail(error);
+  if(data?.id!==id)throw Error("Requisito não encontrado ou sem permissão.");
+}

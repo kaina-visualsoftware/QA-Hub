@@ -1,16 +1,21 @@
 import {useMemo,useState} from "react";
 import {notify} from "../../components/ui/Toasts";
-import {useQuery} from "@tanstack/react-query";
+import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
-import {ClipboardCopy,Download,Eye,FileText} from "lucide-react";
+import {ClipboardCopy,Download,Eye,FileText,Pencil,Trash2} from "lucide-react";
 import {supabase} from "../../lib/supabase";
-import {cleanDocumentName} from "../../lib/legacy/qa-phase2.mjs";
+import {cleanDocumentName,saveTfDocument} from "../../lib/legacy/qa-phase2.mjs";
 import type {TfDocument} from "../../lib/legacy/qa-phase2.mjs";
 
 export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
   taskId:string;userId:string;owner:boolean;onCreate:()=>void;showCreate?:boolean;
 }){
   const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [editingDocument,setEditingDocument]=useState<TfDocument|null>(null);
+  const [draftTitle,setDraftTitle]=useState("");
+  const [draftContent,setDraftContent]=useState("");
+  const [busy,setBusy]=useState(false);
+  const client=useQueryClient();
   const query=useQuery({
     queryKey:["documents",userId,taskId],
     queryFn:async()=>{
@@ -23,11 +28,48 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
   });
   const selected=useMemo(()=>query.data?.find(item=>item.id===selectedId),
     [query.data,selectedId]);
+  function startEdit(item:TfDocument){
+    setEditingDocument(item);setDraftTitle(item.titulo);
+    setDraftContent(item.conteudo);setSelectedId(item.id);
+  }
+  async function saveNewVersion(){
+    if(!editingDocument||!owner||busy)return;
+    setBusy(true);
+    try{
+      const saved=await saveTfDocument(supabase,{
+        taskId,type:editingDocument.tipo,title:draftTitle,content:draftContent,source:"manual"
+      });
+      setEditingDocument(null);
+      await client.invalidateQueries({queryKey:["documents",userId,taskId]});
+      notify.success("Nova versão "+saved.versao+" salva. A versão original foi preservada.");
+    }catch(reason){notify.error(reason instanceof Error?reason.message:"Falha ao salvar versão.");}
+    finally{setBusy(false);}
+  }
+  async function deleteVersion(item:TfDocument){
+    if(!owner||busy||!window.confirm(
+      "Excluir permanentemente a versão "+item.versao+" de '"+item.titulo+
+      "'? As outras versões serão preservadas. Esta ação não pode ser desfeita."
+    ))return;
+    setBusy(true);
+    try{
+      const {data,error}=await supabase.from("qa_documentos").delete()
+        .eq("id",item.id).eq("tarefa_id",taskId).eq("user_id",userId)
+        .select("id").maybeSingle();
+      if(error)throw error;
+      if(data?.id!==item.id)throw Error("Documento não encontrado ou sem permissão.");
+      if(selectedId===item.id)setSelectedId(null);
+      if(editingDocument?.id===item.id)setEditingDocument(null);
+      await client.invalidateQueries({queryKey:["documents",userId,taskId]});
+      notify.success("Versão excluída.");
+    }catch(reason){notify.error(reason instanceof Error?reason.message:"Falha ao excluir versão.");}
+    finally{setBusy(false);}
+  }
   function download(text:string,name:string){
     const blob=new Blob([text],{type:"text/markdown;charset=utf-8"});
     const url=URL.createObjectURL(blob);
     const anchor=document.createElement("a");
-    anchor.href=url;anchor.download=cleanDocumentName(name);
+    anchor.href=url;anchor.download=cleanDocumentName(name,
+      /^\[size=\d+\]/.test(text.trim())?"txt":"md");
     anchor.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
@@ -69,13 +111,42 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
               <Eye size={15} aria-hidden="true"/>
               {selectedId===item.id?"Ocultar":"Visualizar"}
             </button>
+            {owner&&<button type="button" disabled={busy} onClick={()=>startEdit(item)}>
+              <Pencil size={15} aria-hidden="true"/> Editar nova versão
+            </button>}
+            {owner&&<button type="button" disabled={busy}
+              className="qa-scenario-crud-danger" onClick={()=>void deleteVersion(item)}>
+              <Trash2 size={15} aria-hidden="true"/> Excluir versão
+            </button>}
           </div>
         </article>)}
       </div>
       {selected&&<div className="qa-document-library-preview"
         aria-label={"Visualização: "+selected.titulo}>
         <h4>{selected.titulo}</h4>
-        <pre>{selected.conteudo}</pre>
+        {editingDocument?.id===selected.id?
+          <form className="qa-crud-inline-form" onSubmit={event=>{
+            event.preventDefault();void saveNewVersion();
+          }}>
+            <p>Uma edição cria uma nova versão. A anterior permanece disponível.</p>
+            <label className="field">Título
+              <input value={draftTitle} maxLength={240} required
+                onChange={event=>setDraftTitle(event.target.value)}/>
+            </label>
+            <label className="field">Conteúdo
+              <textarea rows={18} maxLength={80000} required
+                value={draftContent}
+                onChange={event=>setDraftContent(event.target.value)}/>
+            </label>
+            <div className="qa-crud-form-actions">
+              <Button type="submit" isDisabled={busy||draftTitle.trim().length<3||!draftContent.trim()}>
+                {busy?"Salvando…":"Salvar nova versão"}
+              </Button>
+              <Button type="button" variant="secondary" isDisabled={busy}
+                onPress={()=>setEditingDocument(null)}>Cancelar</Button>
+            </div>
+          </form>
+          :<pre>{selected.conteudo}</pre>}
         <div className="qa-document-library-actions">
           <Button size="sm" variant="secondary" onPress={()=>{
             void navigator.clipboard.writeText(selected.conteudo)
@@ -84,7 +155,8 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
           }}><ClipboardCopy size={15} aria-hidden="true"/> Copiar</Button>
           <Button size="sm" variant="secondary" onPress={()=>
             download(selected.conteudo,selected.titulo)}>
-            <Download size={15} aria-hidden="true"/> Markdown
+            <Download size={15} aria-hidden="true"/>
+            {/^\[size=\d+\]/.test(selected.conteudo.trim())?"BBCode":"Markdown"}
           </Button>
         </div>
       </div>}

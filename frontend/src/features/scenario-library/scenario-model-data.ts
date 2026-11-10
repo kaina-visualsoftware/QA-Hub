@@ -56,3 +56,16 @@ export async function removeScenarioModel(userId:string,modelId:string){
   if(error)throw error;
   if(data?.id!==modelId)throw Error("Modelo não removido.");
 }
+
+export async function updateScenarioModel(userId:string,modelId:string,
+  draft:Pick<ScenarioModel,"titulo"|"passos"|"esperado"|"observacoes"|"modulo"|"tipo_teste">){
+  uuid.parse(userId);uuid.parse(modelId);
+  const values=reusableDraft(draft);
+  const moduleName=draft.modulo.trim().slice(0,160);
+  const testType=z.enum(["BUILD","RELEASE"]).parse(draft.tipo_teste);
+  const {data,error}=await supabase.from("qa_modelos_cenario")
+    .update({...values,modulo:moduleName,tipo_teste:testType})
+    .eq("id",modelId).eq("user_id",userId).select("id").maybeSingle();
+  if(error)throw error;
+  if(data?.id!==modelId)throw Error("Modelo não encontrado ou sem permissão.");
+}

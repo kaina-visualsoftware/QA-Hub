@@ -29,6 +29,7 @@ import {
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
 import { formatTaskVersionInput, normalizeTaskVersion } from "../lib/task-version";
 import { useFocus } from "../stores/focus";
+import {supabase} from "../lib/supabase";
 import { publicSharingEnabled, updatePublication } from "../features/public/public-data";
 import {
   needsObservationResetConfirmation, quickExecutionResult
@@ -195,6 +196,35 @@ export default function TaskPage() {
     if(scenarioForm.formState.isDirty&&!window.confirm("Descartar o cenário ainda não salvo?"))return;
     setShowScenarioForm(false);setEditingScenario(null);
     scenarioForm.reset();
+  }
+
+  function openScenarioEditor(scenario:Scenario) {
+    if(task?.user_id!==userId)return;
+    setEditingScenario(scenario);
+    scenarioForm.reset({
+      titulo:scenario.titulo,passos:scenario.passos,
+      esperado:scenario.esperado,observacoes:scenario.observacoes
+    });
+    closeToolPanels();setEditing(false);setShowSettings(false);
+    setShowScenarioForm(true);
+  }
+
+  async function requestScenarioDeletion(scenario:Scenario) {
+    if(task?.user_id!==userId||deleteScenarioMutation.isPending)return;
+    const {data:files,error:fileError}=await supabase.from("qa_evidencia_arquivos")
+      .select("id,publica").eq("tarefa_id",taskId).eq("cenario_id",scenario.id).limit(101);
+    if(fileError){notify.error("Não foi possível conferir as evidências. Tente novamente.");return;}
+    const evidenceCount=files?.length??0;
+    const isPublished=files?.some(file=>file.publica);
+    const explanation=evidenceCount
+      ? "\n\n"+evidenceCount+" anexo(s) serão preservados na TF, mas desvinculados deste cenário"+
+        (isPublished?" e tornados privados":"")+"."
+      : "";
+    if(!window.confirm("Excluir definitivamente o cenário '"+scenario.titulo+"'?"+
+      "\n\nO resultado, o histórico de execução e os vínculos de requisitos deste cenário serão excluídos."+
+      explanation+"\n\nEsta ação não pode ser desfeita."))return;
+    try{await deleteScenarioMutation.mutateAsync(scenario.id);}
+    catch(reason){notify.error(reason instanceof Error?reason.message:"Falha ao excluir cenário.");}
   }
 
   function startScenario() {
@@ -509,7 +539,11 @@ export default function TaskPage() {
   });
   const deleteScenarioMutation = useMutation({
     mutationFn: (id: string) => removeScenario(taskId, id),
-    onSuccess: async () => { setSaved("Cenário excluído."); await invalidate(); }
+    onSuccess: async () => {
+      setSaved("Cenário excluído. Os anexos preservados estão privados na TF.");
+      await Promise.all([invalidate(),
+        queryClient.invalidateQueries({queryKey:["evidence-files",userId,taskId]})]);
+    }
   });
 
   useEffect(() => {
@@ -924,7 +958,9 @@ export default function TaskPage() {
       <div hidden={executionMode!=="guided"} className="qa-guided-container">
         <GuidedExecution key={task.id} task={task} userId={userId} scenarios={scenarios.data ?? []} owner={canExecute}
           canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
-          onEvidence={openGuidedEvidence} onNewScenario={startScenario}/>
+          onEvidence={openGuidedEvidence} onNewScenario={startScenario}
+          canManage={own} onEdit={openScenarioEditor}
+          onDelete={scenario=>void requestScenarioDeletion(scenario)}/>
       </div>
     <section ref={executionRef} hidden={executionMode!=="list"}
       className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
@@ -955,24 +991,17 @@ export default function TaskPage() {
           <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(scenario.ordem).padStart(2, "0")}</span>
               <h3>{scenario.titulo}</h3></div><span className={"status-chip " + scenario.status}>
                 {scenarioStatusLabels[scenario.status]}</span></div>
-          {task.user_id===userId && <details className="qa-scenario-more">
-            <summary>Opções do cenário</summary>
-            <div className="qa-scenario-menu">
-              <button type="button" onClick={() => {
-                setEditingScenario(scenario);
-                scenarioForm.reset({
-                  titulo: scenario.titulo, passos: scenario.passos,
-                  esperado: scenario.esperado, observacoes: scenario.observacoes
-                });
-                closeToolPanels();setEditing(false);setShowSettings(false);
-                setShowScenarioForm(true);
-              }}>Editar cenário</button>
-              <button type="button" disabled={deleteScenarioMutation.isPending} onClick={() => {
-                if (window.confirm("Excluir permanentemente este cenário?"))
-                  void deleteScenarioMutation.mutateAsync(scenario.id);
-              }}>Excluir cenário</button>
-            </div>
-          </details>}
+          {own && <div className="qa-scenario-crud-actions"
+            role="group" aria-label={"Gerenciar "+scenario.titulo}>
+            <button type="button" onClick={()=>openScenarioEditor(scenario)}>
+              <FilePenLine size={15} aria-hidden="true"/> Editar cenário
+            </button>
+            <button type="button" className="qa-scenario-crud-danger"
+              disabled={deleteScenarioMutation.isPending}
+              onClick={()=>void requestScenarioDeletion(scenario)}>
+              <Trash2 size={15} aria-hidden="true"/> Excluir cenário
+            </button>
+          </div>}
           <div className="scenario-result-actions" role="group" aria-label={"Resultado de " + scenario.titulo}>
             <button data-qa-next-pending={filter === "pending" && index === 0 ? "true" : undefined}
               disabled={saveResult.isPending || !canExecute} onClick={() => choose(scenario, "aprovado")}><Check size={16} /> Funcionou</button>

@@ -4,7 +4,8 @@ import {Button} from "@heroui/react";
 import {ClipboardPaste,ImagePlus,Image as ImageIcon,Eye,X} from "lucide-react";
 import type {Scenario,Task} from "../../lib/contracts";
 import {supabase} from "../../lib/supabase";
-import {listEvidenceFiles,readPrivateEvidence,setEvidencePublic,uploadEvidenceFile} from "./evidence-files";
+import {listEvidenceFiles,readPrivateEvidence,setEvidencePublic,uploadEvidenceFile,
+  updateEvidenceDescription,removeEvidenceFile} from "./evidence-files";
 import type {EvidenceFile} from "./evidence-files";
 import "./scenario-evidence.css";
 
@@ -25,6 +26,8 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
   const [description,setDescription]=useState("");
   const [publish,setPublish]=useState(false);
   const [busy,setBusy]=useState(false);
+  const [editingFile,setEditingFile]=useState<string|null>(null);
+  const [editedDescription,setEditedDescription]=useState("");
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const [openPreview,setOpenPreview]=useState<{file:EvidenceFile;url:string}|null>(null);
@@ -98,6 +101,30 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
     }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível alterar o acesso.");}
     finally{setBusy(false);}
   }
+  async function saveEdited(file:EvidenceFile){
+    setBusy(true);setError("");setMessage("");
+    try{
+      await updateEvidenceDescription(supabase,file,userId,task.id,editedDescription);
+      setEditingFile(null);
+      await queryClient.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
+      setMessage("Observação da imagem atualizada.");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao editar a imagem.");}
+    finally{setBusy(false);}
+  }
+  async function deleteImage(file:EvidenceFile){
+    if(!window.confirm("Excluir a imagem '"+file.nome_original+"' definitivamente?"+
+      (file.publica?" Ela deixará de aparecer na página pública imediatamente.":"")+
+      " Esta ação não pode ser desfeita."))return;
+    setBusy(true);setError("");setMessage("");
+    try{
+      await removeEvidenceFile(supabase,file,userId,task.id);
+      if(openPreview?.file.id===file.id)setOpenPreview(null);
+      setEditingFile(null);
+      await queryClient.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
+      setMessage("Imagem excluída.");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível excluir a imagem.");}
+    finally{setBusy(false);}
+  }
   if(!privateOwner)return null;
   return <section className="qa-scenario-evidence" aria-label={"Imagens do cenário "+scenario.titulo}>
     <h5><ImageIcon size={16} aria-hidden="true"/> Imagens deste teste
@@ -113,7 +140,24 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
             <Eye size={15}/> Visualizar</button>
           <button type="button" disabled={busy} onClick={()=>void toggle(file)}>
             {file.publica?"Tornar privada":"Autorizar publicação"}</button>
+          <button type="button" disabled={busy} onClick={()=>{
+            setEditingFile(file.id);setEditedDescription(file.descricao);
+          }}>Editar observação</button>
+          <button type="button" className="qa-scenario-crud-danger" disabled={busy}
+            onClick={()=>void deleteImage(file)}>Excluir imagem</button>
         </div>
+        {editingFile===file.id&&<form className="qa-crud-inline-form"
+          onSubmit={event=>{event.preventDefault();void saveEdited(file);}}>
+          <label className="field">Observação da imagem
+            <input maxLength={1000} value={editedDescription}
+              onChange={e=>setEditedDescription(e.target.value)}/>
+          </label>
+          <div className="qa-crud-form-actions">
+            <Button size="sm" type="submit" isDisabled={busy}>Salvar observação</Button>
+            <Button size="sm" variant="secondary" type="button"
+              onPress={()=>setEditingFile(null)}>Cancelar</Button>
+          </div>
+        </form>}
       </article>)}
     </div>}
     <div tabIndex={0} role="group"

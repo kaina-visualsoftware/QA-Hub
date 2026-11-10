@@ -121,6 +121,18 @@ export async function editScenario(
 }
 
 export async function removeScenario(taskId: string, scenarioId: string): Promise<void> {
+  // The FK detaches preserved evidence when a scenario is deleted.
+  // Public image records cannot become orphaned while marked publishable:
+  // revoke visibility before removing the scenario (fail closed).
+  const {error:revokeError}=await supabase.from("qa_evidencia_arquivos")
+    .update({publica:false})
+    .eq("tarefa_id",taskId).eq("cenario_id",scenarioId).eq("publica",true);
+  fail(revokeError);
+  const {data:stillPublic,error:checkError}=await supabase.from("qa_evidencia_arquivos")
+    .select("id").eq("tarefa_id",taskId).eq("cenario_id",scenarioId)
+    .eq("publica",true).limit(1);
+  fail(checkError);
+  if(stillPublic?.length)throw Error("Uma imagem ainda está pública. Nenhum cenário foi excluído.");
   const { data, error } = await supabase.from("qa_cenarios").delete()
     .eq("id", scenarioId).eq("tarefa_id", taskId).select("id").maybeSingle();
   fail(error);

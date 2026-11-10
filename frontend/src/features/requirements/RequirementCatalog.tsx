@@ -9,10 +9,10 @@ import {
 import type { DraftRequirement } from "../../lib/legacy/qa-requirements.mjs";
 import {
   changeRequirementState, editRequirement, importRequirementSource, importRequirementText,
-  listRequirementRevisions
+  listRequirementRevisions, deleteRequirement
 } from "./requirements-data";
 import type { Requirement, RequirementSource } from "./requirements-data";
-import { Check, FileUp, Pencil, Save, X } from "lucide-react";
+import { Check, FileUp, Pencil, Save, Trash2, X } from "lucide-react";
 
 function RevisionHistory({ taskId, requirementId }: { taskId: string; requirementId: string }) {
   const q = useQuery({
@@ -105,6 +105,20 @@ export default function RequirementCatalog({
       setMessage(item.codigo + ": situação alterada para " + next + ".");
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
+  }
+  async function removeSaved(item:Requirement){
+    if(!window.confirm("Excluir definitivamente "+item.codigo+" — "+item.titulo+
+      "?\\n\\nSerão apagadas também as revisões e associações a cenários deste requisito."+
+      "\\nHistóricos de geração já salvos permanecem como registros independentes."+
+      "\\n\\nEsta ação não pode ser desfeita."))return;
+    setBusy(true);setError("");setMessage("");
+    try{
+      await deleteRequirement(task.id,item.id,task.user_id);
+      if(editItem?.id===item.id)setEditItem(null);
+      await onChanged();
+      setMessage(item.codigo+" excluído.");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao excluir requisito.");}
+    finally{setBusy(false);}
   }
   return <div className="stack">
     {!readOnly&&<div className="generator-stats">
@@ -231,6 +245,10 @@ export default function RequirementCatalog({
           {item.estado !== "arquivado" &&
             <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
               isDisabled={busy}>Arquivar</Button>}
+          <Button size="sm" variant="secondary" isDisabled={busy}
+            onPress={()=>void removeSaved(item)}>
+            <Trash2 size={14} aria-hidden="true"/> Excluir
+          </Button>
         </div>}
       </div>
       <details className="qa-resource-list-detail">

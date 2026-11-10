@@ -8,7 +8,7 @@ import {scenarioStatusLabels} from "../../lib/contracts";
 import {saveScenarioResult} from "../../lib/data";
 import {
  teams,teamMembers,taskTeam,linkTask,unlinkTask,taskAssignee,assignTask,
- clearAssignee,taskComments,addTaskComment
+ clearAssignee,taskComments,addTaskComment,editTaskComment,removeTaskComment
 } from "./team-data";
 import type {TaskRights} from "./team-data";
 import {githubIssueDraft,readAutomatedResults} from "../integrations/test-results";
@@ -25,6 +25,8 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
  const [teamId,setTeamId]=useState("");
  const [personId,setPersonId]=useState("");
  const [comment,setComment]=useState("");
+ const [editingComment,setEditingComment]=useState<string|null>(null);
+ const [editedComment,setEditedComment]=useState("");
  const [repo,setRepo]=useState("");
  const [fileResults,setFileResults]=useState<ImportedTestResult[]>([]);
  const [reviewed,setReviewed]=useState<Record<string,string>>({});
@@ -205,6 +207,37 @@ export default function TaskCollaborationPanel({task,scenarios,userId,rights,onE
     <div><strong>{item.user_id===userId?"Você":"QA "+item.user_id.slice(0,8)}</strong>
      <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString("pt-BR")}</time></div>
     <p>{item.texto}</p>
+    {!readOnly&&item.user_id===userId&&<div className="qa-crud-form-actions">
+      <Button size="sm" variant="secondary" isDisabled={mutation.isPending}
+        onPress={()=>{setEditingComment(item.id);setEditedComment(item.texto);}}>
+        Editar comentário
+      </Button>
+      <Button size="sm" variant="secondary" isDisabled={mutation.isPending}
+        onPress={()=>{
+          if(window.confirm("Excluir seu comentário definitivamente?"))
+            void run(()=>removeTaskComment(task.id,userId,item.id),"Comentário excluído.");
+        }}>Excluir comentário</Button>
+    </div>}
+    {editingComment===item.id&&<form className="qa-crud-inline-form"
+      onSubmit={event=>{
+        event.preventDefault();
+        void run(async()=>{
+          await editTaskComment(task.id,userId,item.id,editedComment);
+          setEditingComment(null);
+        },"Comentário atualizado.");
+      }}>
+      <label className="field">Editar comentário
+        <textarea rows={3} maxLength={3000} value={editedComment}
+          onChange={e=>setEditedComment(e.target.value)}/>
+      </label>
+      <div className="qa-crud-form-actions">
+        <Button type="submit" isDisabled={mutation.isPending||!editedComment.trim()}>
+          Salvar comentário
+        </Button>
+        <Button type="button" variant="secondary" isDisabled={mutation.isPending}
+          onPress={()=>setEditingComment(null)}>Cancelar</Button>
+      </div>
+    </form>}
    </article>)}
   </section>}
   {tab==="integration"&&<section className="qa-f5-tab" aria-label="Integrações da TF">
