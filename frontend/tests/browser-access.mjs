@@ -173,7 +173,7 @@ try{
   assert.equal(await normal.getByText("Assistente local avançado (opcional)").count(),0);
   assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"12.08.08.0000");
   await normal.getByRole("button",{name:"Avançar"}).click();
-  assert.equal(await normal.getByRole("button",{name:"Pular e finalizar sem casos"}).count(),1,
+  assert.equal(await normal.getByRole("button",{name:"Finalizar sem casos"}).count(),1,
     "Manual extraction must not persist a TF until final confirmation");
   await normal.goto(origin+"#/admin");
   await normal.getByRole("heading",{name:"Acesso restrito"}).waitFor();

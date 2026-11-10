@@ -259,6 +259,9 @@ try{
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
+  assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
+  await wizard.getByRole("button",{name:"Voltar à geração"}).click();
+  assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Configurar/);
   await wizard.getByLabel(/Requisitos e critérios de aceite/).fill(
     "RN01: Valores negativos devem ser removidos e refletidos na baixa."
   );
@@ -281,6 +284,23 @@ try{
   assert.match(caseRequests[0].requisito,/CA01: A baixa financeira/);
   assert.equal(await wizard.locator(".qa-wizard-case").count(),3,
     "The original case and exactly two unique cases must be shown");
+  assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
+  await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
+  for(const width of [320,390,768,1366]){
+    await page.setViewportSize({width,height:844});
+    const sizes=await page.evaluate(()=>{
+      const modal=document.querySelector('[role="dialog"][aria-modal="true"]');
+      return {page:document.documentElement.scrollWidth-innerWidth,
+        modal:modal?modal.scrollWidth-modal.clientWidth:999};
+    });
+    assert.ok(sizes.page<=1&&sizes.modal<=1,"New TF cases review overflows "+width);
+    const audit=await page.evaluate(async()=>window.axe.run(document,{
+      runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
+      rules:{region:{enabled:false}}
+    }));
+    assert.deepEqual(audit.violations.map(v=>v.id),[],"New TF cases accessibility "+width);
+  }
+  await page.setViewportSize({width:390,height:844});
   assert.equal(taskWrites,0,"Generation must not create a TF");
   await wizard.getByRole("button",{name:/Finalizar com 3 caso/}).click();
   await page.getByRole("heading",{name:"TF revisada pelo QA"}).waitFor();
@@ -302,8 +322,8 @@ try{
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
   await wizard.getByLabel("Título da tarefa").fill("TF sem casos");
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  assert.equal(await wizard.getByRole("button",{name:/Finalizar com/}).isDisabled(),true);
-  await wizard.getByRole("button",{name:"Pular e finalizar sem casos"}).click();
+  assert.equal(await wizard.getByRole("button",{name:/Finalizar com/}).count(),0);
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"TF sem casos"}).waitFor();
   assert.equal(taskWrites,2);
   assert.equal(caseWrites,3,"Skip must save no test scenarios");

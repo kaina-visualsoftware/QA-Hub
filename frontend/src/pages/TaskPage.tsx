@@ -12,9 +12,10 @@ import {
 } from "../features/tasks/TaskWorkspaceSections";
 import type { TaskTab,TaskResourceView } from "../features/tasks/TaskWorkspaceSections";
 import {
-  applyTaskAiFields,archiveTaskAiSource,loadTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections
+  archiveTaskAiSource,loadTaskAiSource,freshTaskAiScenarios,generateTaskAiDraft,onlyNewTaskAiSelections,taskAiFieldValues
 } from "../features/tasks/task-ai";
 import type {SuggestedScenario} from "../features/tasks/task-ai";
+import type {LocalDraft} from "../lib/legacy/qa-assistant.mjs";
 import type { AiStudioMode } from "../features/generators/AiStudioTabs";
 import { useAuth } from "../features/auth/AuthProvider";
 import {
@@ -32,6 +33,9 @@ import {
   needsObservationResetConfirmation, quickExecutionResult
 } from "../features/executions/quick-result";
 import { QAModal } from "../components/ui/QAModal";
+import { AiStepFlow } from "../components/ui/AiStepFlow";
+import { AiBusyStatus } from "../components/ui/AiBusyStatus";
+import "../features/tasks/ai-proposal.css";
 import {splitScenarioNotes} from "../lib/legacy/qa-assistant.mjs";
 import {DeleteTaskDialog} from "../features/tasks/DeleteTaskDialog";
 import {getTaskById} from "../features/tasks/task-search-data";
@@ -94,6 +98,10 @@ export default function TaskPage() {
   const [taskAiConsent,setTaskAiConsent]=useState<string|null>(null);
   const [taskAiBusy,setTaskAiBusy]=useState(false);
   const [taskAiAppliedCount,setTaskAiAppliedCount]=useState(0);
+  const [taskAiProposal,setTaskAiProposal]=useState<LocalDraft|null>(null);
+  const [taskAiSelectedFields,setTaskAiSelectedFields]=useState<string[]>([]);
+  const [taskAiStage,setTaskAiStage]=useState<"prepare"|"review"|"applied">("prepare");
+  const [taskAiInitialDescription,setTaskAiInitialDescription]=useState("");
   const [taskAiScenarios,setTaskAiScenarios]=useState<SuggestedScenario[]>([]);
   const [taskAiPreviewSource,setTaskAiPreviewSource]=useState<string|null>(null);
   const [showSettings,setShowSettings]=useState(false);
@@ -171,12 +179,15 @@ export default function TaskPage() {
   }
   function closeTaskEditor(){
     if(saveTask.isPending)return;
+    if(taskAiStage==="review"&&!window.confirm(
+      "Descartar as sugestões da IA que ainda não foram aplicadas?"))return;
     if(taskForm.formState.isDirty){
       if(!window.confirm("Descartar as alterações não salvas da TF?"))return;
       taskForm.reset();
     }
     setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
     setTaskAiPreviewSource(null);setTaskAiAppliedCount(0);
+    setTaskAiProposal(null);setTaskAiSelectedFields([]);setTaskAiStage("prepare");
   }
   function closeScenarioEditor(){
     if(createScenario.isPending)return;
@@ -360,6 +371,7 @@ export default function TaskPage() {
       }
       setEditing(false);setTaskAiScenarios([]);setTaskAiConsent(null);
       setTaskAiPreviewSource(null);setTaskAiAppliedCount(0);
+      setTaskAiProposal(null);setTaskAiSelectedFields([]);setTaskAiStage("prepare");
       setSaved("Alterações da TF salvas."+(appended?
         " "+appended+" cenário(s) novo(s) adicionado(s).":""));
     }
@@ -377,9 +389,7 @@ export default function TaskPage() {
       notify.warning("Autorize o envio da descrição atual à NVIDIA.");
       return;
     }
-    if(taskForm.formState.isDirty&&!window.confirm(
-      "A geração pode substituir campos já alterados neste formulário. Deseja continuar?"
-    ))return;
+    // This call only prepares a proposal: never mutate the form before review.
     setTaskAiBusy(true);
     try{
       const result=await generateTaskAiDraft(source);
@@ -387,18 +397,54 @@ export default function TaskPage() {
         notify.warning("A descrição mudou durante a análise. Gere novamente antes de aplicar.");
         return;
       }
-      const applied=applyTaskAiFields(taskForm,result);
+      const values=taskAiFieldValues(result);
       const suggestions=freshTaskAiScenarios(result,scenarios.data??[]);
-      setTaskAiScenarios(suggestions);setTaskAiPreviewSource(source);
-      setTaskAiAppliedCount(applied);
-      notify.success(applied+" campo(s) preenchido(s) pela IA."+
-        (suggestions.length?" "+suggestions.length+" cenário(s) novo(s) para revisar.":""));
+      setTaskAiProposal(result);
+      setTaskAiSelectedFields(Object.entries(values).filter(([name,value])=>
+        !String(taskForm.getValues(name as keyof TaskDraft)||"").trim()&&Boolean(value)
+      ).map(([name])=>name));
+      setTaskAiScenarios(suggestions);
+      setTaskAiInitialDescription(descriptionAtStart);
+      setTaskAiPreviewSource(source);
+      setTaskAiAppliedCount(0);
+      setTaskAiStage("review");
+      // The review screen itself communicates the result; avoid a toast covering it.
     }catch(reason){
       notify.error(reason instanceof Error?reason.message:"Falha ao regerar a TF com IA.");
     }finally{
       setTaskAiBusy(false);setTaskAiConsent(null);
     }
   }
+  function applyReviewedTaskAi(){
+    if(!taskAiProposal||taskAiStage!=="review")return;
+    if(taskForm.getValues("descricao")!==taskAiInitialDescription){
+      notify.warning("A descrição foi alterada após a geração. Gere novamente para evitar aplicar sugestões desatualizadas.");
+      return;
+    }
+    const values=taskAiFieldValues(taskAiProposal);
+    for(const name of taskAiSelectedFields){
+      const value=values[name as keyof TaskDraft];
+      if(value===undefined)continue;
+      taskForm.setValue(name as keyof TaskDraft,value as never,{
+        shouldValidate:true,shouldDirty:true,shouldTouch:true
+      });
+    }
+    setTaskAiAppliedCount(taskAiSelectedFields.length);
+    setTaskAiStage("applied");
+    // The final stage and inline confirmation remain visible until saving.
+  }
+
+  useEffect(()=>{
+    if(!editing||taskAiStage!=="review")return;
+    const frame=requestAnimationFrame(()=>{
+      const target=document.getElementById("qa-task-ai-review-heading");
+      document.querySelector(".qa-task-ai-regenerate")
+        ?.scrollIntoView({behavior:"auto",block:"start"});
+      target?.focus({preventScroll:true});
+    });
+    return ()=>cancelAnimationFrame(frame);
+  },[editing,taskAiStage]);
+
   const createScenario = useMutation({
     mutationFn: ({ draft }: { draft: ScenarioDraft; another: boolean }) => editingScenario
       ? editScenario(taskId, editingScenario.id, draft)
@@ -583,8 +629,14 @@ export default function TaskPage() {
       busy={saveTask.isPending||taskAiBusy} initialFocus={'input[name="titulo"]'} onClose={closeTaskEditor}>
       <form onSubmit={taskForm.handleSubmit((values) => {
         if(saveTask.isPending||taskAiBusy)return;
-        void saveTask.mutateAsync({draft:values,suggested:taskAiScenarios.filter(item=>item.selected)});
-      })} className="stack mt-4">
+        if(taskAiStage==="review"){
+          notify.warning("Revise e aplique ou descarte as sugestões da IA antes de salvar.");
+          return;
+        }
+        void saveTask.mutateAsync({draft:values,suggested:taskAiStage==="applied"
+          ?taskAiScenarios.filter(item=>item.selected):[]});
+      })} className={"stack mt-4"+(taskAiStage==="review"?" qa-task-ai-review-form":"")}>
+        {taskAiStage!=="review"&&<>
         <div className="form-grid">
           <label className="field grow-2">Título<input {...taskForm.register("titulo")} />
             {taskForm.formState.errors.titulo && <small className="text-error">{taskForm.formState.errors.titulo.message}</small>}</label>
@@ -606,62 +658,83 @@ export default function TaskPage() {
           </label>
         </div>
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
-        <details className="qa-task-ai-regenerate">
-          <summary>
+        </>}
+        <details className="qa-task-ai-regenerate"
+          open={taskAiStage==="review"||taskAiStage==="applied"||undefined}>
+          <summary onClick={event=>{
+            if(taskAiStage==="review"||taskAiStage==="applied")event.preventDefault();
+          }}>
             <Sparkles size={18} aria-hidden="true"/>
             <span>Regerar dados da TF com IA</span>
           </summary>
           <div className="qa-task-ai-regenerate-body">
-            <p className="qa-ai-helper-copy">A NVIDIA organiza o texto em resumo, causa,
-               correção e conclusão. O documento original será arquivado;
-               os cenários existentes e seus resultados serão preservados.</p>
-            <div className="qa-task-ai-control-row">
-              <label className="qa-ai-consent-compact">
-                <input type="checkbox"
-                  checked={taskAiConsent!==null&&taskAiConsent===sourceForAi}
-                  disabled={taskAiBusy||saveTask.isPending||
-                    !sourceForAi?.trim()||
-                    sourceForAi.length>20000}
-                  onChange={event=>setTaskAiConsent(event.target.checked
-                    ?sourceForAi:null)}/>
-                <span>Autorizo enviar o texto-base da TF à NVIDIA.</span>
-              </label>
-              <Button type="button" className="qa-task-ai-generate"
-                isDisabled={taskAiBusy||saveTask.isPending||
-                  taskAiConsent!==sourceForAi||
-                  !sourceForAi?.trim()||
-                  sourceForAi.length>20000}
-                onPress={()=>void regenerateTaskWithAi()}>
-                <Sparkles size={16} aria-hidden="true"/>
-                {taskAiBusy?"Gerando dados…":"Regerar TF com IA NVIDIA"}
-              </Button>
-            </div>
-            {taskAiBusy&&<p className="qa-task-ai-progress" role="status">
-              Analisando a descrição e preparando sugestões…
-            </p>}
-            {sourceForAi.length>20000&&
-              <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
-            {taskAiPreviewSource!==null&&<div className="qa-task-ai-result" role="region"
-              aria-label="Revisão da regeração por IA">
-              <div className="qa-task-ai-result-top">
-                <div>
-                  <strong>Resultado pronto para revisão</strong>
-                  <p><b>{taskAiAppliedCount}</b> campo(s) preenchido(s) ·
-                    <b> {taskAiScenarios.length}</b> cenário(s) novo(s) identificado(s).
-                    Nada foi salvo ainda.</p>
-                </div>
-                <button type="button" className="qa-ai-review-fields"
-                  onClick={()=>{
-                    const details=technicalDetailsRef.current;
-                    if(!details)return;
-                    details.open=true;
-                    requestAnimationFrame(()=>details.scrollIntoView({
-                      behavior:"auto",block:"nearest"
-                    }));
-                  }}>Conferir campos</button>
+            <AiStepFlow
+              step={taskAiBusy?"processing":taskAiStage==="review"?"review":
+                taskAiStage==="applied"?"finalize":"prepare"}
+              label="Etapas da revisão da TF com IA"
+              labels={["Solicitar à NVIDIA","Revisar sugestões","Aplicar e salvar"]}/>
+            {taskAiStage==="prepare"&&<>
+              <p className="qa-ai-helper-copy">A NVIDIA propõe um resumo, causa,
+                correção e conclusão com base no texto original. Nada será
+                aplicado aos campos nem salvo sem sua aprovação.</p>
+              {taskAiProposal&&<button type="button" className="qa-ai-review-fields"
+                onClick={()=>setTaskAiStage("review")}>
+                Voltar às sugestões anteriores
+              </button>}
+              <div className="qa-task-ai-control-row">
+                <label className="qa-ai-consent-compact">
+                  <input type="checkbox"
+                    checked={taskAiConsent!==null&&taskAiConsent===sourceForAi}
+                    disabled={taskAiBusy||saveTask.isPending||
+                      !sourceForAi?.trim()||sourceForAi.length>20000}
+                    onChange={event=>setTaskAiConsent(event.target.checked
+                      ?sourceForAi:null)}/>
+                  <span>Autorizo enviar o texto-base da TF à NVIDIA.</span>
+                </label>
+                <Button type="button" className="qa-task-ai-generate"
+                  isDisabled={taskAiBusy||saveTask.isPending||
+                    taskAiConsent!==sourceForAi||
+                    !sourceForAi?.trim()||sourceForAi.length>20000}
+                  onPress={()=>void regenerateTaskWithAi()}>
+                  <Sparkles size={16} aria-hidden="true"/>
+                  {taskAiBusy?"Gerando sugestões…":"Gerar sugestões com IA"}
+                </Button>
               </div>
-              {taskAiScenarios.length>0?
-                <fieldset className="qa-task-ai-scenarios">
+              {taskAiBusy&&<AiBusyStatus title="Preparando sugestões para a TF"
+                detail="Aguardando a NVIDIA identificar campos e cenários. Nenhuma alteração foi aplicada."/>}
+              {sourceForAi.length>20000&&
+                <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
+            </>}
+            {taskAiStage==="review"&&taskAiProposal&&
+              <section className="qa-task-ai-result" role="region" aria-label="Revisão da regeração por IA">
+                <div className="qa-task-ai-result-top">
+                  <div>
+                    <h3 id="qa-task-ai-review-heading" tabIndex={-1}>Revise antes de aplicar</h3>
+                    <p>{Object.keys(taskAiFieldValues(taskAiProposal)).length} campo(s)
+                      sugerido(s) e {taskAiScenarios.length} caso(s) novo(s).
+                      Os valores atuais ainda não foram alterados.</p>
+                  </div>
+                </div>
+                <fieldset className="qa-ai-proposal-fields">
+                  <legend>Campos propostos pela IA</legend>
+                  {Object.entries(taskAiFieldValues(taskAiProposal)).map(([name,value])=>
+                    <label key={name} className="qa-ai-proposal-field">
+                      <input type="checkbox" checked={taskAiSelectedFields.includes(name)}
+                        onChange={event=>setTaskAiSelectedFields(items=>event.target.checked
+                          ? [...items,name] : items.filter(item=>item!==name))}/>
+                      <span>
+                        <strong>{({titulo:"Título",descricao:"Descrição",tipo_teste:"Tipo de teste",
+                          codigo:"Código",sistema:"Módulo",versao:"Versão",causa:"Causa",
+                          correcao:"Correção",conclusao:"Conclusão",explicacao:"Análise",
+                          observacoes:"Observações",ambiente:"Ambiente",base_teste:"Base de teste",
+                          empresa:"Empresa",testador:"Testador"} as Record<string,string>)[name]||name}</strong>
+                        <small>Atual: {String(taskForm.getValues(name as keyof TaskDraft)||"")||"Não informado"}</small>
+                        <span className="qa-ai-proposal-new">Sugerido: {String(value)}</span>
+                      </span>
+                    </label>
+                  )}
+                </fieldset>
+                {taskAiScenarios.length>0&&<fieldset className="qa-task-ai-scenarios">
                   <legend>Cenários sugeridos ({taskAiScenarios.filter(item=>item.selected).length} selecionado(s))</legend>
                   <div className="qa-task-ai-select-actions" role="group" aria-label="Selecionar cenários sugeridos">
                     <button type="button" onClick={()=>setTaskAiScenarios(items=>items.map(item=>({...item,selected:true})))}>
@@ -678,13 +751,30 @@ export default function TaskPage() {
                     <span><strong>{item.titulo}</strong>
                       <small>{item.passos.slice(0,150)}</small></span>
                   </label>)}
-                </fieldset>
-                :<p className="qa-ai-helper-copy">Nenhum cenário novo identificado.
-                  Os casos existentes serão preservados.</p>}
+                </fieldset>}
+                <div className="qa-ai-proposal-actions">
+                  <Button variant="secondary" type="button" onPress={()=>{
+                    setTaskAiStage("prepare");setTaskAiConsent(null);
+                    // Keep the previous AI draft available without another API request.
+                  }}>Voltar à configuração</Button>
+                </div>
+              </section>}
+            {taskAiStage==="applied"&&<div className="qa-ai-proposal-finished" role="status">
+              <Check size={18} aria-hidden="true"/>
+              <div><strong>Revisão aprovada</strong>
+                <p>{taskAiAppliedCount} campo(s) aplicados no formulário.
+                  Os cenários selecionados serão anexados apenas ao clicar em
+                  <b> Salvar alterações</b> no final desta janela.</p>
+                <button type="button" className="qa-ai-review-fields"
+                  onClick={()=>{const details=technicalDetailsRef.current;
+                    if(details){details.open=true;details.scrollIntoView({block:"nearest"});}}}>
+                  Conferir campos editáveis
+                </button>
+              </div>
             </div>}
           </div>
         </details>
-        <details ref={technicalDetailsRef} className="generator-context">
+        {taskAiStage!=="review"&&<details ref={technicalDetailsRef} className="generator-context">
           <summary>Análise técnica e informações adicionais</summary>
           <div className="form-grid mt-4">
             <label className="field">Ambiente<input {...taskForm.register("ambiente")} /></label>
@@ -699,10 +789,18 @@ export default function TaskPage() {
             <label className="field">Conclusão<textarea rows={3} {...taskForm.register("conclusao")} /></label>
             <label className="field">Observações<textarea rows={3} {...taskForm.register("observacoes")} /></label>
           </div>
-        </details>
+        </details>}
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeTaskEditor}>Cancelar</Button>
-          <Button type="submit" isDisabled={saveTask.isPending||taskAiBusy||task.user_id!==userId}>Salvar alterações</Button>
+          {taskAiStage==="review"&&<Button type="button"
+            isDisabled={!taskAiSelectedFields.length&&!taskAiScenarios.some(item=>item.selected)}
+            onPress={applyReviewedTaskAi}>
+            <Check size={16} aria-hidden="true"/> Aplicar sugestões
+          </Button>}
+          {taskAiStage!=="review"&&<Button type="submit"
+            isDisabled={saveTask.isPending||taskAiBusy||task.user_id!==userId}>
+            Salvar alterações
+          </Button>}
         </div>
         <ToastNotice message={saveTask.isError?saveTask.error.message:null} tone="error"/>
       </form>
@@ -754,7 +852,8 @@ export default function TaskPage() {
           <DiagramPanel key={task.id+"-"+diagramEditorRevision}
             task={task} scenarios={scenarios.data||[]}
             userId={userId} editDiagramId={editingDiagramId}
-            focusAi={aiMode==="diagrams"&&focusDiagramAi}/>
+            focusAi={aiMode==="diagrams"&&focusDiagramAi}
+            onBusyChange={setAiGeneratorBusy}/>
         </Suspense>
       </div>}
     </QAModal>

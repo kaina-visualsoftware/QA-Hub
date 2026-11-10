@@ -284,8 +284,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length);
-  const stage: JourneyStage = generating ? "generate" : completed ? "complete" :
-    hasOutput ? "review" : "configure";
+  const stage: JourneyStage = generating ? "generate" :
+    !showSetup && completed ? "complete" :
+    hasOutput && !showSetup ? "review" : "configure";
   const showConfiguration = !generating && (!hasOutput || showSetup);
   return <section className={postMode ? "qa-post-composer panel mt-5" :
     "qa-case-composer panel mt-5"}
@@ -305,6 +306,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </div>
     </div>
     <GeneratorSteps stage={stage} postMode={postMode}/>
+    {showSetup && hasOutput && !generating && <div className="qa-ai-prior-result">
+      <span><CheckCircle2 size={16} aria-hidden="true"/>
+        O rascunho anterior foi preservado.</span>
+      <button type="button" onClick={()=>setShowSetup(false)}>
+        Voltar ao resultado anterior
+      </button>
+    </div>}
     {completed && <div className="qa-generator-complete" role="status">
       <CheckCircle2 size={20} aria-hidden="true"/>
       <div>
@@ -333,7 +341,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     <div className={(postMode ? "qa-post-workspace" : "qa-generator-workspace") +
       (generating ? " is-processing" : "") +
       (!showConfiguration && !generating ? " is-review-only" : "")}>
-    <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
+    {(showConfiguration||generating||support.isLoading||requirements.isLoading) &&
+      <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
     {postMode&&(support.isLoading||requirements.isLoading)&&
       <div className="qa-post-context-loading" role="status">
         <LoaderCircle size={19} className="qa-ai-spinner" aria-hidden="true"/>
@@ -418,8 +427,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       phase={activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
     />}
-    </div>
-    {!generating && hasOutput && <section className="qa-generator-result" aria-label="Resultado da IA">
+    </div>}
+    {!generating && hasOutput && !showSetup && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
         <div><p className="eyebrow">REVISÃO</p>
           <h3>{postMode?"Rascunho do post":"Conteúdo produzido"}</h3>
@@ -429,14 +438,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           {content.length.toLocaleString("pt-BR")} caracteres
         </span>}
       </div>
-      {generating && <p className="text-muted text-sm mt-2">
-        {raw.trim()?"Recebendo o conteúdo gerado…":"Aguardando o início da resposta…"}
-        {content?" A prévia anterior foi preservada.":""}
-      </p>}
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
+          <textarea rows={15} maxLength={80000} value={content} disabled={busySave}
             onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>
         {postIssues.length > 0 && <p className="notice error" role="alert">
