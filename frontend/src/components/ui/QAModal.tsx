@@ -15,6 +15,7 @@ type QAModalProps = {
   busy?:boolean;
   initialFocus?:string;
   keepMounted?:boolean;
+  surface?:"post"|"diagram";
 };
 
 /**
@@ -26,7 +27,7 @@ type QAModalProps = {
  */
 export function QAModal({
   open,title,description,eyebrow="QA HUB",children,onClose,
-  size="lg",busy=false,initialFocus,keepMounted=false
+  size="lg",busy=false,initialFocus,keepMounted=false,surface
 }:QAModalProps){
   const [everOpened,setEverOpened]=useState(open);
   useEffect(()=>{if(open)setEverOpened(true);},[open]);
@@ -56,7 +57,7 @@ export function QAModal({
       <section ref={dialogRef} role="dialog" aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description?descriptionId:undefined}
-        tabIndex={-1} className={"qa-modal qa-modal-"+size}>
+        tabIndex={-1} className={"qa-modal qa-modal-"+size+(surface?" qa-modal-surface-"+surface:"")}>
         <header className="qa-modal-header">
           <div className="qa-modal-heading">
             <p className="eyebrow">{eyebrow}</p>
