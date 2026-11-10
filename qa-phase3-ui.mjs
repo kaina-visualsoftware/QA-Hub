@@ -1,4 +1,5 @@
 import {linkTaskRelease,createReference} from './qa-phase3.mjs';
+import {normalizeTaskVersion,wireTaskVersionInput} from './qa-version.mjs';
 
 export function createPhase3Ui({db,getTask,getTaskId,getUserId,toast,onDocuments,markDirty}){
  const $=id=>document.getElementById(id),create=(tag,cls='',label='')=>{
@@ -7,6 +8,7 @@ export function createPhase3Ui({db,getTask,getTaskId,getUserId,toast,onDocuments
    if(label)element.textContent=label;
    return element;
  };
+ wireTaskVersionInput($('links-release-version'));
  let loadedFor=null,links=[],releases=[],comparisons=[],references=[],saving=false,request=0;
  const clear=id=>$(id).replaceChildren();
  const status=(id,message)=>{$(id).textContent=message};
@@ -33,7 +35,7 @@ export function createPhase3Ui({db,getTask,getTaskId,getUserId,toast,onDocuments
    if(!related.length)empty('links-release-list','Esta TF ainda não está associada a uma release.');
    for(const release of related){
      const row=create('article','qa-phase3-item');
-     row.append(create('strong','',release.versao),create('small','',date(release.created_at)));
+     row.append(create('strong','',normalizeTaskVersion(release.versao)),create('small','',date(release.created_at)));
      $('links-release-list').append(row);
    }
    if(!comparisons.length)empty('links-comparison-list','Ainda não há indicadores de comparação salvos nesta TF.');
@@ -105,7 +107,7 @@ export function createPhase3Ui({db,getTask,getTaskId,getUserId,toast,onDocuments
    const task=getTask();
    if(!task||saving)return;
    if(task.user_id!==getUserId())return toast('A associação exige a propriedade da TF.',true);
-   const version=$('links-release-version').value.trim();
+   const version=normalizeTaskVersion($('links-release-version').value);
    if(!confirm('Confirmar que a TF '+(task.codigo||task.titulo)+' pertence à release '+version+'?'))return;
    saving=true;$('links-release-save').disabled=true;
    status('links-release-status','Associando à release...');
