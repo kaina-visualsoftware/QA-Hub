@@ -121,7 +121,7 @@ try{
 
   await page.goto(ROOT+"#/tarefa/"+TASK);
   await page.getByRole("heading",{name:"Desconto em itens"}).waitFor();
-  await page.getByRole("tab",{name:/Testes/}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
   await page.getByRole("button",{name:"Biblioteca",exact:true}).click();
   const library=page.getByRole("dialog",{name:"Biblioteca de cenários"});
   await library.waitFor();
