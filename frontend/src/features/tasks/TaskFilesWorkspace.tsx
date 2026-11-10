@@ -10,10 +10,10 @@ import EvidencePanel from "../evidence/EvidencePanel";
  * each category keeps its existing private storage and access controls.
  */
 export default function TaskFilesWorkspace({task,userId,scenarios,
-  prefillScenarioId,prefillRequest
+  prefillScenarioId,prefillRequest,readOnly=false
 }:{
   task:Task;userId:string;scenarios:Scenario[];
-  prefillScenarioId?:string|null;prefillRequest?:number;
+  prefillScenarioId?:string|null;prefillRequest?:number;readOnly?:boolean;
 }){
   const client=useQueryClient();
   const own=task.user_id===userId;
@@ -42,7 +42,7 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
       </div>
       {own?<SourcesView task={task} userId={userId}
         records={sources.data??[]} loading={sources.isPending}
-        error={sources.error?.message} onChanged={refresh}/>:
+        error={sources.error?.message} onChanged={refresh} readOnly={readOnly}/>:
         <p className="notice error" role="alert">
           Os anexos privados desta TF só podem ser consultados pelo proprietário.
         </p>}
@@ -57,7 +57,7 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
         </div>
       </div>
       <EvidencePanel task={task} userId={userId} scenarios={scenarios}
-        prefillScenarioId={prefillScenarioId} prefillRequest={prefillRequest}/>
+        prefillScenarioId={prefillScenarioId} prefillRequest={prefillRequest} readOnly={readOnly}/>
     </section>
   </div>;
 }
