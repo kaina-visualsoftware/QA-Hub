@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clipboard, NotebookPen, Save, Trash2 } from "lucide-react";
+import { Clipboard, NotebookPen, Pencil, Save, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { createReference, validateReference } from "../../lib/legacy/qa-phase3.mjs";
 import { supabase } from "../../lib/supabase";
@@ -11,7 +11,7 @@ const referenceSchema=z.object({
   id:z.uuid(),categoria:z.enum(["checklist","regra","nota"]),
   titulo:z.string(),conteudo:z.string(),created_at:z.string()
 });
-type Reference=z.infer<typeof referenceSchema>;
+export type Reference=z.infer<typeof referenceSchema>;
 async function fetchReferences(userId:string):Promise<Reference[]>{
   const {data,error}=await supabase.from("qa_referencias")
     .select("id,categoria,titulo,conteudo,created_at").eq("user_id",userId)
@@ -20,13 +20,14 @@ async function fetchReferences(userId:string):Promise<Reference[]>{
   if((data??[]).length>100)throw Error("Mais de 100 referências: acesse o histórico completo no legado.");
   return z.array(referenceSchema).parse(data??[]);
 }
-export default function ReferenceLibrary({userId,view="all",onCreated}:{
-  userId:string;view?:"all"|"list"|"form";onCreated?:()=>void;
+export default function ReferenceLibrary({userId,view="all",initial,onSaved,onEdit}:{
+  userId:string;view?:"all"|"list"|"form";initial?:Reference|null;
+  onSaved?:()=>void;onEdit?:(record:Reference)=>void;
 }){
   const client=useQueryClient();
-  const [category,setCategory]=useState<Reference["categoria"]>("nota");
-  const [title,setTitle]=useState("");
-  const [content,setContent]=useState("");
+  const [category,setCategory]=useState<Reference["categoria"]>(initial?.categoria??"nota");
+  const [title,setTitle]=useState(initial?.titulo??"");
+  const [content,setContent]=useState(initial?.conteudo??"");
   const [search,setSearch]=useState("");
   const [message,setMessage]=useState("");
   const [failure,setFailure]=useState("");
@@ -37,15 +38,26 @@ export default function ReferenceLibrary({userId,view="all",onCreated}:{
     const text=(item.titulo+" "+item.conteudo+" "+item.categoria).toLocaleLowerCase("pt-BR");
     return text.includes(search.toLocaleLowerCase("pt-BR").trim());
   })??[],[references.data,search]);
+  const unchanged=Boolean(initial&&category===initial.categoria&&
+    title===initial.titulo&&content===initial.conteudo);
   const save=useMutation({
-    mutationFn:()=>{
+    mutationFn:async()=>{
       const valid=validateReference({titulo:title,conteudo:content,categoria:category});
-      return createReference(supabase,{userId,...valid});
+      if(!userId)throw Error("Entre na sua conta para salvar informações.");
+      if(!initial)return createReference(supabase,{userId,...valid});
+      // Both the ID and current account must match. RLS enforces ownership too.
+      const {data,error}=await supabase.from("qa_referencias")
+        .update(valid).eq("id",initial.id).eq("user_id",userId)
+        .select("id").maybeSingle();
+      if(error)throw error;
+      if(!data?.id)throw Error("Informação não encontrada ou sem permissão para editar.");
+      return data;
     },
     onSuccess:async()=>{
-      setTitle("");setContent("");setFailure("");setMessage("Referência privada salva.");
+      setTitle("");setContent("");setFailure("");
+      setMessage(initial?"Informação atualizada.":"Referência privada salva.");
       await client.invalidateQueries({queryKey:["qa-references",userId]});
-      onCreated?.();
+      onSaved?.();
     },
     onError:(error)=>setFailure(error.message)
   });
@@ -68,12 +80,15 @@ export default function ReferenceLibrary({userId,view="all",onCreated}:{
   }
   return <section className="stack qa-references"
     aria-labelledby={view==="all"?"references-heading":undefined}
-    aria-label={view==="list"?"Biblioteca de informações":view==="form"?"Cadastro de informação":undefined}>
+    aria-label={view==="list"?"Biblioteca de informações":view==="form"?
+      initial?"Edição de informação":"Cadastro de informação":undefined}>
     {view==="all"&&<div><h2 id="references-heading" className="font-semibold">Informações importantes</h2>
       <p className="text-muted text-sm mt-2">Checklists, regras e notas privadas da sua conta.
         Não guarde senhas, tokens ou dados pessoais neste cadastro.</p></div>}
     {view!=="list"&&<form className="generator-context stack" onSubmit={event=>{event.preventDefault();void save.mutateAsync();}}>
-      <h3 className="font-semibold flex items-center gap-2"><NotebookPen size={17}/> {view==="form"?"Dados da informação":"Nova referência"}</h3>
+      <h3 className="font-semibold flex items-center gap-2"><NotebookPen size={17}/>
+        {initial?"Editar informação":view==="form"?"Dados da informação":"Nova referência"}
+      </h3>
       {view==="form"&&<p className="text-muted text-sm">
         Não inclua senhas, tokens nem dados pessoais.</p>}
       <div className="form-grid">
@@ -87,9 +102,13 @@ export default function ReferenceLibrary({userId,view="all",onCreated}:{
       <label className="field">Conteúdo
         <textarea rows={4} maxLength={2000} value={content} onChange={event=>setContent(event.target.value)}/>
       </label>
-      <div><Button type="submit" isDisabled={save.isPending||title.trim().length<3||content.trim().length<3}>
-        <Save size={16}/> {view==="form"?"Salvar informação":"Salvar referência"}
-      </Button></div>
+      <div className="qa-reference-form-actions">
+        <Button type="submit" isDisabled={save.isPending||unchanged||
+          title.trim().length<3||content.trim().length<3}>
+          <Save size={16}/>{save.isPending?"Salvando…":
+            initial?"Salvar alterações":view==="form"?"Salvar informação":"Salvar referência"}
+        </Button>
+      </div>
     </form>}
     {view!=="form"&&<>
     <label className="field">Pesquisar registros
@@ -108,6 +127,10 @@ export default function ReferenceLibrary({userId,view="all",onCreated}:{
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onPress={()=>void copy(item.conteudo)}>
             <Clipboard size={14}/> Copiar</Button>
+          {onEdit&&<Button variant="secondary" size="sm"
+            aria-label={"Editar "+item.titulo} onPress={()=>onEdit(item)}>
+            <Pencil size={14}/> Editar
+          </Button>}
           <Button variant="secondary" size="sm" isDisabled={deleting===item.id}
             onPress={()=>void remove(item)}><Trash2 size={14}/> Excluir</Button>
         </div>
