@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
-import {WandSparkles,Wrench,FileText,CheckCircle2,AlertCircle} from "lucide-react";
+import {WandSparkles,Wrench,FileText,CheckCircle2,AlertCircle,LoaderCircle,ShieldCheck} from "lucide-react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import {diagramPresets,diagramPresetInstruction} from "../generators/ai-presets";
 import type {Scenario,Task} from "../../lib/contracts";
@@ -160,14 +160,23 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   }
 
   const counts=evidence.coverage;
-  return <section className="qa-diagram-ai qa-diagram-quick" aria-labelledby="diagram-ai-heading">
+  return <section className="qa-diagram-ai qa-diagram-quick" aria-labelledby="diagram-ai-heading"
+    aria-busy={busy||summarizing}>
     <div className="qa-diagram-quick-heading">
       <span className="qa-diagram-quick-icon"><WandSparkles size={20} aria-hidden="true"/></span>
       <div>
+        <p className="qa-generator-eyebrow">FLUXO DA TAREFA</p>
         <h3 id="diagram-ai-heading" tabIndex={-1}>Criar diagrama com IA</h3>
-        <p className="text-muted text-sm">Resuma a tarefa inteira, confira o resultado e gere o fluxo.</p>
+        <p className="text-muted text-sm">Escolha a origem, revise o contexto e gere um fluxo fiel à TF.</p>
       </div>
     </div>
+    {mode==="task"&&<ol className="qa-diagram-stage-track" aria-label="Etapas do diagrama">
+      <li className="is-done"><span><CheckCircle2 size={15} aria-hidden="true"/></span> Dados da TF</li>
+      <li className={summary?"is-done":summarizing?"is-active":""}>
+        <span>{summary?<CheckCircle2 size={15} aria-hidden="true"/>:"2"}</span> Resumo da TF
+      </li>
+      <li className={busy?"is-active":""}><span>3</span> Gerar fluxo</li>
+    </ol>}
     {!own&&<p role="alert" className="notice error">Somente o autor pode gerar diagramas desta TF.</p>}
     <fieldset className="qa-diagram-mode qa-diagram-quick-modes" disabled={!own||busy||summarizing}>
       <legend className="sr-only">Origem do fluxograma</legend>
@@ -176,7 +185,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
       <label><input type="radio" name="diagram-input-mode" checked={mode==="text"}
         onChange={()=>setMode("text")}/> Texto livre</label>
     </fieldset>
-    <label className="field qa-ai-diagram-model">Modelo do diagrama
+    <label className="field qa-ai-diagram-model">Tipo de diagrama
       <select value={preset} disabled={!own||busy||summarizing}
         onChange={event=>setPreset(event.target.value)}>
         {diagramPresets.map(option=><option key={option.id} value={option.id}>
@@ -235,12 +244,15 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     {mode==="task"&&<>
       <div className="qa-diagram-summary-action">
         <Button variant="secondary" isDisabled={!canSummarize} onPress={()=>void summarize()}>
-          <FileText size={16} aria-hidden="true"/>
+          {summarizing?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
+            <FileText size={17} aria-hidden="true"/>}
           {summarizing?"Resumindo a tarefa…":summary?"Resumir novamente com IA":"Resumir TF com IA"}
         </Button>
-        {summarizing&&<span role="status" className="qa-diagram-summary-progress">
-          {summaryProgress}
-        </span>}
+        {summarizing&&<div role="status" aria-live="polite" className="qa-diagram-processing">
+          <LoaderCircle className="qa-ai-spinner" size={18} aria-hidden="true"/>
+          <div><strong>Preparando um resumo fiel da TF</strong>
+            <p>{summaryProgress||"Organizando os documentos e cenários."}</p></div>
+        </div>}
       </div>
       {summary&&<div className="qa-diagram-summary-review">
         <div className="qa-diagram-summary-review-heading">
@@ -262,7 +274,8 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     {diagramText.error&&<p role="alert" className="qa-diagram-summary-warning">{diagramText.error}</p>}
     <div className="qa-diagram-quick-actions">
       <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
-        <WandSparkles size={17} aria-hidden="true"/>
+        {busy?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
+          <WandSparkles size={17} aria-hidden="true"/>}
         {busy?"Gerando…":attempts?"Gerar diagrama novamente":mode==="task"?"Gerar diagrama da TF":"Gerar diagrama"}
       </Button>
       {repairCandidate&&<Button variant="secondary"
@@ -270,7 +283,12 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         <Wrench size={16}/> Corrigir com IA
       </Button>}
     </div>
-    {mode==="task"&&!summary&&<p className="qa-diagram-summary-explainer">
+    {busy&&<div role="status" aria-live="polite" className="qa-diagram-processing">
+      <LoaderCircle className="qa-ai-spinner" size={18} aria-hidden="true"/>
+      <div><strong>Gerando o fluxograma</strong>
+        <p>Aguardando a NVIDIA e validando a sintaxe Mermaid antes de abrir a prévia.</p></div>
+    </div>}
+    {mode==="task"&&!summary&&!summarizing&&<p className="qa-diagram-summary-explainer">
       Primeiro gere e revise o resumo completo; depois o diagrama ficará disponível.
     </p>}
     {invalidGenerated&&<div className="qa-diagram-error-details">
@@ -286,6 +304,10 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
             setMessage("Código transferido para edição manual.");
         }}>Editar código manualmente</button>
     </div>}
+    <p className="qa-diagram-privacy-note">
+      <ShieldCheck size={15} aria-hidden="true"/>
+      O diagrama só será salvo na tarefa após sua confirmação na prévia.
+    </p>
     <ToastNotice message={error} tone="error"/>
     <ToastNotice message={message} tone="success"/>
   </section>;
