@@ -708,7 +708,8 @@ export default function TaskPage() {
     <QAModal key={task.id+"-ai-studio"} open={aiMode!==null} keepMounted
       title={aiMode==="post"?"Gerar post com IA":
         aiMode==="diagrams"?(editingDiagramId?"Editar diagrama":"Criar diagrama"):"Gerar casos com IA"}
-      eyebrow="CENTRAL DE IA" size={aiMode==="diagrams"?"lg":"full"}
+      eyebrow="CENTRAL DE IA" size="full"
+      surface={aiMode==="post"?"post":aiMode==="diagrams"?"diagram":undefined}
       initialFocus={aiMode==="diagrams"?(editingDiagramId?"#diagram-code-editor":"#diagram-ai-heading"):undefined}
       onClose={()=>setAiMode(null)}>
       {aiMode==="teste"&&<div
