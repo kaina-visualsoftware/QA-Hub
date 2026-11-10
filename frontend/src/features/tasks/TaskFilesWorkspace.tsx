@@ -10,10 +10,11 @@ import EvidencePanel from "../evidence/EvidencePanel";
  * each category keeps its existing private storage and access controls.
  */
 export default function TaskFilesWorkspace({task,userId,scenarios,
-  prefillScenarioId,prefillRequest,readOnly=false
+  prefillScenarioId,prefillRequest,readOnly=false,section="all"
 }:{
   task:Task;userId:string;scenarios:Scenario[];
   prefillScenarioId?:string|null;prefillRequest?:number;readOnly?:boolean;
+  section?:"all"|"sources"|"evidence";
 }){
   const client=useQueryClient();
   const own=task.user_id===userId;
@@ -30,7 +31,7 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
     ]);
   }
   return <div className="qa-task-files-workspace">
-    <section className="qa-task-resource-group"
+    {section!=="evidence"&&<section className="qa-task-resource-group"
       aria-labelledby="qa-task-source-files-heading">
       <div className="qa-task-resource-group-heading">
         <FileArchive size={19} aria-hidden="true"/>
@@ -46,8 +47,8 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
         <p className="notice error" role="alert">
           Os anexos privados desta TF só podem ser consultados pelo proprietário.
         </p>}
-    </section>
-    <section className="qa-task-resource-group"
+    </section>}
+    {section!=="sources"&&<section className="qa-task-resource-group"
       aria-labelledby="qa-task-evidence-files-heading">
       <div className="qa-task-resource-group-heading">
         <FileCheck2 size={19} aria-hidden="true"/>
@@ -58,6 +59,6 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
       </div>
       <EvidencePanel task={task} userId={userId} scenarios={scenarios}
         prefillScenarioId={prefillScenarioId} prefillRequest={prefillRequest} readOnly={readOnly}/>
-    </section>
+    </section>}
   </div>;
 }
