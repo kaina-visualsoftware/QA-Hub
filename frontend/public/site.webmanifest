@@ -1,0 +1,19 @@
+{
+  "name": "QA Hub — Workspace de testes",
+  "short_name": "QA Hub",
+  "description": "Gerencie tarefas, cenários e evidências de teste em um só lugar.",
+  "lang": "pt-BR",
+  "start_url": "/QA-Hub/react/#/",
+  "scope": "/QA-Hub/react/",
+  "display": "standalone",
+  "background_color": "#f3f6f6",
+  "theme_color": "#0e2b37",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
