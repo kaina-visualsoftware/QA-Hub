@@ -144,12 +144,12 @@ try{
   // The document stays mounted while its modal is closed: a manually edited
   // report survives continuing tests, and its derived summary refreshes.
   await page.getByRole("button",{name:"Fechar Documentos e relatório"}).click();
-  await page.getByRole("tab",{name:/Testes/}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
   await page.getByRole("group",{name:"Resultado de Caso pendente"})
     .getByRole("button",{name:"Funcionou",exact:true}).click();
-  await page.getByRole("tab",{name:"Entregáveis"}).click();
-  await page.getByRole("tabpanel",{name:"Entregáveis"})
-    .getByRole("button",{name:"Relatório e documentos",exact:true}).click();
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+  await page.getByRole("tabpanel",{name:"Relatórios e posts"})
+    .getByRole("button",{name:"Criar relatório",exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('textarea[readonly]')]
     .some(el=>el.value?.includes("Caso pendente")));
   const newSummary=await summary.inputValue();
