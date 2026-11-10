@@ -942,6 +942,7 @@ export default function TaskPage() {
           {(resourceView==="team"?rights.canManage||rights.canComment:own)&&
             <Button onPress={()=>{
               setResourceFileType("sources");
+              setEvidenceTarget(null);
               setShowResourceImport(true);
             }}>
               <Plus size={17} aria-hidden="true"/>
