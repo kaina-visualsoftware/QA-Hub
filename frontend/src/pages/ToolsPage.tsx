@@ -11,6 +11,7 @@ import { ToastNotice } from "../components/ui/Toasts";
 import ComparisonTool from "../features/links/ComparisonTool";
 import ReleaseOrganizer from "../features/links/ReleaseOrganizer";
 import ReferenceLibrary from "../features/links/ReferenceLibrary";
+import type { Reference } from "../features/links/ReferenceLibrary";
 
 type Tool = "release" | "comparison" | "notes";
 const tools = [
@@ -65,7 +66,14 @@ export default function ToolsPage(){
   const [tab,setTab]=useState<Tool>("release");
   const [version,setVersion]=useState("");
   const [notesOpen,setNotesOpen]=useState(false);
+  const [editingNote,setEditingNote]=useState<Reference|null>(null);
   const [notice,setNotice]=useState("");
+  function closeNoteModal(){setNotesOpen(false);setEditingNote(null);}
+  function editNote(record:Reference){
+    setEditingNote(record);
+    setNotice("");
+    setNotesOpen(true);
+  }
   return <div className="page qa-tools-page qa-tools-v2">
     <header className="page-heading qa-tools-page-heading">
       <div>
@@ -131,22 +139,30 @@ export default function ToolsPage(){
           <ToolHeading icon={BookOpenText} title="Informações importantes"
             description="Sua biblioteca de notas, regras de negócio e checklists para consultas rápidas."
             privacy="Registros privados da conta, armazenados com controle de acesso.">
-            <Button onPress={()=>{setNotice("");setNotesOpen(true);}}>
+            <Button onPress={()=>{setEditingNote(null);setNotice("");setNotesOpen(true);}}>
               <Plus size={17} aria-hidden="true"/> Nova informação
             </Button>
           </ToolHeading>
           <div className="qa-tools-workspace-body qa-tools-notes">
-            <ReferenceLibrary userId={user?.id??""} view="list"/>
+            <ReferenceLibrary userId={user?.id??""} view="list" onEdit={editNote}/>
             <ToastNotice message={notice} tone="success"/>
           </div>
         </section>
       </div>
     </div>
-    <QAModal open={notesOpen} title="Nova informação" eyebrow="BIBLIOTECA DE QA"
-      size="md" description="Registre uma regra, nota ou checklist para consultar depois."
-      onClose={()=>setNotesOpen(false)}>
-      {notesOpen&&<ReferenceLibrary userId={user?.id??""} view="form"
-        onCreated={()=>{setNotesOpen(false);setNotice("Informação privada salva na biblioteca.");}}/>}
+    <QAModal open={notesOpen}
+      title={editingNote?"Editar informação":"Nova informação"} eyebrow="BIBLIOTECA DE QA"
+      size="md" description={editingNote?
+        "Altere a categoria, o título ou o conteúdo deste registro.":
+        "Registre uma regra, nota ou checklist para consultar depois."}
+      onClose={closeNoteModal}>
+      {notesOpen&&<ReferenceLibrary key={editingNote?.id??"new"}
+        userId={user?.id??""} view="form" initial={editingNote}
+        onSaved={()=>{
+          setNotice(editingNote?"Informação atualizada com sucesso.":
+            "Informação privada salva na biblioteca.");
+          closeNoteModal();
+        }}/>}
     </QAModal>
   </div>;
 }
