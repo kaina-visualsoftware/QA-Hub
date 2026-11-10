@@ -245,7 +245,7 @@ try{
   await wizard.getByRole("button",{name:"Analisar novamente"}).click();
   await wizard.getByLabel("Versão").waitFor();
   await page.waitForFunction(()=>[...document.querySelectorAll("input")]
-    .some(item=>item.value==="12.10"));
+    .some(item=>item.value==="12.10.00.0000"));
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),"TF revisada pelo QA",
     "Reanalysis must not overwrite user-entered titles");
   assert.equal(await details.locator("label.field").filter({hasText:"Causa identificada"})
