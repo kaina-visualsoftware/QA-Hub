@@ -312,8 +312,9 @@ try {
   const codeEditor=page.getByRole("textbox",{name:"Código Mermaid"});
   await codeEditor.fill('flowchart LR\n A["Início"\n A --> B');
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
-  await page.getByRole("group",{name:"Erro de sintaxe Mermaid"})
-    .getByRole("alert").waitFor({timeout:20000});
+  await page.getByText(/Mermaid inválido:/).waitFor({timeout:20000});
+  await page.getByRole("group",{name:"Opção para corrigir diagrama"})
+    .getByRole("button",{name:"Ir para Corrigir com IA"}).waitFor();
   assert.equal(diagramSaves,1,"Invalid Mermaid must never be saved");
   await page.getByRole("button",{name:"Ir para Corrigir com IA"}).click();
   await page.getByRole("button",{name:"Corrigir com IA",exact:true}).waitFor();
