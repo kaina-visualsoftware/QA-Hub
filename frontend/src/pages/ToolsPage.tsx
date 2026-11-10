@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Button } from "@heroui/react";
 import {
   ArrowLeftRight, BookOpenText, FileCheck2, FileDiff,
-  FileText, LockKeyhole, NotebookPen, PackageCheck, Plus
+  LockKeyhole, NotebookPen, PackageCheck, Plus
 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { QAModal } from "../components/ui/QAModal";
@@ -45,7 +45,7 @@ function onTabKeyDown(event:KeyboardEvent<HTMLButtonElement>,index:number,
 
 function ToolHeading({icon:Icon,title,description,privacy,children}:{
   icon:typeof PackageCheck;title:string;description:string;privacy?:string;
-  children?:React.ReactNode;
+  children?:ReactNode;
 }){
   return <div className="qa-tools-workspace-heading">
     <span className="qa-tools-workspace-icon" aria-hidden="true"><Icon size={23}/></span>
