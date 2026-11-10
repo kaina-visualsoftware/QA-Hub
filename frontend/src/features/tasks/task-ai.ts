@@ -35,21 +35,27 @@ export function taskAiFieldValues(draft:LocalDraft):Partial<TaskDraft>{
   return fields;
 }
 
-/** For creation, retain user-entered fields, but summarize the raw source with AI.
- *  A no-AI import may detect fields without replacing the user's original text. */
+/** Apply the SAME normalized NVIDIA fields used when regenerating an existing TF.
+ * Values typed by the QA win; a new analysis may replace only an earlier AI value
+ * that was not subsequently edited. The raw source is archived separately.
+ */
 export function mergeTaskAiCreation(
-  original:TaskDraft,draft:LocalDraft,{keepDescription=false}:{keepDescription?:boolean}={}
+  original:TaskDraft,draft:LocalDraft,{
+    keepDescription=false,previousAiValues={}
+  }:{keepDescription?:boolean;previousAiValues?:Partial<TaskDraft>}={}
 ):TaskDraft{
   const merged={...original};
   const generated=taskAiFieldValues(draft);
   for(const [name,value] of Object.entries(generated)){
-    if(!value)continue;
-    if(name==="descricao"&&keepDescription)continue;
-    if(name==="descricao"||!String((merged as Record<string,unknown>)[name]??"").trim()){
-      (merged as Record<string,unknown>)[name]=value;
-    }else if(name==="tipo_teste"&&value==="RELEASE"&&original.tipo_teste==="BUILD"){
-      // BUILD is the default on new TFs. Explicit RELEASE in the report wins.
-      merged.tipo_teste="RELEASE";
+    if(!value||(name==="descricao"&&keepDescription))continue;
+    const key=name as keyof TaskDraft;
+    const current=String(merged[key]??"");
+    const wasGenerated=previousAiValues[key]!==undefined&&current===previousAiValues[key];
+    const defaultBuild=name==="tipo_teste"&&current==="BUILD"&&value==="RELEASE";
+    // Do not let an old draft or a QA's hand edits silently replace the AI's
+    // explicit findings when the corresponding field is still unfilled.
+    if(!current.trim()||wasGenerated||defaultBuild){
+      (merged as Record<string,string>)[name]=value;
     }
   }
   return merged;
