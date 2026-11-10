@@ -17,7 +17,7 @@ const scenario={id:"33333333-3333-4333-8333-333333333333",
   passos:"Abrir pedido",esperado:"Valor atualizado",obtido:"",observacoes:"",
   status:"nao_executado"};
 const errors=[];
-let writes=0,aiCalls=0,profileSaves=0;
+let writes=0,aiCalls=0,profileSaves=0,referenceUpdates=0;
 const referenceRows=[];
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -64,6 +64,19 @@ async function mock(route){
         created_at:"2026-11-08T12:00:00Z"};
       referenceRows.push(row);
       return send({id:row.id},201);
+    }
+    if(method==="PATCH"){
+      const payload=request.postDataJSON();
+      assert.equal(url.searchParams.get("user_id"),"eq."+owner,
+        "Only the owner may update a private reference");
+      assert.equal(url.searchParams.get("id"),"eq.44444444-4444-4444-8444-444444444444");
+      assert.deepEqual(Object.keys(payload).sort(),["categoria","conteudo","titulo"],
+        "Ownership and timestamps must not be editable");
+      const record=referenceRows[0];
+      if(!record)return send(null);
+      Object.assign(record,payload);
+      referenceUpdates++;
+      return send({id:record.id});
     }
     if(method==="DELETE"){
       referenceRows.splice(0,referenceRows.length);
@@ -204,6 +217,40 @@ try{
   await page.getByText("Informação privada salva na biblioteca.").waitFor();
   await page.getByRole("searchbox",{name:"Pesquisar registros"}).fill("Regra de descontos");
   await page.getByText("Verificar cálculo após remoção de desconto").waitFor();
+  await page.getByRole("button",{name:"Editar Regra de descontos"}).click();
+  const editModal=page.getByRole("dialog",{name:"Editar informação"});
+  await editModal.waitFor();
+  assert.equal(await editModal.getByRole("textbox",{name:"Título"}).inputValue(),"Regra de descontos");
+  assert.equal(await editModal.getByRole("textbox",{name:"Conteúdo"}).inputValue(),
+    "Verificar cálculo após remoção de desconto");
+  assert.equal(await editModal.getByLabel("Categoria").inputValue(),"nota");
+  assert.equal(await editModal.getByRole("button",{name:"Salvar alterações"}).isDisabled(),true,
+    "Unchanged records should not produce needless updates");
+  await audit("edit-reference",390);
+  await editModal.getByRole("textbox",{name:"Título"}).fill("Alteração descartada");
+  await editModal.getByRole("button",{name:"Fechar Editar informação"}).click();
+  assert.equal(referenceUpdates,0,"Cancel must not persist the edited draft");
+  assert.equal(referenceRows[0].titulo,"Regra de descontos");
+
+  await page.getByRole("button",{name:"Editar Regra de descontos"}).click();
+  await editModal.waitFor();
+  await editModal.getByLabel("Categoria").selectOption("checklist");
+  await editModal.getByRole("textbox",{name:"Título"}).fill("Regra de descontos revisada");
+  await editModal.getByRole("textbox",{name:"Conteúdo"})
+    .fill("Validar cálculo após a remoção de desconto e conferir o total");
+  await editModal.getByRole("button",{name:"Salvar alterações"}).click();
+  await editModal.waitFor({state:"detached"});
+  await page.getByText("Informação atualizada com sucesso.").waitFor();
+  await page.getByText("Validar cálculo após a remoção de desconto e conferir o total").waitFor();
+  assert.equal(referenceUpdates,1,"Editing must PATCH the existing record exactly once");
+  assert.equal(referenceRows.length,1,"Editing must never create a duplicate");
+  assert.equal(referenceRows[0].categoria,"checklist");
+  assert.equal(referenceRows[0].titulo,"Regra de descontos revisada");
+  await page.reload();
+  await page.getByRole("heading",{name:"Ferramentas",exact:true}).waitFor();
+  await page.getByRole("tablist",{name:"Ferramentas disponíveis"})
+    .getByRole("tab",{name:/Informações/}).click();
+  await page.getByText("Regra de descontos revisada").waitFor();
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Excluir"}).click();
   await page.getByText("Referência excluída.").waitFor();
