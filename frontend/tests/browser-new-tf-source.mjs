@@ -191,22 +191,14 @@ try{
     name:"analise.txt",mimeType:"text/plain",
     buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
   });
-  await page.waitForFunction(()=>[...document.querySelectorAll(".qa-wizard-file strong")]
-    .some(element=>element.textContent==="analise.txt"));
-  const fileState=await page.evaluate(()=>{
-    const element=[...document.querySelectorAll(".qa-wizard-file strong")]
-      .find(node=>node.textContent==="analise.txt");
-    const chain=[];
-    for(let node=element;node&&chain.length<10;node=node.parentElement){
-      const style=getComputedStyle(node);
-      chain.push({tag:node.tagName,className:typeof node.className==="string"?node.className:"",
-        display:style.display,visibility:style.visibility,
-        rect:node.getBoundingClientRect().toJSON(),hidden:node.hidden});
-    }
-    return {chain,modalCount:document.querySelectorAll('[role="dialog"]').length};
-  });
-  console.log("WIZARD_FILE_VISIBILITY",JSON.stringify(fileState));
   await wizard.getByText("analise.txt").waitFor();
+  for(const width of [320,390]){
+    await page.setViewportSize({width,height:844});
+    const fileWidth=await wizard.locator(".qa-wizard-file strong").first()
+      .evaluate(element=>element.getBoundingClientRect().width);
+    assert.ok(fileWidth>50,
+      "Attachment filename must not collapse in a "+width+"px modal (got "+fileWidth+"px)");
+  }
   assert.equal(taskWrites,0,"No TF must be saved when preparing files");
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
