@@ -1,8 +1,9 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
-import {WandSparkles,Wrench,FileText,CheckCircle2,AlertCircle,LoaderCircle,ShieldCheck} from "lucide-react";
+import {WandSparkles,Wrench,FileText,CheckCircle2,AlertCircle,ShieldCheck} from "lucide-react";
 import {ToastNotice} from "../../components/ui/Toasts";
+import "./diagram-composer.css";
 import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {diagramPresets,diagramPresetInstruction} from "../generators/ai-presets";
 import type {Scenario,Task} from "../../lib/contracts";
@@ -166,152 +167,100 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
 
   const counts=evidence.coverage;
   const contextReady=Boolean(counts)&&!requirements.isPending&&!requirements.isError&&!evidence.error;
-  return <section className="qa-diagram-ai qa-diagram-quick" aria-labelledby="diagram-ai-heading"
-    aria-busy={busy||summarizing}>
-    <div className="qa-diagram-quick-heading">
-      <span className="qa-diagram-quick-icon"><WandSparkles size={20} aria-hidden="true"/></span>
-      <div>
-        <p className="qa-generator-eyebrow">FLUXO DA TAREFA</p>
-        <h3 id="diagram-ai-heading" tabIndex={-1}>Criar diagrama com IA</h3>
-        <p className="text-muted text-sm">Escolha a origem, revise o contexto e gere um fluxo fiel à TF.</p>
-      </div>
-    </div>
-    {mode==="task"&&<ol className="qa-diagram-stage-track" aria-label="Fases de preparação do conteúdo">
-      <li className={contextReady?"is-done":""}>
-        <span>{contextReady?<CheckCircle2 size={15} aria-hidden="true"/>:"1"}</span>
-        Dados da TF
-      </li>
-      <li className={summary?"is-done":summarizing?"is-active":""}>
-        <span>{summary?<CheckCircle2 size={15} aria-hidden="true"/>:"2"}</span> Resumo da TF
-      </li>
-      <li className={busy||summary?"is-active":""}><span>3</span> Gerar fluxo</li>
-    </ol>}
+  const processing=busy||summarizing;
+  return <section className="qa-diagram-ai qa-diagram-quick qa-diagram-form" aria-labelledby="diagram-ai-heading" aria-busy={processing}>
+    <header className="qa-diagram-form-heading">
+      <h3 id="diagram-ai-heading" tabIndex={-1}>Criar diagrama com IA</h3>
+      <p>Defina a origem e o modelo. Depois revise o resumo antes de gerar o fluxo.</p>
+    </header>
     {!own&&<p role="alert" className="notice error">Somente o autor pode gerar diagramas desta TF.</p>}
-    <fieldset className="qa-diagram-mode qa-diagram-quick-modes" disabled={!own||busy||summarizing}>
-      <legend className="sr-only">Origem do fluxograma</legend>
-      <label><input type="radio" name="diagram-input-mode" checked={mode==="task"}
-        onChange={()=>setMode("task")}/> Dados completos da TF</label>
-      <label><input type="radio" name="diagram-input-mode" checked={mode==="text"}
-        onChange={()=>setMode("text")}/> Texto livre</label>
-    </fieldset>
-    <label className="field qa-ai-diagram-model">Modelo do diagrama
-      <select value={preset} disabled={!own||busy||summarizing}
-        onChange={event=>setPreset(event.target.value)}>
-        {diagramPresets.map(option=><option key={option.id} value={option.id}>
-          {option.label}
-        </option>)}
-      </select>
-    </label>
-    {mode==="text"?<label className="field qa-diagram-description">
-      Descreva o processo
-      <textarea rows={4} value={manual} maxLength={20000} disabled={!own||busy}
-        placeholder="Ex.: Receber pedido, conferir valores, emitir nota e verificar falhas"
-        onChange={e=>setManual(e.target.value)}/>
-    </label>:<>
-      <div className="qa-diagram-summary-coverage" aria-label="Cobertura da tarefa" tabIndex={0}>
-        <div><strong>{counts?.total??0}</strong><span>Cenários</span></div>
-        <div><strong>{counts?.passed??0}</strong><span>Aprovados</span></div>
-        <div><strong>{counts?.failed??0}</strong><span>Reprovados</span></div>
-        <div><strong>{counts?.blocked??0}</strong><span>Bloqueados</span></div>
-        <div><strong>{counts?.pending??0}</strong><span>Pendentes</span></div>
+    <div className={"qa-diagram-form-layout"+(mode==="text"?" is-text":"")}>
+      <div className="qa-diagram-form-fields">
+        <fieldset className="qa-diagram-origin" disabled={!own||processing}>
+          <legend>Origem do fluxograma</legend>
+          <div className="qa-diagram-origin-choices">
+            <label className={mode==="task"?"selected":""}><input type="radio" name="diagram-input-mode" checked={mode==="task"} onChange={()=>setMode("task")}/>
+              <span><strong>Dados completos da TF</strong><small>Cenários, resultados e requisitos aprovados.</small></span></label>
+            <label className={mode==="text"?"selected":""}><input type="radio" name="diagram-input-mode" checked={mode==="text"} onChange={()=>setMode("text")}/>
+              <span><strong>Texto livre</strong><small>Descreva um processo específico.</small></span></label>
+          </div>
+        </fieldset>
+        <label className="field qa-ai-diagram-model">Modelo do diagrama
+          <select value={preset} disabled={!own||processing} onChange={event=>setPreset(event.target.value)}>
+            {diagramPresets.map(option=><option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+        </label>
+        {mode==="text"?<label className="field qa-diagram-description">Descreva o processo
+          <textarea rows={7} value={manual} maxLength={20000} disabled={!own||processing}
+            placeholder={"Descreva o início, as etapas e as decisões do processo.\nEx.: Receber pedido, conferir valores, emitir nota e tratar falhas."}
+            onChange={e=>setManual(e.target.value)}/>
+          <small>Inclua as condições e os resultados que precisam aparecer no fluxo.</small>
+        </label>:<details className="qa-diagram-options">
+          <summary>Orientações adicionais <span>Opcional</span></summary>
+          <div className="qa-diagram-options-content"><label className="field">O que destacar no fluxo?
+            <textarea rows={3} value={manual} maxLength={20000} disabled={!own||processing}
+              placeholder="Ex.: priorizar a regra corrigida e os pontos de regressão" onChange={e=>setManual(e.target.value)}/>
+          </label></div>
+        </details>}
       </div>
-      <p className="qa-diagram-summary-explainer">
-        A análise considera os <b>{counts?.total??0} cenários</b> e
-        <b> {counts?.requirements??0} requisitos aprovados</b>, sem seleção manual.
-        Os dados serão organizados em {counts?.parts??0} parte(s), preservando os
-        resultados registrados. Pode consumir mais de uma geração NVIDIA.
-      </p>
-      <details className="qa-diagram-options">
-        <summary>Orientações adicionais <span>Opcional</span></summary>
-        <div className="qa-diagram-options-content">
-          <label className="field">O que destacar no fluxo?
-            <textarea rows={2} value={manual} maxLength={20000}
-              disabled={!own||busy||summarizing}
-              placeholder="Ex.: priorizar a regra corrigida e as regressões"
-              onChange={e=>setManual(e.target.value)}/>
-          </label>
-        </div>
-      </details>
-      {requirements.isError&&<p role="alert" className="qa-diagram-summary-warning">
-        Não foi possível carregar os requisitos aprovados. Atualize a TF antes de resumir,
-        para evitar uma análise incompleta.
-      </p>}
-      {evidence.error&&<p role="alert" className="qa-diagram-summary-warning">{evidence.error}</p>}
-      <details className="qa-diagram-payload">
-        <summary>Conferir todos os dados utilizados</summary>
-        <textarea readOnly aria-label="Contexto completo da TF"
-          rows={6} value={evidence.source}/>
-      </details>
-    </>}
-    <div className="qa-diagram-privacy qa-ai-submit-row">
-      <label className="qa-diagram-consent qa-ai-consent-compact">
-        <input type="checkbox" checked={consent} disabled={!own||busy||summarizing}
-          onChange={e=>setConsent(e.target.checked)}/>
+      {mode==="task"&&<aside className="qa-diagram-context" aria-labelledby="diagram-context-heading">
+        <h4 id="diagram-context-heading">Contexto da TF</h4>
+        <p className="qa-diagram-context-task">{task.titulo}</p>
+        {!contextReady&&!requirements.isError&&!evidence.error&&<p role="status">Carregando o contexto…</p>}
+        <dl className="qa-diagram-context-counts" aria-label="Cobertura da tarefa">
+          {([
+            ["Cenários",counts?.total??0],["Aprovados",counts?.passed??0],
+            ["Reprovados",counts?.failed??0],["Bloqueados",counts?.blocked??0],
+            ["Pendentes",counts?.pending??0],["Requisitos aprovados",counts?.requirements??0]
+          ] as const).map(([label,count])=><div key={label}><dt>{label}</dt><dd>{count}</dd></div>)}
+        </dl>
+        <p className="qa-diagram-context-note">Todos os cenários e resultados serão considerados, sem seleção manual.
+          A análise será feita em {counts?.parts??0} parte(s) e pode consumir mais de uma geração NVIDIA.</p>
+        <details className="qa-diagram-payload"><summary>Conferir todos os dados utilizados</summary>
+          <textarea readOnly aria-label="Contexto completo da TF" rows={6} value={evidence.source}/>
+        </details>
+      </aside>}
+    </div>
+    {mode==="task"&&requirements.isError&&<p role="alert" className="notice error">
+      Não foi possível carregar os requisitos aprovados. <button type="button" onClick={()=>void requirements.refetch()}>Tentar novamente</button>
+    </p>}
+    {mode==="task"&&evidence.error&&<p role="alert" className="notice error">{evidence.error}</p>}
+    {mode==="task"&&summary&&<section className="qa-diagram-summary-review" aria-label="Revisão do resumo">
+      <div className="qa-diagram-summary-review-heading"><strong><CheckCircle2 size={17} aria-hidden="true"/> Resumo pronto para revisão</strong>
+        <span>{summary.length.toLocaleString("pt-BR")} caracteres</span></div>
+      <label className="field" htmlFor="diagram-summary-text">Resumo da TF para diagrama</label>
+      <textarea id="diagram-summary-text" rows={7} value={summary} disabled={processing} onChange={e=>setSummary(e.target.value)}/>
+      <small>Revise o que foi implementado, aprovado, reprovado e ainda não testado.</small>
+      <div className="qa-diagram-summary-verified"><AlertCircle size={16} aria-hidden="true"/>{counts&&coverageLine(counts)}</div>
+    </section>}
+    <footer className="qa-diagram-submit-area">
+      <label className="qa-diagram-form-consent"><input type="checkbox" checked={consent} disabled={!own||processing} onChange={e=>setConsent(e.target.checked)}/>
         <span>Autorizo enviar {mode==="task"?"os dados da TF":"este texto"} à NVIDIA.</span>
       </label>
-    </div>
-    {mode==="task"&&<>
-      <div className="qa-diagram-summary-action">
-        <Button variant="secondary" isDisabled={!canSummarize} onPress={()=>void summarize()}>
-          {summarizing?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
-            <FileText size={17} aria-hidden="true"/>}
-          {summarizing?"Resumindo a tarefa…":summary?"Resumir novamente com IA":"Resumir TF com IA"}
-        </Button>
-        {summarizing&&<AiBusyStatus title="Preparando um resumo fiel da TF"
-          detail={summaryProgress||"Organizando os documentos e cenários."}/>}
-      </div>
-      {summary&&<div className="qa-diagram-summary-review">
-        <div className="qa-diagram-summary-review-heading">
-          <strong><CheckCircle2 size={17} aria-hidden="true"/> Resumo pronto para revisão</strong>
-          <span>{summary.length.toLocaleString("pt-BR")} caracteres</span>
-        </div>
-        <label className="field" htmlFor="diagram-summary-text">Resumo da TF para diagrama</label>
-        <textarea id="diagram-summary-text" rows={8} value={summary}
-          disabled={busy||summarizing}
-          onChange={e=>setSummary(e.target.value)}/>
-        <small>Revise o que foi implementado, aprovado, reprovado e ainda não testado.
-          A geração não altera a TF nem os resultados cadastrados.</small>
-        <div className="qa-diagram-summary-verified">
-          <AlertCircle size={16} aria-hidden="true"/>
-          {counts&&coverageLine(counts)}
-        </div>
-      </div>}
-    </>}
-    {diagramText.error&&<p role="alert" className="qa-diagram-summary-warning">{diagramText.error}</p>}
-    <div className="qa-diagram-quick-actions">
-      <Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
-        {busy?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
-          <WandSparkles size={17} aria-hidden="true"/>}
-        {busy?"Gerando…":attempts?"Gerar diagrama novamente":mode==="task"?"Gerar diagrama da TF":"Gerar diagrama"}
-      </Button>
-      {repairCandidate&&<Button variant="secondary"
-        isDisabled={!canGenerate} onPress={()=>void generate(true)}>
-        <Wrench size={16}/> Corrigir com IA
-      </Button>}
-    </div>
-    {busy&&<AiBusyStatus title="Gerando o fluxograma"
-      detail="Aguardando a NVIDIA e validando a sintaxe Mermaid antes de abrir a prévia."/>}
-    {mode==="task"&&!summary&&!summarizing&&<p className="qa-diagram-summary-explainer">
-      Primeiro gere e revise o resumo completo; depois o diagrama ficará disponível.
-    </p>}
-    {invalidGenerated&&<div className="qa-diagram-error-details">
-      <details className="qa-diagram-options">
-        <summary>Detalhes do erro de sintaxe</summary>
-        <pre className="qa-mermaid-diagnostic">{invalidGenerated.error}</pre>
-        <textarea rows={5} readOnly value={invalidGenerated.code}
-          aria-label="Código Mermaid inválido"/>
-      </details>
-      <button type="button" className="secondary-link"
-        disabled={!own||busy} onClick={()=>{
-          if(onDraft(invalidGenerated.code,mode))
-            setMessage("Código transferido para edição manual.");
-        }}>Editar código manualmente</button>
-    </div>}
-    <p className="qa-diagram-privacy-note">
-      <ShieldCheck size={15} aria-hidden="true"/>
-      O diagrama só será salvo na tarefa após sua confirmação na prévia.
-    </p>
-    <ToastNotice message={error} tone="error"/>
+      {processing?<AiBusyStatus title={summarizing?"Preparando um resumo fiel da TF":"Gerando o fluxograma"}
+        detail={summarizing?summaryProgress||"Organizando os documentos e cenários.":"Aguardando a NVIDIA e validando a sintaxe antes de abrir a prévia."}/>:
+        <div className="qa-diagram-submit-actions">
+          <p>{mode==="task"&&!summary?"Primeiro prepare o resumo. Você poderá revisá-lo antes de gerar o diagrama.":"Confira o conteúdo antes de gerar. O resultado será aberto para revisão."}</p>
+          <div className="qa-diagram-submit-buttons">
+            {mode==="task"&&<Button variant={summary?"secondary":"primary"} isDisabled={!canSummarize} onPress={()=>void summarize()}>
+              <FileText size={17} aria-hidden="true"/>{summary?"Resumir novamente com IA":"Resumir TF com IA"}
+            </Button>}
+            {(mode==="text"||!!summary)&&<Button isDisabled={!canGenerate} onPress={()=>void generate(false)}>
+              <WandSparkles size={17} aria-hidden="true"/>{attempts?"Gerar diagrama novamente":mode==="task"?"Gerar diagrama da TF":"Gerar diagrama"}
+            </Button>}
+            {repairCandidate&&<Button variant="secondary" isDisabled={!canGenerate} onPress={()=>void generate(true)}><Wrench size={16}/> Corrigir com IA</Button>}
+          </div>
+        </div>}
+      {diagramText.error&&<p role="alert" className="notice error">{diagramText.error}</p>}
+      {error&&<p role="alert" className="notice error">{error}</p>}
+    </footer>
+    {invalidGenerated&&<div className="qa-diagram-error-details"><details className="qa-diagram-options">
+      <summary>Detalhes do erro de sintaxe</summary><pre className="qa-mermaid-diagnostic">{invalidGenerated.error}</pre>
+      <textarea rows={5} readOnly value={invalidGenerated.code} aria-label="Código Mermaid inválido"/>
+    </details><button type="button" className="secondary-link" disabled={!own||processing} onClick={()=>{
+      if(onDraft(invalidGenerated.code,mode))setMessage("Código transferido para edição manual.");
+    }}>Editar código manualmente</button></div>}
+    <p className="qa-diagram-privacy-note"><ShieldCheck size={15} aria-hidden="true"/> O diagrama só será salvo na tarefa após sua confirmação na prévia.</p>
     <ToastNotice message={message} tone="success"/>
   </section>;
 }

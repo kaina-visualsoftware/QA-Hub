@@ -17,7 +17,7 @@ const scenario={id:"33333333-3333-4333-8333-333333333333",
   passos:"Abrir pedido",esperado:"Valor atualizado",obtido:"",observacoes:"",
   status:"nao_executado"};
 const errors=[];
-let writes=0,aiCalls=0,profileSaves=0,referenceUpdates=0;
+let writes=0,aiCalls=0,profileSaves=0;
 const referenceRows=[];
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -75,7 +75,6 @@ async function mock(route){
       const record=referenceRows[0];
       if(!record)return send(null);
       Object.assign(record,payload);
-      referenceUpdates++;
       return send({id:record.id});
     }
     if(method==="DELETE"){
@@ -132,15 +131,15 @@ try{
     await page.goto(ROOT+"#/ferramentas");
     await page.getByRole("heading",{name:"Ferramentas",exact:true}).waitFor({timeout:15000});
     const toolTabs=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
-    assert.equal(await toolTabs.getByRole("tab").count(),3,
-      "Tools should have three distinct workspaces, not duplicate text and XML entries");
+    assert.equal(await toolTabs.getByRole("tab").count(),2,
+      "Tools should have two distinct workspaces, not duplicate text and XML entries");
     assert.equal(await page.getByRole("tabpanel",{name:/Releases/}).isVisible(),true);
     assert.equal(await page.getByRole("tabpanel",{name:/Comparações/}).isVisible(),false);
     const toolsOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     assert.ok(toolsOverflow<=1,"Tools overflow at "+width+": "+toolsOverflow);
     await audit("tools",width);
     await page.screenshot({path:"artifacts/profile-utilities/tools-"+width+".png"});
-    for(const [id,label] of [["comparison","Comparações"],["notes","Informações"]]){
+    for(const [id,label] of [["comparison","Comparações"]]){
       await toolTabs.getByRole("tab",{name:new RegExp(label)}).click();
       await page.getByRole("tabpanel",{name:new RegExp(label)}).waitFor();
       const over=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -181,7 +180,7 @@ try{
   await toolbox.getByRole("tab",{name:/Comparações/}).click();
   await toolbox.getByRole("tab",{name:/Comparações/}).focus();
   await page.keyboard.press("ArrowRight");
-  assert.equal(await toolbox.getByRole("tab",{name:/Informações/}).getAttribute("aria-selected"),"true");
+  assert.equal(await toolbox.getByRole("tab",{name:/Releases/}).getAttribute("aria-selected"),"true");
   await page.keyboard.press("Home");
   assert.equal(await toolbox.getByRole("tab",{name:/Releases/}).getAttribute("aria-selected"),"true");
   await toolbox.getByRole("tab",{name:/Comparações/}).click();
@@ -203,58 +202,9 @@ try{
     .getByRole("button",{name:"Texto linha a linha"}).click();
   assert.equal(await page.getByRole("textbox",{name:"Texto A (original)"}).inputValue(),
     "Primeiro\nSegundo","Text draft survives switching modes");
-  await toolbox.getByRole("tab",{name:/Informações/}).click();
-  await page.getByRole("heading",{name:"Informações importantes"}).waitFor();
-  assert.equal(await page.getByRole("textbox",{name:"Título"}).count(),0,
-    "The reference editor must not be shown inline in the browsing workspace");
-  await page.getByRole("button",{name:"Nova informação"}).click();
-  const noteModal=page.getByRole("dialog",{name:"Nova informação"});
-  await noteModal.waitFor();
-  await noteModal.getByRole("textbox",{name:"Título"}).fill("Regra de descontos");
-  await noteModal.getByRole("textbox",{name:"Conteúdo"}).fill("Verificar cálculo após remoção de desconto");
-  await noteModal.getByRole("button",{name:"Salvar informação"}).click();
-  await noteModal.waitFor({state:"detached"});
-  await page.getByText("Informação privada salva na biblioteca.").waitFor();
-  await page.getByRole("searchbox",{name:"Pesquisar registros"}).fill("Regra de descontos");
-  await page.getByText("Verificar cálculo após remoção de desconto").waitFor();
-  await page.getByRole("button",{name:"Editar Regra de descontos"}).click();
-  const editModal=page.getByRole("dialog",{name:"Editar informação"});
-  await editModal.waitFor();
-  assert.equal(await editModal.getByRole("textbox",{name:"Título"}).inputValue(),"Regra de descontos");
-  assert.equal(await editModal.getByRole("textbox",{name:"Conteúdo"}).inputValue(),
-    "Verificar cálculo após remoção de desconto");
-  assert.equal(await editModal.getByLabel("Categoria").inputValue(),"nota");
-  assert.equal(await editModal.getByRole("button",{name:"Salvar alterações"}).isDisabled(),true,
-    "Unchanged records should not produce needless updates");
-  await audit("edit-reference",390);
-  await editModal.getByRole("textbox",{name:"Título"}).fill("Alteração descartada");
-  await editModal.getByRole("button",{name:"Fechar Editar informação"}).click();
-  assert.equal(referenceUpdates,0,"Cancel must not persist the edited draft");
-  assert.equal(referenceRows[0].titulo,"Regra de descontos");
-
-  await page.getByRole("button",{name:"Editar Regra de descontos"}).click();
-  await editModal.waitFor();
-  await editModal.getByLabel("Categoria").selectOption("checklist");
-  await editModal.getByRole("textbox",{name:"Título"}).fill("Regra de descontos revisada");
-  await editModal.getByRole("textbox",{name:"Conteúdo"})
-    .fill("Validar cálculo após a remoção de desconto e conferir o total");
-  await editModal.getByRole("button",{name:"Salvar alterações"}).click();
-  await editModal.waitFor({state:"detached"});
-  await page.getByText("Informação atualizada com sucesso.").waitFor();
-  await page.getByText("Validar cálculo após a remoção de desconto e conferir o total").waitFor();
-  assert.equal(referenceUpdates,1,"Editing must PATCH the existing record exactly once");
-  assert.equal(referenceRows.length,1,"Editing must never create a duplicate");
-  assert.equal(referenceRows[0].categoria,"checklist");
-  assert.equal(referenceRows[0].titulo,"Regra de descontos revisada");
-  await page.reload();
-  await page.getByRole("heading",{name:"Ferramentas",exact:true}).waitFor();
-  await page.getByRole("tablist",{name:"Ferramentas disponíveis"})
-    .getByRole("tab",{name:/Informações/}).click();
-  await page.getByText("Regra de descontos revisada").waitFor();
-  page.once("dialog",dialog=>void dialog.accept());
-  await page.getByRole("button",{name:"Excluir"}).click();
-  await page.getByText("Referência excluída.").waitFor();
-  assert.equal(referenceRows.length,0);
+  assert.equal(await page.getByRole("link",{name:"Documentações",exact:true}).count(),1,
+    "Documentation has its own sidebar destination");
+  assert.equal(await toolbox.getByRole("tab",{name:/Informações/}).count(),0);
   await toolbox.getByRole("tab",{name:/Releases/}).click();
   const releaseVersion=page.getByRole("textbox",{name:"Versão da release"});
   await releaseVersion.fill("1210160003");

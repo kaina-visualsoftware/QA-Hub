@@ -33,3 +33,7 @@
 .qa-modal-content .qa-scenario-evidence{border:0;background:transparent;padding:0}
 .qa-modal-content .qa-scenario-image-list{display:flex;flex-direction:column}
 .qa-modal-content .qa-scenario-image-entry{border:0;border-bottom:1px solid #d9e5e7;border-radius:0;background:transparent;padding:16px 0}
+
+.qa-brand-logo{display:block;width:40px;height:40px;flex-shrink:0;object-fit:contain}
+.qa-brand-logo-large{width:64px;height:64px;margin-bottom:24px}
+@media(max-width:800px){.sidebar .qa-brand-logo{width:32px;height:32px}}

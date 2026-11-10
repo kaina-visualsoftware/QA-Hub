@@ -17,6 +17,7 @@ const suites = [
   "browser-artifact-workspace.mjs",
   "browser-file-workspace.mjs",
   "browser-profile-utilities.mjs",
+  "browser-documentation.mjs",
   "browser-execution-next.mjs",
   "browser-home-progress.mjs",
   "browser-report-summary.mjs",

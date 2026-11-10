@@ -8,7 +8,7 @@ export const defaultNavigationPreferences: NavigationPreferences = {
 };
 export const menuDescriptions: Record<OptionalMenuId, {label:string;description:string}> = {
   dashboard: {label:"Visão geral",description:"Indicadores e andamento das TFs"},
-  tools: {label:"Ferramentas",description:"Releases, comparações e informações importantes"},
+  tools: {label:"Ferramentas",description:"Releases e comparações de texto ou XML"},
   public: {label:"Públicas",description:"Biblioteca de tarefas compartilhadas"},
   admin: {label:"Administração",description:"Somente para contas autorizadas"}
 };

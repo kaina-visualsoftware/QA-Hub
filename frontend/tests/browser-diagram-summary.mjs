@@ -28,6 +28,8 @@ const requirements=[{id:"44444444-4444-4444-8444-444444444444",
   descricao:"Recalcular descontos",criterios_aceite:"Valores corretos",estado:"aprovado",
   tipo:"funcional",ordem:1}];
 const summaryPrompts=[],diagramPrompts=[],unexpected=[],writes=[];
+let releaseSummary;
+const summaryGate=new Promise(resolve=>{releaseSummary=resolve;});
 const cors={
   "Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
@@ -60,6 +62,7 @@ async function mock(route){
    assert.ok(body.text.length<=20000,"AI payload must fit provider limit");
    if(body.mode==="diagram-summary"){
      summaryPrompts.push(body);
+     await summaryGate;
      return send({provider:"NVIDIA Build",summary:
        "FUNCIONALIDADES E FLUXOS: registrar pagamentos e devoluções com desconto corrigido. "+
        "REGRAS: conferir o total. TESTES APROVADOS: existem testes aprovados. "+
@@ -108,9 +111,26 @@ try{
  assert.match(source,/CENÁRIO 30/);
  assert.match(source,/REPROVADO \/ falhou em teste/);
  assert.match(source,/PENDENTE \/ não executado/);
- assert.equal(await dialog.getByRole("button",{name:"Gerar diagrama da TF"}).isDisabled(),true);
+ assert.equal(await dialog.getByRole("button",{name:"Gerar diagrama da TF"}).count(),0,
+   "Do not display an unusable generation action before the summary");
+ for(const width of [320,390,768,1366]){
+  await page.setViewportSize({width,height:844});
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+  assert.ok(overflow<=1,"Configuration overflow at "+width);
+  await page.screenshot({path:"artifacts/diagram-summary/configuration-"+width+".png"});
+ }
  await dialog.getByRole("checkbox",{name:/Autorizo enviar os dados da TF à NVIDIA/}).check();
  await dialog.getByRole("button",{name:"Resumir TF com IA"}).click();
+ await dialog.getByText("Preparando um resumo fiel da TF",{exact:true}).waitFor();
+ assert.equal(await dialog.getByLabel("Solicitação à IA em andamento").count(),1);
+ assert.equal(await dialog.getByRole("button",{name:/Resumir|Gerar diagrama/}).count(),0,
+  "Processing must show a single status panel, without competing disabled actions");
+ for(const width of [320,390,768,1366]){
+  await page.setViewportSize({width,height:844});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);
+  await page.screenshot({path:"artifacts/diagram-summary/processing-"+width+".png"});
+ }
+ releaseSummary();
  await dialog.getByRole("textbox",{name:"Resumo da TF para diagrama"}).waitFor({timeout:60000});
  assert.ok(summaryPrompts.length>1,"All 30 scenarios should require multiple source chunks");
  assert.ok(summaryPrompts.some(v=>v.text.includes("CENÁRIO 30")),"Last scenario was not sent");

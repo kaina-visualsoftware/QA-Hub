@@ -13,7 +13,8 @@ A raiz encaminha para **/QA-Hub/react/**. Não há mais uma segunda interface de
 | #/ | Lista e criação de TFs |
 | #/tarefa/{id} | Cenários, execução, requisitos, relatórios, IA, diagramas e evidências |
 | #/painel | Indicadores |
-| #/ferramentas | Releases, comparações e informações de QA |
+| #/ferramentas | Releases e comparações de texto/XML |
+| #/documentacoes | Manuais, soluções, notas e documentos privados ou públicos com anexos |
 | #/perfil | Conta, menu e equipes |
 | #/publicas | Biblioteca de TFs publicadas |
 | #/admin | Consulta administrativa autorizada |
@@ -78,3 +79,5 @@ A remoção da antiga interface não apaga tarefas, arquivos, históricos nem in
 ## Histórico
 
 Arquivos anteriores em docs/ descrevem fases de migração e podem citar telas que foram removidas. Para rotas e comandos atuais, siga este README.
+
+A área Documentações e sua migração estão descritas em [Documentações e ferramentas](docs/DOCUMENTACOES.md).

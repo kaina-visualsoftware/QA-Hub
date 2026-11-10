@@ -1,3 +1,4 @@
+import {BrandLogo} from "../components/ui/BrandLogo";
 import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +19,7 @@ const AdminPage = lazy(() => import("../pages/AdminPage"));
 const PublicPage = lazy(() => import("../features/public/PublicPage"));
 const ProfilePage = lazy(() => import("../features/profile/ProfilePage"));
 const DashboardPage = lazy(() => import("../pages/DashboardPage"));
+const DocumentationPage=lazy(()=>import("../features/documentation/DocumentationPage"));
 const ToolsPage = lazy(() => import("../pages/ToolsPage"));
 
 function AppLayout() {
@@ -25,6 +27,7 @@ function AppLayout() {
   const taskId = useFocus((s) => s.taskId);
   const navigation = navigationFromMetadata(user?.user_metadata);
   const publicView = useRouterState({ select: (state) => state.location.pathname === "/publicas" });
+  const documentationView=useRouterState({select:state=>state.location.pathname==="/documentacoes"});
   const recoveryView = useRouterState({ select: (state) => state.location.pathname === "/recuperar" });
   const adminRole = useQuery({
     queryKey: ["role", user?.id ?? ""], queryFn: () => getAdminRole(user!.id),
@@ -34,13 +37,13 @@ function AppLayout() {
   if (publicView) return <Outlet />;
   if (loading) return <div className="screen-status" role="status">Carregando sessão…</div>;
   if (user && (recovering || recoveryView)) return <RecoveryScreen />;
-  if (!user) return <AuthScreen />;
+  if (!user) return documentationView?<Outlet/>:<AuthScreen />;
 
   return <div className="app-shell">
     <button type="button" className="skip-link"
       onClick={() => document.getElementById("main")?.focus()}>Pular para o conteúdo</button>
     <aside className="sidebar">
-      <Link to="/" className="brand"><span className="brand-icon">Q.</span><span>
+      <Link to="/" className="brand"><BrandLogo/><span>
         <strong>QA Hub</strong><small>TEST MANAGEMENT</small></span></Link>
       <div className="sidebar-section">PRINCIPAL</div>
       <nav aria-label="Navegação" className="qa-primary-nav">
@@ -52,6 +55,7 @@ function AppLayout() {
           className="nav-link"><ChartNoAxesCombined size={18}/> Visão geral</Link>}
         {navigation.tools&&<Link to="/ferramentas" activeProps={{className:"nav-link active"}}
           className="nav-link"><Wrench size={18}/> Ferramentas</Link>}
+        <Link to="/documentacoes" search={{}} activeProps={{className:"nav-link active"}} className="nav-link"><BookOpen size={18}/> Documentações</Link>
         {navigation.public&&<Link to="/publicas" search={{}} aria-label="TFs públicas"
           className="nav-link"><BookOpen size={18}/> Públicas</Link>}
         {adminRole.data === true&&navigation.admin&&
@@ -133,6 +137,11 @@ const toolsRoute = createRoute({
   component:()=> <Suspense fallback={<p role="status">Carregando ferramentas…</p>}>
     <ToolsPage/></Suspense>
 });
+const documentationRoute=createRoute({
+ getParentRoute:()=>rootRoute,path:"/documentacoes",
+ validateSearch:(search:Record<string,unknown>):{doc?:string}=>({doc:typeof search.doc==='string'?search.doc:undefined}),
+ component:()=> <Suspense fallback={<p role="status">Carregando documentações…</p>}><DocumentationPage/></Suspense>
+});
 const profileRoute = createRoute({
   getParentRoute:()=>rootRoute,
   path:"/perfil",
@@ -168,7 +177,7 @@ const recoveryRoute = createRoute({
   component: RecoveryScreen
 });
 const routeTree = rootRoute.addChildren([
-  homeRoute, taskRoute, dashboardRoute, toolsRoute, profileRoute,
+  homeRoute, taskRoute, dashboardRoute, toolsRoute, documentationRoute, profileRoute,
   publicRoute, adminRoute, recoveryRoute
 ]);
 

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import {aiInputError} from "./input.mjs";
 import { parseNvidiaDraft } from "./response.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
@@ -15,7 +16,6 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:8765",
   "http://127.0.0.1:8765"
 ]);
-const MAX_REPORT_CHARS = 20000;
 
 function corsHeaders(origin: string | null) {
   return {
@@ -100,8 +100,6 @@ Deno.serve(async req => {
 
   let body: unknown;
   try {
-    if(Number(req.headers.get("Content-Length")||0)>80000)
-      return respond(origin,413,{error:"too_long",message:"O texto é muito grande."});
     body=await req.json();
   } catch {
     return respond(origin,400,{error:"bad_request",message:"Envie um relatório de texto válido."});
@@ -117,9 +115,8 @@ Deno.serve(async req => {
      previousMermaid.length>16000||syntaxError.length>1500)){
     return respond(origin,400,{error:"invalid_repair",message:"Código ou erro de sintaxe inválido para correção."});
   }
-  if(!text || text.length>MAX_REPORT_CHARS) {
-    return respond(origin,400,{error:"too_long",message:"Informe um texto entre 1 e 20.000 caracteres."});
-  }
+  const inputError=aiInputError(text,diagramMode?"diagram":summaryMode?"diagram-summary":"task");
+  if(inputError)return respond(origin,400,inputError);
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key) {
     return respond(origin,503,{
@@ -137,6 +134,7 @@ Deno.serve(async req => {
   }
   let hadReply=false;
   let lastStatus=0;
+  let contextExceeded=false;
   for(const model of available) {
     // Count every attempted NVIDIA completion (including fallback models)
     // against the same rolling 15/min window for our shared provider key.
@@ -189,6 +187,14 @@ Deno.serve(async req => {
       if(result.status===429) {
         return respond(origin,429,{error:"nvidia_rate_limited",message:"Limite gratuito da NVIDIA atingido. Tente mais tarde."});
       }
+      if(result.status===400 || result.status===413){
+        let upstreamMessage="";
+        try{const failure=await result.json();upstreamMessage=String(failure?.error?.message??failure?.message??"");}catch{}
+        if(/context.{0,40}(length|window|limit)|too many tokens|maximum.{0,30}tokens|token.{0,30}limit/i.test(upstreamMessage)){
+          contextExceeded=true;
+          continue;
+        }
+      }
       if(!result.ok) {
         // Diagnostic metadata only — never log report text, credentials or model output.
         console.warn("qa-ai upstream failure",{model,status:result.status});
@@ -214,6 +220,9 @@ Deno.serve(async req => {
       console.warn("qa-ai upstream exception",{model,reason:error instanceof DOMException?error.name:"request_failed"});
     }
   }
+  if(contextExceeded&&!hadReply)return respond(origin,400,{
+    error:"model_context_exceeded",message:"O conteúdo excede a janela de contexto em tokens dos modelos NVIDIA disponíveis. O QA Hub não cortou o texto. Reduza o contexto ou utilize um modelo com janela maior."
+  });
   if(hadReply){
     if(summaryMode)return respond(origin,502,{
       error:"summary_incomplete",

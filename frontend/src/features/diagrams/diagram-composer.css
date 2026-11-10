@@ -1,0 +1,56 @@
+/* Diagram creation: settings and source context, then one actionable stage. */
+.qa-modal-surface-diagram .qa-diagram-workspace{max-width:1120px;gap:20px}
+.qa-modal-surface-diagram .qa-diagram-composer{box-shadow:none;padding:24px}
+.qa-modal-surface-diagram .qa-diagram-form{gap:24px}
+.qa-diagram-form-heading h3{font-size:1.125rem;font-weight:650;color:#234c58;margin:0 0 6px}
+.qa-diagram-form-heading p{font-size:.875rem;line-height:1.6;color:#47616a;max-width:70ch;margin:0}
+.qa-diagram-form-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.85fr);gap:28px;align-items:start;min-width:0}
+.qa-diagram-form-layout.is-text{grid-template-columns:minmax(0,1fr)}
+.qa-diagram-form-fields{display:flex;flex-direction:column;gap:22px;min-width:0}
+.qa-diagram-origin{border:0;margin:0;padding:0;min-width:0}
+.qa-diagram-origin legend{font-size:.875rem;font-weight:650;color:#234c58;margin-bottom:10px}
+.qa-diagram-origin-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa-diagram-origin-choices label{display:flex;gap:10px;align-items:flex-start;min-width:0;min-height:80px;padding:14px;border:1px solid #c9dce1;border-radius:10px;cursor:pointer;background:#fff}
+.qa-diagram-origin-choices label.selected{border-color:#287f8b;background:#edf6f5;box-shadow:inset 0 0 0 1px #287f8b}
+.qa-diagram-origin-choices input{margin-top:4px;flex-shrink:0;accent-color:#187b85}
+.qa-diagram-origin-choices strong,.qa-diagram-origin-choices small{display:block;line-height:1.5}
+.qa-diagram-origin-choices strong{font-size:.8125rem;color:#234c58}
+.qa-diagram-origin-choices small{font-size:.75rem;color:#47616a;margin-top:5px;font-weight:400}
+.qa-modal-surface-diagram .qa-diagram-form .qa-ai-diagram-model{width:100%}
+.qa-diagram-context{padding:20px;background:#f4f8f9;border:1px solid #dbe6e9;border-radius:12px;min-width:0}
+.qa-diagram-context h4{font-size:.9375rem;font-weight:650;color:#234c58;margin:0 0 6px}
+.qa-diagram-context-task{font-size:.8125rem;color:#47616a;line-height:1.5;overflow-wrap:anywhere;margin:0 0 16px}
+.qa-diagram-context-counts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;margin:0}
+.qa-diagram-context-counts>div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #dbe6e9;font-size:.8125rem}
+.qa-diagram-context-counts dt{color:#47616a}.qa-diagram-context-counts dd{font-weight:700;font-variant-numeric:tabular-nums;color:#234c58;margin:0}
+.qa-diagram-context-note{font-size:.75rem;line-height:1.65;color:#47616a;margin:16px 0}
+.qa-diagram-form .qa-diagram-context .qa-diagram-payload{padding:0;border:0;border-top:1px solid #dbe6e9;border-radius:0;background:transparent}
+.qa-diagram-form .qa-diagram-payload>summary{line-height:1.5;font-size:.75rem;cursor:pointer;min-height:44px}
+.qa-diagram-form .qa-diagram-payload textarea{width:100%;min-width:0;font-size:.75rem}
+.qa-diagram-form .qa-diagram-description{width:100%}
+.qa-diagram-form .qa-diagram-description textarea{min-height:180px;width:100%;resize:vertical;line-height:1.7}
+.qa-diagram-description small{font-size:.8125rem;font-weight:400;color:#47616a;line-height:1.6}
+.qa-diagram-submit-area{display:flex;flex-direction:column;gap:18px;padding-top:20px;border-top:1px solid #dbe6e9;min-width:0}
+.qa-diagram-form-consent{display:flex;align-items:flex-start;gap:10px;font-size:.8125rem;line-height:1.6;color:#31545f;min-height:44px;padding:10px 0;cursor:pointer}
+.qa-diagram-form-consent input{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#187b85}
+.qa-diagram-submit-actions{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.qa-diagram-submit-actions>p{flex:1 1 210px;max-width:55ch;font-size:.8125rem;line-height:1.6;color:#47616a;margin:0}
+.qa-diagram-submit-buttons{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.qa-diagram-submit-buttons button{min-height:46px}
+.qa-diagram-submit-area .qa-ai-busy-status{width:100%;box-sizing:border-box}
+.qa-diagram-form :is(input,select,textarea,button,summary):focus-visible{outline:3px solid #187f91;outline-offset:3px}
+@media(max-width:760px){
+ .qa-diagram-form-layout{grid-template-columns:minmax(0,1fr);gap:20px}
+ .qa-diagram-context-counts{grid-template-columns:1fr 1fr;gap:0 20px}
+ .qa-diagram-context{padding:16px}
+ .qa-modal-surface-diagram .qa-diagram-composer{padding:18px}
+}
+@media(max-width:480px){
+ .qa-diagram-origin-choices{grid-template-columns:minmax(0,1fr)}
+ .qa-diagram-origin-choices label{min-height:64px;padding:12px}
+ .qa-diagram-submit-buttons,.qa-diagram-submit-buttons button{width:100%}
+ .qa-diagram-submit-buttons{flex-direction:column;align-items:stretch}
+ .qa-diagram-submit-actions{gap:14px}
+ .qa-modal-surface-diagram .qa-diagram-composer{padding:16px}
+ .qa-modal-surface-diagram .qa-diagram-form{gap:20px}
+}

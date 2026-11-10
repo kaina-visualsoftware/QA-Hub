@@ -411,8 +411,8 @@ export default function TaskPage() {
     if(!own||taskAiBusy||saveTask.isPending)return;
     const source=sourceForAi;
     const descriptionAtStart=taskForm.getValues("descricao");
-    if(!source.trim()||source.length>20000){
-      notify.error("Informe uma descrição de até 20.000 caracteres para usar a IA.");
+    if(!source.trim()){
+      notify.error("Informe a descrição da tarefa para usar a IA.");
       return;
     }
     if(taskAiConsent!==source){
@@ -720,7 +720,7 @@ export default function TaskPage() {
                   <input type="checkbox"
                     checked={taskAiConsent!==null&&taskAiConsent===sourceForAi}
                     disabled={taskAiBusy||saveTask.isPending||
-                      !sourceForAi?.trim()||sourceForAi.length>20000}
+                      !sourceForAi?.trim()}
                     onChange={event=>setTaskAiConsent(event.target.checked
                       ?sourceForAi:null)}/>
                   <span>Autorizo enviar o texto-base da TF à NVIDIA.</span>
@@ -728,7 +728,7 @@ export default function TaskPage() {
                 <Button type="button" className="qa-task-ai-generate"
                   isDisabled={taskAiBusy||saveTask.isPending||
                     taskAiConsent!==sourceForAi||
-                    !sourceForAi?.trim()||sourceForAi.length>20000}
+                    !sourceForAi?.trim()}
                   onPress={()=>void regenerateTaskWithAi()}>
                   <Sparkles size={16} aria-hidden="true"/>
                   {taskAiBusy?"Gerando sugestões…":"Gerar sugestões com IA"}
@@ -736,8 +736,7 @@ export default function TaskPage() {
               </div>
               {taskAiBusy&&<AiBusyStatus title="Preparando sugestões para a TF"
                 detail="Aguardando a NVIDIA identificar campos e cenários. Nenhuma alteração foi aplicada."/>}
-              {sourceForAi.length>20000&&
-                <small className="text-error">Para usar a NVIDIA, reduza a descrição para 20.000 caracteres.</small>}
+
             </>}
             {taskAiStage==="review"&&taskAiProposal&&
               <section className="qa-task-ai-result" role="region" aria-label="Revisão da regeração por IA">
