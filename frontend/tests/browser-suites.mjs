@@ -15,6 +15,7 @@ const suites = [
   "browser-f5-collaboration.mjs",
   "browser-f6-insights-library.mjs",
   "browser-artifact-workspace.mjs",
+  "browser-file-workspace.mjs",
   "browser-profile-utilities.mjs",
   "browser-execution-next.mjs",
   "browser-home-progress.mjs",

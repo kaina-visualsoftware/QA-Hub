@@ -1,7 +1,8 @@
 import { useState } from "react";
+import {QAModal} from "../../components/ui/QAModal";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
-import { Download, FileUp } from "lucide-react";
+import { Download, Eye, FileUp } from "lucide-react";
 import type { Task } from "../../lib/contracts";
 import {
   downloadRequirementSource, prepareRequirementFile, registerRequirementFile
@@ -21,6 +22,7 @@ export default function SourcesView({
   task: Task; userId: string; records: RequirementSource[];
   loading: boolean; error?: string; onChanged: () => Promise<void>; readOnly?:boolean
 }) {
+  const [preview,setPreview]=useState<RequirementSource|null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState<PreparedFile | null>(null);
   const [manualText, setManualText] = useState("");
@@ -67,7 +69,7 @@ export default function SourcesView({
       Revise sempre a prévia antes de confirmar o upload.
     </p>}
     {!readOnly&&<p className="text-muted text-sm">
-      O arquivo original é armazenado no bucket privado da TF. Versões registradas não podem
+      O acesso ao arquivo original acompanha a visibilidade da TF. Versões registradas não podem
       ser substituídas ou excluídas. Nenhum arquivo é enviado automaticamente à IA.
     </p>}
     {!readOnly&&<div className="generator-context">
@@ -87,7 +89,7 @@ export default function SourcesView({
         <Button variant="secondary" isDisabled={!file || busy} onPress={() => void prepare()}>
           <FileUp size={16} /> Verificar arquivo
         </Button>
-        <Button isDisabled={!pending || busy} onPress={() => void upload()}>Anexar versão privada</Button>
+        <Button isDisabled={!pending || busy} onPress={() => void upload()}>Anexar documento</Button>
       </div>
       {pending && <div className="mt-3 text-sm stack">
         <p><strong>{pending.file.name}</strong> · {pending.size.toLocaleString("pt-BR")} bytes</p>
@@ -105,12 +107,12 @@ export default function SourcesView({
       <h3 className="font-semibold">Fontes existentes</h3>
       <span className="count-pill">{records.length}</span>
     </div>
-    {loading && <p role="status" className="notice">Carregando fontes privadas…</p>}
+    {loading && <p role="status" className="notice">Carregando fontes…</p>}
     <ToastNotice message={error} tone="error"/>
     {!loading && !error && records.length === 0 &&
       <p className="text-muted text-sm">Nenhuma fonte salva na TF.</p>}
-    {records.map((item) => <article key={item.id} className="requirement-row">
-      <div className="section-heading">
+    <div className="qa-resource-list">{records.map((item) => <article key={item.id} className="requirement-row qa-resource-row">
+      <div className="qa-resource-copy">
         <div>
           <strong>{item.tipo_fonte === "arquivo" ? item.nome_arquivo : "Texto importado da TF"}</strong>
           <p className="text-muted text-sm">
@@ -118,17 +120,19 @@ export default function SourcesView({
             {" " + new Date(item.created_at).toLocaleString("pt-BR")}
           </p>
         </div>
+      </div><div className="qa-resource-actions">
+        {item.texto_extraido&&<button type="button" onClick={()=>setPreview(item)}><Eye size={16} aria-hidden="true"/> Visualizar texto</button>}
         {item.tipo_fonte === "arquivo" &&
           <Button size="sm" variant="secondary" isDisabled={readingFile === item.id}
             onPress={() => void download(item)}>
             <Download size={15} /> Baixar original
           </Button>}
       </div>
-      {item.texto_extraido && <details className="generator-context mt-3">
-        <summary>Consultar texto registrado (somente leitura)</summary>
-        <textarea readOnly className="mt-3" rows={6} value={item.texto_extraido} />
-      </details>}
-    </article>)}
+    </article>)}</div>
+    {preview&&<QAModal open title={"Visualizar documento — "+(preview.nome_arquivo||"Texto importado")}
+      size="lg" onClose={()=>setPreview(null)}>
+      <pre className="qa-resource-text">{preview.texto_extraido}</pre>
+    </QAModal>}
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={failure} tone="error"/>
   </div>;

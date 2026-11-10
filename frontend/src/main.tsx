@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { router } from "./app/router";
 import "./styles.css";
+import "./resource-patterns.css";
 import {ToastCenter,notify} from "./components/ui/Toasts";
 
 // When an open tab requests a chunk removed by a newer deployment,

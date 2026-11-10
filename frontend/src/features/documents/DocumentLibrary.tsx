@@ -1,4 +1,5 @@
 import {useMemo,useState} from "react";
+import {QAModal} from "../../components/ui/QAModal";
 import {notify} from "../../components/ui/Toasts";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
@@ -80,7 +81,7 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
           <FileText size={18} aria-hidden="true"/> Posts e relatórios
           <span className="qa-artifact-counter">{query.data?.length??0}</span>
         </h3>
-        <p>Documentos já salvos, separados do editor e do gerador.</p>
+        <p>Consulte posts e relatórios salvos nesta TF.</p>
       </div>
       {owner&&showCreate&&<Button variant="secondary" size="sm" onPress={onCreate}>
         <FileText size={16} aria-hidden="true"/> Criar relatório
@@ -96,20 +97,20 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
     {query.isSuccess&&query.data.length===0&&<p className="qa-artifact-empty">
       Ainda não existem posts ou relatórios salvos nesta TF.
     </p>}
-    {!!query.data?.length&&<div className="qa-diagram-library-layout">
-      <div className="qa-diagram-library-list" aria-label="Documentos existentes">
+    {!!query.data?.length&&<div className="qa-diagram-library-layout qa-diagram-catalog">
+      <div className="qa-diagram-library-list qa-resource-list" aria-label="Documentos existentes">
         {query.data.map(item=><article key={item.id}
-          className={"qa-diagram-library-row"+(item.id===selectedId?" selected":"")}>
-          <div className="qa-diagram-library-title">
+          className={"qa-diagram-library-row qa-resource-row"+(item.id===selectedId?" selected":"")}>
+          <div className="qa-diagram-library-title qa-resource-copy">
             <strong>{item.titulo}</strong>
             <small>{item.tipo==="post"?"Post":"Relatório"} · versão {item.versao} ·
               {" "+new Date(item.created_at).toLocaleDateString("pt-BR")}</small>
           </div>
-          <div className="qa-diagram-library-actions">
-            <button type="button" aria-pressed={selectedId===item.id}
-              onClick={()=>setSelectedId(id=>id===item.id?null:item.id)}>
+          <div className="qa-diagram-library-actions qa-resource-actions">
+            <button type="button" aria-label={"Visualizar documento "+item.titulo}
+              onClick={()=>setSelectedId(item.id)}>
               <Eye size={15} aria-hidden="true"/>
-              {selectedId===item.id?"Ocultar":"Visualizar"}
+              Visualizar
             </button>
             {owner&&<button type="button" disabled={busy} onClick={()=>startEdit(item)}>
               <Pencil size={15} aria-hidden="true"/> Editar nova versão
@@ -121,9 +122,9 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
           </div>
         </article>)}
       </div>
-      {selected&&<div className="qa-document-library-preview"
-        aria-label={"Visualização: "+selected.titulo}>
-        <h4>{selected.titulo}</h4>
+      {selected&&<QAModal open title={(editingDocument?"Editar documento — ":"Visualizar documento — ")+selected.titulo}
+        size="lg" busy={busy} onClose={()=>{setSelectedId(null);setEditingDocument(null);}}>
+        <div className="qa-document-library-preview">
         {editingDocument?.id===selected.id?
           <form className="qa-crud-inline-form" onSubmit={event=>{
             event.preventDefault();void saveNewVersion();
@@ -159,7 +160,7 @@ export function DocumentLibrary({taskId,userId,owner,onCreate,showCreate=true}:{
             {/^\[size=\d+\]/.test(selected.conteudo.trim())?"BBCode":"Markdown"}
           </Button>
         </div>
-      </div>}
+      </div></QAModal>}
     </div>}
   </section>;
 }

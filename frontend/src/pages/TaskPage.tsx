@@ -1037,7 +1037,7 @@ export default function TaskPage() {
       {activeTab==="deliverables"&&<>
         <div className="qa-task-area-heading">
           <div>
-            <p className="eyebrow">RESULTADOS E DOCUMENTAÇÃO</p>
+
             <h2>Relatórios e publicações</h2>
             <p>Analise os resultados registrados e consulte os documentos produzidos nesta TF.</p>
           </div>
@@ -1079,10 +1079,9 @@ export default function TaskPage() {
       {activeTab==="resources"&&<>
         <div className="qa-task-area-heading qa-resource-library-heading">
           <div>
-            <p className="eyebrow">BIBLIOTECA DA TAREFA</p>
+
             <h2>Arquivos e requisitos</h2>
-            <p>Consulte os itens registrados. Use Importar para adicionar documentos,
-              requisitos, evidências ou gerenciar os registros.</p>
+            <p>Consulte os itens registrados. Use a ação desta seção para adicionar ou gerenciar seus registros.</p>
           </div>
           {(resourceView==="team"?rights.canManage||rights.canComment:own)&&
             <Button onPress={()=>{
@@ -1091,7 +1090,7 @@ export default function TaskPage() {
               setShowResourceImport(true);
             }}>
               <Plus size={17} aria-hidden="true"/>
-              {resourceView==="team"?"Gerenciar":"Importar"}
+              {resourceView==="team"?"Gerenciar equipe":resourceView==="files"?"Adicionar arquivo":resourceView==="requirements"?"Gerenciar requisitos":"Adicionar vínculo"}
             </Button>}
         </div>
         <TaskResourceTabs value={resourceView} onChange={setResourceView}/>
@@ -1198,11 +1197,11 @@ export default function TaskPage() {
     <section className="panel mt-4" aria-label="Compartilhamento público">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">PRIVACIDADE E VISIBILIDADE</p>
+
           <h2>Compartilhamento da TF</h2>
           <p className="text-muted text-sm mt-2">
-            {task.publica ? "Publicada — qualquer visitante pode consultar o resumo, os cenários, os resultados observados e os diagramas."
-              : "Privada — esta TF ainda não foi compartilhada publicamente."}
+            {task.publica ? "Pública — todo o conteúdo desta TF, incluindo imagens, arquivos, requisitos, relatórios e diagramas, fica acessível sem login."
+              : "Privada — o conteúdo e todos os anexos desta TF exigem acesso autorizado."}
           </p>
         </div>
         <span className={"status-chip " + (task.publica ? "aprovado" : "rascunho")}>
@@ -1214,7 +1213,7 @@ export default function TaskPage() {
           onPress={() => {
             const next = !task.publica;
             const label = next
-              ? "Publicar esta TF? Título, descrição, análise técnica, cenários, resultados observados e diagramas ficarão acessíveis sem login. Revise dados internos antes de confirmar."
+              ? "Publicar esta TF? Todo o conteúdo da TF, incluindo imagens, arquivos, requisitos, relatórios e diagramas, ficará acessível sem login. Novos anexos também acompanharão essa configuração."
               : "Retirar esta TF da biblioteca pública? Links compartilhados deixarão de funcionar após a alteração.";
             if (window.confirm(label)) void publication.mutateAsync(next);
           }}>

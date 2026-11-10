@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@heroui/react";
 import { z } from "zod";
 import { listPublishedTasks, loadPublishedTask, publicEvidenceImageUrl } from "./public-data";
-import { useModalFocus } from "../../lib/useModalFocus";
+import {QAModal} from "../../components/ui/QAModal";
+import {DiagramViewer} from "../diagrams/DiagramViewer";
+import {PublicResources} from "./PublicResources";
 import type { PublicDiagram, PublicTaskDetail } from "./public-data";
 
 const facts: Array<[keyof PublicTaskDetail, string]> = [
@@ -26,8 +28,9 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const zoomRef = useModalFocus(expanded, () => setExpanded(false), "button");
   async function render() {
+    if (busy) return;
+    setExpanded(true);
     if (svg) { setExpanded(true); return; }
     if (diagram.conteudo.length > 16000) {
       setError("Diagrama excede o tamanho permitido."); return;
@@ -49,31 +52,21 @@ function MermaidPublicPreview({ diagram }: { diagram: PublicDiagram }) {
   return <article className="requirement-row">
     <div className="section-heading">
       <strong>{diagram.titulo}</strong>
-      <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => void render()}>
-        <Eye size={15} /> {busy ? "Renderizando…" : svg ? "Ampliar" : "Visualizar"}
+      <Button size="sm" variant="secondary" aria-disabled={busy} onPress={() => void render()}>
+        <Eye size={15} /> {busy ? "Renderizando…" : "Visualizar"}
       </Button>
     </div>
-    {svg && <iframe title={"Prévia pública: " + diagram.titulo}
-      className="diagram-preview mt-3" sandbox="" referrerPolicy="no-referrer"
-      tabIndex={-1} srcDoc={svg} />}
-    {error && <p className="notice error mt-3" role="alert">{error}</p>}
-    {expanded && svg && <div className="public-react-zoom-backdrop" role="presentation">
-      <section ref={zoomRef} className="public-react-zoom" role="dialog" aria-modal="true"
-        aria-label={"Diagrama ampliado: " + diagram.titulo} tabIndex={-1}>
-        <div className="section-heading">
-          <h2>{diagram.titulo}</h2>
-          <Button size="sm" variant="secondary" onPress={() => setExpanded(false)}>
-            <X size={16} /> Fechar
-          </Button>
-        </div>
-        <iframe title={"Diagrama ampliado: " + diagram.titulo} className="public-react-zoom-frame"
-          sandbox="" referrerPolicy="no-referrer" tabIndex={-1} srcDoc={svg} />
+    {expanded && <QAModal open title={"Visualizar diagrama — "+diagram.titulo}
+      size="full" onClose={()=>setExpanded(false)}>
+        {busy&&<p role="status">Preparando diagrama…</p>}
+        {error&&<div role="alert" className="notice error">{error}
+          <Button variant="secondary" onPress={()=>void render()}>Tentar novamente</Button></div>}
+        {svg&&<DiagramViewer svg={svg} title={diagram.titulo}/>}
         <details className="generator-context">
           <summary>Consultar texto do diagrama</summary>
           <pre className="diagram-source">{diagram.conteudo}</pre>
         </details>
-      </section>
-    </div>}
+    </QAModal>}
   </article>;
 }
 
@@ -86,6 +79,7 @@ export default function PublicPage() {
   });
   const detail = useQuery({
     queryKey: ["public-task", chosen], queryFn: () => loadPublishedTask(chosen!),
+    staleTime:0, refetchOnMount:"always", refetchOnWindowFocus:"always",
     enabled: Boolean(chosen)
   });
   const results = (list.data ?? []).filter((task) => {
@@ -193,11 +187,11 @@ export default function PublicPage() {
                     ["Observações", scenario.observacoes ?? ""]
                   ])}
                 </div>
-                {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id).length>0&&
+                {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id&&file.mime_type.startsWith("image/")).length>0&&
                   <div className="qa-public-case-images" aria-label={"Capturas publicadas de "+scenario.titulo}>
                     <h4>Capturas do teste</h4>
                     <div className="qa-public-case-gallery">
-                      {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id)
+                      {detail.data!.evidencias.filter(file=>file.cenario_id===scenario.id&&file.mime_type.startsWith("image/"))
                         .map(file=><figure key={file.id}>
                           <a href={publicEvidenceImageUrl(file.id)} target="_blank"
                             rel="noopener noreferrer" aria-label={"Ampliar "+file.nome_original}>
@@ -212,6 +206,7 @@ export default function PublicPage() {
               </article>)}
             </div>
           </section>
+          <PublicResources detail={detail.data}/>
           <section className="panel" aria-labelledby="public-diagrams">
             <h2 id="public-diagrams" className="font-semibold">Diagramas</h2>
             {detail.data.diagrams.length === 0 &&

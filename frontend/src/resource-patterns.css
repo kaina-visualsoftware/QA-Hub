@@ -1,0 +1,35 @@
+/* Shared catalogue grammar: content on the left, labelled actions on the right. */
+.qa-resource-list{display:flex;flex-direction:column;gap:0;min-width:0}
+.qa-resource-list>.qa-resource-row{display:flex;align-items:center;gap:16px;padding:16px 0;border:0;border-bottom:1px solid #d9e5e7;border-radius:0;background:transparent;box-shadow:none;min-width:0}
+.qa-resource-list>.qa-resource-row:last-child{border-bottom:0}
+.qa-resource-copy{flex:1;min-width:0;overflow-wrap:anywhere}
+.qa-resource-copy strong{display:block;font-size:.9375rem;line-height:1.5;color:#163d49}
+.qa-resource-copy small{display:block;margin-top:4px;font-size:.8125rem;line-height:1.5;color:#47616a}
+.qa-resource-copy p{margin-top:6px;white-space:pre-wrap;font-size:.875rem;line-height:1.6;color:#36545e}
+.qa-resource-actions{margin-left:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.qa-resource-actions>button,.qa-resource-actions>a{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 12px;border:1px solid #c4d6db;border-radius:8px;background:#fff;color:#164b5a;font-size:.8125rem;font-weight:600;line-height:1.4;text-decoration:none;cursor:pointer}
+.qa-resource-actions>button:hover,.qa-resource-actions>a:hover{background:#edf5f6;border-color:#86acb6}
+.qa-resource-actions>button:disabled{opacity:.55;cursor:wait}
+.qa-resource-actions>button:focus-visible,.qa-resource-actions>a:focus-visible{outline:3px solid #187f91;outline-offset:3px}
+.qa-resource-preview-image{display:block;max-width:100%;max-height:72vh;object-fit:contain;margin:auto}
+.qa-resource-text,.qa-document-library-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:.9375rem;line-height:1.7;max-width:75ch;margin:0 auto}
+.qa-modal-content .qa-file-preview{margin:0;border:0;padding:0;background:transparent}
+.qa-modal-content .qa-document-library-preview{border:0;padding:0;box-shadow:none}
+.qa-modal-content .qa-file-preview img{max-height:65vh;object-fit:contain}
+.qa-modal-content .qa-file-preview iframe{width:100%;min-height:60vh}
+.qa-modal-content>.panel,.qa-modal-content>section.panel{margin-top:0;border:0;box-shadow:none;padding:0}
+.qa-artifact-browser-head h2{font-size:1.125rem;font-weight:650}
+.qa-artifact-browser-head p{font-size:.875rem;color:#47616a;line-height:1.5}
+.qa-artifact-browser-head{gap:12px;flex-wrap:wrap}
+@media(max-width:820px){
+ .qa-resource-list>.qa-resource-row{flex-wrap:wrap;gap:12px;padding:16px 0}
+ .qa-resource-copy{flex-basis:calc(100% - 50px)}
+ .qa-resource-actions{width:100%;justify-content:flex-start}
+ .qa-resource-actions>button,.qa-resource-actions>a{min-height:44px}
+}
+
+/* Catalogues share one reading width and do not compete as side-by-side cards. */
+.qa-task-deliverables .qa-artifact-collections{grid-template-columns:minmax(0,1fr)}
+.qa-modal-content .qa-scenario-evidence{border:0;background:transparent;padding:0}
+.qa-modal-content .qa-scenario-image-list{display:flex;flex-direction:column}
+.qa-modal-content .qa-scenario-image-entry{border:0;border-bottom:1px solid #d9e5e7;border-radius:0;background:transparent;padding:16px 0}

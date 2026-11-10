@@ -161,29 +161,20 @@ try {
     const diagramArea = page.getByRole("article").filter({ hasText: "Fluxo da operação" });
     const view = diagramArea.getByRole("button", { name: "Visualizar" });
     await view.click();
-    await diagramArea.getByTitle("Prévia pública: Fluxo da operação").waitFor({ timeout: 30000 });
-    const expand = diagramArea.getByRole("button", { name: "Ampliar" });
-    await expand.focus();
-    await expand.press("Enter");
-    const zoom = page.getByRole("dialog", { name: "Diagrama ampliado: Fluxo da operação" });
+    const zoom = page.getByRole("dialog", { name: "Visualizar diagrama — Fluxo da operação" });
     await zoom.waitFor();
-    const close = zoom.getByRole("button", { name: "Fechar" });
+    await axeAudit(page,"diagrama público em modal",width);
+    const close = zoom.getByRole("button", { name: "Fechar Visualizar diagrama — Fluxo da operação" });
     await close.focus();
-    await close.press("Tab");
-    assert.equal(await zoom.getByText("Consultar texto do diagrama").evaluate(
-      (el) => el === document.activeElement
-    ), true, "Tab must stay in Mermaid zoom");
-    await page.keyboard.press("Tab");
-    assert.equal(await close.evaluate((el) => el === document.activeElement), true,
-      "Tab must cycle back to zoom close button");
-    await page.keyboard.press("Shift+Tab");
-    assert.equal(await zoom.getByText("Consultar texto do diagrama").evaluate(
-      (el) => el === document.activeElement
-    ), true, "Shift+Tab must cycle to the last modal control");
+    for(let index=0;index<12;index++){
+      await page.keyboard.press(index%3===0?"Shift+Tab":"Tab");
+      assert.equal(await zoom.evaluate(el=>el.contains(document.activeElement)),true,
+        "Keyboard focus must stay inside the shared diagram viewer");
+    }
     await page.keyboard.press("Escape");
     await zoom.waitFor({ state: "hidden" });
-    assert.equal(await expand.evaluate((el) => el === document.activeElement), true,
-      "Escape must return focus to the diagram's Ampliar button");
+    assert.equal(await view.evaluate((el) => el === document.activeElement), true,
+      "Escape must return focus to the diagram's Visualizar button");
 
     await page.goto(BASE);
     await page.getByRole("textbox", { name: "Email" }).fill("a11y@example.invalid");
