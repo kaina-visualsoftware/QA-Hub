@@ -277,7 +277,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length);
-  return <section className={postMode?"qa-post-composer panel mt-5":"panel mt-5"}
+  const stage: JourneyStage = generating ? "generate" : completed ? "complete" :
+    hasOutput ? "review" : "configure";
+  const showConfiguration = !generating && (!hasOutput || showSetup);
+  return <section className={postMode ? "qa-post-composer panel mt-5" :
+    "qa-case-composer panel mt-5"}
     aria-labelledby="generator-title">
     <div className="qa-ai-generator-intro">
       <div className="qa-generator-intro-icon" aria-hidden="true">
@@ -293,14 +297,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           "Escolha um modelo, revise os dados e confirme quais casos deseja adicionar."}</p>
       </div>
     </div>
-    {postMode&&<ol className="qa-post-steps" aria-label="Etapas da publicação">
-      <li className={context?"is-done":""}><span>1</span> Configurar</li>
-      <li className={content?"is-done":generating?"is-current":""}><span>2</span> Revisar</li>
-      <li className={message.startsWith("Post salvo")?"is-done":
-        content.trim()&&!postIssues.length?"is-current":""}>
-        <span>3</span> Salvar na TF
-      </li>
-    </ol>}
+    <GeneratorSteps stage={stage} postMode={postMode}/>
+    {!generating && hasOutput && !showSetup && <div className="qa-generator-setup-toggle">
+      <span><CheckCircle2 size={16} aria-hidden="true"/>
+        Conteúdo gerado. Revise antes de confirmar.</span>
+      <button type="button" onClick={()=>setShowSetup(true)}>
+        Alterar modelo ou gerar novamente
+      </button>
+    </div>}
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
@@ -311,7 +315,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
-    <div className={postMode?"qa-post-workspace"+(hasOutput?" has-output":""):"qa-generator-workspace"}>
+    <div className={(postMode ? "qa-post-workspace" : "qa-generator-workspace") +
+      (generating ? " is-processing" : "") +
+      (!showConfiguration && !generating ? " is-review-only" : "")}>
     <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
     {postMode&&(support.isLoading||requirements.isLoading)&&
       <div className="qa-post-context-loading" role="status">
@@ -319,7 +325,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div><strong>Preparando informações da TF</strong>
           <p>Carregando documentos, cenários e requisitos para a geração.</p></div>
       </div>}
-    {context && <div className="stack qa-generator-setup-body">
+    {context && showConfiguration && <div className="stack qa-generator-setup-body">
       <div className="qa-ai-setup">
         <label className="field">Modelo de geração
           <select value={preset} disabled={generating||busySave}
@@ -393,16 +399,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         Revise os dados antes do envio: a ocultação automática de informações sensíveis pode falhar.
       </p>
     </div>}
-    {generating&&<div className="qa-creator-processing" role="status" aria-live="polite">
-      <LoaderCircle size={19} aria-hidden="true" className="qa-ai-spinner"/>
-      <div><strong>{raw.trim()?"Recebendo a resposta da NVIDIA":"Aguardando a NVIDIA"}</strong>
-        <p aria-live="off">{raw.trim()?raw.length.toLocaleString("pt-BR")+" caracteres recebidos até agora.":
-          "Analisando o contexto e preparando o conteúdo solicitado."}
-          {content?" A versão anterior permanece disponível.":""}</p>
-      </div>
-    </div>}
+    {generating && <GeneratorActivity
+      phase={activityPhase} raw={raw} postMode={postMode}
+      onCancel={()=>controller.current?.abort()}
+    />}
     </div>
-    {(generating || hasOutput) && <section className="qa-generator-result" aria-label="Resultado da IA">
+    {!generating && hasOutput && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
         <div><p className="eyebrow">REVISÃO</p>
           <h3>{postMode?"Rascunho do post":"Conteúdo produzido"}</h3>
