@@ -660,7 +660,7 @@ export default function TaskPage() {
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
         </>}
         <details className="qa-task-ai-regenerate"
-          open={taskAiStage==="review"||taskAiStage==="applied"||undefined}>
+          open={taskAiBusy||taskAiProposal!==null||taskAiStage!=="prepare"||undefined}>
           <summary onClick={event=>{
             if(taskAiStage==="review"||taskAiStage==="applied")event.preventDefault();
           }}>

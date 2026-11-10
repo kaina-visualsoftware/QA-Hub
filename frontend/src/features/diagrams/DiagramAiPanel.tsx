@@ -94,6 +94,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
   async function summarize(){
     if(!canSummarize||!evidence.coverage)return;
     const snapshot=currentSource;
+    onBusyChange?.(true);
     setSummarizing(true);setSummaryProgress("");
     setError("");setMessage("");setSummary("");
     try{
@@ -128,12 +129,13 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
     }catch(reason){
       setError(reasonText(reason));
     }finally{
-      setSummarizing(false);setSummaryProgress("");
+      setSummarizing(false);setSummaryProgress("");onBusyChange?.(false);
     }
   }
 
   async function generate(repair=false){
     if(!canGenerate||(repair&&!repairCandidate))return;
+    onBusyChange?.(true);
     setBusy(true);setError("");setMessage("");
     setAttempts(n=>n+1);
     try{
@@ -159,7 +161,7 @@ export function DiagramAiPanel({task,scenarios,userId,onDraft,repairRequest,onRe
         "A NVIDIA não retornou um diagrama válido. Revise a sugestão local antes de salvar.":
         repair?"Diagrama corrigido.":"Diagrama pronto para revisão.");
     }catch(reason){setError(reasonText(reason));}
-    finally{setBusy(false);}
+    finally{setBusy(false);onBusyChange?.(false);}
   }
 
   const counts=evidence.coverage;

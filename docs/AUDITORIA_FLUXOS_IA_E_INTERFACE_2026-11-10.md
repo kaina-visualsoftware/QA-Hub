@@ -1,7 +1,8 @@
 # QA Hub React — auditoria de fluxo e padronização da IA
 
-Data: 10/11/2026  
-Ambiente: CQP-KAINA-72 (Windows, Chromium via Playwright)  
+Data: 10/11/2026
+
+Ambiente: CQP-KAINA-72 (Windows, Chromium via Playwright)
 Escopo: versão migrada para React, estados de IA, revisão humana, CSS, acessibilidade e regressões.
 
 ## Padrão de interação
@@ -19,9 +20,9 @@ O diagrama usa um resumo intermediário obrigatório quando a origem é a TF com
 
 - Componente `AiStepFlow` para padronizar os passos em diagramas, recriação de TF e geração de casos de uma nova TF, preservando o fluxo já existente de posts/casos.
 - Componente `AiBusyStatus` com estado e tempo real para respostas não-streaming da IA.
-- **Editar TF com IA**: a resposta deixa de preencher o formulário imediatamente. O QA vê pares de valores atual/sugerido, seleciona campos e cenários e escolhe **Aplicar sugestões selecionadas**; só **Salvar alterações** persiste dados.
-- A escolha inicial não marca campos humanos preenchidos para substituição automática. Se o texto de origem mudou após a geração, as sugestões não podem ser aplicadas até nova consulta.
-- **Diagramas**: configuração e solicitação em uma tela, Mermaid renderizado em outra para revisão, salvamento explícito. O modal é protegido contra fechamento durante geração, preview e gravação. Salvamentos duplicados sem alteração são bloqueados.
+- **Editar TF com IA**: a resposta deixa de preencher o formulário imediatamente. O QA vê pares de valores atual/sugerido em **tela isolada**, seleciona campos e cenários e escolhe **Aplicar sugestões**; só **Salvar alterações** persiste dados. A confirmação fica depois da lista, sem cobrir campos no celular.
+- A escolha inicial não marca campos humanos preenchidos para substituição automática. Se o texto de origem mudou após a geração, as sugestões não podem ser aplicadas até nova consulta. Voltar à configuração preserva propostas antigas, que podem ser reabertas sem custo de outra chamada; o fechamento com proposta não aplicada exige confirmação.
+- **Diagramas**: configuração e solicitação em uma tela, Mermaid renderizado em outra para revisão, salvamento explícito. O modal bloqueia fechamento desde o instante em que a solicitação à NVIDIA começa, com resumo e geração acompanhados por tempo decorrido. Salvamentos duplicados sem alteração são bloqueados.
 - **Nova TF**: na etapa de cenários, um painel de configuração/geração e outro de revisão; possibilidade de voltar ao contexto, preservar casos editados e finalizar com ou sem cenários.
 - **Posts e casos de TF existente**: resultado fica fora da configuração; a pessoa pode voltar ao modelo sem perder o texto anterior; falhas da API preservam rascunhos.
 - **Acessibilidade móvel**: correção do contraste do resultado esperado em `.qa-wizard-case > p`, reproduzido como 4,44:1 em 320 px, inferior ao mínimo de 4,5:1 para texto comum.
@@ -54,6 +55,8 @@ npm test
 npm run build
 node tests/browser-suites.mjs
 ```
+
+**Resultado local: 22/22 suítes E2E aprovadas**, 139/139 unitários, ESLint, TypeScript e build aprovados. Após essa rodada, a preservação adicional de sugestões e o bloqueio imediato do modal de diagramas foram retestados de forma direcionada.
 
 As 22 suítes E2E usam um Supabase simulado e resposta NVIDIA simulada. Os testes incluem novas verificações `browser-task-ai-approval.mjs`, `browser-qa-flow.mjs` e `browser-new-tf-source.mjs` para comprovar que **nenhum campo, cenário, post ou diagrama é persistido apenas por ter sido gerado**.
 

@@ -328,6 +328,10 @@ try {
   await page.getByText("Diagrama salvo.",{exact:true}).waitFor({timeout:10000});
   assert.equal(diagramSaves,1);
   assert.equal(diagrams.length,1);
+  const savedDiagram=page.getByRole("button",{name:"Diagrama salvo"});
+  await savedDiagram.waitFor();
+  assert.equal(await savedDiagram.isDisabled(),true,
+    "Saving the same diagram twice without changes must be blocked");
   assert.equal(task.status,"em_teste","Generating/saving a diagram never approves a TF");
 
   // A user may paste broken Mermaid into the editor. Such code MUST NOT be

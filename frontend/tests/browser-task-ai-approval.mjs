@@ -84,6 +84,10 @@ try{
   const proposal=modal.getByRole("region",{name:"Revisão da regeração por IA"});
   await proposal.waitFor({timeout:20000});
   assert.equal(aiCalls,1);
+  await proposal.getByRole("button",{name:"Voltar à configuração"}).click();
+  await modal.getByRole("button",{name:"Voltar às sugestões anteriores"}).click();
+  await proposal.waitFor();
+  assert.equal(aiCalls,1,"Returning to a preserved proposal must not call the API again");
   assert.equal(writes,0,"AI must not mutate DB before explicit approval");
   assert.match(await stepper.locator(".is-current").innerText(),/Revisar/);
   assert.equal(await modal.locator('input[name="titulo"]').count(),0,
