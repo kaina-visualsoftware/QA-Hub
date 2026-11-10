@@ -57,8 +57,8 @@ async function fetchComparisons(taskId: string) {
 }
 
 export default function LinksPanel({
-  task, userId, onClose
-}: { task: Task; userId: string; onClose?: () => void }) {
+  task, userId, onClose, readOnly=false
+}: { task: Task; userId: string; onClose?: () => void; readOnly?:boolean }) {
   const own = task.user_id === userId;
   const client = useQueryClient();
   const [tab, setTab] = useState<"releases" | "references" | "comparisons">("releases");
@@ -145,7 +145,7 @@ export default function LinksPanel({
         })}
       </div>
       {tab === "releases" && <div className="stack mt-5" role="tabpanel">
-        <form className="generator-context stack" onSubmit={(event) => {
+        {!readOnly&&<form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault(); void saveRelease.mutateAsync();
         }}>
           <h3 className="font-semibold">Vincular release</h3>
@@ -159,8 +159,8 @@ export default function LinksPanel({
           <div className="mt-3"><Button type="submit" isDisabled={saveRelease.isPending || !version.trim()}>
             <Save size={16}/> Vincular release
           </Button></div>
-        </form>
-        <ReleaseOrganizer task={task} version={version} />
+        </form>}
+        {!readOnly&&<ReleaseOrganizer task={task} version={version} />}
         <h3 className="font-semibold">Releases vinculadas</h3>
         {releases.isPending && <p role="status">Carregando releases…</p>}
         {releases.isError && <p role="alert" className="notice error">{releases.error.message}</p>}
@@ -174,7 +174,7 @@ export default function LinksPanel({
         </article>)}
       </div>}
       {tab === "references" && <div className="stack mt-5" role="tabpanel">
-        <form className="generator-context stack" onSubmit={(event) => {
+        {!readOnly&&<form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault(); void saveReference.mutateAsync();
         }}>
           <h3 className="font-semibold">Criar referência privada</h3>
@@ -197,7 +197,7 @@ export default function LinksPanel({
             title.trim().length < 3 || content.trim().length < 3}>
             <Save size={16}/> Salvar referência
           </Button></div>
-        </form>
+        </form>}
         <h3 className="font-semibold mt-3">Referências da conta</h3>
         {references.isPending && <p role="status">Carregando referências…</p>}
         {references.isError && <p role="alert" className="notice error">{references.error.message}</p>}
@@ -210,16 +210,16 @@ export default function LinksPanel({
               <Button variant="secondary" size="sm"
                 onPress={() => void navigator.clipboard.writeText(item.conteudo)}>
                 <Clipboard size={14}/> Copiar</Button>
-              <Button variant="secondary" size="sm" isDisabled={deleting === item.id}
-                onPress={() => void removeReference(item)}>Excluir</Button>
+              {!readOnly&&<Button variant="secondary" size="sm" isDisabled={deleting === item.id}
+                onPress={() => void removeReference(item)}>Excluir</Button>}
             </div>
           </div>
           <p className="text-sm mt-3">{item.conteudo}</p>
         </article>)}
       </div>}
       {tab === "comparisons" && <div className="stack mt-5" role="tabpanel">
-        <ComparisonTool task={task} userId={userId} />
-        <div className="divider mt-4" />
+        {!readOnly&&<ComparisonTool task={task} userId={userId} />}
+        {!readOnly&&<div className="divider mt-4" />}
         <p className="text-muted text-sm">
           Somente os contadores de comparações são persistidos. Textos e XML originais
           permanecem fora da base de dados e desta tela.
