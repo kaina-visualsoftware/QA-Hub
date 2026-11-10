@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { ArrowLeft, Check, CircleHelp, ExternalLink, FilePenLine, ListChecks, Plus, Settings2, Share2, Rows3, ScanEye, BookCopy, Sparkles, Trash2, FileText, FileChartColumnIncreasing, GitBranchPlus, History } from "lucide-react";
 import GuidedExecution from "../features/executions/GuidedExecution";
 import {
@@ -25,6 +25,7 @@ import {
   scenarioDraftSchema, taskDraftSchema, scenarioStatusLabels, taskStatusLabels, taskStatuses, progressOf
 } from "../lib/contracts";
 import type { Scenario, ScenarioDraft, TaskDraft, ExecutionResult } from "../lib/contracts";
+import { formatTaskVersionInput, normalizeTaskVersion } from "../lib/task-version";
 import { useFocus } from "../stores/focus";
 import { publicSharingEnabled, updatePublication } from "../features/public/public-data";
 import {
@@ -589,7 +590,19 @@ export default function TaskPage() {
           <label className="field">Tipo<select {...taskForm.register("tipo_teste")}><option>BUILD</option><option>RELEASE</option></select></label>
           <label className="field">Código<input {...taskForm.register("codigo")} /></label>
           <label className="field">Módulo<input {...taskForm.register("sistema")} /></label>
-          <label className="field">Versão<input {...taskForm.register("versao")} /></label>
+          <label className="field">Versão
+            <Controller control={taskForm.control} name="versao" render={({field})=>
+              <input {...field} value={field.value||""} inputMode="numeric"
+                maxLength={13} placeholder="00.00.00.0000"
+                onChange={event=>field.onChange(formatTaskVersionInput(event.target.value))}
+                onBlur={event=>{
+                  field.onChange(normalizeTaskVersion(event.target.value));
+                  field.onBlur();
+                }}/>
+            }/>
+            {taskForm.formState.errors.versao&&
+              <small className="text-error">{taskForm.formState.errors.versao.message}</small>}
+          </label>
         </div>
         <label className="field">Descrição<textarea rows={5} {...taskForm.register("descricao")} /></label>
         <details className="qa-task-ai-regenerate">
