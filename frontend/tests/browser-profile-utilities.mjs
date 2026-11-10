@@ -256,10 +256,20 @@ try{
   await page.getByText("Referência excluída.").waitFor();
   assert.equal(referenceRows.length,0);
   await toolbox.getByRole("tab",{name:/Releases/}).click();
-  await page.getByRole("textbox",{name:"Versão da release"}).fill("12.10.06.0000");
+  const releaseVersion=page.getByRole("textbox",{name:"Versão da release"});
+  await releaseVersion.fill("1210160003");
+  assert.equal(await releaseVersion.inputValue(),"12.10.16.0003",
+    "Release version must insert separators as the user types");
+  await releaseVersion.fill("12.10.16.3");
+  await releaseVersion.blur();
+  assert.equal(await releaseVersion.inputValue(),"12.10.16.0003",
+    "Release version must pad the build segment when focus leaves the field");
   await page.getByRole("textbox",{name:"Lista autorizada de tarefas"}).fill("Status 12\n#67866 — BUG — Desconto");
   await page.getByRole("button",{name:"Organizar lista"}).click();
   await page.getByRole("region",{name:"Lista organizada"}).waitFor();
+  assert.match(await page.getByRole("textbox",{name:"Lista organizada (somente leitura)"}).inputValue(),
+    /Tarefas da Release 12\.10\.16\.0003/,
+    "The generated list must use the normalized version");
 
   await page.goto(ROOT);
   await page.getByRole("button",{name:"Nova TF"}).click();
