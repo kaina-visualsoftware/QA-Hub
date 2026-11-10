@@ -47,7 +47,7 @@ const DocumentLibrary = lazy(() => import("../features/documents/DocumentLibrary
 const GeneratorPanel = lazy(() => import("../features/generators/GeneratorPanel"));
 const DocumentsPanel = lazy(() => import("../features/documents/DocumentsPanel"));
 const RequirementsPanel = lazy(() => import("../features/requirements/RequirementsPanel"));
-const EvidencePanel = lazy(() => import("../features/evidence/EvidencePanel"));
+const TaskFilesWorkspace = lazy(() => import("../features/tasks/TaskFilesWorkspace"));
 const LinksPanel = lazy(() => import("../features/links/LinksPanel"));
 const ExecutionHistoryPanel = lazy(() => import("../features/history/ExecutionHistoryPanel"));
 const TaskCollaborationPanel = lazy(() => import("../features/collaboration/TaskCollaborationPanel"));
@@ -949,7 +949,7 @@ export default function TaskPage() {
           hidden={resourceView!=="files"} className="qa-task-resource-panel">
           {resourceView==="files"&&<Suspense fallback={
             <p role="status" className="notice">Carregando arquivos e evidências…</p>}>
-            <EvidencePanel key={task.id} task={task} userId={userId}
+            <TaskFilesWorkspace key={task.id} task={task} userId={userId}
               scenarios={scenarios.data??[]}
               prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
           </Suspense>}
