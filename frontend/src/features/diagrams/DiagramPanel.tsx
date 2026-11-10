@@ -33,9 +33,8 @@ export default function DiagramPanel({ task, scenarios, userId, focusAi = false,
   useEffect(() => {
     if (!focusAi) return;
     const frame=requestAnimationFrame(() => {
-      const heading=document.getElementById("diagram-ai-heading");
-      heading?.scrollIntoView({behavior:"auto",block:"start"});
-      heading?.focus({preventScroll:true});
+      // Focus the heading without scrolling the step navigator out of view.
+      document.getElementById("diagram-ai-heading")?.focus({preventScroll:true});
     });
     return () => cancelAnimationFrame(frame);
   },[focusAi]);

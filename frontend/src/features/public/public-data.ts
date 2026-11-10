@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { normalizeTaskVersion } from "../../lib/task-version";
-import { supabase } from "../../lib/supabase";
+import { supabase, supabaseUrl } from "../../lib/supabase";
 
 // Fail closed on new publications until the database-side public projection
 // and RLS lockdown have been homologated. This is a rollout guard, NOT RLS.
@@ -31,6 +31,10 @@ export const publicScenarioSchema = z.object({
   obtido: z.string().nullish(), observacoes: z.string().nullish(),
   status: z.string().nullish()
 });
+export const publicEvidenceSchema = z.object({
+  id:uuid,cenario_id:uuid,nome_original:z.string(),
+  descricao:z.string(),mime_type:z.enum(["image/png","image/jpeg","image/webp"])
+});
 export const publicDiagramSchema = z.object({
   id: uuid, titulo: z.string(), conteudo: z.string()
 });
@@ -38,6 +42,15 @@ export type PublicTaskCard = z.infer<typeof publicTaskCardSchema>;
 export type PublicTaskDetail = z.infer<typeof publicTaskDetailSchema>;
 export type PublicScenario = z.infer<typeof publicScenarioSchema>;
 export type PublicDiagram = z.infer<typeof publicDiagramSchema>;
+export type PublicEvidence = z.infer<typeof publicEvidenceSchema>;
+
+export function publicEvidenceImageUrl(fileId:string):string {
+  uuid.parse(fileId);
+  const base=supabaseUrl;
+  if(!/^https:\/\/[a-z0-9.-]+\.supabase\.co\/?$/i.test(base))
+    throw Error("Servidor de imagens públicas indisponível.");
+  return base.replace(/\/$/,"")+"/functions/v1/qa-public-evidence?file="+fileId;
+}
 
 export const PUBLIC_TASK_COLUMNS =
   "id,titulo,codigo,tipo_teste,sistema,versao,executado_em";
@@ -61,7 +74,8 @@ export async function loadPublishedTask(taskId: string) {
   return z.object({
     task: publicTaskDetailSchema,
     scenarios: z.array(publicScenarioSchema),
-    diagrams: z.array(publicDiagramSchema)
+    diagrams: z.array(publicDiagramSchema),
+    evidencias:z.array(publicEvidenceSchema).default([])
   }).parse(data);
 }
 export async function updatePublication(taskId: string, userId: string, publish: boolean) {

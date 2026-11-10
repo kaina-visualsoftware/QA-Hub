@@ -33,7 +33,7 @@ describe("F3: anexos privados e RLS defensiva no cliente",()=>{
     const record={
       id,tarefa_id:taskId,cenario_id:scenarioId, user_id:userId,objeto_path:path,
       mime_type:"image/png",nome_original:"evidencia.png",tamanho_bytes:12,
-      descricao:"",created_at:"2026-11-08T00:00:00Z"
+      descricao:"",created_at:"2026-11-08T00:00:00Z",publica:false
     };
     expect(()=>assertOwnEvidenceFile(record,userId,taskId)).not.toThrow();
     expect(()=>assertOwnEvidenceFile(record,userId,"55555555-5555-4555-8555-555555555555"))
@@ -92,7 +92,7 @@ describe("F3: anexos privados e RLS defensiva no cliente",()=>{
       objeto_path:"44444444-4444-4444-8444-444444444444/other.pdf",
       mime_type:"application/pdf",
       tamanho_bytes:300,nome_original:"outro.pdf",
-      descricao:"",created_at:"2026-11-08T00:00:00Z"
+      descricao:"",created_at:"2026-11-08T00:00:00Z",publica:false
     } as EvidenceFile;
     await expect(readPrivateEvidence({} as SupabaseClient,record,userId,taskId))
       .rejects.toThrow("caminho inválido");

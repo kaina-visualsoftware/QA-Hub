@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { ArrowLeft, ArrowRight, Check, ClipboardList, FilePlus2, ListCheck, RotateCcw, X } from "lucide-react";
-import type { ExecutionResult, Scenario } from "../../lib/contracts";
+import type { ExecutionResult, Scenario, Task } from "../../lib/contracts";
+import { ScenarioEvidenceToggle } from "../evidence/ScenarioEvidencePanel";
 import { scenarioStatusLabels } from "../../lib/contracts";
 import { nextAfterSaved, orderedGuideScenarios } from "./guided-selection";
 import type { GuideScope } from "./guided-selection";
@@ -10,9 +11,9 @@ type ResultStatus = ExecutionResult["status"];
 type GuidedDraft = "reprovado" | "bloqueado" | null;
 
 export default function GuidedExecution({
-  scenarios, owner, canCreateScenario=owner, busy, onSave, onEvidence, onNewScenario
+  task, userId, scenarios, owner, canCreateScenario=owner, busy, onSave, onEvidence, onNewScenario
 }: {
-  scenarios: Scenario[];
+  task:Task;userId:string;scenarios: Scenario[];
   owner: boolean;
   canCreateScenario?:boolean;
   busy: boolean;
@@ -176,6 +177,8 @@ export default function GuidedExecution({
             <RotateCcw size={15} aria-hidden="true"/> Desfazer execução
           </button>}
         </div>
+        {owner&&<ScenarioEvidenceToggle key={current.id}
+          task={task} userId={userId} scenario={current}/>}
         <div className="qa-guided-navigation">
           <button type="button" disabled={busy||position<=0}
             onClick={()=>move(-1)}><ArrowLeft size={16} aria-hidden="true"/> Anterior</button>

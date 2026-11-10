@@ -312,7 +312,7 @@ try{
     return button && !button.disabled;
   },null,{timeout:25000});
   assert.match(aiPayloads.at(-1).requisito,/Seja conciso/i);
-  const postEditor=page.getByRole("textbox",{name:/Post formatado/});
+  const postEditor=page.getByRole("textbox",{name:/Post em (Markdown|BBCode)/});
   const originalPost=await postEditor.inputValue();
   await postEditor.fill("Rascunho revisto pelo usuário");
   assert.equal(await postEditor.inputValue(),"Rascunho revisto pelo usuário");
