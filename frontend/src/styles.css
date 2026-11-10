@@ -2392,3 +2392,26 @@
   .qa-task-area-actions{grid-template-columns:minmax(0,1fr)}
   .qa-task-tabs-workspace .qa-task-tab{font-size:.64rem}
 }
+
+
+/* Unified task files: original requirement sources and execution evidence. */
+.qa-task-files-workspace{display:grid;gap:16px;min-width:0}
+.qa-task-resource-group{
+  display:grid;gap:15px;padding:18px 20px;
+  background:#fff;border:1px solid #dfe9ea;border-radius:14px;min-width:0
+}
+.qa-task-resource-group-heading{
+  display:flex;align-items:flex-start;gap:10px;padding-bottom:13px;
+  border-bottom:1px solid #e4eded;min-width:0
+}
+.qa-task-resource-group-heading>svg{flex:0 0 19px;color:#247b78;margin-top:2px}
+.qa-task-resource-group-heading>div{min-width:0}
+.qa-task-resource-group-heading h3{
+  color:#1e4652;font-size:.98rem;line-height:1.35;font-weight:780
+}
+.qa-task-resource-group-heading p{
+  color:#55737a;font-size:.78rem;line-height:1.55;margin-top:5px
+}
+.qa-task-resource-group>.qa-evidence-workspace{padding:0;border:0;box-shadow:none}
+.qa-task-resource-group>.qa-evidence-workspace>.requirements-tabs{margin-top:0}
+@media(max-width:700px){.qa-task-resource-group{padding:14px;gap:12px}}
