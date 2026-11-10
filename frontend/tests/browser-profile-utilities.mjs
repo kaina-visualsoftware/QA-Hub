@@ -118,6 +118,11 @@ try{
     await page.screenshot({path:"artifacts/profile-utilities/profile-"+width+".png"});
     await page.goto(ROOT+"#/ferramentas");
     await page.getByRole("heading",{name:"Ferramentas",exact:true}).waitFor({timeout:15000});
+    const toolTabs=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
+    assert.equal(await toolTabs.getByRole("tab").count(),3,
+      "Tools should have three distinct workspaces, not duplicate text and XML entries");
+    assert.equal(await page.getByRole("tabpanel",{name:/Releases/}).isVisible(),true);
+    assert.equal(await page.getByRole("tabpanel",{name:/Comparações/}).isVisible(),false);
     const toolsOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     assert.ok(toolsOverflow<=1,"Tools overflow at "+width+": "+toolsOverflow);
     await audit("tools",width);
@@ -151,29 +156,37 @@ try{
   assert.equal(profileSaves,2);
 
   await page.goto(ROOT+"#/ferramentas");
-  await page.getByRole("button",{name:"Comparar textos"}).click();
+  const toolbox=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
+  await toolbox.getByRole("tab",{name:/Comparações/}).click();
   await page.getByRole("textbox",{name:"Texto A (original)"}).fill("Primeiro\nSegundo");
   await page.getByRole("textbox",{name:"Texto B (novo)"}).fill("Primeiro\nTerceiro");
   await page.getByRole("button",{name:"Comparar textos",exact:true}).last().click();
   await page.getByRole("region",{name:"Diferenças encontradas"}).waitFor();
-  await page.getByRole("button",{name:"Comparar XML"}).first().click();
+  await page.getByRole("group",{name:"Formato da comparação"})
+    .getByRole("button",{name:"XML por estrutura"}).click();
   await page.getByRole("textbox",{name:"XML A (original)"}).fill("<r><n>1</n></r>");
   await page.getByRole("textbox",{name:"XML B (novo)"}).fill("<r><n>2</n></r>");
   await page.getByRole("button",{name:"Comparar XML",exact:true}).last().click();
   await page.getByRole("region",{name:"Diferenças encontradas"}).waitFor();
-  await page.getByRole("button",{name:"Informações"}).click();
+  await toolbox.getByRole("tab",{name:/Informações/}).click();
   await page.getByRole("heading",{name:"Informações importantes"}).waitFor();
-  await page.getByRole("textbox",{name:"Título"}).fill("Regra de descontos");
-  await page.getByRole("textbox",{name:"Conteúdo"}).fill("Verificar cálculo após remoção de desconto");
-  await page.getByRole("button",{name:"Salvar referência"}).click();
-  await page.getByText("Referência privada salva.").waitFor();
+  assert.equal(await page.getByRole("textbox",{name:"Título"}).count(),0,
+    "The reference editor must not be shown inline in the browsing workspace");
+  await page.getByRole("button",{name:"Nova informação"}).click();
+  const noteModal=page.getByRole("dialog",{name:"Nova informação"});
+  await noteModal.waitFor();
+  await noteModal.getByRole("textbox",{name:"Título"}).fill("Regra de descontos");
+  await noteModal.getByRole("textbox",{name:"Conteúdo"}).fill("Verificar cálculo após remoção de desconto");
+  await noteModal.getByRole("button",{name:"Salvar referência"}).click();
+  await noteModal.waitFor({state:"detached"});
+  await page.getByText("Informação privada salva na biblioteca.").waitFor();
   await page.getByRole("searchbox",{name:"Pesquisar registros"}).fill("Regra de descontos");
   await page.getByText("Verificar cálculo após remoção de desconto").waitFor();
   page.once("dialog",dialog=>void dialog.accept());
   await page.getByRole("button",{name:"Excluir"}).click();
   await page.getByText("Referência excluída.").waitFor();
   assert.equal(referenceRows.length,0);
-  await page.getByRole("button",{name:"Releases"}).click();
+  await toolbox.getByRole("tab",{name:/Releases/}).click();
   await page.getByRole("textbox",{name:"Versão da release"}).fill("12.10.06.0000");
   await page.getByRole("textbox",{name:"Lista autorizada de tarefas"}).fill("Status 12\n#67866 — BUG — Desconto");
   await page.getByRole("button",{name:"Organizar lista"}).click();
