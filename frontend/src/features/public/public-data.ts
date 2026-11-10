@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeTaskVersion } from "../../lib/task-version";
 import { supabase } from "../../lib/supabase";
 
 // Fail closed on new publications until the database-side public projection
@@ -12,7 +13,7 @@ export const publicTaskCardSchema = z.object({
   codigo: z.string().nullish(),
   tipo_teste: z.string(),
   sistema: z.string().nullish(),
-  versao: z.string().nullish(),
+  versao: z.string().nullish().transform(value => value == null ? value : normalizeTaskVersion(value)),
   executado_em: z.string().nullish()
 });
 export const publicTaskDetailSchema = publicTaskCardSchema.extend({
