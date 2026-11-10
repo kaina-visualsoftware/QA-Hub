@@ -61,17 +61,17 @@ export default function CoverageView({
     finally { setSaving(false); }
   }
   return <div className="stack">
-    <div className="generator-stats">
+    {!readOnly&&<div className="generator-stats">
       <span><strong>{summary.totals.total}</strong> aprovados</span>
       <span><strong>{summary.totals.linked}</strong> cobertos · {summary.totals.coveragePercent}%</span>
       <span><strong>{summary.totals.validated}</strong> validados · {summary.totals.validationPercent}%</span>
       <span><strong>{summary.totals.unlinked}</strong> sem cenários</span>
       <span><strong>{summary.totals.failed}</strong> com falha</span>
-    </div>
-    <p className="text-muted text-sm">
+    </div>}
+    {!readOnly&&<p className="text-muted text-sm">
       Cobertura significa que há cenários vinculados. Um requisito somente fica validado
       quando todos os cenários vinculados foram realmente aprovados.
-    </p>
+    </p>}
     {loading && <p role="status" className="notice">Carregando vínculos privados…</p>}
     <ToastNotice message={error} tone="error"/>
     {!loading && !error && <>
