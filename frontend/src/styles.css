@@ -3156,3 +3156,25 @@
   .qa-wizard-ai-review{padding:13px}
   .qa-wizard-ai-review button{width:100%;justify-content:center}
 }
+
+
+/* Keep task and requirement attachments readable even at 320px.
+ * The former flex:1 basis collapsed filenames to 0px beside the help text. */
+.qa-wizard-attachment-line{
+  display:grid!important;grid-template-columns:minmax(0,1fr);
+  align-items:start;justify-items:stretch;gap:7px
+}
+.qa-wizard-attachment-line>.qa-wizard-attachments{
+  display:flex;flex-direction:column;flex:none!important;
+  width:100%;min-width:0;max-width:100%
+}
+.qa-wizard-attachment-line>.qa-wizard-attachments .qa-wizard-file-list{
+  display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0
+}
+.qa-wizard-attachment-line>.qa-wizard-attachments .qa-wizard-file{
+  width:100%;max-width:100%;min-width:0
+}
+.qa-wizard-attachment-line>.qa-wizard-attachments .qa-wizard-file>div{
+  flex:1 1 auto;min-width:0;max-width:100%
+}
+.qa-wizard-attachment-line>p{margin:0}
