@@ -127,6 +127,14 @@ try{
     assert.ok(toolsOverflow<=1,"Tools overflow at "+width+": "+toolsOverflow);
     await audit("tools",width);
     await page.screenshot({path:"artifacts/profile-utilities/tools-"+width+".png"});
+    for(const [id,label] of [["comparison","Comparações"],["notes","Informações"]]){
+      await toolTabs.getByRole("tab",{name:new RegExp(label)}).click();
+      await page.getByRole("tabpanel",{name:new RegExp(label)}).waitFor();
+      const over=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+      assert.ok(over<=1,"Tools "+id+" overflow at "+width+": "+over);
+      await audit("tools-"+id,width);
+      await page.screenshot({path:"artifacts/profile-utilities/tools-"+id+"-"+width+".png"});
+    }
     await page.goto(ROOT+"#/painel");
     await page.getByRole("heading",{name:"Visão geral",exact:true}).waitFor({timeout:15000});
     await page.getByText("Revisão de descontos").waitFor({timeout:12000});
@@ -158,6 +166,12 @@ try{
   await page.goto(ROOT+"#/ferramentas");
   const toolbox=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
   await toolbox.getByRole("tab",{name:/Comparações/}).click();
+  await toolbox.getByRole("tab",{name:/Comparações/}).focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await toolbox.getByRole("tab",{name:/Informações/}).getAttribute("aria-selected"),"true");
+  await page.keyboard.press("Home");
+  assert.equal(await toolbox.getByRole("tab",{name:/Releases/}).getAttribute("aria-selected"),"true");
+  await toolbox.getByRole("tab",{name:/Comparações/}).click();
   await page.getByRole("textbox",{name:"Texto A (original)"}).fill("Primeiro\nSegundo");
   await page.getByRole("textbox",{name:"Texto B (novo)"}).fill("Primeiro\nTerceiro");
   await page.getByRole("button",{name:"Comparar textos",exact:true}).last().click();
@@ -168,6 +182,14 @@ try{
   await page.getByRole("textbox",{name:"XML B (novo)"}).fill("<r><n>2</n></r>");
   await page.getByRole("button",{name:"Comparar XML",exact:true}).last().click();
   await page.getByRole("region",{name:"Diferenças encontradas"}).waitFor();
+  await toolbox.getByRole("tab",{name:/Releases/}).click();
+  await toolbox.getByRole("tab",{name:/Comparações/}).click();
+  assert.equal(await page.getByRole("textbox",{name:"XML A (original)"}).inputValue(),
+    "<r><n>1</n></r>","Switching tools must preserve the XML draft");
+  await page.getByRole("group",{name:"Formato da comparação"})
+    .getByRole("button",{name:"Texto linha a linha"}).click();
+  assert.equal(await page.getByRole("textbox",{name:"Texto A (original)"}).inputValue(),
+    "Primeiro\\nSegundo".replaceAll("\\\\n","\\n"),"Text draft survives switching modes");
   await toolbox.getByRole("tab",{name:/Informações/}).click();
   await page.getByRole("heading",{name:"Informações importantes"}).waitFor();
   assert.equal(await page.getByRole("textbox",{name:"Título"}).count(),0,
