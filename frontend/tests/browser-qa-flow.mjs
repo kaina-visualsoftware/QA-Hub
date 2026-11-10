@@ -231,14 +231,11 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await page.getByText("Validação de descontos",{exact:true}).click();
   await page.getByRole("heading",{name:"Validação de descontos"}).waitFor({timeout:20000});
-  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Gerar casos com IA"}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
+  await page.getByRole("button",{name:"Gerar casos"}).click();
   await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
-  const studio=page.getByRole("navigation",{name:"Ferramentas da central de IA"});
-  assert.equal(await studio.getByRole("button",{name:"Casos"}).count(),1);
-  assert.equal(await studio.getByRole("button",{name:"Post"}).count(),1);
-  assert.equal(await studio.getByRole("button",{name:"Diagrama"}).count(),1);
+  assert.equal(await page.getByRole("navigation",{name:"Ferramentas da central de IA"}).count(),0,
+    "Test-generation dialog must not duplicate other AI tools");
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("regressao");
   const generate=page.getByRole("button",{name:"Gerar casos",exact:true});
   assert.equal(await generate.isDisabled(),true);
@@ -262,11 +259,8 @@ try{
   await caseReview.getByText("Editar cenário").click();
   const caseTitle=caseReview.getByRole("textbox",{name:"Título"});
   await caseTitle.fill("Versão revisada manualmente");
-  await studio.getByRole("button",{name:"Post"}).click();
-  await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
-  await studio.getByRole("button",{name:"Casos"}).click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
-    "Trocar o tipo de IA não pode descartar um rascunho de casos.");
+    "Edited scenarios must remain intact until the user saves or discards them.");
   page.once("dialog",dialog=>void dialog.dismiss());
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   assert.equal(aiCalls,1,"Cancelar regeneração não envia outro pedido.");
@@ -292,8 +286,9 @@ try{
     "Newly saved cases must disappear from the review");
   // One focused tool at a time: close the generator before opening posts.
   await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
-  await page.getByRole("tab",{name:"Entregáveis"}).click();
-  await page.getByRole("button",{name:/^Gerar post/}).click();
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+  await page.getByRole("group",{name:"Criar relatórios e publicações"})
+    .getByRole("button",{name:"Gerar post"}).click();
   await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor();
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("objetivo");
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
@@ -311,8 +306,6 @@ try{
   const postEditor=page.getByRole("textbox",{name:/Post formatado/});
   const originalPost=await postEditor.inputValue();
   await postEditor.fill("Rascunho revisto pelo usuário");
-  await studio.getByRole("button",{name:"Casos"}).click();
-  await studio.getByRole("button",{name:"Post"}).click();
   assert.equal(await postEditor.inputValue(),"Rascunho revisto pelo usuário");
   await postEditor.fill(originalPost);
   await save.click();
@@ -320,8 +313,8 @@ try{
   assert.equal(postSaves,1);
   assert.equal(aiCalls,4);
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
-  await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
-  await page.getByRole("dialog",{name:"Requisitos e cobertura"}).waitFor();
+  await page.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+  await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
   const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
   // Lazy panel loading can make isVisible() return false before the
   // controlled native details has mounted. Wait for its summary first.
@@ -348,19 +341,16 @@ try{
   assert.equal(requirementLinks[0].cenario_id,scenarios[0].id);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
-  await page.getByRole("button",{name:"Fechar Requisitos e cobertura"}).click();
-  await page.getByRole("button",{name:/Evidências e auditoria/}).click();
-  await page.getByRole("heading",{name:"Evidências e auditoria"}).waitFor();
+  await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
+  await page.getByRole("heading",{name:"Evidências de execução"}).waitFor();
   mkdirSync("artifacts/f3-evidence",{recursive:true});
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   for(const width of [320,390,768,1366]){
     await page.setViewportSize({width,height:844});
     const widths=await page.evaluate(()=>{
-      const modal=[...document.querySelectorAll(".qa-modal")]
-        .find(element=>element.getClientRects().length>0);
-      const content=modal?.querySelector(".qa-modal-content");
+      const panel=document.getElementById("qa-task-resource-panel-files");
       return {document:document.documentElement.scrollWidth-innerWidth,
-        modal:content?content.scrollWidth-content.clientWidth:999};
+        modal:panel?panel.scrollWidth-panel.clientWidth:999};
     });
     assert.ok(widths.document<=1&&widths.modal<=1,
       "F3 evidence overflow at "+width+": "+JSON.stringify(widths));
@@ -399,8 +389,7 @@ try{
   assert.equal(evidenceRows[0].tipo,"observacao");
   await page.getByRole("tab",{name:"Auditoria"}).click();
   await page.getByText("Nenhum evento encontrado.").waitFor();
-  await page.getByRole("button",{name:"Fechar Evidências e auditoria"}).click();
-  await page.getByRole("button",{name:/Releases e referências/}).click();
+  await page.getByRole("tab",{name:"Releases e referências"}).click();
   const linkPanel=page.locator("section[aria-labelledby='links-heading']");
   await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
   await linkPanel.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
@@ -442,10 +431,8 @@ try{
   assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
-  await page.getByRole("button",{name:"Fechar Releases e referências"}).click();
-  await page.getByRole("button",{name:/Requisitos e cobertura/}).click();
-  const reqPanel=page.locator("section[aria-labelledby='requirements-heading']");
-  await reqPanel.getByRole("tab",{name:"Fontes e anexos"}).click();
+  await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
+  const reqPanel=page.locator("section[aria-labelledby='qa-task-source-files-heading']");
   const fileInput=reqPanel.locator('input[type="file"]');
   await fileInput.setInputFiles({
     name:"requisitos.pdf",mimeType:"application/pdf",
