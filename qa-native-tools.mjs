@@ -1,5 +1,6 @@
 import {organizeRelease,reviewRelease,compareTextLines,compareXmlDocuments} from './qa-release-core.mjs';
 import {linkTaskRelease,recordComparison,exactTaskCodePresent} from './qa-phase3.mjs';
+import {normalizeTaskVersion,wireTaskVersionInput} from './qa-version.mjs';
 
 const el=(tag,attrs={},text='')=>{
   const node=document.createElement(tag);
@@ -103,7 +104,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     node.append(el('p',{class:'muted'},'Organização e conferência de releases diretamente no QA Hub. A associação à TF é sempre confirmada.'));
     const fields=el('div',{class:'qa-native-grid qa-native-release-grid'});node.append(fields);
     const [verLabel,version]=field('Versão (12.10.06.0000)','input');
-    version.placeholder='12.10.06.0000';version.maxLength=40;
+    wireTaskVersionInput(version);
     const [stLabel,st]=field('Status padrão','select');
     st.add(new Option('12 — Já em build','12'));st.add(new Option('11 — Aguardando versão','11'));
     const [teamLabel,team]=field('Equipe (um nome por linha)','textarea',4);
@@ -122,16 +123,17 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     const buttons=actions(node),link=button('Associar TF em foco à release',async()=>{
       const t=getTask();
       if(!t||t.user_id!==getUserId()||!last||!exactTaskCodePresent(t.codigo,last.numbers))return;
-      if(!window.confirm('Confirmar a associação da TF #'+t.codigo+' à release '+version.value+'?'))return;
+      const completeVersion=normalizeTaskVersion(version.value);
+      if(!window.confirm('Confirmar a associação da TF #'+t.codigo+' à release '+completeVersion+'?'))return;
       try{
-        await linkTaskRelease(db,{taskId:t.id,version:version.value});
+        await linkTaskRelease(db,{taskId:t.id,version:completeVersion});
         toast('Release associada à TF.');onSaved(t.id);
       }catch(e){toast(e.message||String(e),true)}
     },'btn soft');
     let last=null;
     const organize=button('Organizar lista',()=>{
       try{
-        last=organizeRelease({version:version.value,raw:tasks.value,team:team.value,defaultStatus:st.value});
+        last=organizeRelease({version:normalizeTaskVersion(version.value),raw:tasks.value,team:team.value,defaultStatus:st.value});
         summary(results,'Lista organizada',last.text+
           (last.warnings.length?'\n\n--- Conferir ---\n'+last.warnings.join('\n'):''));
         link.disabled=!getTask()||getTask().user_id!==getUserId()||
@@ -141,7 +143,7 @@ export function createNativeTools({root,db,getTask,getUserId,toast,onSaved}){
     const review=button('Comparar comunicado',()=>{
       try{
         const r=reviewRelease({raw:tasks.value,announcement:notice.value,
-          version:version.value,compat:compat.value,signature:signature.value});
+          version:normalizeTaskVersion(version.value),compat:compat.value,signature:signature.value});
         summary(results,'Comunicado BBCode para revisão',r.bbcode+
           '\n\n--- Conferência interna ---\n'+r.report+
           (r.removed?'\n\n--- Itens removidos ---\n'+r.removed:''));
