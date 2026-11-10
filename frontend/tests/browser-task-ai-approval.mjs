@@ -17,6 +17,7 @@ const cors={"Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
   "Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"};
 let writes=0,aiCalls=0;
+const originalSource="Desconto e condição de erro. ".repeat(3800)+" FIM DO ORIGINAL";
 const errors=[];
 async function backend(route){
   const request=route.request(),url=new URL(request.url()),path=url.pathname,method=request.method();
@@ -41,14 +42,16 @@ async function backend(route){
     return send([task]);
   }
   if(path.endsWith("/rest/v1/qa_cenarios"))return send([]);
-  if(path.endsWith("/rest/v1/qa_requisito_fontes"))return send([]);
+  if(path.endsWith("/rest/v1/qa_requisito_fontes"))return send(
+    url.searchParams.get("select")==="texto_extraido"?{texto_extraido:originalSource}:
+    [{id:"33333333-3333-4333-8333-333333333333",texto_extraido:originalSource}]);
   if(path.endsWith("/rest/v1/qa_requisitos")||
     path.endsWith("/rest/v1/qa_evidencias")||
     path.endsWith("/rest/v1/qa_documentos")||
     path.endsWith("/rest/v1/qa_eventos"))return send([]);
   if(path.endsWith("/functions/v1/qa-ai")){
     aiCalls++;
-    assert.ok(request.postDataJSON().text.includes("Desconto"));
+    assert.equal(request.postDataJSON().text,originalSource,"Long archived source must reach the AI without truncation");
     return send({provider:"NVIDIA Build",draft:{
       titulo:"Título sugerido pela NVIDIA",
       descricao:"Resumo da correção sugerido pela IA.",

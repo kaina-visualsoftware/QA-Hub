@@ -196,6 +196,14 @@ try {
       });
       assert.ok(layout.page<=1&&layout.content<=1,
         "AI "+mode+" overflows at "+width+": "+JSON.stringify(layout));
+      if(mode==="Post"){
+        const widths=await page.locator(".qa-post-workspace").evaluate(workspace=>({
+          available:workspace.getBoundingClientRect().width,
+          form:workspace.querySelector(".qa-post-configuration")?.getBoundingClientRect().width
+        }));
+        assert.ok(Math.abs(widths.available-widths.form)<=2,
+          "Post configuration must fill the workspace without an empty preview column: "+JSON.stringify(widths));
+      }
       if(width===320||width===390||width===1366){
         const audit=await page.evaluate(async()=>window.axe.run(document,{
           runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]},
@@ -266,8 +274,9 @@ try {
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   const diagramModal=page.locator(".qa-modal-surface-diagram");
   await diagramModal.waitFor();
-  assert.equal(await diagramModal.locator(".qa-diagram-stage-track li").count(),3,
-    "Full-TF diagram creation must show context, summary and generation stages");
+  assert.equal(await diagramModal.getByRole("group",{name:"Origem do fluxograma",exact:true}).count(),1);
+  assert.equal(await diagramModal.getByRole("heading",{name:"Contexto da TF",exact:true}).count(),1,
+    "Settings and task context must have distinct, labelled regions");
   assert.equal(await diagramModal.getByRole("button",{name:"Resumir TF com IA"}).count(),1);
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
@@ -280,7 +289,7 @@ try {
         .find(element=>element.getClientRects().length>0);
       const content=modal?.querySelector(".qa-modal-content");
       const primary=[...modal?.querySelectorAll("button")??[]]
-        .find(element=>element.textContent?.includes("Gerar diagrama"));
+        .find(element=>element.textContent?.includes("Resumir TF com IA"));
       return {
         documentOverflow:document.documentElement.scrollWidth-innerWidth,
         modalOverflow:content?content.scrollWidth-content.clientWidth:999,

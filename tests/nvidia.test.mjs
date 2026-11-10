@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {extractWithNvidia,NVIDIA_MAX_INPUT} from '../qa-nvidia.mjs';
+import {extractWithNvidia} from '../qa-nvidia.mjs';
 
 test('NVIDIA extraction accepts structured output but keeps extracted scenarios unexecuted',async()=>{
  let called=0;
@@ -32,9 +32,7 @@ test('NVIDIA errors are shown without leaking credentials',async()=>{
 });
 
 test('Reject empty, oversized and unavailable client payloads',async()=>{
- assert.equal(NVIDIA_MAX_INPUT,20000);
  await assert.rejects(extractWithNvidia('',{}),/Cole o texto/);
- await assert.rejects(extractWithNvidia('x'.repeat(NVIDIA_MAX_INPUT+1),{}),/20.000/);
  await assert.rejects(extractWithNvidia('um relatório',{}),/indisponível/);
 });
 
@@ -63,4 +61,10 @@ test('NVIDIA AI uses a global rolling 15/minute limit without daily quota',()=>{
  assert.match(code,/retry_after_seconds/);
  assert.match(code,/Não há limite diário no QA Hub/);
  assert.doesNotMatch(code,/qa_ai_claim_request"/);
+});
+
+test('accepts long TF input without truncating the request',async()=>{
+ const text='Relatório de QA. '.repeat(6000)+' FIM DO CONTEXTO';
+ const db={functions:{async invoke(_,{body}){assert.equal(body.text,text);return {data:{draft:{titulo:'Análise completa',descricao:'Descrição'},model:'NVIDIA Build'},error:null};}}};
+ const result=await extractWithNvidia(text,db);assert.equal(result.fallback,false);
 });

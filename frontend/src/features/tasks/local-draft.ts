@@ -5,7 +5,7 @@ import type { TaskDraft } from "../../lib/contracts";
 // Browser persistence is explicit opt-in, tab-scoped, and never localStorage.
 const draftFieldsSchema = z.object({
   titulo: z.string().max(240),
-  descricao: z.string().max(30000),
+  descricao: z.string(),
   tipo_teste: z.enum(["BUILD", "RELEASE"]),
   codigo: z.string().max(100),
   sistema: z.string().max(160),

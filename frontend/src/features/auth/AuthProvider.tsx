@@ -1,3 +1,4 @@
+import {BrandLogo} from "../../components/ui/BrandLogo";
 import {
   createContext, useContext, useEffect, useMemo, useRef, useState
 } from "react";
@@ -147,7 +148,7 @@ export function AuthScreen() {
   return <div className="auth-page">
     <div className="auth-intro">
       <span className="eyebrow">QA HUB / WORKSPACE</span>
-      <div className="logo-mark" aria-hidden="true">Q<span>.</span></div>
+      <BrandLogo large/>
       <h1>Menos formulários.<br /><span>Mais testes.</span></h1>
       <p>Uma TF em foco, cenários à mão e resultados reais registrados sem perder tempo.</p>
       <div className="auth-bottom"><ShieldCheck size={20} /> Dados protegidos pelas permissões do Supabase</div>

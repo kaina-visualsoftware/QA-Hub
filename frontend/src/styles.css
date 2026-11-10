@@ -2479,7 +2479,7 @@
 }
 .qa-post-steps li.is-current span{background:#197c79;color:#fff}
 .qa-post-workspace{
-  display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  display:grid;grid-template-columns:minmax(0,1fr);
   align-items:start;gap:17px;min-width:0
 }
 .qa-post-configuration,.qa-post-workspace .qa-generator-result{

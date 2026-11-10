@@ -1,0 +1,36 @@
+name: QA Hub documentation SQL
+on:
+  pull_request:
+    branches: [main]
+    paths: ['supabase/qa_documentacoes.sql', 'tests/sql/qa_documentacao_*.sql', '.github/workflows/qa-documentation-sql.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  documentation-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: documentation_test
+          POSTGRES_PASSWORD: ci-disposable-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d documentation_test"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ci-disposable-only
+      PGDATABASE: documentation_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate migration, repeatability and access rules
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_documentacao_fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_documentacao_post.sql

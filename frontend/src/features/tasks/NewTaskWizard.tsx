@@ -30,7 +30,6 @@ const blank = (): TaskDraft => ({
   versao: "", ambiente: "", base_teste: "", empresa: "", testador: "",
   explicacao: "", causa: "", correcao: "", conclusao: "", observacoes: ""
 });
-const TASK_LIMIT = 20000;
 const CASE_TASK_LIMIT = 30000;
 const REQUIREMENT_LIMIT = 20000;
 const MAX_FILES = 6;
@@ -242,7 +241,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     const snapshot=combine("TEXTO DA TAREFA",sourceText,taskFiles);
     try{
       assertReadable(taskFiles);
-      validateContext(snapshot,TASK_LIMIT,"O texto da tarefa e seus arquivos");
+      if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
       const response=await generateTaskAiDraft(snapshot);
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
@@ -538,7 +537,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
       <div className="qa-wizard-source-panel">
         <label className="field">Informações da tarefa
-          <textarea id="qa-wizard-source" rows={8} maxLength={30000} disabled={busy}
+          <textarea id="qa-wizard-source" rows={8} disabled={busy}
             value={sourceText} onChange={event=>alterSource(event.target.value)}
             placeholder="Cole o problema, a análise de viabilidade, a correção e demais informações da TF."/>
         </label>
@@ -548,12 +547,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </div>
       </div>
       {!!taskContextLength&&<p className="qa-wizard-size">
-        {taskContextLength.toLocaleString("pt-BR")} / {TASK_LIMIT.toLocaleString("pt-BR")} caracteres
-        para a análise da NVIDIA
-      </p>}
-      {taskContextLength>TASK_LIMIT&&<p role="alert" className="text-error text-sm">
-        O texto e os arquivos ultrapassam 20.000 caracteres. Remova ou divida os documentos
-        para analisar todo o conteúdo, sem perder partes silenciosamente.
+        {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
       </p>}
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
@@ -568,7 +562,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
         <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
-          !taskContextLength||taskContextLength>TASK_LIMIT}
+          !taskContextLength}
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}

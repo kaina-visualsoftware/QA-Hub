@@ -60,12 +60,17 @@ describe("rascunho de TF local (opt-in)", () => {
     storage.items.set(key,"{incomplete-json");
     expect(loadNewTaskDraft(A,storage,time)).toBeNull();
   });
+  it("preserva o contexto longo sem impor o antigo teto de 30 mil caracteres",()=>{
+    const storage=fakeStorage(),text="Relatório de QA. ".repeat(7000)+"FIM";
+    expect(saveNewTaskDraft(A,{...form,descricao:text},storage,time)).toBe(true);
+    expect(loadNewTaskDraft(A,storage,time)?.fields.descricao).toBe(text);
+  });
   it("falha fechado se storage ou conteúdo não estiver disponível", () => {
     const storage = fakeStorage();
     storage.setItem = () => { throw Error("quota exceeded"); };
     expect(saveNewTaskDraft(A,form,storage,time)).toBe(false);
     expect(saveNewTaskDraft("wrong-owner",form,storage,time)).toBe(false);
-    expect(saveNewTaskDraft(A,{...form,descricao:"x".repeat(30001)},fakeStorage(),time))
+    expect(saveNewTaskDraft(A,{...form,titulo:"x".repeat(241)},fakeStorage(),time))
       .toBe(false);
   });
 });

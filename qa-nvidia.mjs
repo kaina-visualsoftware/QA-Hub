@@ -1,7 +1,6 @@
-import { mergeOpenModelDraft } from './qa-ai-open.mjs';
+import { parseOpenModelJson,mergeOpenModelDraft } from './qa-ai-open.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 
-export const NVIDIA_MAX_INPUT = 20000;
 
 /**
  * Authenticated requests only: Supabase Functions automatically attaches the
@@ -9,7 +8,6 @@ export const NVIDIA_MAX_INPUT = 20000;
  */
 export async function extractWithNvidia(text, db, onStatus=()=>{}) {
   if(typeof text!=='string'||!text.trim())throw Error('Cole o texto da TF antes de usar a IA.');
-  if(text.length>NVIDIA_MAX_INPUT)throw Error('A IA online aceita até 20.000 caracteres. Reduza o relatório.');
   if(!db?.functions?.invoke)throw Error('A conexão com a IA está indisponível.');
   onStatus('Enviando o relatório para a NVIDIA Build…');
   const {data,error}=await db.functions.invoke('qa-ai',{
@@ -18,6 +16,7 @@ export async function extractWithNvidia(text, db, onStatus=()=>{}) {
   });
   const fallback=()=>{
     onStatus('A NVIDIA não retornou campos utilizáveis; organizando o texto localmente.');
+    if(text.length>30000)throw Error('A NVIDIA não retornou campos utilizáveis. Tente novamente; o texto original foi preservado.');
     return {draft:extractLocalDraft(text),model:'Extração local',fallback:true};
   };
   if(error){
@@ -32,7 +31,7 @@ export async function extractWithNvidia(text, db, onStatus=()=>{}) {
     return fallback();
   }
   try {
-    const draft=mergeOpenModelDraft(text,JSON.stringify(data.draft));
+    const draft=text.length>30000?parseOpenModelJson(JSON.stringify(data.draft)):mergeOpenModelDraft(text,JSON.stringify(data.draft));
     onStatus('Campos organizados com '+String(data.model||'NVIDIA Build')+'.');
     return {draft,model:String(data.model||'NVIDIA Build'),fallback:false};
   } catch {

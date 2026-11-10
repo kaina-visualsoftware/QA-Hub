@@ -272,8 +272,7 @@ try {
       if(route.path==="#/ferramentas"){
         const tabs=page.getByRole("tablist",{name:"Ferramentas disponíveis"});
         for(const [name,label] of [
-          ["Comparações","ferramentas-comparacao"],
-          ["Informações","ferramentas-informacoes"]
+          ["Comparações","ferramentas-comparacao"]
         ]) {
           await tabs.getByRole("tab",{name:new RegExp(name)}).click();
           await axeAudit(page,label,width);

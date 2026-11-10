@@ -1,3 +1,4 @@
+import {BrandLogo} from "../../components/ui/BrandLogo";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
@@ -95,7 +96,7 @@ export default function PublicPage() {
     </button>
     <header className="public-react-header">
       <Link to="/publicas" search={{}} className="brand">
-        <span className="brand-icon">Q.</span>
+        <BrandLogo/>
         <span><strong>QA Hub</strong><small>BIBLIOTECA PÚBLICA</small></span>
       </Link>
       <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>

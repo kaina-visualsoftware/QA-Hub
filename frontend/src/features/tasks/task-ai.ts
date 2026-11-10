@@ -127,7 +127,7 @@ const SOURCE_NAME="Fonte original da TF";
 /** Archive pasted reports in a protected task source rather than the summary. */
 export async function archiveTaskAiSource(taskId:string,userId:string,text:string):Promise<void>{
   const source=text.trim();
-  if(source.length<5||source.length>30000)throw Error("Fonte original inválida ou muito extensa.");
+  if(source.length<5)throw Error("Fonte original inválida.");
   const {data,error}=await supabase.from("qa_requisito_fontes")
     .select("id,texto_extraido").eq("tarefa_id",taskId)
     .eq("tipo_fonte","texto").eq("nome_arquivo",SOURCE_NAME)
@@ -152,8 +152,7 @@ export async function loadTaskAiSource(taskId:string):Promise<string|null>{
 
 export async function generateTaskAiDraft(text:string):Promise<LocalDraft>{
   const source=text.trim();
-  if(!source||source.length>20000)
-    throw Error("Informe uma descrição de até 20.000 caracteres para gerar com IA.");
+  if(!source)throw Error("Informe a descrição da tarefa para gerar com IA.");
   // Preserve the original report separately; do not send copied UI controls to NVIDIA.
   const relevant=cleanQaSourceText(source);
   if(!relevant||relevant.length<10)

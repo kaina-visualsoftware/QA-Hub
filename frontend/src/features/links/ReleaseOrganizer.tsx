@@ -59,7 +59,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
       setError("A cópia não está disponível. Selecione o texto manualmente.");
     }
   }
-  return <details className="generator-context" open={expanded ? true : undefined}
+  return <details className={expanded?"generator-context qa-release-expanded":"generator-context"} open={expanded ? true : undefined}
     aria-label="Organizador local de releases">
     <summary>Organizar lista e revisar comunicado de release (local)</summary>
     <div className="stack mt-4">
@@ -67,6 +67,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
         O processamento ocorre somente neste navegador, sem IA.
         {task ? " O vínculo com a TF exige confirmação separada." : " Nenhuma TF será vinculada."}
       </p>
+      <fieldset className="qa-tool-form-section"><legend>1. Preparar a lista</legend>
       <label className="field">Lista autorizada de tarefas
         <textarea rows={7} maxLength={INPUT_LIMIT} spellCheck={false}
           placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
@@ -117,6 +118,8 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
           <ClipboardCopy size={16}/> Copiar lista organizada
         </Button></div>
       </section>}
+      </fieldset>
+      <fieldset className="qa-tool-form-section"><legend>2. Revisar o comunicado</legend>
       <label className="field">Comunicado de release (opcional, para revisão)
         <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
           placeholder="Cole o comunicado e compare com a lista autorizada."
@@ -158,6 +161,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
           </Button>
         </div>
       </div>}
+      </fieldset>
       <ToastNotice message={error} tone="error"/>
       <ToastNotice message={message} tone="success"/>
     </div>
