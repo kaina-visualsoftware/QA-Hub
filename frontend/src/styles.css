@@ -1589,8 +1589,9 @@
  height:34px;border-radius:8px;background:transparent;color:#526b73}
 .qa-toast button:hover{background:#eef4f4;color:#193e4c}
 .qa-toast button:focus-visible{outline:3px solid #208b95;outline-offset:2px}
-@keyframes qa-toast-enter{from{opacity:0;transform:translateY(-8px)}
- to{opacity:1;transform:translateY(0)}}
+/* Mantenha o contraste completo desde o primeiro quadro do toast. */
+@keyframes qa-toast-enter{from{transform:translateY(-6px)}
+ to{transform:translateY(0)}}
 @media(max-width:640px){.qa-toast-viewport{top:max(14px,env(safe-area-inset-top));
  right:12px;width:calc(100vw - 24px)}}
 @media(prefers-reduced-motion:reduce){.qa-toast{animation:none}}

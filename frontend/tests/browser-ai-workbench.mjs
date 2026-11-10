@@ -119,7 +119,7 @@ try {
         setTimeout(()=>{
           controller.enqueue(event("done",{truncated:false}));
           controller.close();
-        },2100);
+        },5000);
       }});
       return Promise.resolve(new Response(stream,{
         status:200,headers:{"Content-Type":"text/event-stream"}
@@ -216,10 +216,30 @@ try {
         "Close must be disabled while the API request is active");
       assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Gerar/);
       await dialog.getByText("Recebendo a resposta",{exact:true}).waitFor({timeout:10000});
+      const telemetry=dialog.getByLabel("Medições da solicitação");
+      assert.match(await telemetry.innerText(),/Tempo decorrido\s+\d{2}:\d{2}/);
+      assert.match(await telemetry.innerText(),/Conteúdo recebido\s+\d+ caracteres/);
+      assert.equal(await dialog.locator(".qa-generation-steps li.is-current").count(),1,
+        "Only one stage can be active while the API streams.");
       await dialog.getByText("Prévia do texto recebido").waitFor();
       assert.ok((await dialog.getByLabel("Trecho recente da resposta da IA").innerText())
         .includes("Cenário 1"),"Partial SSE must be visible before completion");
       await page.screenshot({path:"artifacts/mobile-ux/cases-streaming-390.png"});
+      for(const width of [320,768,1366]){
+        await page.setViewportSize({width,height:844});
+        const visual=await page.evaluate(()=>{
+          const surface=document.querySelector(".qa-modal-surface-cases");
+          const content=surface?.querySelector(".qa-modal-content");
+          return {page:document.documentElement.scrollWidth-innerWidth,
+            modal:content?content.scrollWidth-content.clientWidth:999};
+        });
+        assert.ok(visual.page<=1&&visual.modal<=1,
+          "AI streaming visual overflow at "+width+": "+JSON.stringify(visual));
+        assert.equal(await dialog.getByText("Recebendo a resposta",{exact:true}).isVisible(),true,
+          "The streaming stage must remain readable at "+width);
+        await page.screenshot({path:"artifacts/mobile-ux/cases-streaming-"+width+".png"});
+      }
+      await page.setViewportSize({width:390,height:844});
       await dialog.getByText("Casos novos para esta TF").waitFor({timeout:12000});
       assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Revisar/);
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true);

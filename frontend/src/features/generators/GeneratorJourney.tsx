@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Check, Circle, LoaderCircle, Square } from "lucide-react";
 import { Button } from "@heroui/react";
 
@@ -53,6 +54,31 @@ export function GeneratorActivity({ phase, raw, postMode, onCancel }: {
   onCancel: () => void;
 }) {
   const status = phaseCopy[phase];
+  // O tempo informa duração observada; nunca é tratado como percentual da API.
+  const startedAt = useRef(Date.now());
+  const lastChunkAt = useRef(Date.now());
+  const lastLength = useRef(raw.length);
+  const previewRef = useRef<HTMLPreElement>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [silentFor, setSilentFor] = useState(0);
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+      setSilentFor(Math.floor((Date.now() - lastChunkAt.current) / 1000));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    if (raw.length > lastLength.current) {
+      lastChunkAt.current = Date.now();
+      setSilentFor(0);
+    }
+    lastLength.current = raw.length;
+    const preview = previewRef.current;
+    if (preview && preview.scrollHeight - preview.scrollTop - preview.clientHeight < 90)
+      preview.scrollTop = preview.scrollHeight;
+  }, [raw]);
+  const elapsedText = `${Math.floor(elapsed / 60).toString().padStart(2, "0")}:${(elapsed % 60).toString().padStart(2, "0")}`;
   return <section className="qa-generation-activity" aria-label="Andamento da geração com IA">
     <div className="qa-generation-activity-head">
       <span className="qa-generation-activity-icon" aria-hidden="true">
@@ -62,8 +88,14 @@ export function GeneratorActivity({ phase, raw, postMode, onCancel }: {
         <strong role="status" aria-live="polite" aria-atomic="true">{status.title}</strong>
         <p>{status.description}</p>
       </div>
-      <span className="qa-generation-activity-metric" aria-label={raw.length +
-        " caracteres recebidos"}>{raw.length.toLocaleString("pt-BR")} caracteres</span>
+    </div>
+    <div className="qa-generation-telemetry" aria-label="Medições da solicitação">
+      <span>Tempo decorrido <strong>{elapsedText}</strong></span>
+      <span>Conteúdo recebido <strong>{raw.length.toLocaleString("pt-BR")} caracteres</strong></span>
+      {phase === "receiving" && raw.length > 0 && silentFor >= 8 &&
+        <span className="qa-generation-slow" role="status">
+          Sem novos trechos há {silentFor} s. A solicitação continua ativa.
+        </span>}
     </div>
     <div className="qa-generation-indeterminate" aria-hidden="true"><span/></div>
     <ol className="qa-generation-events" aria-label="Estados do processamento">
@@ -81,17 +113,19 @@ export function GeneratorActivity({ phase, raw, postMode, onCancel }: {
             ? <LoaderCircle size={14} className="qa-ai-spinner"/> : <Circle size={12}/>}
         </span>
         <span>{item.label}</span>
-        {index === 2 && raw.length > 0 && <small>{raw.length.toLocaleString("pt-BR")} caracteres</small>}
+        {index === 2 && raw.length > 0 && <small>Resposta parcial</small>}
       </li>)}
     </ol>
     {raw.length ? <details className="qa-generation-live-text" open>
       <summary>Prévia do texto recebido</summary>
-      <pre aria-label="Trecho recente da resposta da IA" aria-live="off">{
+      <pre ref={previewRef} aria-label="Trecho recente da resposta da IA" aria-live="off">{
         raw.slice(-1800)
       }</pre>
       <p>Prévia parcial; os casos serão apresentados para revisão quando a geração terminar.</p>
     </details> : <div className="qa-generation-awaiting">
-      <p>O conteúdo aparecerá aqui quando o serviço começar a responder.</p>
+      <p>{elapsed < 12
+        ? "Aguardando o primeiro trecho da NVIDIA. A solicitação continua ativa."
+        : "O serviço ainda não enviou texto. Você pode continuar aguardando ou cancelar esta geração."}</p>
     </div>}
     <div className="qa-generation-activity-footer">
       <span>{postMode ? "O post não será salvo automaticamente." :
