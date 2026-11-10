@@ -181,22 +181,22 @@ try{
 
   await page.goto(ROOT);
   await page.getByRole("button",{name:"Nova TF"}).click();
-  const form=page.getByRole("dialog",{name:"Nova TF"});
+  const form=page.getByRole("dialog",{name:/Nova TF — etapa/});
   await form.waitFor();
-  await form.locator("input[type=file]").setInputFiles({
+  await form.getByLabel("Adicionar arquivos da tarefa").setInputFiles({
     name:"relatorio.txt",mimeType:"text/plain",
     buffer:Buffer.from("TÍTULO: Revisar desconto\nRevisar descontos ao fechar o pedido.")
   });
-  await form.getByRole("textbox",{name:"Descrição / problema"}).waitFor();
-  await page.waitForFunction(()=>[...document.querySelectorAll("textarea")]
-    .some(node=>node.value.includes("Revisar descontos ao fechar")));
-  assert.equal(aiCalls,0,"Reading report cannot call an external AI service");
-  assert.equal(await form.getByRole("button",{name:"Gerar com IA NVIDIA"}).isDisabled(),true);
-  await form.getByRole("checkbox",{name:/Autorizo enviar este texto à NVIDIA/}).check();
-  await form.getByRole("button",{name:"Gerar com IA NVIDIA"}).click();
-  await form.getByRole("button",{name:"Aplicar campos revisados"}).waitFor({timeout:20000});
+  await form.getByText("relatorio.txt").waitFor();
+  assert.equal(aiCalls,0,"Reading files locally must not contact the AI service");
+  assert.equal(await form.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
+  await form.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+  await form.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  await form.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+  assert.equal(await form.getByRole("textbox",{name:"Título da tarefa"}).inputValue(),
+    "Revisar desconto da venda");
   assert.equal(aiCalls,1);
-  assert.equal(writes,0,"No TF should be stored before explicit save");
+  assert.equal(writes,0,"The AI may fill a preview but must not save before finalization");
   assert.deepEqual(errors,[]);
   console.log("Profile and legacy tools: navigation persisted, task grouping, local utilities, file import and online AI with consent.");
 }finally{await browser.close();}
