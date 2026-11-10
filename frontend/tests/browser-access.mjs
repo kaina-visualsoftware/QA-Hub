@@ -150,7 +150,7 @@ try{
   await normal.getByRole("button",{name:"Entrar",exact:true}).click();
   await normal.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await normal.getByRole("button",{name:"Nova TF"}).click();
-  await normal.getByLabel("Descrição / problema").fill([
+  await normal.getByLabel("Informações da tarefa").fill([
     "TF #67866",
     "TÍTULO: Atualização de descontos negativos",
     "TIPO DE TESTE: [X] BUILD [ ] RELEASE",
@@ -162,22 +162,19 @@ try{
     "- Abrir pedido 67866",
     "RESULTADO ESPERADO: O desconto deve zerar."
   ].join("\n"));
-  await normal.getByRole("button",{name:"Extrair sem IA"}).click();
-  await waitForReview(normal,"Deterministic extraction");
-  assert.equal(await normal.getByRole("checkbox",{name:/Remover desconto do pedido/}).isChecked(),false,
-    "Extração local não pode anexar cenários por padrão");
-  await normal.getByRole("button",{name:"Aplicar campos revisados"}).click();
+  assert.equal(await normal.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true,
+    "NVIDIA generation must require explicit consent to the current text");
+  await normal.getByRole("button",{name:"Continuar manualmente"}).click();
   assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),
     "Atualização de descontos negativos");
   assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
   assert.equal(await normal.getByRole("button",{name:"Analisar com IA local"}).count(),0,
     "New TF must not offer a generative local model");
   assert.equal(await normal.getByText("Assistente local avançado (opcional)").count(),0);
-  assert.equal(await normal.getByRole("button",{name:"Gerar com IA NVIDIA"}).isDisabled(),true,
-    "NVIDIA must require explicit consent to the current text");
-  await normal.getByText("Mais opções").click();
   assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"12.08.08.0000");
-  await normal.getByRole("button",{name:"Cancelar",exact:true}).click();
+  await normal.getByRole("button",{name:"Avançar"}).click();
+  assert.equal(await normal.getByRole("button",{name:"Pular e finalizar sem casos"}).count(),1,
+    "Manual extraction must not persist a TF until final confirmation");
   await normal.goto(origin+"#/admin");
   await normal.getByRole("heading",{name:"Acesso restrito"}).waitFor();
   await normal.goto(origin+"#/tarefa/"+ownTaskId);
