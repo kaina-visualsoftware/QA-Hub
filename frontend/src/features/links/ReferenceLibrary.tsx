@@ -88,7 +88,7 @@ export default function ReferenceLibrary({userId,view="all",onCreated}:{
         <textarea rows={4} maxLength={2000} value={content} onChange={event=>setContent(event.target.value)}/>
       </label>
       <div><Button type="submit" isDisabled={save.isPending||title.trim().length<3||content.trim().length<3}>
-        <Save size={16}/> Salvar referência
+        <Save size={16}/> {view==="form"?"Salvar informação":"Salvar referência"}
       </Button></div>
     </form>}
     {view!=="form"&&<>
