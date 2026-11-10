@@ -93,8 +93,8 @@ try{
  await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
  await page.goto(ROOT+"#/tarefa/"+TASK);
  await page.getByRole("heading",{name:task.titulo}).waitFor({timeout:20000});
- await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
- await page.getByRole("group",{name:"Ações rápidas da TF"})
+ await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+ await page.getByRole("group",{name:"Criar relatórios e publicações"})
    .getByRole("button",{name:"Criar diagrama"}).click();
  const dialog=page.getByRole("dialog",{name:"Criar diagrama"});
  await dialog.waitFor();
