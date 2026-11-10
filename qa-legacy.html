@@ -178,7 +178,7 @@
                   <label>Código <input name="codigo" maxlength="120" placeholder="Ex.: 67866"></label>
                   <label>Tipo de teste <select name="tipo_teste"><option>BUILD</option><option>RELEASE</option></select></label>
                   <label>Situação <select name="status"><option value="rascunho">Rascunho</option><option value="em_teste">Em teste</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option><option value="bloqueado">Bloqueado</option></select></label>
-                  <label>Versão <input name="versao" placeholder="Ex.: 12.08.08.0000"></label>
+                  <label>Versão <input name="versao" inputmode="numeric" maxlength="13" placeholder="00.00.00.0000"></label>
                   <label class="field-span">Sistema / módulo <input name="sistema" placeholder="Ex.: Vendas · Descontos"></label><label class="field-span visibility-field">Quem pode ver esta TF? <select name="publica" id="task-visibility"><option value="false">Privada — somente minha conta e administradores</option><option value="true">Pública — qualquer pessoa com o link</option></select><small id="visibility-hint">Privada por padrão. A publicação também libera os cenários e diagramas desta TF para leitura.</small></label>
                 </div>
                 <details id="task-extra-details" class="optional-details">
@@ -398,7 +398,7 @@ Critérios de aceite:
               <section class="panel qa-phase3-panel">
                 <h3>Releases associadas</h3>
                 <p class="muted fine">Associe uma release somente após confirmar que a TF faz parte dela. Nenhum número de tarefa é vinculado automaticamente.</p>
-                <div class="qa-phase3-inline"><label>Versão da release <input id="links-release-version" placeholder="12.10.06.0000" maxlength="40" inputmode="numeric"></label><button class="btn primary" type="button" id="links-release-save">Associar release</button></div>
+                <div class="qa-phase3-inline"><label>Versão da release <input id="links-release-version" placeholder="00.00.00.0000" maxlength="13" inputmode="numeric"></label><button class="btn primary" type="button" id="links-release-save">Associar release</button></div>
                 <p id="links-release-status" role="status" class="qa-phase3-feedback"></p>
                 <div id="links-release-list" class="qa-phase3-list"></div>
               </section>
