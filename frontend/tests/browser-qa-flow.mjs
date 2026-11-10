@@ -351,7 +351,9 @@ try{
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
   await requirementModal.getByRole("button",{name:"Fechar Importar requisitos"}).click();
-  await page.getByText("RF001", {exact:false}).first().waitFor();
+  await page.getByRole("tablist",{name:"Documentos e informações de apoio"})
+    .getByRole("tab",{name:"Requisitos",exact:true}).click();
+  await page.getByText(/RF-?001/).first().waitFor();
   await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
   await page.getByRole("heading",{name:"Evidências de execução"}).waitFor();
   mkdirSync("artifacts/f3-evidence",{recursive:true});
