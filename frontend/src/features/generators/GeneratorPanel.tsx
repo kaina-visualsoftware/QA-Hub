@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clipboard, FileCheck2, Send, WandSparkles, RotateCcw } from "lucide-react";
+import { Clipboard, FileCheck2, Send, WandSparkles, RotateCcw, LoaderCircle, ShieldCheck, PenLine, CheckCircle2 } from "lucide-react";
 import {combinedInstructions,generatorPresets} from "./ai-presets";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
@@ -111,7 +111,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     setConsent(false);
     setPartialConsent(false);
   },[context?.taskContext.text,context?.approved.text]);
-  const canSend = formOwn && !generating && !!context &&
+  const canSend = formOwn && !generating && !busySave && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent);
@@ -256,14 +256,29 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     finally { setBusySave(false); }
   }
 
-  return <section className="panel mt-5" aria-labelledby="generator-title">
+  const postMode=mode==="post";
+  const hasOutput=Boolean(raw || content || cases.length);
+  return <section className={postMode?"qa-post-composer panel mt-5":"panel mt-5"}
+    aria-labelledby="generator-title">
     <div className="qa-ai-generator-intro">
-      <h2 id="generator-title" className="sr-only">
-        {mode === "post" ? "Gerar post técnico" : "Gerar casos de teste"}
-      </h2>
-      <p className="text-muted text-sm">Escolha um modelo, confira os dados enviados e
-        revise a prévia antes de salvar na TF.</p>
+      <div className="qa-generator-intro-icon" aria-hidden="true">
+        {postMode?<PenLine size={20}/>:<WandSparkles size={20}/>}
+      </div>
+      <div>
+        <p className="qa-generator-eyebrow">{postMode?"PUBLICAÇÃO DA TF":"GERAÇÃO ASSISTIDA"}</p>
+        <h2 id="generator-title">
+          {postMode ? "Preparar post técnico" : "Gerar casos de teste"}
+        </h2>
+        <p>{postMode?
+          "Gere um texto estruturado a partir da tarefa. Confira, ajuste e salve somente quando estiver pronto.":
+          "Escolha um modelo, revise os dados e confirme quais casos deseja adicionar."}</p>
+      </div>
     </div>
+    {postMode&&<ol className="qa-post-steps" aria-label="Etapas da publicação">
+      <li className="is-ready"><span>1</span> Configurar</li>
+      <li className={hasOutput?"is-ready":""}><span>2</span> Revisar</li>
+      <li className={content.trim()&&!postIssues.length?"is-ready":""}><span>3</span> Salvar na TF</li>
+    </ol>}
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
@@ -273,7 +288,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
-    {context && <div className="stack mt-5">
+    <div className={postMode?"qa-post-workspace"+(hasOutput?" has-output":""):"qa-generator-workspace"}>
+    <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
+    {context && <div className="stack qa-generator-setup-body">
       <div className="qa-ai-setup">
         <label className="field">Modelo de geração
           <select value={preset} disabled={generating||busySave}
@@ -332,7 +349,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         </label>
         <div className="qa-ai-submit-actions">
           <Button isDisabled={!canSend} onPress={() => void generate()}>
-            {raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
+            {generating?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
+              raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
             {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
               : mode === "post" ? "Gerar post" : "Gerar casos"}
           </Button>
@@ -342,18 +360,35 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         </div>
       </div>
       <p className="qa-ai-privacy-note">
-        A ocultação automática de dados sensíveis pode falhar; confira o contexto antes de enviar.
+        <ShieldCheck size={15} aria-hidden="true"/>
+        Revise os dados antes do envio: a ocultação automática de informações sensíveis pode falhar.
       </p>
     </div>}
-
-    {(generating || raw || content || cases.length>0) && <section className="mt-6" aria-label="Resultado da IA">
-      <p className="eyebrow">RESULTADO</p>
-      <h3 className="font-semibold mt-1">Conteúdo produzido</h3>
+    {generating&&<div className="qa-creator-processing" role="status" aria-live="polite">
+      <LoaderCircle size={19} aria-hidden="true" className="qa-ai-spinner"/>
+      <div><strong>{raw.trim()?"Recebendo a resposta da NVIDIA":"Aguardando a NVIDIA"}</strong>
+        <p>{raw.trim()?raw.length.toLocaleString("pt-BR")+" caracteres recebidos até agora.":
+          "Analisando o contexto e preparando o conteúdo solicitado."}
+          {content?" A versão anterior permanece disponível.":""}</p>
+      </div>
+    </div>}
+    </div>
+    {(generating || hasOutput) && <section className="qa-generator-result" aria-label="Resultado da IA">
+      <div className="qa-generator-result-heading">
+        <div><p className="eyebrow">REVISÃO</p>
+          <h3>{postMode?"Rascunho do post":"Conteúdo produzido"}</h3>
+          <p>{postMode?"Revise o texto antes de registrar uma nova versão na TF.":
+            "Confira os casos sugeridos antes de adicioná-los."}</p></div>
+        {postMode&&content&&<span className="qa-generator-result-size">
+          {content.length.toLocaleString("pt-BR")} caracteres
+        </span>}
+      </div>
       {generating && <p role="status" className="text-muted text-sm mt-2">
-        Gerando uma nova versão. A prévia anterior permanece até a conclusão.
+        {raw.trim()?"Recebendo o conteúdo gerado…":"Aguardando o início da resposta…"}
+        {content?" A prévia anterior foi preservada.":""}
       </p>}
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
-      {mode === "post" ? <div className="stack mt-3">
+      {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
             onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); }} />
@@ -361,11 +396,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
         </p>}
-        <div className="flex flex-wrap gap-2">
+        {!postIssues.length&&content&&<p className="qa-post-valid">
+          <CheckCircle2 size={16} aria-hidden="true"/>
+          Estrutura pronta para revisão final.
+        </p>}
+        <div className="qa-post-output-actions">
           <Button type="button" variant="secondary" onPress={() => void navigator.clipboard.writeText(content || raw)}
             isDisabled={!content}><Clipboard size={16} /> Copiar</Button>
           <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating}>
-            <FileCheck2 size={16} /> Salvar post na TF
+            {busySave?<LoaderCircle className="qa-ai-spinner" size={16} aria-hidden="true"/>:
+              <FileCheck2 size={16}/>}
+            {busySave?"Salvando post…":"Salvar post na TF"}
           </Button>
         </div>
       </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
@@ -442,6 +483,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
             </div>)}
       </div>}
     </section>}
+    {postMode&&!hasOutput&&!generating&&<aside className="qa-post-empty-preview">
+      <div><PenLine size={25} aria-hidden="true"/>
+        <h3>Prévia do conteúdo</h3>
+        <p>Após gerar, o post ficará disponível aqui para revisão e edição antes de salvar.</p>
+      </div>
+    </aside>}
+    </div>
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={error} tone="error"/>
   </section>;
