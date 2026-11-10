@@ -238,9 +238,9 @@ try{
 
  await ownerPage.goto(ROOT+"#/tarefa/"+TASK);
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await ownerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await ownerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- const ownerModal=ownerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ const ownerModal=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await ownerModal.waitFor();
  await ownerModal.getByRole("combobox",{name:"Escolher sua equipe"}).selectOption(TEAM);
  await ownerModal.getByRole("button",{name:"Compartilhar com equipe"}).click();
@@ -259,13 +259,13 @@ try{
  // A signed-in collaborator can read the shared task after accepting.
  await testerPage.goto(ROOT+"#/tarefa/"+TASK);
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await testerPage.getByRole("tab",{name:/Testes/}).click();
+ await testerPage.getByRole("tab",{name:"Cenários"}).click();
  await testerPage.getByRole("button",{name:"Funcionou"}).first().waitFor();
  assert.equal(await testerPage.getByRole("button",{name:"Funcionou"}).first().isDisabled(),true,
   "An unassigned QA must not execute the scenario");
- await testerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await testerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- const testerModal=testerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ const testerModal=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await testerModal.waitFor();
  await testerModal.getByRole("button",{name:"Conversa"}).click();
  await testerModal.getByRole("textbox",{name:"Novo comentário"}).fill("Revisar o rateio de desconto.");
@@ -276,21 +276,21 @@ try{
  // Owner sees new member after refresh and can explicitly assign them.
  await ownerPage.reload();
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await ownerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await ownerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- const reopened=ownerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ const reopened=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await reopened.getByRole("combobox",{name:"Designar QA"}).selectOption(TESTER);
  await reopened.getByRole("button",{name:"Atribuir"}).click();
  await reopened.getByText("Responsável atualizado.").waitFor();
  assert.equal(assigned.responsavel_id,TESTER);
  await ownerPage.reload();
  await ownerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await ownerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await ownerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- await ownerPage.getByRole("dialog",{name:"Equipe e integrações"})
+ await ownerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await ownerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ await ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true})
   .getByRole("button",{name:"Conversa"}).click();
  await ownerPage.getByText("Revisar o rateio de desconto.").waitFor();
- const ownerIntegration=ownerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ const ownerIntegration=ownerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await ownerIntegration.getByRole("button",{name:"Integrações",exact:true}).click();
  await ownerIntegration.getByRole("textbox",{name:"Repositório",exact:true})
   .fill("acme/financeiro");
@@ -302,16 +302,16 @@ try{
 
  await testerPage.reload();
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await testerPage.getByRole("tab",{name:/Testes/}).click();
+ await testerPage.getByRole("tab",{name:"Cenários"}).click();
  await testerPage.getByRole("button",{name:"Funcionou"}).first().waitFor();
  await testerPage.waitForFunction(()=>{
   const button=[...document.querySelectorAll("button")]
    .find(b=>b.textContent?.trim()==="Funcionou");
   return button&&!button.disabled;
  });
- await testerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await testerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- const integrated=testerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ const integrated=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await integrated.getByRole("button",{name:"Integrações",exact:true}).click();
  const linkedIssue=integrated.getByRole("link",{name:"Abrir no GitHub"});
  await linkedIssue.waitFor();
@@ -357,7 +357,7 @@ try{
  assert.equal(scenario.status,"reprovado");
  assert.equal(task.status,"em_teste");
  assert.equal(writes.filter(v=>v.type==="execution").length,1);
- await checkResponsive(testerPage,"collaboration-modal",true);
+ await checkResponsive(testerPage,"collaboration-inline");
 
  // Demoting a tester removes execution capability (role from DB, not UI metadata).
  await ownerPage.goto(ROOT+"#/perfil");
@@ -371,14 +371,14 @@ try{
 
  await testerPage.reload();
  await testerPage.getByRole("heading",{name:task.titulo}).waitFor();
- await testerPage.getByRole("tab",{name:"Entregáveis"}).click();
- await testerPage.getByRole("button",{name:"Equipe e comentários"}).click();
- const readerModal=testerPage.getByRole("dialog",{name:"Equipe e integrações"});
+ await testerPage.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+ await testerPage.getByRole("tab",{name:"Equipe",exact:true}).click();
+ const readerModal=testerPage.getByRole("tabpanel",{name:"Equipe",exact:true});
  await readerModal.getByRole("button",{name:"Conversa"}).click();
  await readerModal.getByText("Seu acesso permite consultar comentários").waitFor();
  assert.equal(await readerModal.getByRole("button",{name:"Publicar comentário"}).count(),0);
- await readerModal.getByRole("button",{name:"Fechar Equipe e integrações"}).click();
- await testerPage.getByRole("tab",{name:/Testes/}).click();
+
+ await testerPage.getByRole("tab",{name:"Cenários"}).click();
  await testerPage.getByRole("button",{name:"Funcionou"}).first().waitFor();
  assert.equal(await testerPage.getByRole("button",{name:"Funcionou"}).first().isDisabled(),true);
  await checkResponsive(ownerPage,"owner-team-role");
