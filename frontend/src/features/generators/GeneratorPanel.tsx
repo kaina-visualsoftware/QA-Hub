@@ -267,7 +267,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       <div>
         <p className="qa-generator-eyebrow">{postMode?"PUBLICAÇÃO DA TF":"GERAÇÃO ASSISTIDA"}</p>
         <h2 id="generator-title">
-          {postMode ? "Preparar post técnico" : "Gerar casos de teste"}
+          {postMode ? "Gerar post técnico" : "Gerar casos de teste"}
         </h2>
         <p>{postMode?
           "Gere um texto estruturado a partir da tarefa. Confira, ajuste e salve somente quando estiver pronto.":
