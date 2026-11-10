@@ -40,6 +40,7 @@ describe("paridade entre gerar e regenerar dados da TF",()=>{
     const current={
       ...mergeTaskAiCreation(blank(),first),
       titulo:"Título revisado manualmente",
+      descricao:"Descrição revisada manualmente",
       causa:"Causa corrigida pelo QA"
     };
     const second=normalizeDraft({...data,
@@ -50,6 +51,7 @@ describe("paridade entre gerar e regenerar dados da TF",()=>{
     });
     const merged=mergeTaskAiCreation(current,second,{previousAiValues:previous});
     expect(merged.titulo).toBe("Título revisado manualmente");
+    expect(merged.descricao).toBe("Descrição revisada manualmente");
     expect(merged.causa).toBe("Causa corrigida pelo QA");
     expect(merged.versao).toBe("12.08.09.0000");
     expect(merged.correcao).toBe("Nova correção documentada");
