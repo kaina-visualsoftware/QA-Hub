@@ -15,7 +15,7 @@ type QAModalProps = {
   busy?:boolean;
   initialFocus?:string;
   keepMounted?:boolean;
-  surface?:"post"|"diagram";
+  surface?:"post"|"diagram"|"cases";
 };
 
 /**
