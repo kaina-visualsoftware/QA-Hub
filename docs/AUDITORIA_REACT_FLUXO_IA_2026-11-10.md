@@ -46,7 +46,7 @@ Essas melhorias preservam o fluxo em três etapas já implementado: **Configurar
 - Auditoria de rotas com axe-core WCAG AA e overflow em 320/390/1366 px: aprovada nos estados exercitados.
 - E2E do fluxo de IA com SSE simulado, consentimento, indicadores de etapa, revisão e capturas da transmissão em 320/390/768/1366 px: aprovado.
 - E2E de buscas, filtros e histórico após correção de contraste: aprovado em quatro breakpoints.
-- Suíte ampliada de navegador: 20/21 na execução inicial; a única falha WCAG foi corrigida e validada individualmente. O resultado da repetição integral está registrado no PR.
+- Suíte ampliada de navegador: **21/21 aprovadas** na segunda execução completa após a correção de contraste (20/21 na primeira rodada). Inclui login, QA, IA, diagramas, requisitos, evidências, colaboração, ferramentas, perfil, biblioteca pública e acessibilidade.
 
 ## Avaliação de qualidade (escopo automatizado e inspeção de código)
 
