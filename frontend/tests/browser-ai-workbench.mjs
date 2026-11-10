@@ -137,6 +137,13 @@ try {
       assert.equal(await deliverables.getByRole("button",{name:"Gerar post"}).count(),1);
       await deliverables.getByRole("button",{name:"Gerar post"}).click();
       await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor({timeout:20000});
+      const modal=page.locator(".qa-modal-surface-post");
+      await modal.waitFor();
+      assert.equal(await modal.locator(".qa-post-steps li").count(),3);
+      assert.equal(await modal.locator(".qa-post-configuration").count(),1);
+      assert.equal(await modal.locator(".qa-post-empty-preview").count(),1,
+        "The initial post modal should show an empty review panel, not an editor full of placeholders");
+      assert.equal(await modal.getByRole("checkbox",{name:/Autorizo enviar/}).count(),1);
     }else{
       await page.getByRole("tab",{name:"Cenários"}).click();
       await page.getByRole("button",{name:"Gerar casos"}).click();
@@ -175,6 +182,11 @@ try {
   await page.getByRole("group",{name:"Criar relatórios e publicações"})
     .getByRole("button",{name:"Criar diagrama"}).click();
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
+  const diagramModal=page.locator(".qa-modal-surface-diagram");
+  await diagramModal.waitFor();
+  assert.equal(await diagramModal.locator(".qa-diagram-stage-track li").count(),3,
+    "Full-TF diagram creation must show context, summary and generation stages");
+  assert.equal(await diagramModal.getByRole("button",{name:"Resumir TF com IA"}).count(),1);
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
   assert.equal(prompts.length,0,"Opening IA does not send TF data automatically");
   assert.equal(await page.getByRole("textbox",{name:"Código Mermaid"}).count(),0,
