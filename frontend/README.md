@@ -120,23 +120,26 @@ A publicação é opt-in e não existe no serviço publicado até o corte
 da migração. Testes de autorização no navegador usam Supabase simulado:
 não são equivalentes a um teste real de políticas RLS com duas contas.
 
-## Callback React de autenticação (preparado, NÃO ativado)
+## Callback React de autenticação e emails de verificação
 
-A segunda entrada Vite auth.html recebe callbacks de Supabase em página
-separada. O fragmento de acesso do Supabase não compete com o hash router
-TanStack (#/). Após detectar uma sessão, redireciona para a SPA sem
-parâmetros temporários de autenticação na URL. O fluxo de recuperação
-segue para #/recuperar e oferece atualização de senha autenticada.
+A segunda entrada Vite `auth.html` recebe callbacks do Supabase fora do
+hash router TanStack (`#/`). Após detectar uma sessão, redireciona para a
+SPA sem manter tokens na URL; a recuperação segue para `#/recuperar`.
+A configuração do build publicado aponta para
+`https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html`.
+`qa.html` continua recebendo links antigos como fallback.
 
-O padrão VITE_AUTH_REDIRECT_URL permanece apontando para qa.html.
-Para adotar a nova entrada será necessário: deploy da SPA, permitir a URL
-https://kaina-visualsoftware.github.io/QA-Hub/auth.html na allowlist de
-redirects Supabase, configurar VITE_AUTH_REDIRECT_URL para essa URL,
-homologar email de confirmação, recuperação, PKCE/implicit e troca de conta.
-Links antigos continuam no legado até o corte aprovado.
+**Obrigatório no projeto Supabase SIA** em Authentication > URL Configuration:
+- Site URL: `https://kaina-visualsoftware.github.io/QA-Hub/react/`
+- Redirect URL: `https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html`
+- Compatibilidade opcional: `https://kaina-visualsoftware.github.io/QA-Hub/qa.html`
 
-Os testes Chromium usam tokens e endpoints simulados, não configurações
-reais de autenticação. O cache TanStack é zerado em troca/saída de conta.
+Verifique os templates de cadastro e recuperação (use a ConfirmationURL padrão).
+O código evita links localhost em produção; uma URL não autorizada ou template
+legado ainda pode ser substituído pelo servidor do Supabase até alterar a
+configuração. Homologue cadastro, recuperação e troca de conta com emails reais.
+Os testes Chromium usam tokens/endpoints simulados e o cache TanStack é
+zerado quando muda a conta.
 
 ## IA generativa local — opcional e sem gravação automática
 
