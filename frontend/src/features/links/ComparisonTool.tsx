@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,10 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
   const [mode, setMode] = useState<"text" | "xml">(initialMode);
   const [original, setOriginal] = useState("");
   const [updated, setUpdated] = useState("");
+  const modeDrafts = useRef({
+    text: { original:"", updated:"" },
+    xml: { original:"", updated:"" }
+  });
   const [ignoreSpaces, setIgnoreSpaces] = useState(true);
   const [result, setResult] = useState<DiffResult | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -56,6 +60,15 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
 
   function invalidateResult() {
     setResult(null); setSaved(false); setMessage(""); setError(""); setVisible(PAGE_SIZE);
+  }
+  function chooseMode(next:"text"|"xml"){
+    if(next===mode)return;
+    // Separate drafts let QAs switch formats without losing pasted data.
+    modeDrafts.current[mode] = {original,updated};
+    setMode(next);
+    setOriginal(modeDrafts.current[next].original);
+    setUpdated(modeDrafts.current[next].updated);
+    invalidateResult();
   }
 
   function compare() {
@@ -119,11 +132,11 @@ export default function ComparisonTool({ task, userId = "", initialMode = "text"
     <div className={embedded?"qa-tools-compare-switch":"flex flex-wrap gap-2"}
       role={embedded?"group":undefined} aria-label={embedded?"Formato da comparação":undefined}>
       <button type="button" className={"filter-chip " + (mode === "text" ? "selected" : "")}
-        aria-pressed={mode === "text"} onClick={() => { setMode("text"); invalidateResult(); }}>
+        aria-pressed={mode === "text"} onClick={() => chooseMode("text")}>
         Texto linha a linha
       </button>
       <button type="button" className={"filter-chip " + (mode === "xml" ? "selected" : "")}
-        aria-pressed={mode === "xml"} onClick={() => { setMode("xml"); invalidateResult(); }}>
+        aria-pressed={mode === "xml"} onClick={() => chooseMode("xml")}>
         XML por estrutura
       </button>
     </div>
