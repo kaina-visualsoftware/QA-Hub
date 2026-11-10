@@ -168,7 +168,6 @@ try {
       }
       await page.screenshot({path:"artifacts/mobile-ux/f2-"+mode+"-"+width+".png"});
     }
-  }
     await page.getByRole("button",{name:mode==="Post"?
       "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
   }
