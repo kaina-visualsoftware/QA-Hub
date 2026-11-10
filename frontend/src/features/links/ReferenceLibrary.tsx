@@ -20,7 +20,9 @@ async function fetchReferences(userId:string):Promise<Reference[]>{
   if((data??[]).length>100)throw Error("Mais de 100 referências: acesse o histórico completo no legado.");
   return z.array(referenceSchema).parse(data??[]);
 }
-export default function ReferenceLibrary({userId}:{userId:string}){
+export default function ReferenceLibrary({userId,view="all",onCreated}:{
+  userId:string;view?:"all"|"list"|"form";onCreated?:()=>void;
+}){
   const client=useQueryClient();
   const [category,setCategory]=useState<Reference["categoria"]>("nota");
   const [title,setTitle]=useState("");
@@ -43,6 +45,7 @@ export default function ReferenceLibrary({userId}:{userId:string}){
     onSuccess:async()=>{
       setTitle("");setContent("");setFailure("");setMessage("Referência privada salva.");
       await client.invalidateQueries({queryKey:["qa-references",userId]});
+      onCreated?.();
     },
     onError:(error)=>setFailure(error.message)
   });
@@ -63,12 +66,16 @@ export default function ReferenceLibrary({userId}:{userId:string}){
     try{await navigator.clipboard.writeText(content);setMessage("Conteúdo copiado.");setFailure("");}
     catch{setFailure("Permissão de copiar indisponível neste navegador.");}
   }
-  return <section className="stack qa-references" aria-labelledby="references-heading">
-    <div><h2 id="references-heading" className="font-semibold">Informações importantes</h2>
+  return <section className="stack qa-references"
+    aria-labelledby={view==="all"?"references-heading":undefined}
+    aria-label={view==="list"?"Biblioteca de informações":view==="form"?"Cadastro de informação":undefined}>
+    {view==="all"&&<div><h2 id="references-heading" className="font-semibold">Informações importantes</h2>
       <p className="text-muted text-sm mt-2">Checklists, regras e notas privadas da sua conta.
-        Não guarde senhas, tokens ou dados pessoais neste cadastro.</p></div>
-    <form className="generator-context stack" onSubmit={event=>{event.preventDefault();void save.mutateAsync();}}>
-      <h3 className="font-semibold flex items-center gap-2"><NotebookPen size={17}/> Nova referência</h3>
+        Não guarde senhas, tokens ou dados pessoais neste cadastro.</p></div>}
+    {view!=="list"&&<form className="generator-context stack" onSubmit={event=>{event.preventDefault();void save.mutateAsync();}}>
+      <h3 className="font-semibold flex items-center gap-2"><NotebookPen size={17}/> {view==="form"?"Dados da informação":"Nova referência"}</h3>
+      {view==="form"&&<p className="text-muted text-sm">
+        Não inclua senhas, tokens nem dados pessoais.</p>}
       <div className="form-grid">
         <label className="field">Categoria<select value={category}
           onChange={event=>setCategory(event.target.value as Reference["categoria"])}>
@@ -83,7 +90,8 @@ export default function ReferenceLibrary({userId}:{userId:string}){
       <div><Button type="submit" isDisabled={save.isPending||title.trim().length<3||content.trim().length<3}>
         <Save size={16}/> Salvar referência
       </Button></div>
-    </form>
+    </form>}
+    {view!=="form"&&<>
     <label className="field">Pesquisar registros
       <input type="search" value={search} onChange={event=>setSearch(event.target.value)}
         placeholder="Título, categoria ou texto"/>
@@ -106,6 +114,7 @@ export default function ReferenceLibrary({userId}:{userId:string}){
       </div>
       <p className="text-sm mt-3 qa-reference-text">{item.conteudo}</p>
     </article>)}
+    </>}
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={failure} tone="error"/>
   </section>;
