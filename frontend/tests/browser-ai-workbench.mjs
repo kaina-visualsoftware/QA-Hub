@@ -127,20 +127,23 @@ try {
     await page.screenshot({path:"artifacts/mobile-ux/tf-"+width+".png"});
   }
   await page.setViewportSize({width:390,height:844});
-  const quickTrigger=page.getByRole("button",{name:"Abrir ações rápidas da TF"});
-  await quickTrigger.click();
-  assert.equal(await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Gerar casos com IA"}).count(),1);
-  await page.getByRole("button",{name:"Fechar ações rápidas"}).click();
-  await page.getByRole("tab",{name:"Entregáveis"}).click();
-  const deliverables=page.getByRole("tabpanel",{name:"Entregáveis"});
-  assert.equal(await deliverables.getByRole("button",{name:/^Gerar post/}).count(),1);
-  await deliverables.getByRole("button",{name:/^Gerar post/}).click();
-  await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor({timeout:20000});
-  const studio=page.getByRole("navigation",{name:"Ferramentas da central de IA"});
+  assert.equal(await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).count(),0,
+    "Duplicate floating task menu must be removed");
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   for(const mode of ["Post","Casos"]){
-    await studio.getByRole("button",{name:mode,exact:true}).click();
+    if(mode==="Post"){
+      await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+      const deliverables=page.getByRole("tabpanel",{name:"Relatórios e posts"});
+      assert.equal(await deliverables.getByRole("button",{name:"Gerar post"}).count(),1);
+      await deliverables.getByRole("button",{name:"Gerar post"}).click();
+      await page.getByRole("heading",{name:"Gerar post técnico"}).waitFor({timeout:20000});
+    }else{
+      await page.getByRole("tab",{name:"Cenários"}).click();
+      await page.getByRole("button",{name:"Gerar casos"}).click();
+      await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
+    }
+    assert.equal(await page.getByRole("navigation",{name:"Ferramentas da central de IA"}).count(),0,
+      "AI tool navigation must not be duplicated inside each modal");
     for(const width of [320,390,768,1366]){
       await page.setViewportSize({width,height:844});
       const layout=await page.evaluate(()=>{
@@ -166,16 +169,11 @@ try {
       await page.screenshot({path:"artifacts/mobile-ux/f2-"+mode+"-"+width+".png"});
     }
   }
-  await studio.getByRole("button",{name:"Post"}).click();
-  await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
-  await page.getByRole("tab",{name:"Resumo"}).click();
-  await quickTrigger.click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Gerar casos com IA"}).click();
-  await page.getByRole("heading",{name:"Gerar casos de teste"}).waitFor();
-  await page.getByRole("button",{name:"Fechar Gerar casos com IA"}).click();
-  await quickTrigger.click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
+    await page.getByRole("button",{name:mode==="Post"?
+      "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
+  }
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+  await page.getByRole("group",{name:"Criar relatórios e publicações"})
     .getByRole("button",{name:"Criar diagrama"}).click();
   await page.getByRole("heading",{name:"Criar diagrama com IA"}).waitFor();
   await page.waitForFunction(()=>document.activeElement?.id==="diagram-ai-heading");
