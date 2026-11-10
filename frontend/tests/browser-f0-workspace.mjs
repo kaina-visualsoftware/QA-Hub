@@ -53,6 +53,7 @@ async function mock(route){
   if(path.endsWith("/rest/v1/qa_diagramas"))return send([]);
   if(path.endsWith("/rest/v1/qa_documentos"))return send([]);
   if(path.endsWith("/rest/v1/qa_requisitos"))return send([]);
+  if(path.endsWith("/rest/v1/qa_requisito_fontes"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencias"))return send([]);
   if(path.endsWith("/rest/v1/qa_evidencia_arquivos"))return send([]);
   if(path.endsWith("/rest/v1/qa_eventos"))return send([]);
@@ -92,48 +93,72 @@ try{
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   for(const width of [320,390,768,1366]){
     await page.setViewportSize({width,height:844});
-    const summary=page.getByRole("tab",{name:"Resumo"});
+    const summary=page.getByRole("tab",{name:"Visão geral"});
     await summary.click();
     assert.equal(await summary.getAttribute("aria-selected"),"true");
-    assert.equal(await page.getByRole("tabpanel",{name:"Resumo"}).isVisible(),true);
-    assert.equal(await page.getByRole("tabpanel",{name:/Testes/}).isVisible(),false);
-    assert.equal(await page.getByRole("tabpanel",{name:"Entregáveis"}).isVisible(),false);
-    await check(page,width,"resumo");
-    await page.getByRole("tab",{name:/Testes/}).click();
-    assert.equal(await page.getByRole("tabpanel",{name:/Testes/})
+    await page.getByRole("heading",{name:"Informações da TF"}).waitFor();
+    assert.equal(await page.getByRole("tabpanel",{name:"Visão geral"}).isVisible(),true);
+    assert.equal(await page.getByRole("tabpanel",{name:"Cenários"}).isVisible(),false);
+    assert.equal(await page.getByRole("tabpanel",{name:"Relatórios e posts"}).isVisible(),false);
+    assert.equal(await page.getByRole("tabpanel",{name:"Arquivos e requisitos"}).isVisible(),false);
+    assert.equal(await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).count(),0,
+      "The duplicate floating action menu must be removed");
+    await check(page,width,"geral");
+
+    await page.getByRole("tab",{name:"Cenários"}).click();
+    await page.getByRole("button",{name:"Lista"}).click();
+    assert.equal(await page.getByRole("tabpanel",{name:"Cenários"})
       .getByRole("group",{name:"Resultado de Remover desconto"}).count(),1);
-    await check(page,width,"testes");
-    await page.getByRole("tab",{name:"Entregáveis"}).click();
-    assert.equal(await page.getByRole("button",{name:/^Gerar post/}).count(),1);
-    assert.equal(await page.getByRole("button",{name:"Requisitos e cobertura"}).count(),1);
-    await check(page,width,"entregaveis");
+    assert.equal(await page.getByRole("button",{name:"Cenário",exact:true}).count(),1);
+    await check(page,width,"cenarios");
+
+    await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+    await page.getByRole("heading",{name:"Indicadores da execução"}).waitFor();
+    const actions=page.getByRole("group",{name:"Criar relatórios e publicações"});
+    assert.equal(await actions.getByRole("button",{name:"Gerar post"}).count(),1);
+    assert.equal(await actions.getByRole("button",{name:"Criar relatório"}).count(),1);
+    assert.equal(await actions.getByRole("button",{name:"Criar diagrama"}).count(),1);
+    assert.equal(await page.locator(".qa-task-results-legend").locator("div").count(),4);
+    assert.equal(await page.getByRole("tabpanel",{name:"Relatórios e posts"})
+      .getByRole("button",{name:"Novo diagrama"}).count(),0,
+      "Creation must only appear in the report toolbar, not again in the gallery");
+    await check(page,width,"relatorios");
+
+    await page.getByRole("tab",{name:"Arquivos e requisitos"}).click();
+    const resources=page.getByRole("tablist",{name:"Documentos e informações de apoio"});
+    assert.equal(await resources.getByRole("tab").count(),4);
+    await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
+    await check(page,width,"arquivos");
   }
 
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole("tab",{name:"Resumo"}).click();
-  await page.getByRole("tab",{name:"Resumo"}).focus();
+  await page.getByRole("tab",{name:"Visão geral"}).click();
+  await page.getByRole("tab",{name:"Visão geral"}).focus();
   await page.keyboard.press("ArrowRight");
-  assert.equal(await page.getByRole("tab",{name:/Testes/}).getAttribute("aria-selected"),"true");
+  assert.equal(await page.getByRole("tab",{name:"Cenários"}).getAttribute("aria-selected"),"true");
   await page.keyboard.press("End");
-  assert.equal(await page.getByRole("tab",{name:"Entregáveis"}).getAttribute("aria-selected"),"true");
+  assert.equal(await page.getByRole("tab",{name:"Arquivos e requisitos"})
+    .getAttribute("aria-selected"),"true");
   await page.keyboard.press("Home");
-  assert.equal(await page.getByRole("tab",{name:"Resumo"}).getAttribute("aria-selected"),"true");
+  assert.equal(await page.getByRole("tab",{name:"Visão geral"}).getAttribute("aria-selected"),"true");
 
-  await page.getByRole("tab",{name:"Entregáveis"}).click();
-  assert.equal(await page.getByRole("tab",{name:"Entregáveis"}).getAttribute("aria-selected"),"true");
-  await page.getByRole("button",{name:/^Gerar post/}).click();
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
+  await page.getByRole("group",{name:"Criar relatórios e publicações"})
+    .getByRole("button",{name:"Gerar post"}).click();
   await page.getByRole("dialog",{name:"Gerar post com IA"}).waitFor({timeout:20000});
-  assert.equal(writes.length,0,"Opening a deliverable cannot write any data");
+  assert.equal(await page.getByRole("navigation",{name:"Ferramentas da central de IA"}).count(),0,
+    "Cross-linked AI tools are no longer duplicated inside each creation modal");
+  assert.equal(writes.length,0,"Opening a report cannot write data");
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
 
   // Follow the application's real one-shot continuation link.
   await page.goto(ROOT);
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
   await page.getByRole("link",{name:"Continuar testes"}).click();
-  await page.getByRole("tab",{name:/Testes/}).waitFor({state:"visible"});
+  await page.getByRole("tab",{name:"Cenários"}).waitFor({state:"visible"});
   await page.waitForFunction(()=>document.activeElement?.getAttribute("data-qa-guided-primary")==="true");
-  assert.equal(await page.getByRole("tab",{name:/Testes/}).getAttribute("aria-selected"),"true");
+  assert.equal(await page.getByRole("tab",{name:"Cenários"}).getAttribute("aria-selected"),"true");
   assert.equal(writes.length,0,"Resume must not execute scenarios");
   assert.deepEqual(errors,[]);
-  console.log("F0 task areas: 320/390/768/1366px, WCAG, keyboard tabs, contextual tools, resume without writes.");
+  console.log("Task v2: four distinct tabs, real result metrics, no duplicate actions, WCAG, keyboard tabs and guided resume.");
 }finally{await browser.close();}
