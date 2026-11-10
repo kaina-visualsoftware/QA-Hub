@@ -5,13 +5,14 @@ import {Button} from "@heroui/react";
 import {Users,UserPlus} from "lucide-react";
 import {
  teams,createTeam,teamMembers,teamInvites,inviteMember,
- respondInvite,revokeMember,changeMemberRole,cancelInvite,deleteTeam
+ respondInvite,revokeMember,changeMemberRole,cancelInvite,deleteTeam,renameTeam
 } from "./team-data";
 
 export default function TeamsSettings({userId}:{userId:string}){
  const client=useQueryClient();
  const [name,setName]=useState("");
  const [selected,setSelected]=useState("");
+ const [editingTeamName,setEditingTeamName]=useState<string|null>(null);
  const [email,setEmail]=useState("");
  const [role,setRole]=useState<"qa"|"leitor">("qa");
  const [notice,setNotice]=useState("");
@@ -84,7 +85,9 @@ export default function TeamsSettings({userId}:{userId:string}){
   {teamList.data?.length===0&&<p className="text-muted text-sm">
     Nenhuma equipe. Crie uma para organizar os responsáveis por suas TFs.</p>}
   {!!teamList.data?.length&&<label className="field">Selecionar equipe
-   <select value={selected} onChange={e=>setSelected(e.target.value)}>
+   <select value={selected} onChange={e=>{
+     setSelected(e.target.value);setEditingTeamName(null);
+   }}>
     <option value="">Escolher…</option>
     {teamList.data.map(item=><option key={item.id} value={item.id}>
      {item.nome}{item.owner_id===userId?" (sua)":""}</option>)}
@@ -92,6 +95,30 @@ export default function TeamsSettings({userId}:{userId:string}){
   </label>}
   {team&&<div className="qa-f5-team-details">
    <h3>{team.nome}</h3>
+   {team.owner_id===userId&&<div className="qa-crud-team-name">
+     {editingTeamName===null?
+       <Button variant="secondary" size="sm" isDisabled={change.isPending}
+         onPress={()=>setEditingTeamName(team.nome)}>Renomear equipe</Button>:
+       <form className="qa-crud-inline-form" onSubmit={event=>{
+         event.preventDefault();
+         void act(async()=>{
+           await renameTeam(team.id,userId,editingTeamName);
+           setEditingTeamName(null);
+         },"Nome da equipe atualizado.");
+       }}>
+         <label className="field">Nome da equipe
+           <input value={editingTeamName} maxLength={90} autoFocus
+             onChange={event=>setEditingTeamName(event.target.value)}/>
+         </label>
+         <div className="qa-crud-form-actions">
+           <Button type="submit" isDisabled={change.isPending||editingTeamName.trim().length<2}>
+             Salvar nome
+           </Button>
+           <Button type="button" variant="secondary" isDisabled={change.isPending}
+             onPress={()=>setEditingTeamName(null)}>Cancelar</Button>
+         </div>
+       </form>}
+   </div>}
    <div className="qa-f5-members" aria-label="Integrantes">
     <strong>Integrantes</strong>
     {members.data?.map(member=><div className="qa-f5-item" key={member.usuario_id}>

@@ -66,6 +66,7 @@ export default function LinksPanel({
   const [tab, setTab] = useState<"releases" | "references" | "comparisons">("releases");
   const [version, setVersion] = useState("");
   const [category, setCategory] = useState<Reference["categoria"]>("checklist");
+  const [editingReference,setEditingReference]=useState<string|null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [message, setMessage] = useState("");
@@ -101,14 +102,35 @@ export default function LinksPanel({
     mutationFn: async () => {
       if (!own) throw Error("A referência pertence a outra conta.");
       const valid = validateReference({ titulo: title, conteudo: content, categoria: category });
-      return createReference(supabase, { userId, ...valid });
+      if(!editingReference)return createReference(supabase, { userId, ...valid });
+      const {data,error}=await supabase.from("qa_referencias").update(valid)
+        .eq("id",editingReference).eq("user_id",userId).select("id").maybeSingle();
+      if(error)throw error;
+      if(data?.id!==editingReference)throw Error("Referência não encontrada ou sem permissão.");
     },
     onSuccess: async () => {
-      setTitle(""); setContent(""); setFailure(""); setMessage("Referência privada salva.");
+      setTitle(""); setContent(""); setFailure("");
+      setMessage(editingReference?"Referência atualizada.":"Referência privada salva.");
+      setEditingReference(null);
       await client.invalidateQueries({ queryKey: ["qa-references", userId] });
     },
     onError: (e) => setFailure(e.message)
   });
+  async function unlinkRelease(releaseId:string,version:string) {
+    if(!own||!window.confirm("Desvincular a release "+version+
+      " desta TF? A release continuará disponível nas outras tarefas."))return;
+    setDeleting(releaseId);setFailure("");setMessage("");
+    try{
+      const {data,error}=await supabase.from("qa_release_tarefas").delete()
+        .eq("tarefa_id",task.id).eq("release_id",releaseId).eq("user_id",userId)
+        .select("release_id").maybeSingle();
+      if(error)throw error;
+      if(data?.release_id!==releaseId)throw Error("Vínculo da release indisponível.");
+      await client.invalidateQueries({queryKey:["qa-releases",userId,task.id]});
+      setMessage("Release desvinculada sem alterar os testes.");
+    }catch(reason){setFailure(reason instanceof Error?reason.message:"Falha ao desvincular release.");}
+    finally{setDeleting(null);}
+  }
   async function removeReference(reference: Reference) {
     if (!window.confirm("Excluir a referência '" + reference.titulo + "'?")) return;
     setFailure(""); setMessage(""); setDeleting(reference.id);
@@ -172,13 +194,18 @@ export default function LinksPanel({
           <p className="text-muted text-sm mt-2">
             {new Date(item.created_at).toLocaleString("pt-BR")}
           </p>
+          {!readOnly&&<Button variant="secondary" size="sm"
+            isDisabled={deleting===item.id}
+            onPress={()=>void unlinkRelease(item.id,item.versao)}>
+            Desvincular release
+          </Button>}
         </article>)}
       </div>}
       {tab === "references" && <div className="stack mt-5" role="tabpanel">
         {!readOnly&&<form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault(); void saveReference.mutateAsync();
         }}>
-          <h3 className="font-semibold">Criar referência privada</h3>
+          <h3 className="font-semibold">{editingReference?"Editar referência privada":"Criar referência privada"}</h3>
           <p className="text-muted text-sm mt-2">
             Anote checklists, regras ou orientações técnicas. Não salve senhas, tokens ou dados pessoais.
           </p>
@@ -196,8 +223,12 @@ export default function LinksPanel({
             onChange={(e) => setContent(e.target.value)}/></label>
           <div className="mt-3"><Button type="submit" isDisabled={saveReference.isPending ||
             title.trim().length < 3 || content.trim().length < 3}>
-            <Save size={16}/> Salvar referência
-          </Button></div>
+            <Save size={16}/> {editingReference?"Salvar alterações":"Salvar referência"}
+          </Button>
+          {editingReference&&<Button variant="secondary" type="button"
+            onPress={()=>{
+              setEditingReference(null);setTitle("");setContent("");setCategory("checklist");
+            }}>Cancelar edição</Button>}</div>
         </form>}
         <h3 className="font-semibold mt-3">Referências da conta</h3>
         {references.isPending && <p role="status">Carregando referências…</p>}
@@ -211,6 +242,13 @@ export default function LinksPanel({
               <Button variant="secondary" size="sm"
                 onPress={() => void navigator.clipboard.writeText(item.conteudo)}>
                 <Clipboard size={14}/> Copiar</Button>
+              {!readOnly&&<Button variant="secondary" size="sm"
+                isDisabled={deleting===item.id||saveReference.isPending}
+                onPress={()=>{
+                  setEditingReference(item.id);
+                  setTitle(item.titulo);setContent(item.conteudo);setCategory(item.categoria);
+                  setTab("references");
+                }}>Editar</Button>}
               {!readOnly&&<Button variant="secondary" size="sm" isDisabled={deleting === item.id}
                 onPress={() => void removeReference(item)}>Excluir</Button>}
             </div>

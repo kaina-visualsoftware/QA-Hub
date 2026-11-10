@@ -6,8 +6,9 @@ import {Button} from "@heroui/react";
 import {BookCopy,Save} from "lucide-react";
 import type {Scenario,Task} from "../../lib/contracts";
 import {
-  listScenarioModels,removeScenarioModel,saveScenarioModel,useScenarioModel
+  listScenarioModels,removeScenarioModel,saveScenarioModel,useScenarioModel,updateScenarioModel
 } from "./scenario-model-data";
+import type {ScenarioModel} from "./scenario-model-data";
 
 export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:{
   task:Task;scenarios:Scenario[];userId:string;onImported:()=>Promise<void>;
@@ -17,6 +18,7 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
   const [mode,setMode]=useState<"use"|"save">("use");
   const [term,setTerm]=useState("");
   const [selected,setSelected]=useState("");
+  const [editingModel,setEditingModel]=useState<ScenarioModel|null>(null);
   const [notice,setNotice]=useState("");
   const [error,setError]=useState("");
   const listing=useQuery({
@@ -63,9 +65,18 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
     },
     onError:reason=>setError(reason.message)
   });
+  const updating=useMutation({
+    mutationFn:(item:ScenarioModel)=>updateScenarioModel(userId,item.id,item),
+    onSuccess:async()=>{
+      setNotice("Modelo atualizado na biblioteca privada.");setError("");
+      setEditingModel(null);
+      await client.invalidateQueries({queryKey:["qa-scenario-models",userId]});
+    },
+    onError:reason=>setError(reason.message)
+  });
   if(!owner)return <p className="notice error" role="alert">
     A biblioteca pertence ao proprietário da TF.</p>;
-  const busy=saving.isPending||importing.isPending||removing.isPending;
+  const busy=saving.isPending||importing.isPending||removing.isPending||updating.isPending;
   return <div className="qa-f6-library" aria-label="Biblioteca de cenários">
     <p className="text-muted text-sm">Reutilize roteiros nesta conta.
       O novo cenário começa sempre pendente, sem resultado observado ou evidências.</p>
@@ -121,10 +132,53 @@ export default function ScenarioLibraryPanel({task,scenarios,userId,onImported}:
             }}>Adicionar à TF</Button>
           <Button variant="secondary" size="sm" isDisabled={busy}
             onPress={()=>{
+              setEditingModel(current=>current?.id===item.id?null:{...item});
+              setError("");
+            }}>Editar modelo</Button>
+          <Button variant="secondary" size="sm" isDisabled={busy}
+            onPress={()=>{
               if(window.confirm("Excluir este modelo privado? Os cenários já criados não serão removidos."))
                 removing.mutate(item.id);
             }}>Excluir modelo</Button>
         </div>
+        {editingModel?.id===item.id&&<form className="qa-crud-inline-form"
+          aria-label={"Editar modelo "+item.titulo}
+          onSubmit={event=>{event.preventDefault();updating.mutate(editingModel);}}>
+          <label className="field">Título
+            <input required maxLength={240} value={editingModel.titulo}
+              onChange={e=>setEditingModel({...editingModel,titulo:e.target.value})}/>
+          </label>
+          <div className="form-grid">
+            <label className="field">Módulo
+              <input maxLength={160} value={editingModel.modulo}
+                onChange={e=>setEditingModel({...editingModel,modulo:e.target.value})}/>
+            </label>
+            <label className="field">Tipo
+              <select value={editingModel.tipo_teste}
+                onChange={e=>setEditingModel({...editingModel,
+                  tipo_teste:e.target.value as "BUILD"|"RELEASE"})}>
+                <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
+              </select>
+            </label>
+          </div>
+          <label className="field">Passos
+            <textarea required rows={4} maxLength={20000} value={editingModel.passos}
+              onChange={e=>setEditingModel({...editingModel,passos:e.target.value})}/>
+          </label>
+          <label className="field">Resultado esperado
+            <textarea required rows={3} maxLength={20000} value={editingModel.esperado}
+              onChange={e=>setEditingModel({...editingModel,esperado:e.target.value})}/>
+          </label>
+          <label className="field">Observações
+            <textarea rows={2} maxLength={20000} value={editingModel.observacoes}
+              onChange={e=>setEditingModel({...editingModel,observacoes:e.target.value})}/>
+          </label>
+          <div className="qa-crud-form-actions">
+            <Button type="submit" isDisabled={busy}>Salvar modelo</Button>
+            <Button type="button" variant="secondary" onPress={()=>setEditingModel(null)}
+              isDisabled={busy}>Cancelar</Button>
+          </div>
+        </form>}
       </article>)}
       {listing.data?.length===100&&<small className="text-muted">
         Exibindo os 100 modelos mais recentes desta conta.</small>}

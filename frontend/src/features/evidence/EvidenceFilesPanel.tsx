@@ -7,7 +7,7 @@ import type {Scenario,Task} from "../../lib/contracts";
 import {supabase} from "../../lib/supabase";
 import {
   ACCEPT_EVIDENCE,MAX_EVIDENCE_BYTES, listEvidenceFiles,readPrivateEvidence,
-  uploadEvidenceFile
+  uploadEvidenceFile,updateEvidenceDescription,removeEvidenceFile
 } from "./evidence-files";
 import type {EvidenceFile} from "./evidence-files";
 
@@ -33,6 +33,9 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
   const [busy,setBusy]=useState(false);
   const [previewBusy,setPreviewBusy]=useState(false);
   const [preview,setPreview]=useState<Preview|null>(null);
+  const [editingFile,setEditingFile]=useState<string|null>(null);
+  const [editedDescription,setEditedDescription]=useState("");
+  const [busyChange,setBusyChange]=useState(false);
   const [error,setError]=useState("");
   const [message,setMessage]=useState("");
   const fileInput=useRef<HTMLInputElement|null>(null);
@@ -86,6 +89,33 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
     }catch(reason){
       setError(reason instanceof Error?reason.message:"Falha no download.");
     }finally{setPreviewBusy(false);}
+  }
+  async function editFile(item:EvidenceFile){
+    setBusyChange(true);setError("");setMessage("");
+    try{
+      await updateEvidenceDescription(supabase,item,userId,task.id,editedDescription);
+      setEditingFile(null);
+      setMessage("Descrição do arquivo atualizada.");
+      await client.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
+    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao editar descrição.");}
+    finally{setBusyChange(false);}
+  }
+  async function deleteFile(item:EvidenceFile){
+    if(!window.confirm("Excluir o arquivo '"+item.nome_original+"' definitivamente?"+
+      (item.publica?" Ele deixará de aparecer na página pública.":"")+
+      " A exclusão do anexo não será desfeita."))return;
+    setBusyChange(true);setError("");setMessage("");
+    try{
+      await removeEvidenceFile(supabase,item,userId,task.id);
+      if(preview?.file.id===item.id)setPreview(null);
+      setEditingFile(null);
+      setMessage("Arquivo excluído.");
+      await Promise.all([
+        client.invalidateQueries({queryKey:["evidence-files",userId,task.id]}),
+        client.invalidateQueries({queryKey:["gen-support",userId,task.id]})
+      ]);
+    }catch(reason){setError(reason instanceof Error?reason.message:"Falha na exclusão.");}
+    finally{setBusyChange(false);}
   }
   return <section className="qa-files" aria-labelledby="qa-files-title">
     <header className="qa-files-head">
@@ -147,7 +177,27 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
             <Eye size={16} aria-hidden="true"/> Visualizar</button>
           <button type="button" disabled={previewBusy} onClick={()=>void download(item)}>
             <Download size={16} aria-hidden="true"/> Baixar</button>
+          {!readOnly&&task.user_id===userId&&<>
+            <button type="button" disabled={previewBusy||busyChange} onClick={()=>{
+              setEditingFile(item.id);setEditedDescription(item.descricao);
+            }}>Editar descrição</button>
+            <button type="button" disabled={previewBusy||busyChange}
+              className="qa-scenario-crud-danger"
+              onClick={()=>void deleteFile(item)}>Excluir</button>
+          </>}
         </div>
+        {editingFile===item.id&&<form className="qa-crud-inline-form"
+          onSubmit={event=>{event.preventDefault();void editFile(item);}}>
+          <label className="field">Descrição do arquivo
+            <input value={editedDescription} maxLength={1000}
+              onChange={event=>setEditedDescription(event.target.value)}/>
+          </label>
+          <div className="qa-crud-form-actions">
+            <Button type="submit" isDisabled={busyChange}>Salvar descrição</Button>
+            <Button variant="secondary" type="button" isDisabled={busyChange}
+              onPress={()=>setEditingFile(null)}>Cancelar</Button>
+          </div>
+        </form>}
       </article>)}
     </div>}
     {preview&&<section className="qa-file-preview" aria-label="Prévia do anexo privado">

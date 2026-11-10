@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, ClipboardList, FilePlus2, Link2 } from "lucide-react";
+import { Activity, ClipboardList, FilePlus2, Link2, Pencil, Trash2 } from "lucide-react";
 import { z } from "zod";
 import type { Task, Scenario } from "../../lib/contracts";
 import { supabase } from "../../lib/supabase";
@@ -52,6 +52,8 @@ export default function EvidencePanel({
   const [summary, setSummary] = useState("");
   const [url, setUrl] = useState("");
   const [scenarioId, setScenarioId] = useState("");
+  const [editingEvidence,setEditingEvidence]=useState<Evidence|null>(null);
+  const formDetails=useRef<HTMLDetailsElement|null>(null);
   useEffect(()=>{
     if(prefillScenarioId && scenarios.some(item=>item.id===prefillScenarioId)){
       setScenarioId(prefillScenarioId);
@@ -79,14 +81,21 @@ export default function EvidencePanel({
       });
       if (draft.cenario_id && !scenarios.some((item) => item.id === draft.cenario_id))
         throw Error("Cenário não pertence à TF.");
-      const { data, error } = await supabase.from("qa_evidencias")
-        .insert({ ...draft, tarefa_id: task.id, user_id: userId })
-        .select("id").single();
-      if (error) throw error;
-      if (!data?.id) throw Error("O banco não confirmou a evidência.");
+      const query=editingEvidence
+        ?supabase.from("qa_evidencias").update(draft)
+          .eq("id",editingEvidence.id).eq("tarefa_id",task.id).eq("user_id",userId)
+        :supabase.from("qa_evidencias").insert({
+          ...draft,tarefa_id:task.id,user_id:userId
+        });
+      const {data,error}=await query.select("id").maybeSingle();
+      if(error)throw error;
+      if(!data?.id)throw Error("O banco não confirmou a evidência.");
     },
     onSuccess: async () => {
-      setSummary(""); setUrl(""); setScenarioId(""); setMessage("Evidência registrada. O histórico é imutável.");
+      setSummary(""); setUrl(""); setScenarioId("");
+      setMessage(editingEvidence?"Evidência atualizada.":"Evidência registrada.");
+      setEditingEvidence(null);
+      if(formDetails.current)formDetails.current.open=false;
       await Promise.all([
         client.invalidateQueries({ queryKey: ["evidence", userId, task.id] }),
         client.invalidateQueries({ queryKey: ["audit", userId, task.id] }),
@@ -94,6 +103,37 @@ export default function EvidencePanel({
       ]);
     }
   });
+  const deletion=useMutation({
+    mutationFn:async(item:Evidence)=>{
+      if(!owner||item.user_id!==userId||item.tarefa_id!==task.id)
+        throw Error("Você não tem permissão para excluir esta evidência.");
+      const {data,error}=await supabase.from("qa_evidencias").delete()
+        .eq("id",item.id).eq("tarefa_id",task.id).eq("user_id",userId)
+        .select("id").maybeSingle();
+      if(error)throw error;
+      if(data?.id!==item.id)throw Error("Evidência não encontrada ou sem acesso.");
+    },
+    onSuccess:async()=>{
+      setMessage("Evidência excluída. Os eventos de auditoria continuam preservados.");
+      await Promise.all([
+        client.invalidateQueries({queryKey:["evidence",userId,task.id]}),
+        client.invalidateQueries({queryKey:["audit",userId,task.id]}),
+        client.invalidateQueries({queryKey:["gen-support",userId,task.id]})
+      ]);
+    }
+  });
+  function beginEdit(item:Evidence){
+    if(!owner||readOnly)return;
+    setEditingEvidence(item);setType(item.tipo);setSummary(item.resumo);
+    setUrl(item.referencia);setScenarioId(item.cenario_id??"");
+    setMessage("");
+    if(formDetails.current)formDetails.current.open=true;
+    requestAnimationFrame(()=>formDetails.current?.scrollIntoView({block:"nearest"}));
+  }
+  function cancelEdit(){
+    setEditingEvidence(null);setType("observacao");setSummary("");
+    setUrl("");setScenarioId("");
+  }
   const scenarioName = (id: string | null | undefined) =>
     scenarios.find((item) => item.id === id)?.titulo || "TF geral";
   return <section className="qa-evidence-workspace" aria-label="Evidências e auditoria da TF">
@@ -121,13 +161,14 @@ export default function EvidencePanel({
         </label>}
         <EvidenceFilesPanel task={task} userId={userId} scenarios={scenarios}
           scenarioId={scenarioId||null} readOnly={readOnly}/>
-        {!readOnly&&<details className="qa-evidence-text-details">
-          <summary>Adicionar observação ou link <span>Opcional</span></summary>
+        {!readOnly&&<details ref={formDetails} className="qa-evidence-text-details">
+          <summary>{editingEvidence?"Editar evidência":"Adicionar observação ou link"}
+            {!editingEvidence&&<span>Opcional</span>}</summary>
         <form className="generator-context stack" onSubmit={(event) => {
           event.preventDefault();
           void save.mutateAsync();
         }}>
-          <h3 className="font-semibold">Adicionar evidência</h3>
+          <h3 className="font-semibold">{editingEvidence?"Editar evidência":"Adicionar evidência"}</h3>
           <div className="form-grid mt-3">
             <label className="field">Tipo<select value={type}
               onChange={(event) => setType(evidenceType.parse(event.target.value))}>
@@ -150,8 +191,10 @@ export default function EvidencePanel({
           </label>
           <div className="mt-3">
             <Button type="submit" isDisabled={save.isPending || summary.trim().length < 3}>
-              <FilePlus2 size={16} /> Salvar evidência
+              <FilePlus2 size={16} /> {editingEvidence?"Salvar alterações":"Salvar evidência"}
             </Button>
+            {editingEvidence&&<Button type="button" variant="secondary"
+              onPress={cancelEdit} isDisabled={save.isPending}>Cancelar edição</Button>}
           </div>
           <ToastNotice message={save.isError?save.error.message:null} tone="error"/>
           <ToastNotice message={message} tone="success"/>
@@ -172,7 +215,21 @@ export default function EvidencePanel({
             rel="noopener noreferrer" className="secondary-link mt-2">
             <Link2 size={15} /> Abrir referência externa
           </a>}
+          {!readOnly&&item.user_id===userId&&<div className="qa-crud-form-actions mt-3">
+            <Button variant="secondary" size="sm" isDisabled={save.isPending||deletion.isPending}
+              onPress={()=>beginEdit(item)}>
+              <Pencil size={14} aria-hidden="true"/> Editar evidência
+            </Button>
+            <Button variant="secondary" size="sm" isDisabled={save.isPending||deletion.isPending}
+              onPress={()=>{
+                if(window.confirm("Excluir esta evidência? Os eventos da auditoria serão preservados, mas o texto não poderá ser recuperado."))
+                  void deletion.mutateAsync(item);
+              }}>
+              <Trash2 size={14} aria-hidden="true"/> Excluir evidência
+            </Button>
+          </div>}
         </article>)}
+        <ToastNotice message={deletion.isError?deletion.error.message:null} tone="error"/>
       </div>}
       {tab === "audit" && <div role="tabpanel" className="stack mt-5">
         <p className="text-muted text-sm">

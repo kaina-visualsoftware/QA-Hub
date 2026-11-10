@@ -173,8 +173,8 @@ try {
       await bbcode.check();
       assert.equal(await bbcode.isChecked(),true,"BBCode must be selectable before generation");
       await modal.getByRole("radio",{name:/Markdown/}).check();
-      assert.equal(await modal.locator(".qa-post-empty-preview").count(),1,
-        "The initial post modal should show an empty review panel, not an editor full of placeholders");
+      assert.equal(await modal.locator(".qa-post-empty-preview").count(),0,
+        "Configurar must not display a preview; review is a separate final step");
       assert.equal(await modal.getByRole("checkbox",{name:/Autorizo enviar/}).count(),1);
     }else{
       await page.getByRole("tab",{name:"Cenários"}).click();

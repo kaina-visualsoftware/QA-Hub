@@ -2482,8 +2482,7 @@
   display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
   align-items:start;gap:17px;min-width:0
 }
-.qa-post-configuration,.qa-post-workspace .qa-generator-result,
-.qa-post-empty-preview{
+.qa-post-configuration,.qa-post-workspace .qa-generator-result{
   min-width:0;background:#fff;border:1px solid #dce7e9;
   border-radius:15px;box-shadow:0 3px 14px #183f4a08
 }
@@ -2584,14 +2583,6 @@
 .qa-post-output-actions button:last-child{font-weight:760}
 .qa-post-valid{display:flex;align-items:center;gap:7px;
   font-size:.76rem;color:#226851;font-weight:730;line-height:1.5}
-.qa-post-empty-preview{
-  min-height:330px;display:grid;place-items:center;
-  padding:30px;text-align:center;background:#fdfefe;border-style:dashed
-}
-.qa-post-empty-preview>div{display:grid;justify-items:center;gap:10px;max-width:290px}
-.qa-post-empty-preview svg{color:#759aa0}
-.qa-post-empty-preview h3{font-size:.95rem;font-weight:780;color:#335862}
-.qa-post-empty-preview p{font-size:.8rem;color:#607980;line-height:1.65}
 .qa-post-composer>.notice{margin-top:12px}
 
 /* Diagram generator: large preview and compact, non-repeating guidance. */
@@ -2734,7 +2725,6 @@
 }
 @media(max-width:850px){
   .qa-post-workspace{grid-template-columns:minmax(0,1fr)}
-  .qa-post-empty-preview{min-height:170px;padding:20px}
   .qa-post-output textarea{min-height:320px}
   .qa-modal-surface-post .qa-modal-content,
   .qa-modal-surface-diagram .qa-modal-content{padding:17px}
@@ -3267,4 +3257,53 @@
   }
   .qa-modal-surface-diagram .qa-diagram-summary-coverage strong{font-size:.91rem}
   .qa-modal-surface-diagram .qa-diagram-summary-coverage span{font-size:.7rem}
+}
+
+/* Scenario management is discoverable in both execution modes. */
+.qa-scenario-crud-actions,.qa-guided-crud-actions{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:9px 0 11px;
+}
+.qa-scenario-crud-actions button,.qa-guided-crud-actions button{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:40px;padding:7px 11px;border:1px solid #c9dddf;border-radius:9px;
+  background:#fff;color:#255d68;font-size:.76rem;font-weight:710;
+}
+.qa-scenario-crud-actions button:hover,.qa-guided-crud-actions button:hover{
+  background:#eef7f7;
+}
+.qa-scenario-crud-actions button.qa-scenario-crud-danger,
+.qa-guided-crud-actions button.qa-scenario-crud-danger{
+  color:#922f38;border-color:#e4c5c7;
+}
+.qa-scenario-crud-actions button.qa-scenario-crud-danger:hover,
+.qa-guided-crud-actions button.qa-scenario-crud-danger:hover{
+  background:#fff0f1;
+}
+.qa-scenario-crud-actions button:focus-visible,.qa-guided-crud-actions button:focus-visible{
+  outline:3px solid #278985;outline-offset:2px;
+}
+.qa-scenario-crud-actions button:disabled,.qa-guided-crud-actions button:disabled{
+  opacity:.55;cursor:wait;
+}
+@media(max-width:500px){
+  .qa-scenario-crud-actions button,.qa-guided-crud-actions button{flex:1 1 auto}
+}
+
+/* Shared inline CRUD editors: aligned actions and readable field widths. */
+.qa-crud-inline-form{display:grid;gap:12px;margin-top:12px;padding:14px;
+  border:1px solid #d5e5e6;border-radius:12px;background:#f8fbfb;min-width:0}
+.qa-crud-inline-form input,.qa-crud-inline-form select,
+.qa-crud-inline-form textarea{max-width:100%;min-width:0}
+.qa-crud-form-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.qa-crud-team-name{margin:9px 0 12px}
+@media(max-width:450px){.qa-crud-form-actions>*{flex:1 1 auto}}
+
+/* Editing file metadata in list and scenario cards must never overflow. */
+.qa-scenario-image-entry>.qa-crud-inline-form,
+.qa-file-item>.qa-crud-inline-form{
+  width:100%;flex:1 0 100%;min-width:0;
+}
+.qa-file-item .qa-crud-inline-form textarea,
+.qa-file-item .qa-crud-inline-form input{
+  max-width:100%;
 }

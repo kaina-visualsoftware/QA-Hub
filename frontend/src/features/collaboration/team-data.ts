@@ -167,3 +167,32 @@ export async function deleteTeam(id:string){
   .eq("id",id).select("id").single();
  failed(error);if(data?.id!==id)throw Error("Equipe não excluída.");
 }
+
+export async function renameTeam(id:string,ownerId:string,name:string){
+  uuid.parse(id);uuid.parse(ownerId);
+  const value=name.trim();
+  if(value.length<2||value.length>90)throw Error("Nome deve ter entre 2 e 90 caracteres.");
+  const {data,error}=await supabase.from("qa_equipes").update({nome:value})
+    .eq("id",id).eq("owner_id",ownerId).select("id").maybeSingle();
+  failed(error);
+  if(data?.id!==id)throw Error("Equipe não encontrada ou sem permissão.");
+}
+
+export async function editTaskComment(taskId:string,userId:string,id:string,text:string){
+  uuid.parse(taskId);uuid.parse(userId);uuid.parse(id);
+  const value=text.trim();
+  if(value.length<1||value.length>3000)throw Error("Comentário deve ter entre 1 e 3.000 caracteres.");
+  const {data,error}=await supabase.from("qa_tarefa_comentarios").update({texto:value})
+    .eq("id",id).eq("tarefa_id",taskId).eq("user_id",userId)
+    .select("id").maybeSingle();
+  failed(error);
+  if(data?.id!==id)throw Error("Comentário não encontrado ou sem permissão.");
+}
+export async function removeTaskComment(taskId:string,userId:string,id:string){
+  uuid.parse(taskId);uuid.parse(userId);uuid.parse(id);
+  const {data,error}=await supabase.from("qa_tarefa_comentarios").delete()
+    .eq("id",id).eq("tarefa_id",taskId).eq("user_id",userId)
+    .select("id").maybeSingle();
+  failed(error);
+  if(data?.id!==id)throw Error("Comentário não encontrado ou sem permissão.");
+}
