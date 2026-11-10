@@ -161,7 +161,7 @@ export default function LinksPanel({
             <Save size={16}/> Vincular release
           </Button></div>
         </form>}
-        {!readOnly&&<ReleaseOrganizer task={task} version={version} />}
+        {!readOnly&&<ReleaseOrganizer task={task} version={normalizeTaskVersion(version)} />}
         <h3 className="font-semibold">Releases vinculadas</h3>
         {releases.isPending && <p role="status">Carregando releases…</p>}
         {releases.isError && <p role="alert" className="notice error">{releases.error.message}</p>}
