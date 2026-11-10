@@ -83,10 +83,17 @@ async function backend(route){
     if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
     return send({provider:"NVIDIA Build",draft:{
       titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
-      versao:"12.09",tipo_teste:"BUILD",
+      versao:aiRequests.length===1?"12.09":"12.10",tipo_teste:"BUILD",
       descricao:"O desconto não era removido corretamente em certos pedidos.",
+      ambiente:"Homologação",base_teste:"10861-3",
+      empresa:"Empresa de teste",testador:"Analista QA",
+      explicacao:"Os descontos são rateados entre os itens do pedido.",
       causa:"A rotina ignorava valores negativos.",
-      correcao:"A rotina passou a considerar os valores negativos.",
+      correcao:aiRequests.length===1?
+        "A rotina passou a considerar os valores negativos.":
+        "A rotina também passou a validar os kits desdobrados.",
+      conclusao:"A correção está pronta para validação.",
+      observacoes:"Conferir desconto e baixa financeira.",
       cenarios:[{
         titulo:"Remover desconto",passos:"1. Abrir pedido\n2. Remover desconto",
         esperado:"Total atualizado",objetivo:"Validar que o desconto é removido."
@@ -205,8 +212,38 @@ try{
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
     "Validar descontos de pedidos");
   assert.equal(await wizard.getByLabel("Versão").inputValue(),"12.09");
+  assert.equal(await wizard.getByLabel("Resumo do problema / descrição").inputValue(),
+    "O desconto não era removido corretamente em certos pedidos.");
+  const details=wizard.locator("details.qa-wizard-more");
+  assert.equal(await details.getAttribute("open"),"",
+    "A análise técnica gerada deve estar visível para revisão na primeira geração");
+  for(const [label,value] of [
+    ["Como funciona","Os descontos são rateados entre os itens do pedido."],
+    ["Causa identificada","A rotina ignorava valores negativos."],
+    ["Correção realizada","A rotina passou a considerar os valores negativos."],
+    ["Conclusão","A correção está pronta para validação."],
+    ["Ambiente","Homologação"],["Base de teste","10861-3"],
+    ["Empresa","Empresa de teste"],["Testador","Analista QA"],
+    ["Observações","Conferir desconto e baixa financeira."]
+  ]){
+    assert.equal(await wizard.getByLabel(label,{exact:true}).inputValue(),value,
+      "The initial AI generation must fill "+label+" like the regeneration flow");
+  }
   assert.equal(taskWrites,0,"Stage 2 must not persist the task");
   await wizard.getByLabel("Título da tarefa").fill("TF revisada pelo QA");
+  await wizard.getByLabel("Causa identificada").fill("Causa revisada manualmente.");
+  await wizard.getByRole("button",{name:"Analisar novamente"}).click();
+  await wizard.getByLabel("Versão").waitFor();
+  await page.waitForFunction(()=>[...document.querySelectorAll("input")]
+    .some(item=>item.value==="12.10"));
+  assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),"TF revisada pelo QA",
+    "Reanalysis must not overwrite user-entered titles");
+  assert.equal(await wizard.getByLabel("Causa identificada").inputValue(),"Causa revisada manualmente.",
+    "Reanalysis must preserve a manually corrected cause");
+  assert.equal(await wizard.getByLabel("Correção realizada").inputValue(),
+    "A rotina também passou a validar os kits desdobrados.",
+    "A newer AI result may refresh an unchanged earlier AI field");
+  assert.equal(aiRequests.length,2,"Reanalysis must reuse the same NVIDIA extraction service");
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
@@ -238,7 +275,11 @@ try{
   assert.equal(taskWrites,1);
   assert.equal(caseWrites,3);
   assert.equal(tasks[0].codigo,"88771");
+  assert.equal(tasks[0].versao,"12.10");
   assert.equal(tasks[0].descricao,"O desconto não era removido corretamente em certos pedidos.");
+  assert.equal(tasks[0].causa,"Causa revisada manualmente.");
+  assert.equal(tasks[0].correcao,"A rotina também passou a validar os kits desdobrados.");
+  assert.equal(tasks[0].explicacao,"Os descontos são rateados entre os itens do pedido.");
   assert.ok(files.some(x=>x.includes("analise.txt"))&&files.some(x=>x.includes("requisito.txt")),
     "Both source and requirement files must be privately registered");
   assert.equal(sources.some(x=>x.nome_arquivo==="Requisito da criação"),true);
