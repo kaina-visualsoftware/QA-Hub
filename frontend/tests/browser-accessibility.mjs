@@ -97,6 +97,13 @@ async function axeAudit(page, screen, width) {
     rules: { "region": { enabled: false } }
   }));
   for (const finding of result.violations) {
+    if(finding.id==="label-content-name-mismatch"){
+      console.error("AXE NAME DIAGNOSTIC",JSON.stringify(finding.nodes.map(node=>({
+        target:node.target,
+        checks:node.any.map(check=>({id:check.id,data:check.data,message:check.message})),
+        element:node.html
+      }))));
+    }
     violations.push({
       screen, width, rule: finding.id, impact: finding.impact,
       nodes: finding.nodes.slice(0, 8).map((node) => ({
