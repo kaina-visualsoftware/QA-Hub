@@ -34,7 +34,6 @@ export function TaskViewTabs({value,onChange,scenarioCount}:{
     aria-label="Áreas da tarefa">
     {tabs.map(({id,label,short,icon:Icon},index)=>
       <button key={id} type="button" role="tab"
-        aria-label={id==="tests"?label+" "+scenarioCount:label}
         id={"qa-task-tab-"+id} aria-controls={"qa-task-panel-"+id}
         aria-selected={value===id} tabIndex={value===id?0:-1}
         onKeyDown={event=>moveTab(event,index,tabs,
