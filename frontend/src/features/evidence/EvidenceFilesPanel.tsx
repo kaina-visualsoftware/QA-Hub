@@ -130,7 +130,8 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=fa
       Não foi possível carregar os anexos: {files.error.message}
     </p>}
     {files.isSuccess&&files.data.length===0&&<p className="qa-files-empty">
-      Nenhum arquivo anexado. Adicione uma captura ou um documento do teste.</p>}
+      {readOnly?"Nenhum arquivo anexado. Use Importar para adicionar documentos ou capturas.":
+        "Nenhum arquivo anexado. Adicione uma captura ou um documento do teste."}</p>}
     {files.data&&files.data.length>0&&<div className="qa-files-list">
       {files.data.map(item=><article className="qa-file-item" key={item.id}>
         <span className="qa-file-icon">{item.mime_type.startsWith("image/")
