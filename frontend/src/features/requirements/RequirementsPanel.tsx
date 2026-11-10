@@ -9,10 +9,10 @@ import CoverageView from "./CoverageView";
 import UsageView from "./UsageView";
 import { BookText, ChartNoAxesColumn, History, X } from "lucide-react";
 
-type Props = { task: Task; userId: string; scenarios: Scenario[]; onClose?: () => void };
+type Props = { task: Task; userId: string; scenarios: Scenario[]; onClose?: () => void; readOnly?:boolean };
 type View = "catalog" | "coverage" | "history";
 
-export default function RequirementsPanel({ task, userId, scenarios, onClose }: Props) {
+export default function RequirementsPanel({ task, userId, scenarios, onClose, readOnly=false }: Props) {
   const owned = task.user_id === userId;
   const [view, setView] = useState<View>("catalog");
   const client = useQueryClient();
@@ -48,7 +48,7 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
   return <section className="panel mt-5" aria-labelledby="requirements-heading">
     <div className="section-heading">
       <div><p className="eyebrow">R1–R4 · TF PRIVADA</p><h2 id="requirements-heading">Requisitos e cobertura</h2>
-        <p className="text-muted">Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura.</p>
+        <p className="text-muted">{readOnly?"Consulte os requisitos e resultados cadastrados. Para importar ou alterar, use o botão Importar.":"Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura."}</p>
       </div>
       {onClose&&<button type="button" aria-label="Fechar requisitos" onClick={onClose}><X size={18} /></button>}
     </div>
@@ -70,11 +70,11 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose }: 
         {reqs.isError && <p className="notice error" role="alert">{reqs.error.message}</p>}
         {reqs.isSuccess && view === "catalog" &&
           <RequirementCatalog task={task} records={reqs.data} sources={sources.data ?? []}
-            onChanged={reload} />}
+            onChanged={reload} readOnly={readOnly}/>}
         {reqs.isSuccess && view === "coverage" &&
           <CoverageView task={task} requirements={reqs.data}
             scenarios={scenarios} links={links.data ?? []}
-            loading={links.isPending} error={links.error?.message} onChanged={reload} />}
+            loading={links.isPending} error={links.error?.message} onChanged={reload} readOnly={readOnly}/>}
         {reqs.isSuccess && view === "history" &&
           <UsageView records={history.data ?? []} loading={history.isPending}
             error={history.error?.message} />}
