@@ -22,13 +22,10 @@ describe("CRUD com limites de privacidade e histórico",()=>{
    expect(sql).toContain("grant update(texto), delete on public.qa_tarefa_comentarios");
    expect(sql).toContain("grant delete on public.qa_documentos");
  });
- it("a exclusão dos cenários verifica e revoga imagens antes de apagar",()=>{
+ it("a exclusão dos cenários preserva a visibilidade herdada dos anexos",()=>{
    const source=read("../src/lib/data.ts");
-   const revoke=source.indexOf('.update({publica:false})');
-   const deleting=source.indexOf('.from("qa_cenarios").delete()');
-   expect(revoke).toBeGreaterThan(0);
-   expect(deleting).toBeGreaterThan(revoke);
-   expect(source).toContain("Uma imagem ainda está pública.");
+   expect(source).not.toContain('.update({publica:false})');
+   expect(source).toContain('.from("qa_cenarios").delete()');
    expect(task).toContain("requestScenarioDeletion");
    expect(task).toContain("onDelete={scenario=>void requestScenarioDeletion(scenario)}");
  });

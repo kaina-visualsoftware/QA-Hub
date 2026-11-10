@@ -212,13 +212,12 @@ export default function TaskPage() {
   async function requestScenarioDeletion(scenario:Scenario) {
     if(task?.user_id!==userId||deleteScenarioMutation.isPending)return;
     const {data:files,error:fileError}=await supabase.from("qa_evidencia_arquivos")
-      .select("id,publica").eq("tarefa_id",taskId).eq("cenario_id",scenario.id).limit(101);
+      .select("id").eq("tarefa_id",taskId).eq("cenario_id",scenario.id).limit(101);
     if(fileError){notify.error("Não foi possível conferir as evidências. Tente novamente.");return;}
     const evidenceCount=files?.length??0;
-    const isPublished=files?.some(file=>file.publica);
     const explanation=evidenceCount
       ? "\n\n"+evidenceCount+" anexo(s) serão preservados na TF, mas desvinculados deste cenário"+
-        (isPublished?" e tornados privados":"")+"."
+        ". A visibilidade continua acompanhando a TF"+"."
       : "";
     if(!window.confirm("Excluir definitivamente o cenário '"+scenario.titulo+"'?"+
       "\n\nO resultado, o histórico de execução e os vínculos de requisitos deste cenário serão excluídos."+
