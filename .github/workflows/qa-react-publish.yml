@@ -43,9 +43,9 @@ jobs:
           QA_VITE_BASE: /QA-Hub/react/
           VITE_SUPABASE_URL: https://pqadmlhcsimlcclpkyov.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_3Duz2dETsyYNPtfY-8Mxjw_pGBvCUP9
-          # qa.html is already authorized in Supabase Auth; its compatibility
-          # redirect sends callback tokens to React's standalone auth.html.
-          VITE_AUTH_REDIRECT_URL: https://kaina-visualsoftware.github.io/QA-Hub/qa.html
+          # Add this URL to Supabase Auth > URL Configuration > Redirect URLs.
+          # Legacy /QA-Hub/qa.html remains available for previously sent links.
+          VITE_AUTH_REDIRECT_URL: https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html
           # Public read RPCs installed; direct anon SELECT revoked on 3 tables.
           # Owner-publishing is still constrained by server-side RLS policies.
           VITE_PUBLIC_SHARING_ENABLED: 'true'
@@ -54,6 +54,12 @@ jobs:
           node scripts/check-bundle-budget.mjs
           test -s dist/index.html
           test -s dist/auth.html
+          test -s dist/favicon.svg
+          test -s dist/favicon.png
+          test -s dist/icon-192.png
+          test -s dist/site.webmanifest
+          grep -q '/QA-Hub/react/favicon.png' dist/index.html
+          grep -q '/QA-Hub/react/favicon.png' dist/auth.html
           test -d dist/assets
           grep -q '/QA-Hub/react/assets/' dist/index.html
       - name: Commit generated React bundle to GitHub Pages source

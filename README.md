@@ -98,9 +98,13 @@ A migração `supabase/admin_roles.sql` adiciona o papel de administrador do **Q
 
 ## URL de autenticação e publicação
 
-Em **Supabase Dashboard → Authentication → URL Configuration**, configure a **Site URL** e adicione em **Redirect URLs**: `https://kaina-visualsoftware.github.io/QA-Hub/qa.html`. Após a renomeação do repositório, confirme a nova URL de produção no Supabase Auth. Os links de confirmação novos devem usar o endereço QA-Hub; mantenha o endereço antigo na lista de redirecionamentos apenas pelo período necessário para confirmações já enviadas. Não use `localhost:3000` como endereço público do sistema.
+Em **Supabase Dashboard → Authentication → URL Configuration** no projeto **SIA** (`pqadmlhcsimlcclpkyov`):
+1. **Site URL:** `https://kaina-visualsoftware.github.io/QA-Hub/react/`
+2. **Redirect URLs:** adicione `https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html` (exato).
+3. Preserve `https://kaina-visualsoftware.github.io/QA-Hub/qa.html` temporariamente para links legados já enviados.
+4. Confirme que os modelos de e-mail usam `{{ .ConfirmationURL }}` ou a variável de redirecionamento `{{ .RedirectTo }}`, e **não** constroem um endereço `localhost` com `{{ .SiteURL }}` antigo.
 
-O QA Hub usa `QA_CONFIG.authRedirectUrl` para cadastro e reenvio de confirmação. O redirecionamento da raiz para `qa.html` preserva o fragmento e os parâmetros, inclusive os de autenticação. Links de confirmação previamente expirados não são renovados automaticamente.
+Cadastro e recuperação na interface React agora enviam o callback `/QA-Hub/react/auth.html` diretamente. A URL no build publicado é fixa e HTTPS, inclusive quando uma configuração antiga tenta definir `localhost`; apenas o servidor Vite de desenvolvimento usa callback local. A entrada `qa.html` permanece como redirecionador de compatibilidade para os e-mails anteriores. O endereço recebido no email depende também da allowlist e dos templates do Supabase Auth: **a configuração do Dashboard precisa ser aplicada no projeto**. Não inclua `localhost` em links de produção. Links de confirmação expirados precisam ser solicitados novamente.
 
 ## Preenchimento rápido de TF com IA sem token
 
