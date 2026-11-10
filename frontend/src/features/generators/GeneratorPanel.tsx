@@ -23,6 +23,8 @@ import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
+import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
+import type { ActivityPhase, JourneyStage } from "./GeneratorJourney";
 import type { GeneratorMode } from "./stream";
 
 type GeneratorAssembly =
@@ -35,6 +37,7 @@ type Props = {
   userId: string;
   scenarios: Scenario[];
   mode: GeneratorMode;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 function messageOf(error: unknown) {
@@ -48,7 +51,7 @@ function editableCopy(items: GeneratedCase[]) {
   }));
 }
 
-export default function GeneratorPanel({ task, userId, scenarios, mode }: Props) {
+export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyChange }: Props) {
   const client = useQueryClient();
   const [extra, setExtra] = useState("");
   const [preset, setPreset] = useState("essencial");
@@ -56,6 +59,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
   const [consent, setConsent] = useState(false);
   const [partialConsent, setPartialConsent] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [activityPhase, setActivityPhase] = useState<ActivityPhase>("connecting");
+  const [showSetup, setShowSetup] = useState(true);
+  const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
   const [content, setContent] = useState("");
   const [cases, setCases] = useState<GeneratedCase[]>([]);
@@ -86,9 +92,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     return () => controller.current?.abort();
   }, []);
   useEffect(() => {
+    onBusyChange?.(generating);
+  }, [generating, onBusyChange]);
+  useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");
     setMessage(""); setError(""); setDirtyOutput(false);
+    setShowSetup(true); setCompleted(false);
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
@@ -146,7 +156,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     const previousRaw = raw;
     const previousTruncated=truncated;
     setGenerating(true); setError(""); setMessage("");
-    setRaw(""); setTruncated(false);
+    setRaw(""); setTruncated(false); setCompleted(false);
+    setActivityPhase("connecting");
     const abort = new AbortController();
     controller.current = abort;
     try {
@@ -154,8 +165,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       // The full redacted payload is inspectable on screen before consent.
       const response = await generateWithNvidia(
         mode, context.taskContext.text, context.approved.text,
-        (chunk) => setRaw((previous) => previous + chunk), abort.signal
+        (chunk) => {
+          setActivityPhase("receiving");
+          setRaw((previous) => previous + chunk);
+        }, abort.signal
       );
+      setActivityPhase("organizing");
       setGenerationId(nextId);
       setTruncated(response.truncated);
       setDirtyOutput(false);
@@ -173,6 +188,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         setCases(editableCopy(fresh));
         setContent(response.text);
       }
+      setShowSetup(false);
       setMessage(response.truncated
         ? "Resposta interrompida pelo limite do modelo. Revise antes de usar."
         : mode === "teste"
@@ -181,6 +197,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           : "Post gerado e formatado. Revise os campos antes de salvar.");
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
+      setShowSetup(true);
       setError(abort.signal.aborted
         ? "Geração cancelada. A versão anterior foi preservada."
         : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
@@ -218,6 +235,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
+      setCompleted(true);
       setMessage("Post salvo em Documentos · versão " + saved.versao +
         (warnings.length ? ". Atenção: " + warnings.join(" | ") : "."));
     } catch (reason) { setError(messageOf(reason)); }
@@ -250,6 +268,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
+      setCompleted(true);
       setMessage(saved.inserted + " cenário(s) anexado(s) à TF. Todos começam não executados." +
         (warnings.length ? " Atenção: " + warnings.join(" | ") : ""));
     } catch (reason) { setError(messageOf(reason)); }
