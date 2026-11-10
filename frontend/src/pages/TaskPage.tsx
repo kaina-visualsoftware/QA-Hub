@@ -883,16 +883,96 @@ export default function TaskPage() {
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
       className="qa-task-panel" hidden={activeTab !== "deliverables"}>
-      {activeTab==="deliverables"&&<TaskDeliverables
-        diagrams={<Suspense fallback={<p role="status">Carregando diagramas…</p>}>
-          <DiagramLibrary taskId={task.id} userId={userId} owner={!!own}
-            onCreate={()=>openDiagramEditor()}
-            onEdit={id=>openDiagramEditor(id)}/>
-        </Suspense>}
-        documents={<Suspense fallback={<p role="status">Carregando documentos…</p>}>
-          <DocumentLibrary taskId={task.id} userId={userId} owner={!!own}
-            onCreate={openReportEditor}/>
-        </Suspense>}/>}
+      {activeTab==="deliverables"&&<>
+        <div className="qa-task-area-heading">
+          <div>
+            <p className="eyebrow">RESULTADOS E DOCUMENTAÇÃO</p>
+            <h2>Relatórios e publicações</h2>
+            <p>Analise os resultados registrados e consulte os documentos produzidos nesta TF.</p>
+          </div>
+        </div>
+        <TaskResultsDashboard scenarios={scenarios.data??[]}/>
+        {own&&<div className="qa-task-area-actions" role="group"
+          aria-label="Criar relatórios e publicações">
+          <Button onPress={openReportEditor}>
+            <FileChartColumnIncreasing size={17} aria-hidden="true"/> Criar relatório
+          </Button>
+          <Button variant="secondary" onPress={()=>openTool("post")}>
+            <FileText size={17} aria-hidden="true"/> Gerar post
+          </Button>
+          <Button variant="secondary" onPress={()=>openDiagramEditor()}>
+            <GitBranchPlus size={17} aria-hidden="true"/> Criar diagrama
+          </Button>
+          <Button variant="secondary" onPress={()=>openTool("history")}>
+            <History size={17} aria-hidden="true"/> Histórico de execuções
+          </Button>
+        </div>}
+        <TaskDeliverables
+          diagrams={<Suspense fallback={<p role="status">Carregando diagramas…</p>}>
+            <DiagramLibrary taskId={task.id} userId={userId} owner={!!own}
+              showCreate={false} onCreate={()=>openDiagramEditor()}
+              onEdit={id=>openDiagramEditor(id)}/>
+          </Suspense>}
+          documents={<Suspense fallback={<p role="status">Carregando documentos…</p>}>
+            <DocumentLibrary taskId={task.id} userId={userId} owner={!!own}
+              showCreate={false} onCreate={openReportEditor}/>
+          </Suspense>}/>
+        {!own&&<Button variant="secondary" onPress={()=>openTool("history")}>
+          <History size={17} aria-hidden="true"/> Histórico de execuções
+        </Button>}
+      </>}
+    </section>
+    <section id="qa-task-panel-resources" role="tabpanel"
+      aria-labelledby="qa-task-tab-resources"
+      className="qa-task-panel" hidden={activeTab !== "resources"}>
+      {activeTab==="resources"&&<>
+        <div className="qa-task-area-heading">
+          <div>
+            <p className="eyebrow">INFORMAÇÕES DE APOIO</p>
+            <h2>Arquivos, requisitos e referências</h2>
+            <p>Consulte e organize as fontes e evidências da tarefa sem abrir
+              a tela de cadastro.</p>
+          </div>
+        </div>
+        <TaskResourceTabs value={resourceView} onChange={setResourceView}/>
+        <section id="qa-task-resource-panel-requirements" role="tabpanel"
+          aria-labelledby="qa-task-resource-tab-requirements"
+          hidden={resourceView!=="requirements"} className="qa-task-resource-panel">
+          {resourceView==="requirements"&&<Suspense fallback={
+            <p role="status" className="notice">Carregando requisitos…</p>}>
+            <RequirementsPanel key={task.id} task={task} userId={userId}
+              scenarios={scenarios.data??[]}/>
+          </Suspense>}
+        </section>
+        <section id="qa-task-resource-panel-files" role="tabpanel"
+          aria-labelledby="qa-task-resource-tab-files"
+          hidden={resourceView!=="files"} className="qa-task-resource-panel">
+          {resourceView==="files"&&<Suspense fallback={
+            <p role="status" className="notice">Carregando arquivos e evidências…</p>}>
+            <EvidencePanel key={task.id} task={task} userId={userId}
+              scenarios={scenarios.data??[]}
+              prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+          </Suspense>}
+        </section>
+        <section id="qa-task-resource-panel-references" role="tabpanel"
+          aria-labelledby="qa-task-resource-tab-references"
+          hidden={resourceView!=="references"} className="qa-task-resource-panel">
+          {resourceView==="references"&&<Suspense fallback={
+            <p role="status" className="notice">Carregando releases e referências…</p>}>
+            <LinksPanel key={task.id} task={task} userId={userId}/>
+          </Suspense>}
+        </section>
+        <section id="qa-task-resource-panel-team" role="tabpanel"
+          aria-labelledby="qa-task-resource-tab-team"
+          hidden={resourceView!=="team"} className="qa-task-resource-panel">
+          {resourceView==="team"&&<Suspense fallback={
+            <p role="status" className="notice">Carregando equipe…</p>}>
+            <TaskCollaborationPanel key={task.id} task={task}
+              scenarios={scenarios.data??[]} userId={userId} rights={rights}
+              onExecuted={invalidate}/>
+          </Suspense>}
+        </section>
+      </>}
     </section>
     <DeleteTaskDialog task={showDeleteTask && own ? task : null}
       busy={deleteTaskMutation.isPending}
