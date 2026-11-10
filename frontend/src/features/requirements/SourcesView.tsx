@@ -16,10 +16,10 @@ function downloadBlob(file: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function SourcesView({
-  task, userId, records, loading, error, onChanged
+  task, userId, records, loading, error, onChanged, readOnly=false
 }: {
   task: Task; userId: string; records: RequirementSource[];
-  loading: boolean; error?: string; onChanged: () => Promise<void>
+  loading: boolean; error?: string; onChanged: () => Promise<void>; readOnly?:boolean
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState<PreparedFile | null>(null);
@@ -61,16 +61,16 @@ export default function SourcesView({
     finally { setReadingFile(null); }
   }
   return <div className="stack">
-    <p className="text-muted text-sm">
+    {!readOnly&&<p className="text-muted text-sm">
       PDF/DOCX são lidos localmente com carregamento sob demanda dos parsers.
       PDFs digitalizados não possuem OCR; nesses casos use o texto manual.
       Revise sempre a prévia antes de confirmar o upload.
-    </p>
-    <p className="text-muted text-sm">
+    </p>}
+    {!readOnly&&<p className="text-muted text-sm">
       O arquivo original é armazenado no bucket privado da TF. Versões registradas não podem
       ser substituídas ou excluídas. Nenhum arquivo é enviado automaticamente à IA.
-    </p>
-    <div className="generator-context">
+    </p>}
+    {!readOnly&&<div className="generator-context">
       <h3 className="font-semibold">Anexar documento de requisitos</h3>
       <label className="field mt-3">Arquivo PDF, DOCX, TXT ou MD (até 10 MB)
         <input type="file" accept=".pdf,.docx,.txt,.md"
@@ -100,7 +100,7 @@ export default function SourcesView({
           importar somente os itens revisados.
         </p>
       </div>}
-    </div>
+    </div>}
     <div className="section-heading mt-4">
       <h3 className="font-semibold">Fontes existentes</h3>
       <span className="count-pill">{records.length}</span>
