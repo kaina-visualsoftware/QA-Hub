@@ -55,9 +55,11 @@ jobs:
           test -s dist/index.html
           test -s dist/auth.html
           test -s dist/favicon.svg
+          test -s dist/favicon.png
+          test -s dist/icon-192.png
           test -s dist/site.webmanifest
-          grep -q '/QA-Hub/react/favicon.svg' dist/index.html
-          grep -q '/QA-Hub/react/favicon.svg' dist/auth.html
+          grep -q '/QA-Hub/react/favicon.png' dist/index.html
+          grep -q '/QA-Hub/react/favicon.png' dist/auth.html
           test -d dist/assets
           grep -q '/QA-Hub/react/assets/' dist/index.html
       - name: Commit generated React bundle to GitHub Pages source
