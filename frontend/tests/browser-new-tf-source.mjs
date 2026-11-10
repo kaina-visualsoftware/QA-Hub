@@ -191,6 +191,21 @@ try{
     name:"analise.txt",mimeType:"text/plain",
     buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
   });
+  await page.waitForFunction(()=>[...document.querySelectorAll(".qa-wizard-file strong")]
+    .some(element=>element.textContent==="analise.txt"));
+  const fileState=await page.evaluate(()=>{
+    const element=[...document.querySelectorAll(".qa-wizard-file strong")]
+      .find(node=>node.textContent==="analise.txt");
+    const chain=[];
+    for(let node=element;node&&chain.length<10;node=node.parentElement){
+      const style=getComputedStyle(node);
+      chain.push({tag:node.tagName,className:typeof node.className==="string"?node.className:"",
+        display:style.display,visibility:style.visibility,
+        rect:node.getBoundingClientRect().toJSON(),hidden:node.hidden});
+    }
+    return {chain,modalCount:document.querySelectorAll('[role="dialog"]').length};
+  });
+  console.log("WIZARD_FILE_VISIBILITY",JSON.stringify(fileState));
   await wizard.getByText("analise.txt").waitFor();
   assert.equal(taskWrites,0,"No TF must be saved when preparing files");
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
