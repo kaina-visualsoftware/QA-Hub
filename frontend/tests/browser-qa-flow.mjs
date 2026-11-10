@@ -315,7 +315,12 @@ try{
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("tab",{name:"Arquivos e requisitos"}).click();
   await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
-  const sourceField = page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
+  assert.equal(await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio").count(),0,
+    "The resource listing must not show inline import forms");
+  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  const requirementModal=page.getByRole("dialog",{name:"Importar requisitos"});
+  await requirementModal.waitFor();
+  const sourceField = requirementModal.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
   // Lazy panel loading can make isVisible() return false before the
   // controlled native details has mounted. Wait for its summary first.
   const importSummary=page.getByText("Importar requisitos de texto (prévia e revisão)");
@@ -341,6 +346,8 @@ try{
   assert.equal(requirementLinks[0].cenario_id,scenarios[0].id);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await requirementModal.getByRole("button",{name:"Fechar Importar requisitos"}).click();
+  await page.getByText("RF001", {exact:false}).first().waitFor();
   await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
   await page.getByRole("heading",{name:"Evidências de execução"}).waitFor();
   mkdirSync("artifacts/f3-evidence",{recursive:true});
@@ -364,7 +371,12 @@ try{
     await page.screenshot({path:"artifacts/f3-evidence/evidence-"+width+".png"});
   }
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole("textbox",{name:"Descrição (opcional)"}).fill("Captura sintética do pedido");
+  assert.equal(await page.getByRole("textbox",{name:"Descrição (opcional)"}).count(),0,
+    "Evidence upload must not appear in the file listings");
+  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  const fileModal=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
+  await fileModal.getByRole("button",{name:"Evidência do teste"}).click();
+  await fileModal.getByRole("textbox",{name:"Descrição (opcional)"}).fill("Captura sintética do pedido");
   await page.getByLabel("Selecionar arquivo").setInputFiles({
     name:"captura.png",mimeType:"image/png",buffer:samplePng
   });
@@ -376,9 +388,12 @@ try{
   assert.equal(evidenceFiles[0].tamanho_bytes,samplePng.length);
   assert.equal(evidenceFiles[0].descricao,"Captura sintética do pedido");
   assert.equal(tasks[0].status,"rascunho","Anexar arquivo não aprova a TF.");
+  await fileModal.getByRole("button",{name:"Fechar Importar arquivos e evidências"}).click();
   await page.getByLabel("Arquivos da TF").getByRole("button",{name:"Visualizar"}).click();
   await page.getByRole("region",{name:"Prévia do anexo privado"}).waitFor({timeout:8000});
   await page.getByRole("button",{name:"Fechar prévia do arquivo"}).click();
+  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  await fileModal.getByRole("button",{name:"Evidência do teste"}).click();
   await page.getByText("Adicionar observação ou link").click();
   await page.getByLabel(/Resumo do que foi observado/).fill("Desconto removido com o comportamento esperado.");
   await page.getByRole("button",{name:"Salvar evidência"}).click();
@@ -387,28 +402,33 @@ try{
   assert.equal(evidenceRows.length,1);
   assert.equal(evidenceRows[0].tarefa_id,taskId);
   assert.equal(evidenceRows[0].tipo,"observacao");
+  await fileModal.getByRole("button",{name:"Fechar Importar arquivos e evidências"}).click();
   await page.getByRole("tab",{name:"Auditoria"}).click();
   await page.getByText("Nenhum evento encontrado.").waitFor();
   await page.getByRole("tab",{name:"Releases e referências"}).click();
   const linkPanel=page.locator("section[aria-labelledby='links-heading']");
   await linkPanel.getByRole("heading",{name:"Releases e referências"}).waitFor();
-  await linkPanel.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
-  await linkPanel.getByRole("button",{name:"Vincular release"}).click();
+  assert.equal(await linkPanel.getByLabel(/Versão \(ex/).count(),0);
+  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  const linksModal=page.getByRole("dialog",{name:"Adicionar release ou referência"});
+  const editLinks=linksModal.locator("section[aria-labelledby='links-heading']");
+  await editLinks.getByLabel(/Versão \(ex/).fill("12.10.06.0000");
+  await editLinks.getByRole("button",{name:"Vincular release"}).click();
   await page.getByText("Release vinculada à TF sem alterar seus testes.").waitFor();
   assert.equal(releaseSaves,1);
   assert.equal(releases[0].versao,"12.10.06.0000");
-  await linkPanel.getByRole("tab",{name:"Referências"}).click();
-  await linkPanel.getByLabel("Título").fill("Checklist de desconto");
-  await linkPanel.getByLabel("Conteúdo").fill("Verificar a atualização do total.");
-  await linkPanel.getByRole("button",{name:"Salvar referência"}).click();
+  await editLinks.getByRole("tab",{name:"Referências"}).click();
+  await editLinks.getByLabel("Título").fill("Checklist de desconto");
+  await editLinks.getByLabel("Conteúdo").fill("Verificar a atualização do total.");
+  await editLinks.getByRole("button",{name:"Salvar referência"}).click();
   await page.getByText("Referência privada salva.").waitFor();
   assert.equal(referenceSaves,1);
   assert.equal(referenceRows.length,1);
-  await linkPanel.getByRole("tab",{name:"Comparações"}).click();
-  await linkPanel.getByLabel("Texto A (original)").fill("Linha um\nValor antigo");
-  await linkPanel.getByLabel("Texto B (novo)").fill("Linha um\nValor novo");
-  await linkPanel.getByRole("button",{name:"Comparar textos"}).click();
-  const recordCounts=linkPanel.getByRole("button",{name:"Salvar somente contagens na TF"});
+  await editLinks.getByRole("tab",{name:"Comparações"}).click();
+  await editLinks.getByLabel("Texto A (original)").fill("Linha um\nValor antigo");
+  await editLinks.getByLabel("Texto B (novo)").fill("Linha um\nValor novo");
+  await editLinks.getByRole("button",{name:"Comparar textos"}).click();
+  const recordCounts=editLinks.getByRole("button",{name:"Salvar somente contagens na TF"});
   await recordCounts.waitFor();
   assert.equal(comparisonSaves,0,"Diff local não grava conteúdo nem metadados automaticamente");
   page.once("dialog",(dialog)=>void dialog.accept());
@@ -418,10 +438,10 @@ try{
   assert.equal(comparisonRows[0].tipo,"diff_texto");
   assert.equal(comparisonRows[0].adicionados,1);
   assert.equal(comparisonRows[0].removidos,1);
-  await linkPanel.getByRole("button",{name:"XML por estrutura"}).click();
-  await linkPanel.getByLabel("XML A (original)").fill("<root><valor id='1'>antigo</valor></root>");
-  await linkPanel.getByLabel("XML B (novo)").fill("<root><valor id='1'>novo</valor></root>");
-  await linkPanel.getByRole("button",{name:"Comparar XML"}).click();
+  await editLinks.getByRole("button",{name:"XML por estrutura"}).click();
+  await editLinks.getByLabel("XML A (original)").fill("<root><valor id='1'>antigo</valor></root>");
+  await editLinks.getByLabel("XML B (novo)").fill("<root><valor id='1'>novo</valor></root>");
+  await editLinks.getByRole("button",{name:"Comparar XML"}).click();
   await page.getByText(/VALOR.*antigo.*novo/).waitFor();
   assert.equal(comparisonSaves,1,"Análise XML não deve ser salva automaticamente");
   await linkPanel.getByLabel("XML A (original)").fill(
@@ -431,8 +451,10 @@ try{
   assert.equal(comparisonSaves,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
+  await linksModal.getByRole("button",{name:"Fechar Adicionar release ou referência"}).click();
   await page.getByRole("tab",{name:"Arquivos e evidências"}).click();
-  const reqPanel=page.locator("section[aria-labelledby='qa-task-source-files-heading']");
+  await page.getByRole("button",{name:"Importar",exact:true}).click();
+  const reqPanel=fileModal.locator("section[aria-labelledby='qa-task-source-files-heading']");
   const fileInput=reqPanel.locator('input[type="file"]');
   await fileInput.setInputFiles({
     name:"requisitos.pdf",mimeType:"application/pdf",
