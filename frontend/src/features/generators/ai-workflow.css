@@ -41,6 +41,14 @@
   border-radius:14px;padding:clamp(16px,2.2vw,24px);
 }
 .qa-case-composer .qa-generator-result .qa-generator-result-heading{margin-bottom:10px}
+.qa-generator-complete{
+  display:flex;align-items:flex-start;gap:10px;
+  margin-bottom:13px;padding:13px 15px;border:1px solid #bfdfd4;
+  border-radius:11px;background:#f1f9f5;color:#236951;
+}
+.qa-generator-complete>svg{flex:0 0 20px}
+.qa-generator-complete strong{display:block;font-size:.86rem}
+.qa-generator-complete p{margin-top:4px;font-size:.78rem;line-height:1.5;color:#416c62}
 .qa-generator-setup-toggle{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
   flex-wrap:wrap;margin:0 0 15px;padding:10px 13px;
