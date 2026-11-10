@@ -66,9 +66,11 @@ test('fallback legado mantém módulos e autenticação visíveis', () => {
 
 test('root e fallback legado mantêm favicon do QA Hub', () => {
   const svg = readFileSync(new URL('../favicon.svg', import.meta.url), 'utf8');
+  const png = readFileSync(new URL('../favicon.png', import.meta.url));
   for (const html of [root, legacy]) {
-    assert.match(html, /<link rel="icon" type="image\/svg\+xml" href="\.\/favicon\.svg">/);
+    assert.match(html, /<link rel="icon" type="image\/png" sizes="64x64" href="\.\/favicon\.png">/);
   }
+  assert.equal(png.subarray(0,8).toString('hex'), '89504e470d0a1a0a');
   assert.match(svg, /<svg\b[^>]*viewBox="0 0 64 64"/);
   assert.match(svg, /<rect\b[^>]*fill="#112d39"/);
   assert.match(svg, /#1eb8a3/);
