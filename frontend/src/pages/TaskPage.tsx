@@ -1008,10 +1008,17 @@ export default function TaskPage() {
               className={resourceFileType==="evidence"?"selected":""}
               onClick={()=>setResourceFileType("evidence")}>Evidência do teste</button>
           </div>
-          <TaskFilesWorkspace key={task.id+"-edit-"+resourceFileType}
-            task={task} userId={userId} scenarios={scenarios.data??[]}
-            section={resourceFileType}
-            prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+          <div hidden={resourceFileType!=="sources"}>
+            <TaskFilesWorkspace key={task.id+"-edit-sources"}
+              task={task} userId={userId} scenarios={scenarios.data??[]}
+              section="sources"/>
+          </div>
+          <div hidden={resourceFileType!=="evidence"}>
+            <TaskFilesWorkspace key={task.id+"-edit-evidence"}
+              task={task} userId={userId} scenarios={scenarios.data??[]}
+              section="evidence"
+              prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+          </div>
         </div>}
         {resourceView==="references"&&<LinksPanel
           key={task.id+"-edit"} task={task} userId={userId}/>}
