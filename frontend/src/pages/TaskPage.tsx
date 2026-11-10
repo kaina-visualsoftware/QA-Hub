@@ -84,6 +84,8 @@ export default function TaskPage() {
   });
   const [activeTab, setActiveTab] = useState<TaskTab>("summary");
   const [resourceView,setResourceView]=useState<TaskResourceView>("requirements");
+  const [showResourceImport,setShowResourceImport]=useState(false);
+  const [resourceFileType,setResourceFileType]=useState<"sources"|"evidence">("sources");
   const [executionMode, setExecutionMode] = useState<"list"|"guided">("list");
   const [evidenceTarget, setEvidenceTarget] = useState<string|null>(null);
   const [evidenceRequest, setEvidenceRequest] = useState(0);
@@ -108,7 +110,8 @@ export default function TaskPage() {
   // TanStack Router reuses this page instance when navigating from one TF to
   // another. Never carry an open tool (or another TF's draft) to the new task.
   useEffect(()=>{
-    setActiveTab("summary");setResourceView("requirements");setExecutionMode("list");
+    setActiveTab("summary");setResourceView("requirements");setShowResourceImport(false);
+    setResourceFileType("sources");setExecutionMode("list");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
@@ -212,7 +215,9 @@ export default function TaskPage() {
     setEvidenceTarget(scenario.id);
     setEvidenceRequest(n=>n+1);
     setResourceView("files");
+    setResourceFileType("evidence");
     setActiveTab("resources");
+    setShowResourceImport(true);
   }
 
 
@@ -925,56 +930,95 @@ export default function TaskPage() {
     </section>
     <section id="qa-task-panel-resources" role="tabpanel"
       aria-labelledby="qa-task-tab-resources"
-      className="qa-task-panel" hidden={activeTab !== "resources"}>
+      className="qa-task-panel" hidden={activeTab!=="resources"}>
       {activeTab==="resources"&&<>
-        <div className="qa-task-area-heading">
+        <div className="qa-task-area-heading qa-resource-library-heading">
           <div>
-            <p className="eyebrow">INFORMAÇÕES DE APOIO</p>
-            <h2>Arquivos, requisitos e referências</h2>
-            <p>Consulte e organize as fontes e evidências da tarefa sem abrir
-              a tela de cadastro.</p>
+            <p className="eyebrow">BIBLIOTECA DA TAREFA</p>
+            <h2>Arquivos e requisitos</h2>
+            <p>Consulte os itens registrados. Use Importar para adicionar documentos,
+              requisitos, evidências ou gerenciar os registros.</p>
           </div>
+          {(resourceView==="team"?rights.canManage||rights.canComment:own)&&
+            <Button onPress={()=>{
+              setResourceFileType("sources");
+              setShowResourceImport(true);
+            }}>
+              <Plus size={17} aria-hidden="true"/>
+              {resourceView==="team"?"Gerenciar":"Importar"}
+            </Button>}
         </div>
         <TaskResourceTabs value={resourceView} onChange={setResourceView}/>
         <section id="qa-task-resource-panel-requirements" role="tabpanel"
           aria-labelledby="qa-task-resource-tab-requirements"
           hidden={resourceView!=="requirements"} className="qa-task-resource-panel">
-          {resourceView==="requirements"&&<Suspense fallback={
+          {resourceView==="requirements"&&!showResourceImport&&<Suspense fallback={
             <p role="status" className="notice">Carregando requisitos…</p>}>
-            <RequirementsPanel key={task.id} task={task} userId={userId}
-              scenarios={scenarios.data??[]}/>
+            <RequirementsPanel key={task.id+"-read"} task={task} userId={userId}
+              scenarios={scenarios.data??[]} readOnly/>
           </Suspense>}
         </section>
         <section id="qa-task-resource-panel-files" role="tabpanel"
           aria-labelledby="qa-task-resource-tab-files"
           hidden={resourceView!=="files"} className="qa-task-resource-panel">
-          {resourceView==="files"&&<Suspense fallback={
+          {resourceView==="files"&&!showResourceImport&&<Suspense fallback={
             <p role="status" className="notice">Carregando arquivos e evidências…</p>}>
-            <TaskFilesWorkspace key={task.id} task={task} userId={userId}
-              scenarios={scenarios.data??[]}
-              prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+            <TaskFilesWorkspace key={task.id+"-read"} task={task} userId={userId}
+              scenarios={scenarios.data??[]} readOnly/>
           </Suspense>}
         </section>
         <section id="qa-task-resource-panel-references" role="tabpanel"
           aria-labelledby="qa-task-resource-tab-references"
           hidden={resourceView!=="references"} className="qa-task-resource-panel">
-          {resourceView==="references"&&<Suspense fallback={
+          {resourceView==="references"&&!showResourceImport&&<Suspense fallback={
             <p role="status" className="notice">Carregando releases e referências…</p>}>
-            <LinksPanel key={task.id} task={task} userId={userId}/>
+            <LinksPanel key={task.id+"-read"} task={task} userId={userId} readOnly/>
           </Suspense>}
         </section>
         <section id="qa-task-resource-panel-team" role="tabpanel"
           aria-labelledby="qa-task-resource-tab-team"
           hidden={resourceView!=="team"} className="qa-task-resource-panel">
-          {resourceView==="team"&&<Suspense fallback={
+          {resourceView==="team"&&!showResourceImport&&<Suspense fallback={
             <p role="status" className="notice">Carregando equipe…</p>}>
-            <TaskCollaborationPanel key={task.id} task={task}
+            <TaskCollaborationPanel key={task.id+"-read"} task={task}
               scenarios={scenarios.data??[]} userId={userId} rights={rights}
-              onExecuted={invalidate}/>
+              onExecuted={invalidate} readOnly/>
           </Suspense>}
         </section>
       </>}
     </section>
+    <QAModal key={task.id+"-resource-import"} open={showResourceImport}
+      title={resourceView==="requirements"?"Importar requisitos":
+        resourceView==="files"?"Importar arquivos e evidências":
+        resourceView==="references"?"Adicionar release ou referência":"Gerenciar equipe"}
+      eyebrow="BIBLIOTECA DA TF" size="lg"
+      description="As alterações só serão registradas após sua confirmação."
+      onClose={()=>setShowResourceImport(false)}>
+      {showResourceImport&&<Suspense fallback={<p role="status">Carregando ferramentas de importação…</p>}>
+        {resourceView==="requirements"&&<RequirementsPanel
+          key={task.id+"-edit"} task={task} userId={userId}
+          scenarios={scenarios.data??[]}/>}
+        {resourceView==="files"&&<div className="qa-resource-import-body">
+          <div className="qa-resource-import-switch" role="group" aria-label="Tipo de anexo">
+            <button type="button" aria-pressed={resourceFileType==="sources"}
+              className={resourceFileType==="sources"?"selected":""}
+              onClick={()=>setResourceFileType("sources")}>Documento da TF</button>
+            <button type="button" aria-pressed={resourceFileType==="evidence"}
+              className={resourceFileType==="evidence"?"selected":""}
+              onClick={()=>setResourceFileType("evidence")}>Evidência do teste</button>
+          </div>
+          <TaskFilesWorkspace key={task.id+"-edit-"+resourceFileType}
+            task={task} userId={userId} scenarios={scenarios.data??[]}
+            section={resourceFileType}
+            prefillScenarioId={evidenceTarget} prefillRequest={evidenceRequest}/>
+        </div>}
+        {resourceView==="references"&&<LinksPanel
+          key={task.id+"-edit"} task={task} userId={userId}/>}
+        {resourceView==="team"&&<TaskCollaborationPanel
+          key={task.id+"-edit"} task={task} scenarios={scenarios.data??[]}
+          userId={userId} rights={rights} onExecuted={invalidate}/>}
+      </Suspense>}
+    </QAModal>
     <DeleteTaskDialog task={showDeleteTask && own ? task : null}
       busy={deleteTaskMutation.isPending}
       error={deleteTaskMutation.error?.message}
