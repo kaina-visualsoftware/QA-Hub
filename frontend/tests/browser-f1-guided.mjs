@@ -92,9 +92,8 @@ try{
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
   await page.goto(root+"#/tarefa/"+taskId);
   await page.getByRole("heading",{name:task.titulo}).waitFor({timeout:15000});
-  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Executar testes"}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
+  await page.getByRole("button",{name:"Guiado",exact:true}).click();
 
   const guided=page.getByRole("region",{name:"Execução guiada dos testes"});
   await guided.waitFor();
@@ -185,11 +184,11 @@ try{
   assert.equal(mutations.length,4);
 
   await guided.getByRole("button",{name:"Adicionar evidência"}).click();
-  const evidence=page.getByRole("dialog",{name:"Evidências e auditoria"});
+  const evidence=page.getByRole("tabpanel",{name:"Arquivos e evidências"});
   await evidence.waitFor({timeout:18000});
   await evidence.getByLabel("Cenário relacionado (opcional)").waitFor();
   assert.equal(await evidence.getByLabel("Cenário relacionado (opcional)").inputValue(),scenarios[3].id);
-  await page.getByRole("button",{name:"Fechar Evidências e auditoria"}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
 
   await page.getByRole("button",{name:"Lista",exact:true}).click();
   assert.equal(await page.getByRole("button",{name:"Lista",exact:true}).getAttribute("aria-pressed"),"true");
@@ -203,7 +202,7 @@ try{
     .fill("Rascunho privado não salvo de outra tarefa");
   await page.evaluate(id=>{location.hash="#/tarefa/"+id;},otherTaskId);
   await page.getByRole("heading",{name:"Outra TF independente"}).waitFor();
-  await page.getByRole("tab",{name:/Testes/}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
   await page.getByRole("button",{name:"Guiado",exact:true}).click();
   await guided.getByRole("group",{name:"Registrar resultado de Cenário de outra TF"}).waitFor();
   assert.equal(await guided.getByText("Rascunho privado não salvo de outra tarefa").count(),0);
