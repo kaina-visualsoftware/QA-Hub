@@ -246,9 +246,24 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       if(snapshot!==combine("TEXTO DA TAREFA",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
       }
-      const initial={...draft,descricao:sourceText};
-      const merged=mergeTaskAiCreation(initial,response);
-      automaticallyFilled.current=taskAiFieldValues(response);
+      // In old versions, the pasted source was installed as 'descricao'
+      // before merging. If the AI omitted that field, the entire unprocessed
+      // report was persisted instead of an actual problem summary.
+      const initial={...draft,descricao:draft.descricao.trim()===sourceText.trim()?"":draft.descricao};
+      const previousAiValues=automaticallyFilled.current;
+      const merged=mergeTaskAiCreation(initial,response,{previousAiValues});
+      const generated=taskAiFieldValues(response);
+      // Track only values actually applied by AI; user-edited values must
+      // survive a second analysis and must not be erased on source changes.
+      const applied=Object.fromEntries(Object.entries(generated).filter(([name,value])=>{
+        const key=name as keyof TaskDraft;
+        return merged[key]===value&&(
+          !String(initial[key]??"").trim()||
+          previousAiValues[key]!==undefined&&initial[key]===previousAiValues[key]||
+          name==="tipo_teste"&&initial.tipo_teste==="BUILD"&&value==="RELEASE"
+        );
+      })) as Partial<TaskDraft>;
+      automaticallyFilled.current=applied;
       setDraft(merged);
       setCases(freshTaskAiScenarios(response,[],true));
       setAiUsed(true);
@@ -408,6 +423,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   // BUILD is a default choice, not a field identified by the AI.
   const filledFields=Object.entries(draft)
     .filter(([name,value])=>name!=="tipo_teste"&&typeof value==="string"&&value.trim()).length;
+  const missingFields=([
+    ["descricao","Descrição do problema"],
+    ["explicacao","Como funciona"],
+    ["causa","Causa identificada"],
+    ["correcao","Correção realizada"],
+    ["conclusao","Conclusão"]
+  ] as const).filter(([key])=>!draft[key]?.trim()).map(([,label])=>label);
   const taskContextLength=combine("TEXTO DA TAREFA",sourceText,taskFiles).length;
   const fullTaskReview=Object.entries(draft)
     .filter(([,value])=>Boolean(value?.trim()))
@@ -582,6 +604,21 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <span>{aiUsed?"Análise concluída com IA":"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
+      {aiUsed&&<div className="qa-wizard-ai-review">
+        <div>
+          <strong>{missingFields.length?
+            "Confira os campos não identificados":"Campos principais identificados"}</strong>
+          <p>{missingFields.length?
+            "Sem informações confirmadas para: "+missingFields.join(", ")+
+            ". Revise o texto ou preencha manualmente; a IA não deve inventar dados.":
+            "Confira o resultado antes de avançar. Você pode analisar novamente sem perder suas edições."}</p>
+        </div>
+        <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
+          {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
+            <Sparkles size={16} aria-hidden="true"/>}
+          {analyzing?"Analisando…":"Analisar novamente"}
+        </Button>
+      </div>}
       <div className="qa-wizard-fields-panel">
         <h4>Identificação</h4>
         <div className="qa-wizard-form-grid">
@@ -608,8 +645,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <h4>Descrição do problema</h4>
         {field("descricao","Resumo do problema / descrição",true)}
       </div>
-      <details className="qa-wizard-more">
-        <summary>Análise técnica e demais informações</summary>
+      <details className="qa-wizard-more" key={aiUsed?"ai":"manual"} open={aiUsed}>
+        <summary>Análise técnica e demais informações {aiUsed?"· revisar dados da IA":""}</summary>
         <div className="stack mt-3">
           {field("explicacao","Como funciona",true)}
           {field("causa","Causa identificada",true)}
