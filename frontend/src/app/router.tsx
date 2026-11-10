@@ -68,9 +68,6 @@ function AppLayout() {
             <small>{user.email}</small></span>
           <Settings2 size={17} aria-hidden="true"/>
         </Link>
-        <a className="qa-legacy-link" href="/QA-Hub/qa-legacy.html">
-          Versão anterior
-        </a>
       </div>
       <Link to="/perfil" className="qa-mobile-profile" aria-label="Perfil e configurações">
         <Settings2 size={19} aria-hidden="true"/>

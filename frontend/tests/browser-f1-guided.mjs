@@ -75,6 +75,7 @@ async function mock(route){
       return send({id},200);
     }
   }
+  if(path.endsWith("/rest/v1/qa_requisito_fontes") && method==="GET")return send([]);
   if(path.endsWith("/rest/v1/qa_evidencias") && method==="GET")return send([]);
   if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
   unexpected.push(method+" "+path);

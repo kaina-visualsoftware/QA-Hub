@@ -44,7 +44,7 @@ jobs:
           VITE_SUPABASE_URL: https://pqadmlhcsimlcclpkyov.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_3Duz2dETsyYNPtfY-8Mxjw_pGBvCUP9
           # Add this URL to Supabase Auth > URL Configuration > Redirect URLs.
-          # Legacy /QA-Hub/qa.html remains available for previously sent links.
+          # /QA-Hub/qa.html remains a callback-compatible redirect.
           VITE_AUTH_REDIRECT_URL: https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html
           # Public read RPCs installed; direct anon SELECT revoked on 3 tables.
           # Owner-publishing is still constrained by server-side RLS policies.
@@ -161,4 +161,4 @@ jobs:
             echo 'ERROR: Could not publish generated assets without overwriting another commit.'
             exit 1
           fi
-          echo 'React bundle committed. Source and legacy fallback preserved.'
+          echo 'React bundle committed. Compatibility redirects preserved.'

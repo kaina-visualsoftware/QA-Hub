@@ -95,7 +95,7 @@ try {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("heading", { name: "Suas tarefas de teste" }).waitFor();
 
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF",exact:true}).click();
   const wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
   await wizard.getByRole("button",{name:"Avançar"}).click();
@@ -109,9 +109,8 @@ try {
   await page.getByRole("heading",{name:"Nova TF com primeiro caso"}).waitFor();
   assert.equal(calls.task,1);
   assert.equal(calls.case,0,"Skipping cases must not create an empty scenario");
-  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Novo cenário"}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
+  await page.getByRole("button",{name:"Cenário",exact:true}).click();
   const editor=page.getByRole("dialog",{name:"Cadastrar cenário"});
   await editor.waitFor({timeout:20000});
   assert.equal(savedTasks[0].status, "rascunho");
@@ -133,9 +132,8 @@ try {
   assert.equal(savedCases[0].status, "nao_executado");
   assert.equal(savedTasks[0].status, "rascunho");
 
-  await page.getByRole("button",{name:"Abrir ações rápidas da TF"}).click();
-  await page.getByRole("group",{name:"Ações rápidas da TF"})
-    .getByRole("button",{name:"Novo cenário"}).click();
+  await page.getByRole("tab",{name:"Cenários"}).click();
+  await page.getByRole("button",{name:"Cenário",exact:true}).click();
   await editor.waitFor();
   await editor.getByRole("textbox", { name: "Título" }).fill("Segundo cenário consecutivo");
   await editor.getByRole("textbox", { name: "Passos" }).fill("Abrir o painel de pagamentos");
@@ -160,7 +158,7 @@ try {
   assert.equal(calls.task, 1, "Refreshing the task must not recreate it");
 
   await page.getByRole("link", { name: "Todas as TFs" }).click();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF",exact:true}).click();
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
   await wizard.getByLabel("Título da tarefa").fill("TF sem cenário imediato");
   await wizard.getByRole("button",{name:"Avançar"}).click();

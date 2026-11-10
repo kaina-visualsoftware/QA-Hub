@@ -777,8 +777,6 @@
 .qa-account-details strong{font-size:.83rem}
 .qa-account-details small{font-size:.68rem;color:#b6cdd0;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.qa-legacy-link{font-size:.72rem;color:#b4c8cc;display:inline-block;margin:10px 9px 0}
-.qa-legacy-link:hover{text-decoration:underline}
 .qa-mobile-profile{display:none}
 .qa-topbar-profile{display:inline-flex;align-items:center;gap:7px;color:#286a73;
   font-size:.8rem;font-weight:690;min-height:38px;padding:6px 9px;border-radius:9px}
@@ -3178,3 +3176,21 @@
   flex:1 1 auto;min-width:0;max-width:100%
 }
 .qa-wizard-attachment-line>p{margin:0}
+
+/* Navegação compacta: manter a única linha rolável, mas tornar
+   a possibilidade de deslizar visível e operar com teclado/toque. */
+@media(max-width:800px){
+  .sidebar nav.qa-primary-nav{
+    padding-bottom:7px;
+    scrollbar-width:thin;
+    scrollbar-color:#82bdc0 transparent;
+    scroll-padding-inline:12px;
+    overscroll-behavior-inline:contain;
+    touch-action:pan-x;
+  }
+  .sidebar nav.qa-primary-nav .nav-link{scroll-snap-align:start}
+  .sidebar nav.qa-primary-nav::-webkit-scrollbar{height:4px}
+  .sidebar nav.qa-primary-nav::-webkit-scrollbar-thumb{
+    background:#82bdc0;border-radius:99px
+  }
+}

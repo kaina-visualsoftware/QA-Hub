@@ -249,7 +249,7 @@ try{
  await ownerModal.waitFor();
  await ownerModal.getByRole("combobox",{name:"Escolher sua equipe"}).selectOption(TEAM);
  await ownerModal.getByRole("button",{name:"Compartilhar com equipe"}).click();
- await ownerModal.getByText(/TF compartilhada somente/).waitFor();
+ await ownerPage.getByText(/TF compartilhada somente/).waitFor();
  assert.equal(writes.filter(v=>v.type==="share").length,1);
  await ownerModal.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
@@ -280,7 +280,7 @@ try{
  await testerModal.getByRole("button",{name:"Conversa"}).click();
  await testerModal.getByRole("textbox",{name:"Novo comentário"}).fill("Revisar o rateio de desconto.");
  await testerModal.getByRole("button",{name:"Publicar comentário"}).click();
- await testerModal.getByText("Comentário registrado.").waitFor();
+ await testerPage.getByText("Comentário registrado.").waitFor();
  assert.equal(comments[0].user_id,TESTER);
  await testerModal.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
 
@@ -293,7 +293,7 @@ try{
  const reopened=ownerPage.getByRole("dialog",{name:"Gerenciar equipe"});
  await reopened.getByRole("combobox",{name:"Designar QA"}).selectOption(TESTER);
  await reopened.getByRole("button",{name:"Atribuir"}).click();
- await reopened.getByText("Responsável atualizado.").waitFor();
+ await ownerPage.getByText("Responsável atualizado.").waitFor();
  assert.equal(assigned.responsavel_id,TESTER);
  await reopened.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
  await ownerPage.reload();
@@ -310,7 +310,7 @@ try{
   .fill("acme/financeiro");
  await ownerIntegration.getByRole("textbox",{name:"Número da issue"}).fill("123");
  await ownerIntegration.getByRole("button",{name:"Vincular issue"}).click();
- await ownerIntegration.getByText("Issue vinculada à TF.").waitFor();
+ await ownerPage.getByText("Issue vinculada à TF.").waitFor();
  assert.equal(githubLinks.length,1);
  assert.equal(githubLinks[0].user_id,OWNER);
  await ownerIntegration.getByRole("button",{name:"Fechar Gerenciar equipe"}).click();
@@ -369,7 +369,7 @@ try{
  await integrated.getByRole("combobox",{name:"Vincular a cenário"}).selectOption(SCENARIO);
  testerPage.once("dialog",dialog=>void dialog.accept());
  await integrated.getByRole("button",{name:"Registrar neste cenário"}).click();
- await integrated.getByText("Resultado registrado. A TF não foi aprovada automaticamente.").waitFor();
+ await testerPage.getByText("Resultado registrado. A TF não foi aprovada automaticamente.").waitFor();
  assert.equal(scenario.status,"reprovado");
  assert.equal(task.status,"em_teste");
  assert.equal(writes.filter(v=>v.type==="execution").length,1);
