@@ -160,7 +160,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.locator(".task-list-entry").getByRole("link",{name:/Descontos no financeiro/}).click();
   await page.getByRole("heading",{name:"Descontos no financeiro"}).waitFor();
-  await page.getByRole("tab",{name:"Entregáveis"}).click();
+  await page.getByRole("tab",{name:"Relatórios e posts"}).click();
   await page.getByRole("button",{name:"Histórico de execuções"}).click();
   const dialog=page.getByRole("dialog",{name:"Histórico e comparações"});
   await dialog.waitFor();
