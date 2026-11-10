@@ -1,5 +1,6 @@
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import {QA_CONFIG} from './qa-config.js';
+import {normalizeTaskVersion} from './qa-version.mjs';
 import {createDiagramViewer} from './qa-diagram-viewer.mjs';
 import {horizontalFlowchart} from './qa-mermaid-ai.mjs';
 
@@ -37,7 +38,7 @@ function renderList(){
     '<a class="public-task-card" href="./public.html?tf='+encodeURIComponent(t.id)+'">'+
     '<strong>'+esc(t.titulo)+'</strong><span>'+esc(t.codigo||'Sem código')+
     ' · '+esc(t.sistema||'Sistema não informado')+
-    ' · '+esc(t.tipo_teste||'')+'</span></a>'
+    ' · '+esc(t.tipo_teste||'')+(t.versao?' · '+esc(normalizeTaskVersion(t.versao)):'')+'</span></a>'
   ).join(''):'<p class="public-empty">Nenhuma TF pública encontrada.</p>';
 }
 async function showList(){
@@ -73,7 +74,7 @@ async function showTask(id){
   $('#public-task-title').textContent=task.titulo;
   $('#public-task-meta').textContent=(task.codigo||'TF')+' · '+(task.sistema||'Sistema não informado');
   const facts=$('#public-summary-fields');facts.replaceChildren();
-  for(const [name,label] of fieldNames)addFact(facts,label,task[name]);
+  for(const [name,label] of fieldNames)addFact(facts,label,name==='versao'?normalizeTaskVersion(task[name]):task[name]);
   const sc=$('#public-scenario-list');
   sc.replaceChildren();
   if(!scenarios.length)sc.textContent='Nenhum cenário publicado.';
