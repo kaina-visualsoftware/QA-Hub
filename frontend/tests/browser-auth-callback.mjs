@@ -34,6 +34,40 @@ try{
   await errorPage.getByRole("heading",{name:"Entrar",exact:true}).waitFor();
   await errorPage.close();
 
+  // Both outbound auth emails must return to the published React callback,
+  // never to localhost or to a stale /qa.html compatibility redirect.
+  const emailPage=await browser.newPage();
+  emailPage.on("pageerror",error=>failures.push(error.message));
+  const emailRedirects=[];
+  await emailPage.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",async route=>{
+    const request=route.request(),url=new URL(request.url());
+    const send=(data,status=200)=>route.fulfill({
+      status,headers:cors,contentType:"application/json",body:JSON.stringify(data)
+    });
+    if(request.method()==="OPTIONS")return route.fulfill({status:204,headers:cors});
+    if(url.pathname.endsWith("/auth/v1/signup")||
+       url.pathname.endsWith("/auth/v1/recover")) {
+      emailRedirects.push({path:url.pathname,callback:url.searchParams.get("redirect_to")});
+      return send(url.pathname.endsWith("/signup")?{user,session:null}:{});
+    }
+    failures.push("Unexpected outbound email API "+request.method()+" "+url.pathname);
+    return send({message:"Unexpected API"},500);
+  });
+  await emailPage.goto(base);
+  await emailPage.getByRole("button",{name:"Criar uma conta"}).click();
+  await emailPage.getByRole("textbox",{name:"Email"}).fill("auth-fixture@example.invalid");
+  await emailPage.getByLabel("Senha").fill("synthetic-password");
+  await emailPage.getByRole("button",{name:"Criar conta",exact:true}).click();
+  await emailPage.getByText("Verifique seu email para confirmar o cadastro.").waitFor();
+  await emailPage.getByRole("button",{name:"Esqueci a senha"}).click();
+  await emailPage.getByRole("button",{name:"Enviar link"}).click();
+  await emailPage.getByText(/você receberá um link de recuperação/).waitFor();
+  assert.deepEqual(emailRedirects,[
+    {path:"/auth/v1/signup",callback:"https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html"},
+    {path:"/auth/v1/recover",callback:"https://kaina-visualsoftware.github.io/QA-Hub/react/auth.html"}
+  ]);
+  await emailPage.close();
+
   const recovery=await browser.newPage();
   recovery.on("pageerror",error=>failures.push(error.message));
   await recovery.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",async route=>{
