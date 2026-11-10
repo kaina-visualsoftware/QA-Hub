@@ -52,9 +52,10 @@ export function mergeTaskAiCreation(
     const current=String(merged[key]??"");
     const wasGenerated=previousAiValues[key]!==undefined&&current===previousAiValues[key];
     const defaultBuild=name==="tipo_teste"&&current==="BUILD"&&value==="RELEASE";
-    // Do not let an old draft or a QA's hand edits silently replace the AI's
-    // explicit findings when the corresponding field is still unfilled.
-    if(!current.trim()||wasGenerated||defaultBuild){
+    // The original source must always give way to a generated summary on the
+    // FIRST analysis. On later analyses, preserve a QA-edited summary.
+    const freshSummary=name==="descricao"&&previousAiValues.descricao===undefined;
+    if(!current.trim()||wasGenerated||defaultBuild||freshSummary){
       (merged as Record<string,string>)[name]=value;
     }
   }
