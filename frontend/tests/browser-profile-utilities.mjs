@@ -189,7 +189,7 @@ try{
   await page.getByRole("group",{name:"Formato da comparação"})
     .getByRole("button",{name:"Texto linha a linha"}).click();
   assert.equal(await page.getByRole("textbox",{name:"Texto A (original)"}).inputValue(),
-    "Primeiro\\nSegundo".replaceAll("\\\\n","\\n"),"Text draft survives switching modes");
+    "Primeiro\nSegundo","Text draft survives switching modes");
   await toolbox.getByRole("tab",{name:/Informações/}).click();
   await page.getByRole("heading",{name:"Informações importantes"}).waitFor();
   assert.equal(await page.getByRole("textbox",{name:"Título"}).count(),0,
