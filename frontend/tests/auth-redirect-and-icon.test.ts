@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { resolveAuthRedirectUrl, QA_HUB_EMAIL_CALLBACK_URL }
   from "../src/lib/auth-redirect";
 
@@ -36,12 +36,16 @@ describe("ícone do QA Hub", () => {
   it("é declarado no HTML principal e na página de callback", () => {
     for (const html of [read("../index.html"), read("../auth.html")]) {
       expect(html).toContain('rel="icon"');
-      expect(html).toContain("%BASE_URL%favicon.svg");
+      expect(html).toContain("%BASE_URL%favicon.png");
     }
     expect(read("../index.html")).toContain("%BASE_URL%site.webmanifest");
     expect(read("../public/favicon.svg")).toMatch(/<svg\s/);
+    for(const path of ["../public/favicon.png","../public/icon-192.png"]) {
+      expect(statSync(new URL(path, import.meta.url)).size).toBeGreaterThan(300);
+    }
     const manifest = JSON.parse(read("../public/site.webmanifest"));
     expect(manifest.short_name).toBe("QA Hub");
-    expect(manifest.icons[0].src).toBe("favicon.svg");
+    expect(manifest.icons.map((item:{src:string})=>item.src))
+      .toEqual(["favicon.png","icon-192.png","favicon.svg"]);
   });
 });
