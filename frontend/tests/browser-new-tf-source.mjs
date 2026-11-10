@@ -226,21 +226,26 @@ try{
     ["Empresa","Empresa de teste"],["Testador","Analista QA"],
     ["Observações","Conferir desconto e baixa financeira."]
   ]){
-    assert.equal(await wizard.getByLabel(label,{exact:true}).inputValue(),value,
+    const input=details.locator("label.field").filter({hasText:label})
+      .locator("textarea,input").first();
+    assert.equal(await input.inputValue(),value,
       "The initial AI generation must fill "+label+" like the regeneration flow");
   }
   assert.equal(taskWrites,0,"Stage 2 must not persist the task");
   await wizard.getByLabel("Título da tarefa").fill("TF revisada pelo QA");
-  await wizard.getByLabel("Causa identificada").fill("Causa revisada manualmente.");
+  await details.locator("label.field").filter({hasText:"Causa identificada"})
+    .locator("textarea").fill("Causa revisada manualmente.");
   await wizard.getByRole("button",{name:"Analisar novamente"}).click();
   await wizard.getByLabel("Versão").waitFor();
   await page.waitForFunction(()=>[...document.querySelectorAll("input")]
     .some(item=>item.value==="12.10"));
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),"TF revisada pelo QA",
     "Reanalysis must not overwrite user-entered titles");
-  assert.equal(await wizard.getByLabel("Causa identificada").inputValue(),"Causa revisada manualmente.",
+  assert.equal(await details.locator("label.field").filter({hasText:"Causa identificada"})
+    .locator("textarea").inputValue(),"Causa revisada manualmente.",
     "Reanalysis must preserve a manually corrected cause");
-  assert.equal(await wizard.getByLabel("Correção realizada").inputValue(),
+  assert.equal(await details.locator("label.field").filter({hasText:"Correção realizada"})
+    .locator("textarea").inputValue(),
     "A rotina também passou a validar os kits desdobrados.",
     "A newer AI result may refresh an unchanged earlier AI field");
   assert.equal(aiRequests.length,2,"Reanalysis must reuse the same NVIDIA extraction service");
