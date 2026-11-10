@@ -158,6 +158,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const nextId = crypto.randomUUID();
     const previousRaw = raw;
     const previousTruncated=truncated;
+    onBusyChange?.(true);
     setGenerating(true); setError(""); setMessage("");
     setRaw(""); setTruncated(false); setCompleted(false);
     setActivityPhase("connecting");
@@ -206,6 +207,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
     } finally {
       setGenerating(false); controller.current = null;
+      onBusyChange?.(false);
     }
   }
 
@@ -214,6 +216,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     if (postIssues.length) {
       setError("Revise o formato obrigatório: " + postIssues.join(", ")); return;
     }
+    onBusyChange?.(true);
     setBusySave(true); setError(""); setMessage("");
     try {
       const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim().slice(0,240) || "Post da TF";
@@ -242,11 +245,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setMessage("Post salvo em Documentos · versão " + saved.versao +
         (warnings.length ? ". Atenção: " + warnings.join(" | ") : "."));
     } catch (reason) { setError(messageOf(reason)); }
-    finally { setBusySave(false); }
+    finally { setBusySave(false); onBusyChange?.(false); }
   }
 
   async function attachCases() {
     if (mode !== "teste" || !chosen.length || invalidSelection || !context || !formOwn) return;
+    onBusyChange?.(true);
     setBusySave(true); setError(""); setMessage("");
     try {
       // The RPC is atomic, checks RLS, prevents duplicates and never marks tests approved.
@@ -275,7 +279,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setMessage(saved.inserted + " cenário(s) anexado(s) à TF. Todos começam não executados." +
         (warnings.length ? " Atenção: " + warnings.join(" | ") : ""));
     } catch (reason) { setError(messageOf(reason)); }
-    finally { setBusySave(false); }
+    finally { setBusySave(false); onBusyChange?.(false); }
   }
 
   const postMode=mode==="post";
