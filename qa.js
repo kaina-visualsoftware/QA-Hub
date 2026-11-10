@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.119.0';
 import Chart from 'https://esm.sh/chart.js@4.6.1/auto';
 import { QA_CONFIG } from './qa-config.js';
+import { TASK_VERSION_PATTERN, normalizeTaskVersion, wireTaskVersionInput } from './qa-version.mjs';
 import { parseReport, extractExplicitScenarios } from './qa-parser.mjs';
 import { extractLocalDraft } from './qa-assistant.mjs';
 import { extractWithOpenModel } from './qa-ai-open.mjs';
@@ -139,6 +140,7 @@ function inputValues(form, fields) {
   const values = {};
   for (const key of fields) {
     values[key] = typeof data[key] === 'string' ? data[key].trim() : '';
+    if (key === 'versao') values[key] = normalizeTaskVersion(values[key]);
   }
   return values;
 }
@@ -148,7 +150,7 @@ function setForm(form, fields, values) {
     let value = values[key] ?? '';
     if (value === true) value = 'true';
     if (value === false) value = 'false';
-    form.elements.namedItem(key).value = String(value);
+    form.elements.namedItem(key).value = key === 'versao' ? normalizeTaskVersion(String(value)) : String(value);
   }
 }
 function nullableBool(v) { return v === 'true' ? true : v === 'false' ? false : null; }
@@ -235,7 +237,7 @@ function taskItem(task) {
   return '<div class="task-item"><a href="#/tarefa/' + encodeURIComponent(task.id) + '">' +
     '<span class="task-code">' + esc(prefix) + '</span><span class="task-title"><strong>' + esc(task.titulo) +
     '</strong><small>' + esc(task.codigo || 'Sem código') + ' · ' + esc(task.tipo_teste) + ' · ' +
-    scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(task.versao) : '') +
+    scenarios.length + ' cenário(s)' + (task.versao ? ' · v' + esc(normalizeTaskVersion(task.versao)) : '') +
     '</small><small class="qa-task-progress">' + progress.done + '/' + progress.total + ' executados</small></span></a>' +
     (progress.pending?'<a class="qa-task-continue" href="#/tarefa/' + encodeURIComponent(task.id) +
       '?tab=cenarios">Continuar testes</a>':'') +
@@ -617,7 +619,7 @@ async function openTask(id) {
   $('#assist-back').hidden=true;
   revealTaskDetails(task);
   $('#editor-title').textContent = task.titulo;
-  $('#editor-caption').textContent = (task.tipo_teste||'') + ' · ' + (task.versao||'Sem versão') + ' · Atualizada ' + formatDate(task.executado_em);
+  $('#editor-caption').textContent = (task.tipo_teste||'') + ' · ' + (normalizeTaskVersion(task.versao)||'Sem versão') + ' · Atualizada ' + formatDate(task.executado_em);
   $('#delete-task').hidden = false;
   $('#scenario-form').hidden = true; $('#diagram-form').hidden = true;
   selectTab('resumo'); setView('editor');
@@ -984,6 +986,7 @@ $$('[data-tab]').forEach(button=>{
     tabs[next].focus();
   });
 });
+wireTaskVersionInput($('#task-form input[name="versao"]'));
 for(const id of ['task-form','scenario-form','diagram-form']){
   const form=$('#'+id);
   form.addEventListener('input',()=>setFormDirty(id));
@@ -1190,6 +1193,10 @@ $('#task-form').addEventListener('submit',async (event)=>{
     data.erro_reproduzido=nullableBool(data.erro_reproduzido);
     data.funcionando=nullableBool(data.funcionando);
     data.publica=data.publica==='true';
+    if (data.versao && !TASK_VERSION_PATTERN.test(data.versao)) {
+      toast('Informe a versão no formato 00.00.00.0000.', true);
+      return;
+    }
     data.executado_em ||= dateToday();
     data.updated_at=new Date().toISOString();
     let result;
