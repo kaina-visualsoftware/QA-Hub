@@ -191,7 +191,7 @@ try{
     name:"analise.txt",mimeType:"text/plain",
     buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
   });
-  await page.getByText("analise.txt").waitFor();
+  await wizard.getByText("analise.txt").waitFor();
   assert.equal(taskWrites,0,"No TF must be saved when preparing files");
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
@@ -259,7 +259,7 @@ try{
     name:"requisito.txt",mimeType:"text/plain",
     buffer:Buffer.from("CA01: A baixa financeira deve refletir o valor corrigido.")
   });
-  await page.getByText("requisito.txt").waitFor();
+  await wizard.getByText("requisito.txt").waitFor();
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o contexto/}).check();
   await wizard.getByRole("button",{name:"Ampliar cobertura com IA"}).click();
   await statusPanel.getByText("Gerando cobertura de testes").waitFor();
