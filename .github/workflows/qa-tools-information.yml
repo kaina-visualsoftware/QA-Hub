@@ -1,0 +1,55 @@
+name: QA Hub private information editing smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/pages/ToolsPage.tsx'
+      - 'frontend/src/features/links/ReferenceLibrary.tsx'
+      - 'frontend/tests/browser-profile-utilities.mjs'
+      - 'supabase/qa_referencias_edit_policy.sql'
+      - '.github/workflows/qa-tools-information.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/src/pages/ToolsPage.tsx'
+      - 'frontend/src/features/links/ReferenceLibrary.tsx'
+      - 'frontend/tests/browser-profile-utilities.mjs'
+      - 'supabase/qa_referencias_edit_policy.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  information:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install React and Chromium
+        run: |
+          npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build React app
+        run: npm run build
+      - name: Verify create, edit, cancel, reload and ownership filters
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/qa-tools-preview.log 2>&1 &
+          for x in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:4173/QA-Hub/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-profile-utilities.mjs
+      - name: Attach viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-tools-information-screenshots
+          path: frontend/artifacts/profile-utilities/
+          if-no-files-found: ignore
+          retention-days: 7
