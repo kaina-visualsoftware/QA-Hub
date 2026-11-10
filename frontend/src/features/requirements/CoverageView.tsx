@@ -19,11 +19,11 @@ function exportFile(content: string, name: string) {
 }
 
 export default function CoverageView({
-  task, requirements, scenarios, links, loading, error, onChanged
+  task, requirements, scenarios, links, loading, error, onChanged, readOnly=false
 }: {
   task: Task; requirements: Requirement[]; scenarios: Scenario[];
   links: CoverageLink[]; loading: boolean; error?: string;
-  onChanged: () => Promise<void>;
+  onChanged: () => Promise<void>; readOnly?:boolean;
 }) {
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState("all");
@@ -109,10 +109,10 @@ export default function CoverageView({
             {scenario.titulo} <small>({scenario.status.replaceAll("_", " ")})</small>
           </li>)}
         </ul> : <p className="text-muted text-sm mt-3">Sem cenários associados.</p>}
-        <button className="secondary-link mt-3" onClick={() => openLinks(item.id)}>
+        {!readOnly&&<button className="secondary-link mt-3" onClick={() => openLinks(item.id)}>
           <Link2 size={15} /> {editingId === item.id ? "Ocultar vínculos" : "Vincular cenários"}
-        </button>
-        {editingId === item.id && <div className="generator-context mt-3">
+        </button>}
+        {!readOnly&&editingId === item.id && <div className="generator-context mt-3">
           <p className="text-sm font-semibold">Selecione os cenários desta TF</p>
           {scenarios.length > 200 && <p className="notice error mt-2">
             A TF possui mais de 200 cenários; selecione no máximo 200 para este requisito.
