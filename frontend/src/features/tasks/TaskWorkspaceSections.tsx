@@ -33,7 +33,8 @@ export function TaskViewTabs({value,onChange,scenarioCount}:{
   return <nav className="qa-task-tabs qa-task-tabs-workspace" role="tablist"
     aria-label="Áreas da tarefa">
     {tabs.map(({id,label,short,icon:Icon},index)=>
-      <button key={id} type="button" role="tab" aria-label={label}
+      <button key={id} type="button" role="tab"
+        aria-label={id==="tests"?undefined:label}
         id={"qa-task-tab-"+id} aria-controls={"qa-task-panel-"+id}
         aria-selected={value===id} tabIndex={value===id?0:-1}
         onKeyDown={event=>moveTab(event,index,tabs,
@@ -42,9 +43,8 @@ export function TaskViewTabs({value,onChange,scenarioCount}:{
         className={"qa-task-tab"+(value===id?" selected":"")}>
         <Icon size={17} aria-hidden="true"/>
         <span className="qa-task-tab-long">{label}</span>
-        <span className="qa-task-tab-short" aria-hidden="true">{short}</span>
-        {id==="tests"&&<span className="qa-task-tab-count"
-          aria-label={scenarioCount+" cenários"}>{scenarioCount}</span>}
+        <span className="qa-task-tab-short" aria-hidden={id==="tests"?undefined:true}>{short}</span>
+        {id==="tests"&&<span className="qa-task-tab-count">{scenarioCount}</span>}
       </button>)}
   </nav>;
 }

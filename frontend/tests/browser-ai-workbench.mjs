@@ -98,6 +98,34 @@ async function fakeBackend(route){
 const browser=await chromium.launch({headless:true});
 try {
   const page=await browser.newPage({viewport:{width:390,height:844}});
+  // Deterministic synthetic SSE: verify genuine progression instead of
+  // treating a completed request as proof of streaming feedback.
+  await page.addInitScript(() => {
+    const originalFetch=window.fetch.bind(window);
+    window.fetch=(input,init) => {
+      const url=typeof input==="string"?input:input.url;
+      if(!url.includes("/functions/v1/qa-generators"))
+        return originalFetch(input,init);
+      const request=JSON.parse(init?.body??"{}");
+      if(request.mode!=="teste")throw Error("Expected a case-generation request");
+      const encoder=new TextEncoder();
+      const event=(kind,data)=>encoder.encode(
+        "event: "+kind+"\ndata: "+JSON.stringify(data)+"\n\n");
+      const first="## Cenário 1 — Validar recálculo de desconto\n### Passos\n";
+      const second="Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\nO valor final é recalculado sem desconto.\n";
+      const stream=new ReadableStream({start(controller){
+        setTimeout(()=>controller.enqueue(event("chunk",{text:first})),250);
+        setTimeout(()=>controller.enqueue(event("chunk",{text:second})),1100);
+        setTimeout(()=>{
+          controller.enqueue(event("done",{truncated:false}));
+          controller.close();
+        },2100);
+      }});
+      return Promise.resolve(new Response(stream,{
+        status:200,headers:{"Content-Type":"text/event-stream"}
+      }));
+    };
+  });
   page.on("pageerror",error=>errors.push("PAGE "+error.message));
   await page.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",fakeBackend);
   await page.goto(root);
@@ -174,6 +202,33 @@ try {
         })),[],"AI "+mode+" WCAG at "+width);
       }
       await page.screenshot({path:"artifacts/mobile-ux/f2-"+mode+"-"+width+".png"});
+    }
+    if(mode==="Casos"){
+      await page.setViewportSize({width:390,height:844});
+      const dialog=page.getByRole("dialog",{name:"Gerar casos com IA"});
+      assert.equal(await dialog.locator(".qa-generation-steps li").count(),3);
+      assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Configurar/);
+      await dialog.getByRole("checkbox",{name:/Autorizo enviar/}).check();
+      await dialog.getByRole("button",{name:"Gerar casos",exact:true}).click();
+      await dialog.getByText("Conectando à NVIDIA").waitFor({timeout:10000});
+      await page.waitForFunction(()=>document.querySelector(".qa-modal-surface-cases .qa-modal-close")?.disabled===true);
+      assert.equal(await dialog.getByRole("button",{name:"Fechar Gerar casos com IA"}).isDisabled(),true,
+        "Close must be disabled while the API request is active");
+      assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Gerar/);
+      await dialog.getByText("Recebendo a resposta",{exact:true}).waitFor({timeout:10000});
+      await dialog.getByText("Prévia do texto recebido").waitFor();
+      assert.ok((await dialog.getByLabel("Trecho recente da resposta da IA").innerText())
+        .includes("Cenário 1"),"Partial SSE must be visible before completion");
+      await page.screenshot({path:"artifacts/mobile-ux/cases-streaming-390.png"});
+      await dialog.getByText("Casos novos para esta TF").waitFor({timeout:12000});
+      assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Revisar/);
+      assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true);
+      assert.equal(scenarioWrites,0,"Generated cases require explicit confirmation");
+      assert.equal(await dialog.getByRole("button",{name:"Fechar Gerar casos com IA"}).isEnabled(),true);
+      await dialog.getByRole("button",{name:/Alterar modelo ou gerar novamente/}).click();
+      assert.equal(await dialog.getByRole("combobox",{name:"Modelo de geração"}).isVisible(),true);
+      assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true,
+        "Adjusting configuration must preserve the previous draft");
     }
     await page.getByRole("button",{name:mode==="Post"?
       "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
@@ -258,8 +313,9 @@ try {
   const codeEditor=page.getByRole("textbox",{name:"Código Mermaid"});
   await codeEditor.fill('flowchart LR\n A["Início"\n A --> B');
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
-  await page.getByRole("group",{name:"Erro de sintaxe Mermaid"})
-    .getByRole("alert").waitFor({timeout:20000});
+  await page.getByText(/Mermaid inválido:/).waitFor({timeout:20000});
+  await page.getByRole("group",{name:"Opção para corrigir diagrama"})
+    .getByRole("button",{name:"Ir para Corrigir com IA"}).waitFor();
   assert.equal(diagramSaves,1,"Invalid Mermaid must never be saved");
   await page.getByRole("button",{name:"Ir para Corrigir com IA"}).click();
   await page.getByRole("button",{name:"Corrigir com IA",exact:true}).waitFor();
@@ -272,14 +328,17 @@ try {
   assert.equal(prompts.length,2,"Repair requires a new explicit AI call");
   assert.ok(prompts[1].syntaxError.length>0);
   assert.equal(diagramSaves,1,"A corrected suggestion is still only an unsaved draft");
+  const correctedSave=page.waitForResponse(response=>
+    response.url().endsWith("/rest/v1/qa_diagramas")&&
+    response.request().method()==="POST",{timeout:20000});
   await page.getByRole("button",{name:"Salvar diagrama"}).click();
-  await page.getByText("Diagrama salvo.",{exact:true}).waitFor();
+  await correctedSave;
   assert.equal(diagramSaves,2,"Only corrected and confirmed Mermaid may be saved");
 
   // Retry is available without sending the invalid code or parser error.
   await page.getByRole("button",{name:"Alterar ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.accept());
-  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  await page.getByRole("button",{name:"Gerar diagrama novamente",exact:true}).click();
   await page.waitForFunction(()=>{
     const text=document.getElementById("diagram-code-editor");
     return text?.value?.includes("Validação") && !text?.value?.includes("recuperada");

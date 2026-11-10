@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./ai-workflow.css";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
+import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
+import type { ActivityPhase, JourneyStage } from "./GeneratorJourney";
 import type { GeneratorMode } from "./stream";
 
 type GeneratorAssembly =
@@ -35,6 +38,7 @@ type Props = {
   userId: string;
   scenarios: Scenario[];
   mode: GeneratorMode;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 function messageOf(error: unknown) {
@@ -48,7 +52,7 @@ function editableCopy(items: GeneratedCase[]) {
   }));
 }
 
-export default function GeneratorPanel({ task, userId, scenarios, mode }: Props) {
+export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyChange }: Props) {
   const client = useQueryClient();
   const [extra, setExtra] = useState("");
   const [preset, setPreset] = useState("essencial");
@@ -56,6 +60,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
   const [consent, setConsent] = useState(false);
   const [partialConsent, setPartialConsent] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [activityPhase, setActivityPhase] = useState<ActivityPhase>("connecting");
+  const [showSetup, setShowSetup] = useState(true);
+  const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
   const [content, setContent] = useState("");
   const [cases, setCases] = useState<GeneratedCase[]>([]);
@@ -86,9 +93,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     return () => controller.current?.abort();
   }, []);
   useEffect(() => {
+    onBusyChange?.(generating || busySave);
+  }, [generating, busySave, onBusyChange]);
+  useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");
     setMessage(""); setError(""); setDirtyOutput(false);
+    setShowSetup(true); setCompleted(false);
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
@@ -129,9 +140,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
     if (Object.keys(patch).some(key => key !== "selected")) setDirtyOutput(true);
+    setCompleted(false);
     setCases(current => current.map((item, i) => i === index ? {...item,...patch} : item));
   }
   function selectAllVisible(value: boolean) {
+    setCompleted(false);
     const visibleIndices = new Set(available.map(item => item.caseIndex));
     setCases(current => current.map((item,index)=>
       visibleIndices.has(index) ? {...item,selected:value} : item));
@@ -145,8 +158,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     const nextId = crypto.randomUUID();
     const previousRaw = raw;
     const previousTruncated=truncated;
+    onBusyChange?.(true);
     setGenerating(true); setError(""); setMessage("");
-    setRaw(""); setTruncated(false);
+    setRaw(""); setTruncated(false); setCompleted(false);
+    setActivityPhase("connecting");
     const abort = new AbortController();
     controller.current = abort;
     try {
@@ -154,8 +169,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       // The full redacted payload is inspectable on screen before consent.
       const response = await generateWithNvidia(
         mode, context.taskContext.text, context.approved.text,
-        (chunk) => setRaw((previous) => previous + chunk), abort.signal
+        (chunk) => {
+          setActivityPhase("receiving");
+          setRaw((previous) => previous + chunk);
+        }, abort.signal
       );
+      setActivityPhase("organizing");
       setGenerationId(nextId);
       setTruncated(response.truncated);
       setDirtyOutput(false);
@@ -173,6 +192,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         setCases(editableCopy(fresh));
         setContent(response.text);
       }
+      setShowSetup(false);
       setMessage(response.truncated
         ? "Resposta interrompida pelo limite do modelo. Revise antes de usar."
         : mode === "teste"
@@ -181,11 +201,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           : "Post gerado e formatado. Revise os campos antes de salvar.");
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
+      setShowSetup(true);
       setError(abort.signal.aborted
         ? "Geração cancelada. A versão anterior foi preservada."
         : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
     } finally {
       setGenerating(false); controller.current = null;
+      onBusyChange?.(false);
     }
   }
 
@@ -194,6 +216,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
     if (postIssues.length) {
       setError("Revise o formato obrigatório: " + postIssues.join(", ")); return;
     }
+    onBusyChange?.(true);
     setBusySave(true); setError(""); setMessage("");
     try {
       const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim().slice(0,240) || "Post da TF";
@@ -218,14 +241,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
+      setCompleted(true);
       setMessage("Post salvo em Documentos · versão " + saved.versao +
         (warnings.length ? ". Atenção: " + warnings.join(" | ") : "."));
     } catch (reason) { setError(messageOf(reason)); }
-    finally { setBusySave(false); }
+    finally { setBusySave(false); onBusyChange?.(false); }
   }
 
   async function attachCases() {
     if (mode !== "teste" || !chosen.length || invalidSelection || !context || !formOwn) return;
+    onBusyChange?.(true);
     setBusySave(true); setError(""); setMessage("");
     try {
       // The RPC is atomic, checks RLS, prevents duplicates and never marks tests approved.
@@ -250,15 +275,20 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           });
         } catch (reason) { warnings.push("Rastreabilidade: " + messageOf(reason)); }
       }
+      setCompleted(true);
       setMessage(saved.inserted + " cenário(s) anexado(s) à TF. Todos começam não executados." +
         (warnings.length ? " Atenção: " + warnings.join(" | ") : ""));
     } catch (reason) { setError(messageOf(reason)); }
-    finally { setBusySave(false); }
+    finally { setBusySave(false); onBusyChange?.(false); }
   }
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length);
-  return <section className={postMode?"qa-post-composer panel mt-5":"panel mt-5"}
+  const stage: JourneyStage = generating ? "generate" : completed ? "complete" :
+    hasOutput ? "review" : "configure";
+  const showConfiguration = !generating && (!hasOutput || showSetup);
+  return <section className={postMode ? "qa-post-composer panel mt-5" :
+    "qa-case-composer panel mt-5"}
     aria-labelledby="generator-title">
     <div className="qa-ai-generator-intro">
       <div className="qa-generator-intro-icon" aria-hidden="true">
@@ -274,14 +304,22 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
           "Escolha um modelo, revise os dados e confirme quais casos deseja adicionar."}</p>
       </div>
     </div>
-    {postMode&&<ol className="qa-post-steps" aria-label="Etapas da publicação">
-      <li className={context?"is-done":""}><span>1</span> Configurar</li>
-      <li className={content?"is-done":generating?"is-current":""}><span>2</span> Revisar</li>
-      <li className={message.startsWith("Post salvo")?"is-done":
-        content.trim()&&!postIssues.length?"is-current":""}>
-        <span>3</span> Salvar na TF
-      </li>
-    </ol>}
+    <GeneratorSteps stage={stage} postMode={postMode}/>
+    {completed && <div className="qa-generator-complete" role="status">
+      <CheckCircle2 size={20} aria-hidden="true"/>
+      <div>
+        <strong>{postMode ? "Post salvo na TF" : "Casos adicionados à TF"}</strong>
+        <p>{postMode ? "O documento está disponível na área de relatórios." :
+          "Os casos foram registrados como não executados. Você pode iniciar os testes na aba Cenários."}</p>
+      </div>
+    </div>}
+    {!generating && hasOutput && !showSetup && <div className="qa-generator-setup-toggle">
+      <span><CheckCircle2 size={16} aria-hidden="true"/>
+        Conteúdo gerado. Revise antes de confirmar.</span>
+      <button type="button" onClick={()=>setShowSetup(true)}>
+        Alterar modelo ou gerar novamente
+      </button>
+    </div>}
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
@@ -292,7 +330,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
-    <div className={postMode?"qa-post-workspace"+(hasOutput?" has-output":""):"qa-generator-workspace"}>
+    <div className={(postMode ? "qa-post-workspace" : "qa-generator-workspace") +
+      (generating ? " is-processing" : "") +
+      (!showConfiguration && !generating ? " is-review-only" : "")}>
     <div className={postMode?"qa-post-configuration":"qa-generator-configuration"}>
     {postMode&&(support.isLoading||requirements.isLoading)&&
       <div className="qa-post-context-loading" role="status">
@@ -300,7 +340,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         <div><strong>Preparando informações da TF</strong>
           <p>Carregando documentos, cenários e requisitos para a geração.</p></div>
       </div>}
-    {context && <div className="stack qa-generator-setup-body">
+    {context && showConfiguration && <div className="stack qa-generator-setup-body">
       <div className="qa-ai-setup">
         <label className="field">Modelo de geração
           <select value={preset} disabled={generating||busySave}
@@ -374,16 +414,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         Revise os dados antes do envio: a ocultação automática de informações sensíveis pode falhar.
       </p>
     </div>}
-    {generating&&<div className="qa-creator-processing" role="status" aria-live="polite">
-      <LoaderCircle size={19} aria-hidden="true" className="qa-ai-spinner"/>
-      <div><strong>{raw.trim()?"Recebendo a resposta da NVIDIA":"Aguardando a NVIDIA"}</strong>
-        <p aria-live="off">{raw.trim()?raw.length.toLocaleString("pt-BR")+" caracteres recebidos até agora.":
-          "Analisando o contexto e preparando o conteúdo solicitado."}
-          {content?" A versão anterior permanece disponível.":""}</p>
-      </div>
-    </div>}
+    {generating && <GeneratorActivity
+      phase={activityPhase} raw={raw} postMode={postMode}
+      onCancel={()=>controller.current?.abort()}
+    />}
     </div>
-    {(generating || hasOutput) && <section className="qa-generator-result" aria-label="Resultado da IA">
+    {!generating && hasOutput && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
         <div><p className="eyebrow">REVISÃO</p>
           <h3>{postMode?"Rascunho do post":"Conteúdo produzido"}</h3>
@@ -401,7 +437,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post formatado (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={generating && !content ? raw : content} disabled={generating}
-            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setMessage(""); }} />
+            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
@@ -413,10 +449,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
         <div className="qa-post-output-actions">
           <Button type="button" variant="secondary" onPress={() => void navigator.clipboard.writeText(content || raw)}
             isDisabled={!content}><Clipboard size={16} /> Copiar</Button>
-          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating}>
+          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || completed}>
             {busySave?<LoaderCircle className="qa-ai-spinner" size={16} aria-hidden="true"/>:
               <FileCheck2 size={16}/>}
-            {busySave?"Salvando post…":"Salvar post na TF"}
+            {busySave?"Salvando post…":completed?"Post salvo":"Salvar post na TF"}
           </Button>
         </div>
       </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
@@ -476,9 +512,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode }: Props)
               {invalidSelection&&<p role="status">
                 Revise título, passos e resultado esperado dos casos selecionados.</p>}
             </div>
-            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating}
+            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || completed}
               onPress={() => void attachCases()}>
-              <Send size={16} /> Anexar {chosen.length} caso(s) à TF
+              <Send size={16} /> {completed ? "Casos adicionados" : `Anexar ${chosen.length} caso(s) à TF`}
             </Button>
           </div>
         </> : !generating && (generatedCount > 0

@@ -1,0 +1,208 @@
+/* QA Hub · Task-generation workflow. Scoped to existing modal and generator surfaces. */
+.qa-modal-surface-cases{max-width:1040px}
+.qa-modal-surface-cases .qa-modal-header{
+  padding:18px clamp(18px,2.4vw,27px);
+}
+.qa-modal-surface-cases .qa-modal-content{
+  padding:clamp(16px,2.4vw,26px);background:#f6f9fa;
+}
+.qa-case-composer{min-width:0}
+.qa-case-composer .qa-ai-generator-intro{
+  display:flex;align-items:center;gap:12px;margin:0 0 17px;
+}
+.qa-case-composer .qa-ai-generator-intro>div:last-child{min-width:0}
+.qa-case-composer .qa-generator-eyebrow{display:none}
+.qa-case-composer .qa-ai-generator-intro h2{
+  margin:0;color:#204a54;font-size:1rem;font-weight:760;line-height:1.4;
+}
+.qa-case-composer .qa-ai-generator-intro p{
+  margin-top:3px;max-width:68ch;color:#54727b;font-size:.81rem;line-height:1.55;
+}
+.qa-generation-steps{max-width:100%;margin-bottom:14px}
+.qa-generation-steps li{min-width:0;overflow-wrap:anywhere}
+.qa-generation-steps li.is-current{box-shadow:inset 0 0 0 1px #8bc2bf}
+.qa-generation-steps li span svg{display:block}
+.qa-case-composer .qa-generator-workspace{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  min-width:0;gap:14px;
+}
+.qa-case-composer .qa-generator-configuration{
+  background:#fff;border:1px solid #dce7e9;border-radius:14px;
+  padding:clamp(16px,2.2vw,24px);min-width:0;
+}
+.qa-case-composer .qa-ai-setup>.field{max-width:520px}
+.qa-case-composer .qa-generator-setup-body{gap:13px}
+.qa-case-composer .qa-ai-submit-row{
+  border:1px solid #cfdfdf;border-radius:11px;
+  background:#f6faf9;padding:12px 14px;
+}
+.qa-case-composer .qa-generator-result{
+  min-width:0;border:1px solid #dce7e9;background:#fff;
+  border-radius:14px;padding:clamp(16px,2.2vw,24px);
+}
+.qa-case-composer .qa-generator-result .qa-generator-result-heading{margin-bottom:10px}
+.qa-generator-complete{
+  display:flex;align-items:flex-start;gap:10px;
+  margin-bottom:13px;padding:13px 15px;border:1px solid #bfdfd4;
+  border-radius:11px;background:#f1f9f5;color:#236951;
+}
+.qa-generator-complete>svg{flex:0 0 20px}
+.qa-generator-complete strong{display:block;font-size:.86rem}
+.qa-generator-complete p{margin-top:4px;font-size:.78rem;line-height:1.5;color:#416c62}
+.qa-generator-setup-toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  flex-wrap:wrap;margin:0 0 15px;padding:10px 13px;
+  border:1px solid #d4e5e1;border-radius:10px;
+  background:#f5faf8;color:#285b57;font-size:.8rem;
+}
+.qa-generator-setup-toggle span{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.qa-generator-setup-toggle button{
+  min-height:38px;padding:7px 11px;border:1px solid #c7dbda;
+  border-radius:9px;color:#24616b;background:#fff;
+  font:inherit;font-weight:700;cursor:pointer;
+}
+.qa-generator-setup-toggle button:hover{background:#eaf5f3}
+.qa-generator-setup-toggle button:focus-visible{
+  outline:3px solid #1f8995;outline-offset:2px;
+}
+.qa-post-workspace.is-processing,
+.qa-post-workspace.is-review-only{
+  grid-template-columns:minmax(0,1fr);
+}
+.qa-post-workspace.is-processing .qa-post-configuration{
+  border:0;background:transparent;box-shadow:none;padding:0;
+}
+.qa-post-workspace.is-review-only .qa-generator-result{width:100%;max-width:100%}
+.qa-generation-activity{
+  display:grid;gap:18px;min-width:0;max-width:100%;
+  border:1px solid #cfe0df;border-radius:14px;background:#fff;
+  padding:clamp(17px,2.4vw,25px);
+  box-shadow:0 5px 18px rgba(23,63,74,.05);
+}
+.qa-generation-activity-head{
+  display:flex;align-items:center;gap:13px;flex-wrap:wrap;min-width:0;
+}
+.qa-generation-activity-icon{
+  display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;
+  color:#156f71;border-radius:11px;background:#e8f5f3;
+}
+.qa-generation-activity-copy{min-width:0;flex:1 1 240px}
+.qa-generation-activity-copy strong{
+  font-size:1.02rem;line-height:1.3;color:#1c5158;font-weight:790;
+}
+.qa-generation-activity-copy p{
+  margin-top:4px;font-size:.81rem;color:#506f77;line-height:1.55;
+}
+.qa-generation-activity-metric{
+  font-size:.8rem;color:#31646b;font-variant-numeric:tabular-nums;
+  font-weight:750;white-space:nowrap;
+}
+.qa-generation-indeterminate{
+  height:5px;width:100%;overflow:hidden;
+  background:#e5f0ef;border-radius:20px;
+}
+.qa-generation-indeterminate span{
+  display:block;height:100%;width:37%;
+  background:#288b86;border-radius:20px;
+  animation:qa-stream-travel 1.7s ease-in-out infinite alternate;
+}
+@keyframes qa-stream-travel{
+  from{transform:translateX(-20%)}to{transform:translateX(220%)}
+}
+.qa-generation-events{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;list-style:none;margin:0;padding:0;
+}
+.qa-generation-events li{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  min-width:0;min-height:44px;padding:10px;
+  background:#f8fafb;border:1px solid #e0e9eb;border-radius:10px;
+  font-size:.74rem;line-height:1.4;color:#61787f;
+}
+.qa-generation-events li>span:first-child{
+  display:grid;place-items:center;flex:0 0 18px;color:#849aa0;
+}
+.qa-generation-events li.is-active{
+  border-color:#92c5be;background:#edf8f5;color:#235f5b;font-weight:750;
+}
+.qa-generation-events li.is-active>span:first-child{color:#1e7c75}
+.qa-generation-events li.is-done{
+  border-color:#c9e2da;background:#f3faf6;color:#315e53;
+}
+.qa-generation-events li.is-done>span:first-child{color:#1e8270}
+.qa-generation-events li small{
+  margin-left:25px;flex-basis:100%;
+  font-size:.7rem;color:#47747b;font-variant-numeric:tabular-nums;
+}
+.qa-generation-live-text{
+  overflow:hidden;min-width:0;border:1px solid #d8e5e7;
+  border-radius:10px;background:#f9fbfc;
+}
+.qa-generation-live-text summary{
+  cursor:pointer;min-height:44px;padding:11px 14px;
+  color:#2b5d69;font-size:.8rem;font-weight:750;
+}
+.qa-generation-live-text summary:focus-visible{
+  outline:3px solid #258b97;outline-offset:-3px;
+}
+.qa-generation-live-text pre{
+  margin:0;padding:14px;max-height:185px;overflow:auto;
+  color:#294d59;background:#fff;border-top:1px solid #e3ecec;
+  font:normal .78rem/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2;
+}
+.qa-generation-live-text>p{
+  padding:10px 14px;color:#55717a;font-size:.74rem;line-height:1.5;
+  border-top:1px solid #e3ecec;
+}
+.qa-generation-awaiting{
+  display:flex;align-items:center;min-height:70px;
+  padding:12px 16px;border:1px dashed #d5e4e5;border-radius:10px;
+  background:#f9fbfc;color:#5a737b;font-size:.82rem;line-height:1.55;
+}
+.qa-generation-activity-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex-wrap:wrap;padding-top:12px;border-top:1px solid #e1eaeb;
+}
+.qa-generation-activity-footer>span{
+  color:#4d6d75;font-size:.76rem;line-height:1.5;
+}
+.qa-generation-activity-footer button{min-height:44px}
+@media(max-width:800px){
+  .qa-generation-events{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .qa-modal-surface-cases .qa-modal-header{padding:14px 16px}
+  .qa-modal-surface-cases .qa-modal-content{
+    padding:14px 12px calc(22px + env(safe-area-inset-bottom));
+  }
+  .qa-case-composer .qa-ai-generator-intro{gap:9px;margin-bottom:12px}
+  .qa-case-composer .qa-ai-generator-intro p{font-size:.77rem}
+  .qa-case-composer .qa-generator-configuration,
+  .qa-case-composer .qa-generator-result{padding:14px}
+  .qa-generation-steps{gap:5px;margin-bottom:12px}
+  .qa-generation-steps li{
+    display:grid;justify-items:center;gap:5px;text-align:center;
+    font-size:.7rem;line-height:1.3;padding:8px 4px;min-height:65px;
+  }
+  .qa-generation-steps li span{width:22px;height:22px;flex-basis:22px}
+  .qa-generation-activity{padding:14px;gap:14px}
+  .qa-generation-activity-head{gap:10px}
+  .qa-generation-activity-icon{width:40px;height:40px;flex-basis:40px}
+  .qa-generation-activity-copy strong{font-size:.93rem}
+  .qa-generation-events{gap:6px}
+  .qa-generation-events li{padding:8px;min-height:47px;font-size:.69rem}
+  .qa-generation-activity-metric{margin-left:49px}
+  .qa-generation-activity-footer button{width:100%}
+  .qa-generator-setup-toggle button{width:100%;min-height:44px}
+}
+@media(max-width:360px){
+  .qa-generation-steps li{font-size:.65rem}
+  .qa-generation-events{grid-template-columns:minmax(0,1fr)}
+  .qa-generation-activity-metric{margin-left:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .qa-generation-indeterminate span{
+    animation:none;transform:none;width:100%;
+  }
+}

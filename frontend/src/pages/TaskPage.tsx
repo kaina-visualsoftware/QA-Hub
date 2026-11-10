@@ -100,6 +100,7 @@ export default function TaskPage() {
   const [showDeleteTask,setShowDeleteTask]=useState(false);
   const [showScenarioForm, setShowScenarioForm] = useState(false);
   const [aiMode, setAiMode] = useState<AiStudioMode|null>(null);
+  const [aiGeneratorBusy, setAiGeneratorBusy] = useState(false);
   const [focusDiagramAi, setFocusDiagramAi] = useState(false);
   const [editingDiagramId,setEditingDiagramId]=useState<string|null>(null);
   const [diagramEditorRevision,setDiagramEditorRevision]=useState(0);
@@ -117,7 +118,7 @@ export default function TaskPage() {
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
     setTaskAiAppliedCount(0);
-    setAiMode(null);setFocusDiagramAi(false);
+    setAiMode(null);setAiGeneratorBusy(false);setFocusDiagramAi(false);
     setEditingDiagramId(null);setDiagramEditorRevision(0);
     setShowDocuments(false);
     setFocusReport(false);setShowHistory(false);
@@ -726,16 +727,17 @@ export default function TaskPage() {
     <QAModal key={task.id+"-ai-studio"} open={aiMode!==null} keepMounted
       title={aiMode==="post"?"Gerar post com IA":
         aiMode==="diagrams"?(editingDiagramId?"Editar diagrama":"Criar diagrama"):"Gerar casos com IA"}
-      eyebrow="CENTRAL DE IA" size="full"
-      surface={aiMode==="post"?"post":aiMode==="diagrams"?"diagram":undefined}
+      eyebrow="CENTRAL DE IA" size="full" busy={aiGeneratorBusy}
+      surface={aiMode==="post"?"post":aiMode==="diagrams"?"diagram":
+        aiMode==="teste"?"cases":undefined}
       initialFocus={aiMode==="diagrams"?(editingDiagramId?"#diagram-code-editor":"#diagram-ai-heading"):undefined}
-      onClose={()=>setAiMode(null)}>
+      onClose={()=>{if(!aiGeneratorBusy)setAiMode(null);}}>
       {aiMode==="teste"&&<div
         className="qa-ai-studio-panel">
         <Suspense fallback={<p role="status" className="notice">Carregando casos…</p>}>
           <GeneratorPanel key={task.id+"-teste"} task={task} userId={userId}
             scenarios={scenarios.data||[]} mode="teste"
-            />
+            onBusyChange={setAiGeneratorBusy}/>
         </Suspense>
       </div>}
       {aiMode==="post"&&<div
@@ -743,7 +745,7 @@ export default function TaskPage() {
         <Suspense fallback={<p role="status" className="notice">Carregando post…</p>}>
           <GeneratorPanel key={task.id+"-post"} task={task} userId={userId}
             scenarios={scenarios.data||[]} mode="post"
-            />
+            onBusyChange={setAiGeneratorBusy}/>
         </Suspense>
       </div>}
       {aiMode==="diagrams"&&<div
