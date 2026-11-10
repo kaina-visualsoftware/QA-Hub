@@ -21,7 +21,7 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
   const sources=useQuery({
     queryKey:["requirement-sources",userId,task.id],
     queryFn:()=>listRequirementSources(task.id),
-    enabled:own
+    enabled:own&&section!=="evidence"
   });
   async function refresh(){
     await Promise.all([
