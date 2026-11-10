@@ -1,0 +1,53 @@
+name: QA Hub AI task creation parity
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/src/features/tasks/NewTaskWizard.tsx'
+      - 'frontend/src/features/tasks/task-ai.ts'
+      - 'frontend/src/features/tasks/task-ai.test.ts'
+      - 'frontend/src/styles.css'
+      - 'frontend/tests/browser-new-tf-source.mjs'
+      - '.github/workflows/qa-task-ai-parity.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/src/features/tasks/NewTaskWizard.tsx'
+      - 'frontend/src/features/tasks/task-ai.ts'
+      - 'frontend/src/features/tasks/task-ai.test.ts'
+      - 'frontend/src/styles.css'
+      - 'frontend/tests/browser-new-tf-source.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies and Chromium
+        run: |
+          npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify typecheck and AI field parity
+        run: |
+          npm run typecheck
+          npx vitest run src/features/tasks/task-ai.test.ts
+      - name: Build React
+        run: npm run build
+      - name: Test first extraction, reanalysis and saved task in Chromium
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/qa-task-ai-preview.log 2>&1 &
+          for x in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:4173/QA-Hub/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-new-tf-source.mjs
