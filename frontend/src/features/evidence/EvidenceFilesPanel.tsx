@@ -24,8 +24,8 @@ function saveBlob(blob:Blob,name:string) {
 }
 type Preview={file:EvidenceFile;url:string;text?:string};
 
-export function EvidenceFilesPanel({task,userId,scenarios,scenarioId}:{
-  task:Task;userId:string;scenarios:Scenario[];scenarioId:string|null;
+export function EvidenceFilesPanel({task,userId,scenarios,scenarioId,readOnly=false}:{
+  task:Task;userId:string;scenarios:Scenario[];scenarioId:string|null;readOnly?:boolean;
 }) {
   const client=useQueryClient();
   const [file,setFile]=useState<File|null>(null);
@@ -95,7 +95,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId}:{
       </div>
       <span className="count-pill">{files.data?.length??0} arquivo(s)</span>
     </header>
-    <form className="qa-files-upload" onSubmit={event=>void upload(event)}>
+    {!readOnly&&<form className="qa-files-upload" onSubmit={event=>void upload(event)}>
       <label className="field qa-files-picker-field">Selecionar arquivo
         <span className="qa-files-picker">
           <span className="qa-files-picker-button">Escolher arquivo</span>
@@ -124,7 +124,7 @@ export function EvidenceFilesPanel({task,userId,scenarios,scenarioId}:{
         Remova dados sensíveis antes de enviar; arquivos não passam por antivírus.</p>
       <ToastNotice message={message} tone="success"/>
       <ToastNotice message={error} tone="error"/>
-    </form>
+    </form>}
     {files.isPending&&<p className="text-muted text-sm" role="status">Carregando arquivos…</p>}
     {files.isError&&<p className="notice error" role="alert">
       Não foi possível carregar os anexos: {files.error.message}
