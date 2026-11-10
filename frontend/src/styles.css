@@ -2793,3 +2793,105 @@
   .qa-modal-surface-post .qa-post-output textarea{font-size:16px;line-height:1.6}
   .qa-modal-surface-diagram .qa-diagram-summary-review textarea{font-size:16px}
 }
+
+
+/* Task resources: browse-first library. Creation stays inside a single dialog. */
+.qa-resource-library-heading{align-items:center;margin-bottom:17px}
+.qa-resource-library-heading>div{min-width:0;flex:1}
+.qa-resource-library-heading h2{margin-bottom:4px}
+.qa-resource-library-heading>button{
+  flex:0 0 auto;min-height:45px;padding-inline:18px;
+  font-weight:780;border-radius:11px
+}
+.qa-task-tabs-workspace+.qa-task-panel .qa-resource-library-heading{margin-top:4px}
+.qa-task-resources-tabs{
+  padding-bottom:11px;margin-bottom:15px;gap:7px;
+  scrollbar-width:thin
+}
+.qa-task-resource-tab{
+  border-color:#dbe8e9;background:#fff;
+  min-height:43px;border-radius:9px
+}
+.qa-task-resource-tab.selected{border-color:#8cbeb6;background:#eaf6f1}
+.qa-task-resource-panel>.panel,
+.qa-task-resource-panel>.qa-task-files-workspace,
+.qa-task-resource-panel>.qa-f5-collab{min-width:0}
+.qa-task-resource-panel .section-heading h2{
+  font-size:1rem;line-height:1.4;color:#234a53
+}
+.qa-task-resource-panel .section-heading>div>p{
+  font-size:.78rem;line-height:1.5;color:#57727a
+}
+.qa-task-resource-panel .requirement-row{
+  background:#fff;border:1px solid #e2ebec;
+  border-radius:11px;padding:13px 15px;
+  margin:0;min-width:0
+}
+.qa-task-resource-panel .requirement-row+.requirement-row{margin-top:8px}
+.qa-task-resource-panel .requirement-row strong{overflow-wrap:anywhere}
+.qa-task-resource-panel .qa-resource-list-detail{
+  margin-top:8px;border-top:1px solid #e7eeef;
+  padding-top:8px
+}
+.qa-resource-list-detail>summary{
+  display:inline-flex;align-items:center;min-height:35px;
+  color:#286d71;font-size:.79rem;font-weight:720;cursor:pointer
+}
+.qa-resource-list-detail p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.qa-resource-list-detail .secondary-link{min-height:36px}
+.qa-task-resource-panel .qa-task-resource-group{
+  padding:clamp(14px,2vw,19px);gap:13px
+}
+.qa-task-resource-panel .qa-task-resource-group-heading p{display:none}
+.qa-task-resource-panel .qa-task-resource-group-heading{
+  padding-bottom:11px;margin-bottom:0
+}
+.qa-task-resource-panel .qa-files{padding:0;border:0;border-radius:0;box-shadow:none}
+.qa-task-resource-panel .qa-files-head{margin:0 0 12px}
+.qa-task-resource-panel .qa-files-list{gap:7px}
+.qa-task-resource-panel .qa-file-item{padding:12px}
+.qa-task-resource-panel .qa-evidence-workspace>.requirements-tabs{
+  margin-top:0
+}
+.qa-task-resource-panel .requirements-tabs{gap:6px;flex-wrap:wrap}
+.qa-task-resource-panel .requirements-tabs button{min-height:39px}
+.qa-task-resource-panel .qa-f5-create,
+.qa-task-resource-panel .qa-files-upload{display:none}
+.qa-resource-import-body{min-width:0;display:grid;gap:16px}
+.qa-resource-import-switch{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  padding:5px;background:#eff5f5;border:1px solid #deeaeb;border-radius:12px
+}
+.qa-resource-import-switch button{
+  min-width:0;min-height:44px;padding:9px 13px;
+  font-weight:760;font-size:.82rem;color:#466770;
+  border:1px solid transparent;border-radius:9px
+}
+.qa-resource-import-switch button.selected{
+  background:#fff;border-color:#bfd6d8;color:#1e6268;
+  box-shadow:0 2px 9px #173d4a0c
+}
+.qa-resource-import-switch button:focus-visible{
+  outline:3px solid #2b8f93;outline-offset:2px
+}
+.qa-modal-content .qa-resource-import-body .qa-task-resource-group{
+  border:1px solid #dce8e9;border-radius:12px;
+  padding:16px;background:#fff
+}
+.qa-modal-content .qa-resource-import-body .qa-task-files-workspace{
+  display:grid;gap:13px
+}
+.qa-modal-content .qa-resource-import-body .qa-evidence-workspace>.requirements-tabs{
+  margin-top:0
+}
+@media(max-width:700px){
+  .qa-resource-library-heading{gap:12px;align-items:center}
+  .qa-resource-library-heading>div{flex:1 1 185px}
+  .qa-resource-library-heading>button{min-height:43px;padding-inline:12px}
+  .qa-task-resource-panel .requirement-row{padding:12px}
+  .qa-resource-import-switch button{font-size:.75rem;padding-inline:6px}
+}
+@media(max-width:380px){
+  .qa-resource-library-heading>button{width:100%;justify-content:center}
+  .qa-resource-import-switch{gap:4px;padding:4px}
+}
