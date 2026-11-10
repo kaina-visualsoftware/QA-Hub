@@ -338,7 +338,7 @@ try {
   // Retry is available without sending the invalid code or parser error.
   await page.getByRole("button",{name:"Alterar ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.accept());
-  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  await page.getByRole("button",{name:"Gerar diagrama novamente",exact:true}).click();
   await page.waitForFunction(()=>{
     const text=document.getElementById("diagram-code-editor");
     return text?.value?.includes("Validação") && !text?.value?.includes("recuperada");
