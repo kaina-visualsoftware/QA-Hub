@@ -6,7 +6,7 @@ import {supabase} from "../../lib/supabase";
 import type {SemanticConflict,ConflictDecision} from "./semantic-conflicts";
 
 export type AuditEventType="source_snapshot"|"conflict_decision"|
- "post_revision_applied"|"test_revision_applied"|"coverage_generation_prepared";
+ "post_revision_applied"|"test_revision_applied"|"coverage_generation_requested";
 export type AuditResource="contexto"|"requisito"|"post"|"teste";
 export type AuditEvent={
  id:string;tarefa_id:string;user_id:string;event_type:AuditEventType;
@@ -68,7 +68,7 @@ export async function recordCoveragePreparation(taskId:string,userId:string,
   sha256(sourceText),sha256(requirementCodes.slice().sort().join("|"))
  ]);
  await recordAuditRows(taskId,userId,[{
-  event_type:"coverage_generation_prepared",resource:"teste",
+  event_type:"coverage_generation_requested",resource:"teste",
   reference_hash,source_hash,before_hash:null,after_hash:null,
   requirement_code:null,decision:null
  }]);
