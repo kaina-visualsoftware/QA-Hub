@@ -31,8 +31,10 @@ Deno.test("field with fabricated identifier is review-only, never verified",()=>
   descricao:{value:"Pedido 67866 com falha",evidence:source}
  }}),source);
  assert(result);
- assertEquals(result.field_evidence.titulo.status,"needs_review");
- assertEquals(result.field_evidence.titulo.reason,"identifier_not_in_source");
+ assertEquals(result.draft.titulo,undefined);
+ assertEquals(result.review_fields[0].field,"titulo");
+ assertEquals(result.review_fields[0].evidence.status,"needs_review");
+ assertEquals(result.review_fields[0].evidence.reason,"identifier_not_in_source");
  assertEquals(result.field_evidence.descricao.status,"verified");
 });
 Deno.test("unanchored field or unknown output keys cannot claim success",()=>{
@@ -54,8 +56,9 @@ Deno.test("JSON repair is marked for review, not silently accepted",()=>{
  const result=groundedTaskFields(response,source);
  assert(result);
  assertEquals(result.repaired,true);
- assertEquals(result.field_evidence.titulo.status,"needs_review");
- assertEquals(result.field_evidence.titulo.reason,"json_repaired");
+ assertEquals(result.draft.titulo,undefined);
+ assertEquals(result.review_fields[0].evidence.status,"needs_review");
+ assertEquals(result.review_fields[0].evidence.reason,"json_repaired");
 });
 Deno.test("truncation and tool calls are never accepted as structured data",()=>{
  const source="O pedido 67866 está bloqueado.";
@@ -80,5 +83,6 @@ Deno.test("strict scenario schema rejects unseeded IDs and unverifiable claims",
  const id=groundedTaskScenarios(model({cenarios:[
   {...payload.cenarios[0],passos:"Abrir pedido 99999"}]}),source,seeds);
  assert(id);
- assertEquals(id.draft.cenarios[0].evidence.reason,"identifier_not_in_source");
+ assertEquals(id.draft.cenarios.length,0);
+ assertEquals(id.review_scenarios[0].evidence.reason,"identifier_not_in_source");
 });

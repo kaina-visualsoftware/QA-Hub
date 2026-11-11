@@ -63,16 +63,19 @@ export function groundedTaskFields(response:unknown,source:string){
  const parsed=fieldsSchema.safeParse(decoded.data);
  if(!parsed.success)return null;
  const draft:Record<string,string>={},field_evidence:Record<string,SourceEvidence>={};
+ const review_fields:ReviewCandidate[]=[];
  let anchored=0;
  for(const [name,{value, evidence:quote}] of Object.entries(parsed.data.fields)){
   if(!value.trim())continue;
   const record=evidence(source,value,quote,decoded.repaired);
   if(record.source_line!==null)anchored++;
-  draft[name]=value.trim();
-  field_evidence[name]=record;
+  if(record.status==="verified"){
+   draft[name]=value.trim();field_evidence[name]=record;
+  }else review_fields.push({field:name,value:value.trim(),evidence:record});
  }
  if(!anchored)return null;
- return {draft,field_evidence,repaired:decoded.repaired};
+ // Older F4 clients read only draft and cannot apply review-only values.
+ return {draft,field_evidence,review_fields,repaired:decoded.repaired};
 }
 export function groundedTaskScenarios(response:unknown,source:string,
  seeds:{source_index:number;titulo:string;passos:string;esperado:string;observacoes:string}[]){
@@ -105,5 +108,8 @@ export function groundedTaskScenarios(response:unknown,source:string,
    observacoes:item.observacoes.trim(),evidence:record});
  }
  if(used.size!==seeds.length||!anchored)return null;
- return {draft:{cenarios:rows},repaired:decoded.repaired};
+ // Older F4 clients reject incomplete draft rows and keep their local version.
+ return {draft:{cenarios:rows.filter(row=>row.evidence.status==="verified")},
+  review_scenarios:rows.filter(row=>row.evidence.status==="needs_review"),
+  repaired:decoded.repaired};
 }
