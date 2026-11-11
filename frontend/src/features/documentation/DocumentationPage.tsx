@@ -9,6 +9,7 @@ import {QAModal} from '../../components/ui/QAModal';
 import {ToastNotice} from '../../components/ui/Toasts';
 import DocumentationEditor from './DocumentationEditor';
 import DocumentationFiles from './DocumentationFiles';
+import DocumentationMarkdown from './DocumentationMarkdown';
 import {deleteDocumentation,docTypes,listDocumentation,loadDocumentation} from './documentation-data';
 import type {Documentation} from './documentation-data';
 import './documentation.css';
@@ -39,7 +40,7 @@ export default function DocumentationPage(){
  }
  const body=<div className="page qa-documentation-page">
   <header className="page-heading qa-doc-page-heading"><div><h1>Documentações</h1>
-   <p>Manuais, soluções e conhecimento de QA, organizados em um só lugar.</p></div>
+   <p>Manuais, procedimentos, SQL e anexos em páginas Markdown pesquisáveis.</p></div>
    {user&&<Button onPress={()=>{setMessage('');setError('');setEditor('new');}}><Plus size={18}/> Nova documentação</Button>}
   </header>
   <div className="qa-doc-catalog">
@@ -47,7 +48,7 @@ export default function DocumentationPage(){
     <h2>Biblioteca</h2>
     {user&&<button type="button" aria-pressed={activeScope==='mine'} onClick={()=>setScope('mine')}><BookOpenText size={18}/> Minhas documentações</button>}
     <button type="button" aria-pressed={activeScope==='public'} onClick={()=>setScope('public')}><Globe size={18}/> Documentações públicas</button>
-    <p>Guarde suas instruções como privadas ou compartilhe o documento e seus anexos com um único link.</p>
+    <p>Documentações marcadas como públicas ficam acessíveis para qualquer visitante, assim como as TFs publicadas.</p>
    </nav>
    <section className="qa-doc-library" aria-label="Lista de documentações">
     <div className="qa-doc-library-heading"><h2>{activeScope==='mine'?'Minhas documentações':'Documentações públicas'}</h2><span className="count-pill">{results.length}</span></div>
@@ -87,11 +88,11 @@ export default function DocumentationPage(){
      </>}
     </div>
     <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
-    <div className="qa-doc-prose">{detail.data.conteudo}</div>
+    <DocumentationMarkdown markdown={detail.data.conteudo} docId={detail.data.id}/>
     <DocumentationFiles docId={detail.data.id} owner={!!user&&detail.data.user_id===user.id}/>
    </div>}
   </QAModal>}
   {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
- return user?body:<div className="public-react-shell"><header className="public-react-header"><Link to="/" className="brand"><BrandLogo/><strong>QA Hub</strong></Link><Link className="secondary-link" to="/">Entrar no QA Hub</Link></header><main className="public-react-main">{body}</main></div>;
+ return user?body:<div className="public-react-shell"><header className="public-react-header"><Link to="/" className="brand"><BrandLogo/><strong>QA Hub</strong></Link><Link className="secondary-link" to="/publicas" search={{}}>TFs públicas</Link><Link className="secondary-link" to="/">Entrar no QA Hub</Link></header><main className="public-react-main">{body}</main></div>;
 }
