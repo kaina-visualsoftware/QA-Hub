@@ -102,9 +102,18 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   });
   for(const indexes of groups.values()){
     include(indexes[0]);
+    // Inspect both ends of every source: repeated logs may hide a decisive
+    // result or a correction in the final lines of a long attachment.
+    include(indexes[Math.floor(indexes.length/2)]);
+    include(indexes[indexes.length-1]);
     const best=[...indexes].sort((a,b)=>units[b].priority-units[a].priority||a-b)[0];
     include(best);
   }
+  // Spread a few anchors over the entire document before ranking, instead of
+  // spending the complete budget at the beginning of a very long source.
+  const stride=Math.max(1,Math.ceil(units.length/20));
+  for(let i=0;i<units.length;i+=stride)include(i);
+  if(units.length)include(units.length-1);
   const ranked=units.map((_,i)=>i).sort((a,b)=>
     units[b].priority-units[a].priority||a-b);
   for(const index of ranked)include(index);
