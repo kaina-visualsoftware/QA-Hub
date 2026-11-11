@@ -1,12 +1,16 @@
 import {BookOpenCheck,CheckCircle2,FileSearch,PauseCircle,RefreshCcw,ShieldAlert} from "lucide-react";
 import {useSemanticContext} from "./useSemanticContext";
+import type {ConflictDecision,SemanticConflict} from "./semantic-conflicts";
+import {useState} from "react";
 import "./semantic-preparation.css";
 
 type SemanticState=ReturnType<typeof useSemanticContext>;
-export function SemanticPreparationPanel({semantic,authorized,disabled=false}:{
- semantic:SemanticState;authorized:boolean;disabled?:boolean
+export function SemanticPreparationPanel({semantic,authorized,disabled=false,onConflictDecision}:{
+ semantic:SemanticState;authorized:boolean;disabled?:boolean;
+ onConflictDecision?:(item:SemanticConflict,decision:ConflictDecision)=>Promise<void>;
 }){
  const {plan,digest}=semantic;
+ const [auditError,setAuditError]=useState("");
  return <section className="qa-semantic-panel" aria-label="Preparação semântica do contexto">
   <div className="qa-semantic-heading">
    <FileSearch size={20} aria-hidden="true"/>
@@ -104,8 +108,13 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false}:{
         <label>Decisão do QA
           <select value={semantic.conflictDecisions[item.id]??"pending"}
             disabled={disabled||semantic.working}
-            onChange={e=>semantic.setConflictDecision(item.id,
-              e.target.value as "pending"|"keep_both"|"prefer_left"|"prefer_right")}>
+            onChange={e=>{
+             const choice=e.target.value as ConflictDecision;
+             if(!onConflictDecision){semantic.setConflictDecision(item.id,choice);return;}
+             setAuditError("");
+             void onConflictDecision(item,choice).catch(err=>setAuditError(
+               err instanceof Error?err.message:"Não foi possível registrar a decisão."));
+            }}>
             <option value="pending">Pendente de revisão</option>
             <option value="keep_both">Manter ambas e sinalizar como não confirmado</option>
             <option value="prefer_left">Priorizar a fonte A neste contexto</option>
@@ -113,6 +122,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false}:{
           </select>
         </label>
       </li>)}</ol>
+      {auditError&&<p className="notice error" role="alert">{auditError}</p>}
       {!semantic.conflictsReviewed&&<p role="alert">
         Revise todas as divergências antes de liberar a geração com contexto semântico.
       </p>}
