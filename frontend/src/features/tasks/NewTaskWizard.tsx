@@ -20,6 +20,8 @@ import { generateWithNvidia } from "../generators/stream";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
 import type {ContextPreparation} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
+import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
+import {useSemanticContext} from "../generators/useSemanticContext";
 import {
   prepareRequirementFile, registerRequirementFile
 } from "../requirements/requirements-data";
@@ -119,7 +121,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
-  const busy=reading||analyzing||generating||finishing;
   type SourcePreparation={original:string;prepared:ContextPreparation}|{error:string};
   const sourcePreparation=useMemo<SourcePreparation|null>(()=>{
     const original=combine("",sourceText,taskFiles);
@@ -154,6 +155,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         prepared:prepareGeneratorContext(taskText,requirements)};
     }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
   },[step,draft,sourceText,taskFiles,cases,requirementText,requirementFiles]);
+  const semanticTask=useSemanticContext(sourcePreparation&&"prepared" in sourcePreparation?
+    sanitizeAiContext(sourcePreparation.original):"","","task");
+  const semanticCases=useSemanticContext(casePreparation&&"prepared" in casePreparation?
+    casePreparation.originalTask:"",casePreparation&&"prepared" in casePreparation?
+    casePreparation.originalRequirements:"","teste");
+  const busy=reading||analyzing||generating||finishing||
+    semanticTask.working||semanticCases.working;
   useEffect(()=>setCompactApprovedTask(false),[sourceText,taskFiles]);
   useEffect(()=>setCompactApprovedCases(false),[casePreparation]);
 
@@ -277,13 +285,16 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       if(!sourcePreparation||!("prepared" in sourcePreparation))throw Error(
         sourcePreparation&&"error" in sourcePreparation?sourcePreparation.error:
           "Não foi possível preparar o contexto.");
-      if(sourcePreparation.prepared.needsReview&&!compactApprovedTask)
-        throw Error("Revise e autorize o contexto compactado antes de enviar.");
+      if(sourcePreparation.prepared.needsReview&&
+        (semanticTask.enabled?!semanticTask.ready:!compactApprovedTask))
+        throw Error("Revise e autorize o contexto preparado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
       const response=await generateTaskAiDraft(snapshot,{
-        aiText:sourcePreparation.prepared.mode==="integral"?undefined:sourcePreparation.prepared.text
+        aiText:sourcePreparation.prepared.mode==="integral"?undefined:
+          semanticTask.enabled&&semanticTask.ready&&semanticTask.digest?
+            semanticTask.digest.task:sourcePreparation.prepared.text
       });
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
       if(snapshot!==combine("",sourceText,taskFiles)){
@@ -372,11 +383,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           "Não foi possível preparar os casos.");
       const taskPacked=casePreparation.prepared.task;
       const reqPacked=casePreparation.prepared.requirements;
-      if((taskPacked.needsReview||reqPacked?.needsReview)&&!compactApprovedCases)
-        throw Error("Revise e autorize os contextos compactados antes de enviar.");
+      if((taskPacked.needsReview||reqPacked?.needsReview)&&
+        (semanticCases.enabled?!semanticCases.ready:!compactApprovedCases))
+        throw Error("Revise e autorize os contextos preparados antes de enviar.");
       setWork({kind:"cases",phase:1,detail:"Aguardando a NVIDIA elaborar novos cenários, variações e regressões."});
       const response=await generateWithNvidia(
-        "teste",taskPacked.text,reqPacked?.text??"",chunk=>{
+        "teste",semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
+          semanticCases.digest.task:taskPacked.text,
+          semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
+          semanticCases.digest.requirements:reqPacked?.text??"",chunk=>{
           if(firstChunk){
             firstChunk=false;
             setWork({kind:"cases",phase:2,detail:"Recebendo o roteiro de testes gerado."});
@@ -587,7 +602,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
       </p>}
       {sourcePreparation&&"error" in sourcePreparation&&<p role="alert" className="notice error">{sourcePreparation.error}</p>}
-      {sourcePreparation&&"prepared" in sourcePreparation&&
+      {sourcePreparation&&"prepared" in sourcePreparation&&sourcePreparation.prepared.needsReview&&
+        <SemanticPreparationPanel semantic={semanticTask} authorized={consentTask} disabled={busy}/>}
+      {!semanticTask.enabled&&sourcePreparation&&"prepared" in sourcePreparation&&
         <ContextPreparationPanel
           items={[{label:"TF",result:sourcePreparation.prepared,original:sourcePreparation.original}]}
           acknowledged={compactApprovedTask} onAcknowledge={setCompactApprovedTask} disabled={busy}/>}
@@ -605,7 +622,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </label>
         <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
           !taskContextLength||!sourcePreparation||!("prepared" in sourcePreparation)||
-          (sourcePreparation.prepared.needsReview&&!compactApprovedTask)}
+          (sourcePreparation.prepared.needsReview&&
+            (semanticTask.enabled?!semanticTask.ready:!compactApprovedTask))}
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
@@ -755,7 +773,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </div>
       </div>
       {casePreparation&&"error" in casePreparation&&<p role="alert" className="notice error">{casePreparation.error}</p>}
-      {casePreparation&&"prepared" in casePreparation&&<ContextPreparationPanel
+      {casePreparation&&"prepared" in casePreparation&&
+        (casePreparation.prepared.task.needsReview||casePreparation.prepared.requirements?.needsReview)&&
+        <SemanticPreparationPanel semantic={semanticCases} authorized={consentCases} disabled={busy}/>}
+      {!semanticCases.enabled&&casePreparation&&"prepared" in casePreparation&&<ContextPreparationPanel
         items={[
           {label:"TF",result:casePreparation.prepared.task,original:casePreparation.originalTask},
           ...(casePreparation.prepared.requirements?[{label:"Requisitos",
@@ -777,7 +798,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <Button className="qa-wizard-primary" isDisabled={busy||!consentCases||
           !casePreparation||!("prepared" in casePreparation)||
           ((casePreparation.prepared.task.needsReview||
-            casePreparation.prepared.requirements?.needsReview)&&!compactApprovedCases)}
+            casePreparation.prepared.requirements?.needsReview)&&
+            (semanticCases.enabled?!semanticCases.ready:!compactApprovedCases))}
           onPress={()=>void generateCases()}>
           {generating?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
