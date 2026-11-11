@@ -170,8 +170,8 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   // never generated conclusions or detached headings.
   const findings=TOPIC_ORDER.filter(topic=>topic!=="outros").flatMap(topic=>{
     const candidates=(topics.get(topic)??[]).filter(index=>selected.has(index)&&
-      !/^\\s*#{1,6}/.test(units[index].value)&&
-      units[index].value.replace(/^\\w[\\w\\s]{0,45}[:—-]\\s*/,"").length>=25);
+      !/^\s*#{1,6}/.test(units[index].value)&&
+      units[index].value.replace(/^\w[\w\s]{0,45}[:—-]\s*/,"").length>=25);
     const picked=[...candidates].sort(rank)[0];
     if(picked===undefined)return [];
     return [{label:TOPIC_LABELS[topic],line:units[picked].line,
