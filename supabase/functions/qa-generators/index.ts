@@ -129,7 +129,7 @@ Deno.serve(async req=>{
   const mode=data?.mode;
   const tarefa=typeof data?.tarefa==="string"?data.tarefa.trim():"";
   const requisito=typeof data?.requisito==="string"?data.requisito.trim():"";
-  if(!["post","teste"].includes(mode)||!tarefa||tarefa.length>30000||requisito.length>20000)
+  if(!mode||!["post","teste"].includes(mode)||!tarefa||tarefa.length>30000||requisito.length>20000)
     return reply(400,{error:"bad_input",message:"Informe uma tarefa válida e, se necessário, um requisito."});
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
