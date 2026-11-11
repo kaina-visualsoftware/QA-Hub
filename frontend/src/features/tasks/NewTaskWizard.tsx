@@ -18,7 +18,7 @@ import {
 import type { SuggestedScenario } from "./task-ai";
 import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
-import {EVIDENCE_REASONS} from "./task-evidence";
+import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
 import { generateWithNvidia } from "../generators/stream";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
@@ -726,6 +726,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
+      <TaskFieldEvidenceReview fields={fieldEvidence}
+        confirmed={fieldEvidenceApproved}
+        disabled={busy}
+        onConfirm={(field,checked)=>setFieldEvidenceApproved(old=>({...old,[field]:checked}))}
+        onApply={(field,value)=>{
+          update(field as keyof TaskDraft,value);
+          delete automaticallyFilled.current[field as keyof TaskDraft];
+          setFieldEvidenceApproved(old=>({...old,[field]:false}));
+        }}/>
       {aiUsed&&<div className="qa-wizard-ai-review">
         <div>
           <strong>{missingFields.length?
@@ -867,6 +876,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </Button>
       </div>
       </>}
+      <TaskScenarioEvidenceReview rows={scenarioEvidence}/>
       {caseReview&&cases.length>0&&<div className="qa-wizard-case-review">
         <div className="qa-wizard-case-head">
           <strong>{totalSelected} de {cases.length} casos selecionados</strong>
