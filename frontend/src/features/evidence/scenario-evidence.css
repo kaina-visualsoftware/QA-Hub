@@ -57,3 +57,17 @@
   .qa-scenario-file-button{width:100%}
   .qa-scenario-image-actions{width:100%}
   .qa-scenario-image-actions button{flex:1}}
+
+/* Unified scenario evidence: one surface for screenshots and file attachments. */
+.qa-scenario-file-name{display:flex;align-items:flex-start;gap:9px;min-width:0;flex:1 1 175px}
+.qa-scenario-file-name>svg{flex:0 0 17px;margin-top:2px;color:#327b7b}
+.qa-scenario-file-name>div{min-width:0;overflow-wrap:anywhere}
+.qa-scenario-paste:hover,.qa-scenario-paste:focus-within{border-color:#278983;background:#f7fcfa}
+.qa-scenario-evidence{margin-top:18px}
+.qa-scenario-evidence .qa-scenario-image-entry{gap:13px}
+.qa-scenario-evidence .qa-scenario-file-button{white-space:nowrap}
+@media(max-width:640px){
+  .qa-scenario-paste{align-items:flex-start}
+  .qa-scenario-evidence .qa-scenario-file-button{justify-content:center}
+  .qa-scenario-image-actions button{min-height:44px}
+}
