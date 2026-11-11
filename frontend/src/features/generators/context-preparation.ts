@@ -15,6 +15,7 @@ export type ContextPreparation = {
   needsReview:boolean;
   /** Structural local scan: topic counts and coverage of source excerpts, not an AI inference. */
   topics?:{label:string;total:number;selected:number}[];
+  findings?:{label:string;line:number;excerpt:string}[];
 };
 type Topic="problema"|"causa"|"correcao"|"requisitos"|"cenarios"|"resultados"|"outros";
 type Unit={line:number;value:string;group:number;priority:number;critical:boolean;topic:Topic};
@@ -165,6 +166,17 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   const topicCoverage=TOPIC_ORDER.filter(topic=>(topics.get(topic)?.length??0)>0)
     .map(topic=>({label:TOPIC_LABELS[topic],total:topics.get(topic)!.length,
       selected:(topics.get(topic)??[]).filter(i=>selected.has(i)).length}));
+  // Evidence-based local reading: show substantive representative statements,
+  // never generated conclusions or detached headings.
+  const findings=TOPIC_ORDER.filter(topic=>topic!=="outros").flatMap(topic=>{
+    const candidates=(topics.get(topic)??[]).filter(index=>selected.has(index)&&
+      !/^\\s*#{1,6}/.test(units[index].value)&&
+      units[index].value.replace(/^\\w[\\w\\s]{0,45}[:—-]\\s*/,"").length>=25);
+    const picked=[...candidates].sort(rank)[0];
+    if(picked===undefined)return [];
+    return [{label:TOPIC_LABELS[topic],line:units[picked].line,
+      excerpt:units[picked].value.slice(0,260)}];
+  });
   const omitted=units.filter((_,index)=>!selected.has(index));
   const critical=omitted.filter(unit=>unit.critical).length;
   const header=[
@@ -179,7 +191,7 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   if(text.length>limit)throw Error("Não foi possível preparar o contexto dentro do limite.");
   return {...basic,text,sentChars:text.length,selectedLines:picked.length,
     omittedLines:omitted.length,duplicatedLines:duplicate,
-    criticalOmissions:critical,mode:"extrativo",needsReview:true,topics:topicCoverage};
+    criticalOmissions:critical,mode:"extrativo",needsReview:true,topics:topicCoverage,findings};
 }
 
 /** Keep the two existing limits of qa-generators independent and auditable. */
