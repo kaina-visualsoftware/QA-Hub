@@ -86,6 +86,7 @@ async function respond(route) {
   if (path.endsWith("/rest/v1/qa_cenarios")) return send([scenario]);
   if (path.endsWith("/rest/v1/qa_diagramas")) return send([diagram]);
   if (path.endsWith("/rest/v1/qa_referencias")) return send([]);
+  if (path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET") return send([]);
   exceptions.push("Unexpected request: " + method + " " + path);
   return send({ message: "Unsupported synthetic endpoint" }, 500);
 }
