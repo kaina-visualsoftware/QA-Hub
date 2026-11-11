@@ -113,7 +113,8 @@ function parsedBatch(data:unknown,seeds:ScenarioSeed[]):TaskScenarioRow[]{
    observacoes:typeof values.observacoes==="string"?
     values.observacoes.slice(0,1500):source.observacoes});
  }
- if(!out.length)throw Error("A NVIDIA não produziu cenários associados à fonte.");
+ if(out.length!==seeds.length)
+  throw Error("A NVIDIA não concluiu todos os cenários do lote.");
  return out;
 }
 function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],

@@ -118,5 +118,7 @@ export function parseTaskScenarioBatch(response,seeds){
   if(!item.titulo||!item.passos||!item.esperado)continue;
   seen.add(index);out.push(item);
  }
- return out.length?out:null;
+ // An incomplete batch is *not* a successful batch. The browser preserves
+ // the deterministic local cases and can resume after another attempt.
+ return out.length===checked.length?out:null;
 }

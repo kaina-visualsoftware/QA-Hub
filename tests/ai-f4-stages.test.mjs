@@ -51,16 +51,23 @@ test("stage parser rejects invented IDs, duplicates and truncated JSON",()=>{
   {source_index:0,titulo:"Repetido",passos:"Repetido",esperado:"Repetido"}
  ]});
  const parsed=parseTaskScenarioBatch(output,seeds);
- assert.equal(parsed.length,1);
- assert.equal(parsed[0].source_index,0);
- assert.equal(parsed[0].observacoes,"Dados sintéticos.");
+ assert.equal(parsed,null);
+ assert.equal(parseTaskScenarioBatch(reply({cenarios:[
+  {source_index:0,titulo:"Remover desconto",passos:"Abrir pedido",esperado:"Valor zerado"},
+  {source_index:1,titulo:"Conferir kit",passos:"Abrir kit",esperado:"Valor igual"}
+ ]}),seeds)?.length,2);
  assert.equal(parseTaskScenarioBatch(reply({cenarios:[]}),seeds),null);
+ assert.equal(parseTaskScenarioBatch(reply({cenarios:[{
+  source_index:0,titulo:"Somente um",passos:"Passo",esperado:"Resultado"
+ }]}),seeds),null);
  assert.equal(parseTaskScenarioBatch(reply({cenarios:[{source_index:0}]},"length"),seeds),null);
 });
 test("unknown response properties cannot set execution status",()=>{
- const parsed=parseTaskScenarioBatch(reply({cenarios:[{source_index:1,
-  titulo:"Conferir kit",passos:"Abrir pedido de exemplo",
-  esperado:"Valor igual",token:"SECRET",status:"aprovado"}]}),seeds);
- assert.deepEqual(Object.keys(parsed[0]).sort(),
+ const parsed=parseTaskScenarioBatch(reply({cenarios:[
+  {source_index:0,titulo:"Remover desconto",passos:"Abrir pedido",esperado:"Valor zerado"},
+  {source_index:1,titulo:"Conferir kit",passos:"Abrir pedido de exemplo",
+   esperado:"Valor igual",token:"SECRET",status:"aprovado"}
+ ]}),seeds);
+ assert.deepEqual(Object.keys(parsed[1]).sort(),
   ["source_index","titulo","passos","esperado","observacoes"].sort());
 });
