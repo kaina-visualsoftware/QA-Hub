@@ -2,6 +2,7 @@ import {BookOpenCheck,CheckCircle2,FileSearch,LoaderCircle,PauseCircle,RefreshCc
 import {useSemanticContext} from "./useSemanticContext";
 import type {ConflictDecision,SemanticConflict} from "./semantic-conflicts";
 import {useState} from "react";
+import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
 import "./semantic-preparation.css";
 
 type SemanticState=ReturnType<typeof useSemanticContext>;
@@ -39,7 +40,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     <progress value={semantic.count} max={plan.chunks.length}
      aria-label="Blocos analisados"/>
     <small>Até 8 blocos por lote. Cada tentativa utiliza a cota compartilhada de 15 chamadas/min.
-     Se atingir o limite, o progresso já concluído fica disponível para retomada.</small>
+     Se atingir a cota, o sistema aguarda e continua automaticamente. Os blocos concluídos permanecem disponíveis nesta sessão.</small>
    </div>
    {semantic.working&&<div className="qa-semantic-live" role="group" aria-label="Processamento da análise por blocos">
     <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
@@ -54,6 +55,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
       {semantic.count} de {plan.chunks.length} partes concluídas</small>
     </div>
    </div>}
+   <AiQuotaWait state={semantic.quotaWait} onCancel={semantic.cancel}/>
    <div className="qa-semantic-actions">
     {!semantic.complete&&<button type="button" disabled={disabled||semantic.working||!authorized}
      onClick={()=>void semantic.run(undefined,authorized)}>

@@ -1,4 +1,6 @@
 import {z} from "zod";
+import {readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import type {AiWaitCallback} from "../../lib/ai-retry";
 import {supabase,publishableKey,supabaseUrl} from "../../lib/supabase";
 import {validateSemanticFacts} from "./semantic-context";
 import type {SemanticChunk,SemanticGoal,ChunkOutcome} from "./semantic-context";
@@ -15,30 +17,25 @@ const responseSchema=z.object({
 
 export type SemanticRequestStage="preparing"|"sending"|"waiting"|"verifying";
 export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
- signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{}):Promise<ChunkOutcome>{
+ signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{},
+ onWait:AiWaitCallback=()=>{}):Promise<ChunkOutcome>{
  onStage("preparing");
  const {data,error}=await supabase.auth.getSession();
  if(error)throw error;
  if(!data.session?.access_token)throw Error("Faça login novamente para analisar o contexto.");
  onStage("sending");
  onStage("waiting");
- const response=await fetch(supabaseUrl.replace(/\/$/,"")+"/functions/v1/qa-context",{
-  method:"POST",signal,
-  headers:{Authorization:"Bearer "+data.session.access_token,apikey:publishableKey,
-   "Content-Type":"application/json"},
-  body:JSON.stringify({chunkId:chunk.id,source:chunk.source,goal,text:chunk.text})
- });
- if(!response.ok){
-  let message="Não foi possível preparar esta parte do contexto (HTTP "+response.status+").";
-  try{
-   const value:unknown=await response.json();
-   if(value&&typeof value==="object"&&"message" in value&&
-    typeof value.message==="string")message=value.message;
-  }catch{/* keep generic message */}
-  if(response.status===429)message+=" A cota compartilhada foi atingida; tente continuar depois. O progresso foi preservado.";
-  if(response.status===503)message+=" A NVIDIA está indisponível ou demorou demais. Você pode tentar novamente ou usar o modo rápido sem novas chamadas de IA.";
-  throw Error(message);
- }
+ const response=await withAiRateLimitRetry(async()=>{
+  onStage("sending");onStage("waiting");
+  const reply=await fetch(supabaseUrl.replace(/\/$/,"")+"/functions/v1/qa-context",{
+   method:"POST",signal,
+   headers:{Authorization:"Bearer "+data.session.access_token,apikey:publishableKey,
+    "Content-Type":"application/json"},
+   body:JSON.stringify({chunkId:chunk.id,source:chunk.source,goal,text:chunk.text})
+  });
+  if(!reply.ok)throw await readAiHttpError(reply);
+  return reply;
+ },{signal,onWait});
  onStage("verifying");
  const result=responseSchema.parse(await response.json());
  if(result.chunkId!==chunk.id||result.source!==chunk.source||result.goal!==goal)
