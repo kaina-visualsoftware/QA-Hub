@@ -1,4 +1,6 @@
 import {z} from "zod";
+import {readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import type {AiWaitCallback} from "../../lib/ai-retry";
 import {supabase,supabaseUrl,publishableKey} from "../../lib/supabase";
 import {parseGeneratedCases} from "../../lib/legacy/qa-workspace.mjs";
 import type {GeneratedCase} from "../../lib/legacy/qa-workspace.mjs";
@@ -48,7 +50,7 @@ export function applyCaseRevision(original:GeneratedCase,proposal:string):Genera
  return {...original,titulo:value.titulo,passos:value.passos,
   esperado:value.esperado,observacoes:value.observacoes||original.observacoes};
 }
-export async function requestTargetedRevision(input:RevisionRequest,signal:AbortSignal){
+export async function requestTargetedRevision(input:RevisionRequest,signal:AbortSignal,onWait:AiWaitCallback=()=>{}){
  if(input.task.length>30000||input.requirements.length>20000||
   input.current.length>9000||input.current.trim().length<12||
   input.instructions.length>1200)
@@ -56,21 +58,16 @@ export async function requestTargetedRevision(input:RevisionRequest,signal:Abort
  const {data,error}=await supabase.auth.getSession();
  if(error)throw error;
  if(!data.session?.access_token)throw Error("Entre novamente para revisar com IA.");
- const response=await fetch(supabaseUrl.replace(/\/$/,"")+"/functions/v1/qa-revisions",{
-  method:"POST",signal,
-  headers:{Authorization:"Bearer "+data.session.access_token,
-   apikey:publishableKey,"Content-Type":"application/json"},
-  body:JSON.stringify(input)
- });
- if(!response.ok){
-  let message="A NVIDIA não conseguiu revisar este trecho.";
-  try{
-   const obj:unknown=await response.json();
-   if(obj&&typeof obj==="object"&&"message" in obj&&
-    typeof obj.message==="string")message=obj.message;
-  }catch{/* preserve original error */}
-  throw Error(message);
- }
+ const response=await withAiRateLimitRetry(async()=>{
+  const reply=await fetch(supabaseUrl.replace(/\/$/,"")+"/functions/v1/qa-revisions",{
+   method:"POST",signal,
+   headers:{Authorization:"Bearer "+data.session.access_token,
+    apikey:publishableKey,"Content-Type":"application/json"},
+   body:JSON.stringify(input)
+  });
+  if(!reply.ok)throw await readAiHttpError(reply);
+  return reply;
+ },{signal,onWait});
  const parsed=responseSchema.parse(await response.json());
  if(parsed.operation!==input.operation)
   throw Error("A IA respondeu com uma revisão de tipo diferente.");

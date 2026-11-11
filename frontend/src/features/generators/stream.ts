@@ -1,4 +1,6 @@
 import { z } from "zod";
+import {readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import type {AiWaitCallback} from "../../lib/ai-retry";
 import { supabase, publishableKey, qaGeneratorUrl } from "../../lib/supabase";
 
 const chunkSchema = z.object({ text: z.string().max(115000) });
@@ -69,32 +71,24 @@ export async function generateWithNvidia(
   tarefa: string,
   requisito: string,
   onChunk: (text: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onWait:AiWaitCallback=()=>{}
 ): Promise<StreamResult> {
   if (!["post", "teste"].includes(mode) || !tarefa.trim() || tarefa.length > 30000 ||
       requisito.length > 20000) throw Error("Contexto inválido ou excedeu o limite.");
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session?.access_token) throw Error("Entre novamente no QA Hub.");
-  const response = await fetch(qaGeneratorUrl, {
-    method: "POST", signal,
-    headers: {
-      Authorization: "Bearer " + data.session.access_token,
-      apikey: publishableKey,
-      "Content-Type": "application/json",
-      Accept: "text/event-stream"
-    },
-    body: JSON.stringify({ mode, tarefa, requisito })
-  });
-  if (!response.ok) {
-    let message = "Não foi possível gerar o conteúdo.";
-    try {
-      const payload: unknown = await response.json();
-      const parsed = errorSchema.safeParse(payload);
-      if (parsed.success) message = parsed.data.message;
-    } catch { /* non-JSON server response */ }
-    throw Error(message);
-  }
-  if (!response.body) throw Error("O navegador não disponibilizou o streaming da IA.");
+  const response = await withAiRateLimitRetry(async()=>{
+    const reply=await fetch(qaGeneratorUrl, {
+     method:"POST",signal,
+     headers:{Authorization:"Bearer "+data.session.access_token,
+      apikey:publishableKey,"Content-Type":"application/json",Accept:"text/event-stream"},
+     body:JSON.stringify({mode,tarefa,requisito})
+    });
+    if(!reply.ok)throw await readAiHttpError(reply);
+    return reply;
+   },{signal,onWait});
+   if (!response.body) throw Error("O navegador não disponibilizou o streaming da IA.");
   return consumeGeneratorSse(response.body, onChunk, signal);
 }
