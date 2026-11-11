@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./ai-workflow.css";
 import {ToastNotice} from "../../components/ui/Toasts";
+import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
+import type {AiWaitState} from "../../lib/ai-retry";
 import { Button } from "@heroui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clipboard, FileCheck2, Send, WandSparkles, RotateCcw, LoaderCircle, ShieldCheck, PenLine, CheckCircle2 } from "lucide-react";
@@ -88,6 +90,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [dirtyOutput, setDirtyOutput] = useState(false);
   const [busySave, setBusySave] = useState(false);
   const [message, setMessage] = useState("");
+  const [generatorWait,setGeneratorWait]=useState<AiWaitState|null>(null);
+  const [revisionWait,setRevisionWait]=useState<AiWaitState|null>(null);
   const [error, setError] = useState("");
   const [generationId, setGenerationId] = useState(() => crypto.randomUUID());
   const controller = useRef<AbortController | null>(null);
@@ -220,7 +224,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setError("A seleção mudou. Escolha novamente o trecho.");return;
     }
     const abort=new AbortController();revisionController.current=abort;
-    setRevisionBusy(true);setRevisionProposal(null);setError("");setMessage("");
+    setRevisionBusy(true);setRevisionProposal(null);setError("");setMessage("");setRevisionWait(null);
     try{
       const proposal=await requestTargetedRevision({
         operation,task:input.task,requirements:input.requirements,
@@ -240,7 +244,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     }catch(reason){setError(abort.signal.aborted?
       "Revisão cancelada. O rascunho anterior continua intacto.":
       messageOf(reason)+" Nenhum conteúdo foi substituído.");}
-    finally{setRevisionBusy(false);revisionController.current=null;}
+    finally{setRevisionBusy(false);revisionController.current=null;setRevisionWait(null);}
   }
   async function applyRevision(){
     const item=revisionProposal;
@@ -298,7 +302,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const previousRaw = raw;
     const previousTruncated=truncated;
     onBusyChange?.(true);
-    setGenerating(true); setError(""); setMessage("");
+    setGenerating(true); setError(""); setMessage("");setGeneratorWait(null);
     setRaw(""); setTruncated(false); setCompleted(false);
     setActivityPhase("connecting");
     const abort = new AbortController();
@@ -351,7 +355,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         ? "Geração cancelada. A versão anterior foi preservada."
         : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
     } finally {
-      setGenerating(false); controller.current = null;
+      setGenerating(false); controller.current = null;setGeneratorWait(null);
       onBusyChange?.(false);
     }
   }
@@ -368,13 +372,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const abort=new AbortController();
     controller.current=abort;
     setGenerating(true);setActivityPhase("connecting");
-    setError("");setMessage("");setCompleted(false);
+    setError("");setMessage("");setCompleted(false);setGeneratorWait(null);
     onBusyChange?.(true);
     try{
       await recordCoveragePreparation(task.id,userId,context.taskContext.text,
         prepared.codes);
       const response=await generateWithNvidia("teste",prepared.task,prepared.requirements,
-        (chunk)=>{setActivityPhase("receiving");setRaw(prev=>prev+chunk);},abort.signal);
+        (chunk)=>{setActivityPhase("receiving");setRaw(prev=>prev+chunk);},abort.signal,setGeneratorWait);
       if(abort.signal.aborted)throw Error("Geração incremental cancelada.");
       setActivityPhase("organizing");
       const candidates=parseGeneratedCases(response.text);
@@ -396,7 +400,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         messageOf(reason)+" Nenhum caso existente foi modificado.";
       setError(error);throw Error(error);
     }finally{
-      setGenerating(false);controller.current=null;
+      setGenerating(false);controller.current=null;setGeneratorWait(null);
       onBusyChange?.(false);
     }
   }
@@ -655,8 +659,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         Revise os dados antes do envio: a ocultação automática de informações sensíveis pode falhar.
       </p>
     </div>}
-    {generating && <GeneratorActivity
-      phase={activityPhase} raw={raw} postMode={postMode}
+    {generating&&<AiQuotaWait state={generatorWait} onCancel={()=>controller.current?.abort()}/>}
+     {generating && <GeneratorActivity
+      phase={generatorWait?"cooldown":activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
     />}
     </div>}
