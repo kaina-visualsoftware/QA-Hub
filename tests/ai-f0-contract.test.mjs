@@ -25,9 +25,10 @@ test("SSE and non-streaming requests instrument their completion and timeout pat
  const g=file("supabase/functions/qa-generators/index.ts");
  const c=file("supabase/functions/qa-context/index.ts");
  const r=file("supabase/functions/qa-revisions/index.ts");
- assert.match(ai,/finishReason=response\?\.choices\?\.\[0\]\?\.finish_reason/);
- assert.match(ai,/usage=response\?\.usage/);
- assert.match(ai,/outcome=exceptionOutcome\(error\)/);
+ assert.match(ai,/callModel\(/);
+ assert.match(ai,/onAttempt:event=>logAiAttempt/);
+ assert.match(ai,/onQuotaDenied:info=>logAiAttempt/);
+ assert.match(ai,/rejectLength:false/);
  assert.match(g,/finish_reason:finishReason,usage,outcome/);
  assert.match(g,/outcome=finishReason==="length"\?"length":"ok"/);
  assert.match(g,/if\(!handedOff\)logAiAttempt/);
