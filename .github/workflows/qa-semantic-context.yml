@@ -1,21 +1,28 @@
-name: QA Hub semantic context F2/F3
+name: QA Hub semantic context F2/F3/F3.1
 on:
   pull_request:
     branches: [main]
     paths:
       - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
       - 'frontend/src/features/generators/**'
       - 'frontend/src/features/tasks/NewTaskWizard.tsx'
       - 'frontend/tests/semantic-context.test.ts'
+      - 'frontend/tests/semantic-conflicts.test.ts'
+      - 'frontend/tests/targeted-revision.test.ts'
       - 'frontend/tests/browser-new-tf-source.mjs'
+      - 'frontend/tests/browser-ai-workbench.mjs'
       - '.github/workflows/qa-semantic-context.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
       - 'frontend/src/features/generators/**'
       - 'frontend/src/features/tasks/NewTaskWizard.tsx'
       - 'frontend/tests/semantic-context.test.ts'
+      - 'frontend/tests/semantic-conflicts.test.ts'
+      - 'frontend/tests/targeted-revision.test.ts'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,13 +40,13 @@ jobs:
           node-version: '22'
       - name: Validate Edge Function's pure evidence checks
         working-directory: .
-        run: node --test supabase/functions/qa-context/facts.test.mjs
+        run: node --test supabase/functions/qa-context/facts.test.mjs supabase/functions/qa-revisions/revision.test.mjs
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
       - name: Verify type checking
         run: npm run typecheck
       - name: Test semantic chunking, citations, and coverage
-        run: npx vitest run tests/semantic-context.test.ts tests/context-preparation.test.ts
+        run: npx vitest run tests/semantic-context.test.ts tests/context-preparation.test.ts tests/semantic-conflicts.test.ts tests/targeted-revision.test.ts
       - name: Production build
         run: npm run build
   browser-semantic:
@@ -71,3 +78,4 @@ jobs:
             sleep 1
           done
           node tests/browser-new-tf-source.mjs
+          node tests/browser-ai-workbench.mjs
