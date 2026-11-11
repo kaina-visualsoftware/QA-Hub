@@ -188,7 +188,7 @@ export function prepareQaContext(source:string,{limit,description="conteúdo",to
     return [{label:TOPIC_LABELS[topic],line:units[picked].line,
       excerpt:units[picked].value.slice(0,260)}];
   });
-  if(!picked.length)
+  if(!picked.length||!picked.some(index=>/[\p{L}\p{N}]{3}/u.test(units[index].value)))
     throw Error("Nenhum trecho coube no orçamento estimado. Divida a fonte em partes menores ou utilize a análise semântica por blocos, sem descartar os dados originais.");
   const omitted=units.filter((_,index)=>!selected.has(index));
   const critical=omitted.filter(unit=>unit.critical).length;
