@@ -242,31 +242,54 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       messageOf(reason)+" Nenhum conteúdo foi substituído.");}
     finally{setRevisionBusy(false);revisionController.current=null;}
   }
-  function applyRevision(){
+  async function applyRevision(){
     const item=revisionProposal;
-    if(!item||generating||busySave||revisionBusy)return;
+    if(!item||generating||busySave||revisionBusy||auditBusy||!formOwn||!context)return;
     try{
-      if(item.operation==="post_excerpt"&&item.selection){
-        const updated=insertReviewedExcerpt(content,item.selection,item.after);
-        setContent(updated);setDirtyOutput(true);setCompleted(false);
-        setPostSelection(null);
-      }else if(item.operation==="test_case"&&item.caseIndex!==undefined){
-        const current=cases[item.caseIndex];
-        if(!current||JSON.stringify(current)!==item.caseFingerprint)
-          throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
-        const updated=applyCaseRevision(current,item.after);
-        setCases(list=>list.map((value,index)=>
-          index===item.caseIndex?updated:value));
-        setDirtyOutput(true);setCompleted(false);
-      }else throw Error("Proposta de revisão inválida.");
+      // Validate before recording an append-only event. No content changes
+      // are allowed while the hash-only audit write is pending.
+      const nextPost=item.operation==="post_excerpt"&&item.selection?
+        insertReviewedExcerpt(content,item.selection,item.after):null;
+      const currentCase=item.operation==="test_case"&&item.caseIndex!==undefined?
+        cases[item.caseIndex]:null;
+      if(currentCase&&JSON.stringify(currentCase)!==item.caseFingerprint)
+        throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
+      const nextCase=currentCase?applyCaseRevision(currentCase,item.after):null;
+      if(!nextPost&&!nextCase)throw Error("Proposta de revisão inválida.");
+      setAuditBusy(true);setError("");
+      await recordAppliedRevision(task.id,userId,context.taskContext.text,
+        item.operation,item.before,item.after);
+      if(nextPost!==null){
+        setContent(nextPost);setPostSelection(null);
+      }else if(nextCase&&item.caseIndex!==undefined){
+        const at=item.caseIndex;
+        setCases(list=>list.map((value,index)=>index===at?nextCase:value));
+      }
+      setDirtyOutput(true);setCompleted(false);
       setRevisionHistory(current=>[...current.slice(-19),{
         target:item.operation==="post_excerpt"?"Trecho do post":
           "Caso "+String((item.caseIndex??0)+1),
         time:new Date().toLocaleString("pt-BR")
       }]);
       setRevisionProposal(null);
-      setMessage("Alteração aplicada somente ao trecho selecionado. Revise antes de salvar.");
-    }catch(reason){setError(messageOf(reason));}
+      setMessage("Revisão aprovada e registrada na auditoria privada; somente o trecho selecionado foi alterado.");
+    }catch(reason){setError(messageOf(reason)+" A proposta continua disponível, sem alterações aplicadas.");}
+    finally{setAuditBusy(false);}
+  }
+  async function saveConflictDecision(item:SemanticConflict,decision:ConflictDecision){
+    if(auditBusy||!formOwn||!context||generating||busySave)return;
+    if(decision==="pending"){
+      semantic.setConflictDecision(item.id,decision);return;
+    }
+    setAuditBusy(true);setError("");
+    try{
+      await recordConflictDecision(task.id,userId,
+        context.taskContext.text+"\n"+context.approved.text,item,decision);
+      semantic.setConflictDecision(item.id,decision);
+      setMessage("Decisão registrada na auditoria privada. O texto original não foi alterado.");
+    }catch(reason){
+      setError(messageOf(reason));throw reason;
+    }finally{setAuditBusy(false);}
   }
 
   async function generate() {
@@ -540,7 +563,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
       {needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
-        disabled={generating||busySave}/>}
+        onConflictDecision={saveConflictDecision}
+        disabled={generating||busySave||auditBusy}/>}
       {!semantic.enabled&&<ContextPreparationPanel
         items={[
           {label:"TF",result:context.prepared.task,original:context.taskContext.text},
@@ -760,7 +784,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           <button type="button" disabled={revisionBusy||busySave}
             onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
           <button type="button" disabled={revisionBusy||busySave}
-            onClick={applyRevision}>Aplicar somente neste trecho</button>
+            onClick={()=>void applyRevision()}>Aplicar somente neste trecho</button>
         </div>
       </section>}
       {!!revisionHistory.length&&<details className="qa-revision-history">
