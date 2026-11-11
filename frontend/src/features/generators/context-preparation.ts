@@ -29,18 +29,18 @@ const TOPIC_WEIGHTS:Record<Topic,number>={
 };
 /** Detect functional sections and propagate their context to subsequent paragraphs. */
 function detectTopic(value:string):Topic|null{
- const cleaned=value.replace(/^\\s*#{1,6}\\s*/,"")
-  .replace(/^\\s*[-*•]\\s*/,"").trim();
- if(/^(?:TF|TASK|COD(?:IGO)?)[-\\s#]*\\d+/i.test(cleaned))return "problema";
- if(/^(?:QUAL\\s+É\\s+O\\s+PROBLEMA|PROBLEMA(?:\\s+IDENTIFICADO)?|DESCRIÇÃO(?:\\s+DO\\s+PROBLEMA)?|NECESSIDADE|SOLICITAÇÃO)\\b/i.test(cleaned))return "problema";
- if(/^(?:ANÁLISE(?:\\s+DE\\s+VIABILIDADE)?|CAUSA(?:\\s+RAIZ)?|ORIGEM(?:\\s+DO\\s+PROBLEMA)?|DIAGNÓSTICO)\\b/i.test(cleaned))return "causa";
- if(/^(?:CORREÇÃO|SOLUÇÃO|IMPLEMENTA(?:ÇÃO|DO)|O\\s+QUE\\s+FOI\\s+(?:IMPLEMENTADO|ALTERADO|REALIZADO)|ALTERAÇÕES(?:\\s+REALIZADAS)?|AGORA)\\b/i.test(cleaned))return "correcao";
- if(/^(?:RF[-\\s]?\\d+|RNF[-\\s]?\\d+|REQ[-\\s]?\\d+|REQUISITOS?|CRITÉRIOS?(?:\\s+DE\\s+ACEITE)?|REGRAS?(?:\\s+DE\\s+NEGÓCIO)?|VALIDAÇÕES|PERMISSÕES)\\b/i.test(cleaned))return "requisitos";
- if(/^(?:CEN[ÁA]RIOS?(?:\\s+\\d+|\\s+TESTADOS)?|CASOS?(?:\\s+DE\\s+TESTE)?|PASSOS?(?:\\s+PARA\\s+TESTAR)?|PROCEDIMENTO(?:S)?)\\b/i.test(cleaned))return "cenarios";
- if(/^(?:RESULTADO(?:\\s+ESPERADO|\\s+OBTIDO|\\s+FINAL)?|CONCLUSÃO|O\\s+QUE\\s+FOI\\s+TESTADO|TESTES?\\s+EXECUTADOS?|EVIDÊNCIAS?)\\b/i.test(cleaned))return "resultados";
+ const cleaned=value.replace(/^\s*#{1,6}\s*/,"")
+  .replace(/^\s*[-*•]\s*/,"").trim();
+ if(/^(?:TF|TASK|COD(?:IGO)?)[\s#-]*\d+/i.test(cleaned))return "problema";
+ if(/^(?:QUAL\s+É\s+O\s+PROBLEMA|PROBLEMA(?:\s+IDENTIFICADO)?|DESCRIÇÃO(?:\s+DO\s+PROBLEMA)?|NECESSIDADE|SOLICITAÇÃO)\b/i.test(cleaned))return "problema";
+ if(/^(?:ANÁLISE(?:\s+DE\s+VIABILIDADE)?|CAUSA(?:\s+RAIZ)?|ORIGEM(?:\s+DO\s+PROBLEMA)?|DIAGNÓSTICO)\b/i.test(cleaned))return "causa";
+ if(/^(?:CORREÇÃO|SOLUÇÃO|IMPLEMENTA(?:ÇÃO|DO)|O\s+QUE\s+FOI\s+(?:IMPLEMENTADO|ALTERADO|REALIZADO)|ALTERAÇÕES(?:\s+REALIZADAS)?|AGORA)\b/i.test(cleaned))return "correcao";
+ if(/^(?:RF[-\s]?\d+|RNF[-\s]?\d+|REQ[-\s]?\d+|REQUISITOS?|CRITÉRIOS?(?:\s+DE\s+ACEITE)?|REGRAS?(?:\s+DE\s+NEGÓCIO)?|VALIDAÇÕES|PERMISSÕES)\b/i.test(cleaned))return "requisitos";
+ if(/^(?:CEN[ÁA]RIOS?(?:\s+\d+|\s+TESTADOS)?|CASOS?(?:\s+DE\s+TESTE)?|PASSOS?(?:\s+PARA\s+TESTAR)?|PROCEDIMENTO(?:S)?)\b/i.test(cleaned))return "cenarios";
+ if(/^(?:RESULTADO(?:\s+ESPERADO|\s+OBTIDO|\s+FINAL)?|CONCLUSÃO|O\s+QUE\s+FOI\s+TESTADO|TESTES?\s+EXECUTADOS?|EVIDÊNCIAS?)\b/i.test(cleaned))return "resultados";
  return null;
 }
-const LOG_LINE=/^(?:\\[?\\d{4}[-/]\\d\\d[-/]\\d\\d|DEBUG|TRACE|INFO\\s|at\\s+\\S+|SELECT\\s|INSERT\\s|UPDATE\\s|DELETE\\s|Stack trace|console\\.)/i;
+const LOG_LINE=/^(?:\[?\d{4}[-/]\d\d[-/]\d\d|DEBUG|TRACE|INFO\s|at\s+\S+|SELECT\s|INSERT\s|UPDATE\s|DELETE\s|Stack trace|console\.)/i;
 
 const IMPORTANT=/\b(requisit[oa]s?|crit[eé]rios?|aceite|regra(?:s)?|cen[aá]rio(?:s)?|passos?|esperado|obtido|problema|causa|corre[cç][aã]o|implementa[cç][aã]o|permiss[aã]o|bloquead[oa]|falha|erro|n[aã]o|exceto|somente|obrigat[oó]ri[oa]|deve|antes|depois|valida[cç][aã]o|resultado|limite|integra[cç][aã]o|altera[cç][aã]o|desconto|estorno|saldo)\b/i;
 const SOURCE=/^\s*(?:#{1,6}\s+|ARQUIVO\s*:|(?:REQUISITOS?|CEN[AÁ]RIOS?|DOCUMENTOS?|FONTES?|AN[AÁ]LISE|OBSERVA[CÇ][OÕ]ES|RESULTADO|PROBLEMA|CORRE[CÇ][AÃ]O|IMPLEMENTA[CÇ][AÃ]O|CRIT[EÉ]RIOS?|HIST[OÓ]RICO)\b.*:)/i;
