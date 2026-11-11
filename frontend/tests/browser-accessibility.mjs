@@ -58,6 +58,7 @@ async function respond(route) {
   if (path.endsWith("/auth/v1/user")) return send(person);
   if(await mockF4Rpc(route,[task],[scenario]))return;
   if (path.endsWith("/rest/v1/qa_admins")) return send(null);
+  if (path.endsWith("/rest/v1/rpc/qa_public_documentacoes_v1")) return send([]);
   if (path.endsWith("/rest/v1/rpc/qa_public_tasks_v1")) {
     assert.equal(method,"POST");
     const {id,titulo,codigo,tipo_teste,sistema,versao,executado_em}=task;

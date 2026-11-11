@@ -57,6 +57,7 @@ async function mock(route){
       return send([{tarefa_id:task.id,status:scenario.status}]);
     return send([scenario]);
   }
+  if(path.endsWith("/rest/v1/rpc/qa_public_tasks_v1"))return send([]);
   if(path.endsWith("/rest/v1/rpc/qa_public_documentacoes_v1")){
     const id=request.postDataJSON()?.p_id;
     return send(referenceRows.filter(row=>row.publica&&(!id||row.id===id)).map(({user_id,...row})=>row));
@@ -125,7 +126,7 @@ try{
  await editor.getByLabel("Título",{exact:true}).fill("Resolver falha de emissão");
  await editor.getByRole("combobox",{name:/^Tipo/}).selectOption("solucao");
  await editor.getByLabel("TF vinculada (opcional)").selectOption(task.id);
- await editor.getByLabel("Texto da documentação").fill("Contexto\nFalha recorrente.\n\nSolução\n1. Revisar configuração.\n2. Repetir emissão.");
+ await editor.getByLabel("Texto da documentação").fill("# Contexto\n\nFalha recorrente.\n\n## Solução\n\n1. Revisar configuração.\n2. Repetir emissão.");
  const videoBytes=await page.evaluate(()=>new Promise(resolve=>{
   const canvas=document.createElement("canvas");canvas.width=160;canvas.height=90;canvas.getContext("2d").fillRect(0,0,160,90);
   const stream=canvas.captureStream(5),chunks=[],recorder=new MediaRecorder(stream,{mimeType:"video/webm"});
@@ -135,10 +136,16 @@ try{
  }));
  const video=Buffer.from(videoBytes);samples.set("tutorial.webm",video);
  const image=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAOa2nx0AAAAASUVORK5CYII=","base64");samples.set("captura.png",image);
+ const sql=Buffer.from("CREATE TABLE exemplo (token text, password text);","utf8");
+ samples.set("modelo.sql",sql);
+ const zip=Buffer.from("PK synthetic archive fixture");
+ samples.set("exemplo.zip",zip);
  await editor.locator("input[type=file]").setInputFiles([
   {name:"passos.txt",mimeType:"text/plain",buffer:Buffer.from("Passos detalhados do arquivo")},
   {name:"tutorial.webm",mimeType:"video/webm",buffer:video},
-  {name:"captura.png",mimeType:"image/png",buffer:image}
+  {name:"captura.png",mimeType:"image/png",buffer:image},
+  {name:"modelo.sql",mimeType:"application/sql",buffer:sql},
+  {name:"exemplo.zip",mimeType:"application/zip",buffer:zip}
  ]);
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);
@@ -148,19 +155,29 @@ try{
 
  await editor.getByText(/O texto foi salvo/).waitFor();assert.equal(referenceRows.length,1);
  await editor.getByRole("button",{name:"Salvar documentação"}).click();await editor.waitFor({state:"detached"});
- assert.equal(referenceRows.length,1,"Attachment retry cannot duplicate the documentation");assert.equal(uploads,3);assert.equal(files.length,3);
+ assert.equal(referenceRows.length,1,"Attachment retry cannot duplicate the documentation");assert.equal(uploads,5);assert.equal(files.length,5);
  const record=referenceRows[0];assert.equal(record.tarefa_id,task.id);assert.equal(record.publica,false);
  const viewer=page.getByRole("dialog",{name:record.titulo,exact:true});await viewer.waitFor();
+ await viewer.getByRole("heading",{name:"Contexto",exact:true}).waitFor();
+ await viewer.locator(".qa-doc-embed-code").filter({hasText:"CREATE TABLE exemplo"}).waitFor();
+ await viewer.getByText("exemplo.zip").first().waitFor();
  await viewer.getByRole("article").filter({hasText:"passos.txt"}).getByRole("button",{name:"Visualizar",exact:true}).click();
  const preview=page.getByRole("dialog",{name:"Visualizar anexo — passos.txt"});await preview.getByText("Passos detalhados do arquivo").waitFor();
- await page.keyboard.press("Escape");await preview.waitFor({state:"detached"});assert.equal(await viewer.evaluate(el=>el.contains(document.activeElement)),true);
+ await page.keyboard.press("Escape");await preview.waitFor({state:"detached"});
+ await page.waitForFunction(()=>[...document.querySelectorAll('[role="dialog"]')].some(el=>el.querySelector("h2")?.textContent==="Resolver falha de emissão"&&el.contains(document.activeElement)));
+ assert.equal(await viewer.evaluate(el=>el.contains(document.activeElement)),true);
  await viewer.getByRole("article").filter({hasText:"tutorial.webm"}).getByRole("button",{name:"Visualizar",exact:true}).click();
  const videoPreview=page.getByRole("dialog",{name:"Visualizar anexo — tutorial.webm"});await videoPreview.waitFor();
  await page.waitForFunction(()=>document.querySelector("video")?.readyState>=1);
  assert.equal(await videoPreview.locator("video").evaluate(video=>video.videoWidth),160);
  await page.keyboard.press("Escape");
  await viewer.getByRole("article").filter({hasText:"captura.png"}).getByRole("button",{name:"Visualizar",exact:true}).click();
- await page.getByRole("dialog",{name:"Visualizar anexo — captura.png"}).getByRole("img").waitFor();
+ const imageModal=page.getByRole("dialog",{name:"Visualizar anexo — captura.png"});
+ await imageModal.getByRole("img").waitFor();
+ await imageModal.getByRole("button",{name:"Aumentar zoom"}).click();
+ await imageModal.getByText("125%").waitFor();
+ await imageModal.getByRole("button",{name:"Redefinir zoom"}).click();
+ await imageModal.getByText("100%").waitFor();
  await page.waitForFunction(()=>[...document.querySelectorAll(".qa-resource-preview-image")].some(image=>image.naturalWidth>0));
  await page.keyboard.press("Escape");
  await viewer.getByRole("button",{name:"Editar documentação",exact:true}).click();
@@ -174,6 +191,9 @@ try{
   await page.screenshot({path:"artifacts/documentation/catalog-"+width+".png"});
  }
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
+ await guest.goto(ROOT+"#/publicas");
+ await guest.getByRole("heading",{name:"Documentações públicas"}).waitFor();
+ await guest.getByRole("link",{name:/Resolver falha de emissão/}).waitFor();
  await guest.goto(ROOT+"#/documentacoes?doc="+record.id);
  await guest.getByRole("dialog",{name:record.titulo,exact:true}).waitFor();
  assert.equal(await guest.getByRole("button",{name:"Editar documentação",exact:true}).count(),0);

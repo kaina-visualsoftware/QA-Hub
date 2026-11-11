@@ -89,11 +89,23 @@ export function useModalFocus(
       // When QAModal releases an inert page, that cleanup runs after this
       // hook. Restore focus in a microtask, only if the original control is
       // still visible and no new modal has made its ancestors inert.
-      if (origin?.isConnected) queueMicrotask(() => {
-        if (origin.isConnected && !origin.closest("[inert]") &&
-          origin.getClientRects().length > 0) {
-          origin.focus({ preventScroll: true });
-        }
+      queueMicrotask(() => {
+        // When closing a nested preview, restore focus to its parent dialog.
+        // A mouse-activated action may leave the activeElement outside the
+        // opening dialog. In that case, prefer a visible control in the parent
+        // rather than losing keyboard focus to the inert background.
+        if (previousDialog && modalStack.at(-1) !== previousDialog) return;
+        const canReceiveFocus = (element:HTMLElement | null | undefined) =>
+          Boolean(element?.isConnected && !element.closest("[inert]") &&
+            element.getClientRects().length > 0);
+        const original = previousDialog && origin && !previousDialog.contains(origin)
+          ? null : origin;
+        const parentControl = previousDialog
+          ? [...previousDialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+            .find(canReceiveFocus) ?? previousDialog
+          : null;
+        const target = canReceiveFocus(original) ? original : parentControl;
+        if (target && !target.closest("[inert]")) target.focus({ preventScroll: true });
       });
     };
   }, [open, firstFocus]);
