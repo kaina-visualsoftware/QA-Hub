@@ -1,3 +1,4 @@
+import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
 import {correlationId,promptChars,logAiAttempt} from "../_shared/ai-observability.mjs";
 import {discoverModels,MODEL_IDS} from "../_shared/llm/models.mjs";
 import {callModel} from "../_shared/llm/call-model.mjs";
@@ -27,12 +28,15 @@ function corsHeaders(origin: string | null) {
     "Cache-Control": "no-store"
   };
 }
-function respond(origin: string | null, status: number, body: Record<string, unknown>, extraHeaders: Record<string,string> = {}) {
-  return new Response(JSON.stringify(body), {
+function respond(origin: string | null, status: number, body: Record<string, unknown>,
+  extraHeaders: Record<string,string> = {},trace="") {
+  const payload=status>=400?errorBody(status,body,trace):body;
+  return new Response(JSON.stringify(payload), {
     status,
     headers: {
       ...corsHeaders(origin), "Content-Type": "application/json; charset=utf-8",
-      ...extraHeaders
+      "Access-Control-Expose-Headers":"Retry-After, X-Request-ID",
+      ...errorHeaders(status>=400?body:{},extraHeaders,trace)
     }
   });
 }
@@ -79,29 +83,30 @@ async function listAllowedModels(key: string,trace: string) {
 Deno.serve(async req => {
   const trace=correlationId(req.headers.get("x-correlation-id"));
   const origin=req.headers.get("Origin");
+  const reply=(status:number,body:Record<string,unknown>,extra:Record<string,string>={})=>respond(origin,status,body,extra,trace);
   if(req.method==="OPTIONS") {
     return new Response(null,{status:204,headers:corsHeaders(origin)});
   }
-  if(req.method!=="POST")return respond(origin,405,{error:"method_not_allowed",message:"Método não permitido."});
-  if(origin && !ALLOWED_ORIGINS.has(origin))return respond(origin,403,{error:"forbidden",message:"Origem não autorizada."});
+  if(req.method!=="POST")return reply(405,{error:"method_not_allowed",message:"Método não permitido."});
+  if(origin && !ALLOWED_ORIGINS.has(origin))return reply(403,{error:"forbidden",message:"Origem não autorizada."});
 
   const auth=req.headers.get("Authorization")||"";
-  if(!auth.startsWith("Bearer "))return respond(origin,401,{error:"unauthorized",message:"Faça login para usar a IA."});
+  if(!auth.startsWith("Bearer "))return reply(401,{error:"unauthorized",message:"Faça login para usar a IA."});
   const supabaseUrl=Deno.env.get("SUPABASE_URL")||"";
   const anonKey=Deno.env.get("SUPABASE_ANON_KEY")||"";
-  if(!supabaseUrl || !anonKey) return respond(origin,503,{error:"auth_unconfigured",message:"Autenticação da função indisponível."});
+  if(!supabaseUrl || !anonKey) return reply(503,{error:"auth_unconfigured",message:"Autenticação da função indisponível."});
   const token=auth.slice(7);
   const db=createClient(supabaseUrl,anonKey,{global:{headers:{Authorization:auth}}});
   const userResult=await db.auth.getUser(token);
   if(userResult.error || !userResult.data.user || userResult.data.user.is_anonymous) {
-    return respond(origin,401,{error:"unauthorized",message:"Sua sessão expirou. Entre novamente."});
+    return reply(401,{error:"unauthorized",message:"Sua sessão expirou. Entre novamente."});
   }
 
   let body: unknown;
   try {
     body=await req.json();
   } catch {
-    return respond(origin,400,{error:"bad_request",message:"Envie um relatório de texto válido."});
+    return reply(400,{error:"bad_request",message:"Envie um relatório de texto válido."});
   }
   const text=typeof (body as {text?:unknown})?.text==="string" ? (body as {text:string}).text.trim():"";
   const diagramMode=(body as {mode?:unknown})?.mode==="diagram";
@@ -112,13 +117,13 @@ Deno.serve(async req => {
     ? (body as {syntaxError:string}).syntaxError.trim():"";
   if((previousMermaid||syntaxError)&&(!diagramMode||!previousMermaid||
      previousMermaid.length>16000||syntaxError.length>1500)){
-    return respond(origin,400,{error:"invalid_repair",message:"Código ou erro de sintaxe inválido para correção."});
+    return reply(400,{error:"invalid_repair",message:"Código ou erro de sintaxe inválido para correção."});
   }
   const inputError=aiInputError(text,diagramMode?"diagram":summaryMode?"diagram-summary":"task");
-  if(inputError)return respond(origin,400,inputError);
+  if(inputError)return reply(400,inputError);
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key) {
-    return respond(origin,503,{
+    return reply(503,{
       error:"nvidia_not_configured",
       message:"A IA online ainda não foi ativada no Supabase. Utilize a extração sem IA ou a IA local."
     });
@@ -129,7 +134,7 @@ Deno.serve(async req => {
   const deadlineAt=Date.now()+83000;
   const available=await listAllowedModels(key,trace);
   if(!available.length) {
-    return respond(origin,503,{
+    return reply(503,{
       error:"free_model_unavailable",
       message:"Nenhum dos modelos NVIDIA com endpoint gratuito está disponível agora."
     });
@@ -180,14 +185,14 @@ Deno.serve(async req => {
       const response=result.payload;
       if(diagramMode){
         const mermaid=extractDiagramFromNvidia(response);
-        if(mermaid)return respond(origin,200,{mermaid,model,provider:"NVIDIA Build"});
+        if(mermaid)return reply(200,{mermaid,model,provider:"NVIDIA Build"});
       }else if(summaryMode){
         const summary=extractDiagramSummary(response);
-        if(summary)return respond(origin,200,{summary,model,provider:"NVIDIA Build"});
+        if(summary)return reply(200,{summary,model,provider:"NVIDIA Build"});
       }else{
         const extracted=parseNvidiaDraft(response);
         if(hasMeaningfulTaskData(extracted))
-          return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
+          return reply(200,{draft:extracted,model,provider:"NVIDIA Build"});
       }
       // Non-empty, truncated and unstructured replies are not success.
       console.warn("qa-ai unstructured response",{
@@ -202,25 +207,29 @@ Deno.serve(async req => {
       lastStatus=error.status||lastStatus;
       if(error.stage==="quota"){
         if(error.kind==="auth")
-          return respond(origin,401,{error:"unauthorized",message:"Faça login para usar a IA."});
+          return reply(401,{error:"unauthorized",message:"Faça login para usar a IA."});
         if(error.kind==="rate_limited"){
           const retry=Math.max(1,Math.min(60,Math.ceil(error.retryAfterSeconds||60)));
-          return respond(origin,429,{
+          return reply(429,{
             error:"rate_limited",
             message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+
               " segundo(s). Não há limite diário no QA Hub.",
             retry_after_seconds:retry,limit:15,window_seconds:60
           },{"Retry-After":String(retry)});
         }
-        return respond(origin,503,{
+        return reply(503,{
           error:"rate_limit_not_ready",message:"Não foi possível verificar o limite por minuto da IA."
         });
       }
       if(error.kind==="auth")
-        return respond(origin,503,{error:"nvidia_key_invalid",message:"Atualize a chave NVIDIA no Supabase."});
-      if(error.kind==="rate_limited")
-        return respond(origin,429,{error:"nvidia_rate_limited",
-          message:"Limite gratuito da NVIDIA atingido. Tente mais tarde."});
+        return reply(503,{error:"nvidia_key_invalid",message:"Atualize a chave NVIDIA no Supabase."});
+      if(error.kind==="rate_limited"){
+        const wait=error.retryAfterSeconds;
+        return reply(429,{error:"nvidia_rate_limited",
+          ...(wait!==null?{retry_after_seconds:wait}:{}),
+          message:"Limite gratuito da NVIDIA atingido. A solicitação poderá ser retomada após liberação."},
+          wait!==null?{"Retry-After":String(wait)}:{});
+      }
       if(error.kind==="context_exceeded"){contextExceeded=true;continue;}
       if(["length","empty","schema_invalid"].includes(error.kind)&&error.status===200)
         hadReply=true;
@@ -230,23 +239,23 @@ Deno.serve(async req => {
       });
     }
   }
-  if(contextExceeded&&!hadReply)return respond(origin,400,{
+  if(contextExceeded&&!hadReply)return reply(400,{
     error:"model_context_exceeded",message:"O conteúdo excede a janela de contexto em tokens dos modelos NVIDIA disponíveis. O QA Hub não cortou o texto. Reduza o contexto ou utilize um modelo com janela maior."
   });
   if(hadReply){
-    if(summaryMode)return respond(origin,502,{
+    if(summaryMode)return reply(502,{
       error:"summary_incomplete",
       message:"A NVIDIA não concluiu um resumo confiável. Tente novamente sem perder os dados da TF."
     });
     // A provider replied but did not produce recognizable fields; the client
     // will transparently use the local original-report parser.
-    return respond(origin,200,diagramMode ? {
+    return reply(200,diagramMode ? {
       mermaid:null,fallback:true,model:"Diagrama local",provider:"NVIDIA Build"
     } : {
       draft:{},fallback:true,model:"Extração local",provider:"NVIDIA Build"
     });
   }
-  return respond(origin,503,{
+  return reply(503,{
     error:"ai_temporarily_unavailable",
     message:"A NVIDIA está temporariamente indisponível. O texto pode ser organizado localmente.",
     status:lastStatus
