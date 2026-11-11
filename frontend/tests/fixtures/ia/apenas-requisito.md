@@ -1,0 +1,1 @@
+RF-24 — Ao cadastrar pessoa estrangeira, aplicar a máscara do telefone ao selecionar um país suportado. A mudança não deve alterar o cadastro de pessoa brasileira. Não existe evidência de implementação ou teste neste documento.
