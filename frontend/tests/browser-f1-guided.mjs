@@ -31,7 +31,7 @@ const scenarios=[
   passos:"Abrir pedido e executar alteração",esperado:"Total atualizado",observacoes:""}));
 const otherScenario={...scenarios[0],id:"88888888-8888-4888-8888-888888888888",
   titulo:"Cenário de outra TF",tarefa_id:otherTaskId,status:"nao_executado",obtido:""};
-const mutations=[],unexpected=[];
+const mutations=[],unexpected=[],evidenceRecords=[];
 let failOnce=true;
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -77,7 +77,15 @@ async function mock(route){
   }
   if(path.endsWith("/rest/v1/qa_requisito_fontes") && method==="GET")return send([]);
   if(path.endsWith("/rest/v1/qa_evidencias") && method==="GET")return send([]);
-  if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos")){
+    if(method==="GET")return send(evidenceRecords);
+    if(method==="POST"){
+      const entry=request.postDataJSON();
+      evidenceRecords.push({...entry,created_at:"2026-11-11T10:00:00Z"});
+      return send(evidenceRecords.at(-1),201);
+    }
+  }
+  if(path.includes("/storage/v1/object/") && method==="POST")return send({Key:path});
   unexpected.push(method+" "+path);
   return send({message:"Unexpected synthetic request"},500);
 }
@@ -184,14 +192,19 @@ try{
   assert.equal(scenarios[3].obtido,"","Older failure note must be removed from an approval");
   assert.equal(mutations.length,4);
 
-  await guided.getByRole("button",{name:"Adicionar evidência"}).click();
-  const evidence=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
-  await evidence.waitFor({timeout:18000});
-  await evidence.getByRole("button",{name:"Evidência do teste"}).waitFor();
-  await evidence.getByLabel("Cenário relacionado (opcional)").waitFor();
-  assert.equal(await evidence.getByLabel("Cenário relacionado (opcional)").inputValue(),scenarios[3].id);
-  await evidence.getByRole("button",{name:"Fechar Importar arquivos e evidências"}).click();
-  await page.getByRole("tab",{name:"Cenários"}).click();
+  const evidence=guided.getByRole("region",{name:"Evidências do cenário Falha anterior"});
+  await evidence.waitFor();
+  assert.equal(await guided.getByRole("button",{name:"Adicionar evidência"}).count(),0);
+  assert.equal(await guided.getByText("Evidências do cenário").count(),1);
+  await evidence.locator('input[type="file"]').setInputFiles({
+    name:"registro.txt",mimeType:"text/plain",buffer:Buffer.from("Evidência de teste sintética.")
+  });
+  await evidence.getByText("registro.txt").waitFor();
+  await evidence.getByRole("button",{name:"Vincular ao teste"}).click();
+  await evidence.getByText("registro.txt").waitFor();
+  assert.equal(evidenceRecords.length,1,"The uploaded file must be bound to a scenario");
+  assert.equal(evidenceRecords[0].cenario_id,scenarios[3].id);
+  assert.equal(await evidence.getByRole("button",{name:"Baixar"}).count(),1);
 
   await page.getByRole("button",{name:"Lista",exact:true}).click();
   assert.equal(await page.getByRole("button",{name:"Lista",exact:true}).getAttribute("aria-pressed"),"true");
