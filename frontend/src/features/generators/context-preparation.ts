@@ -35,9 +35,9 @@ function detectTopic(value:string):Topic|null{
  if(/^(?:TF|TASK|COD(?:IGO)?)[\s#-]*\d+/i.test(cleaned))return "problema";
  if(/^(?:QUAL\s+É\s+O\s+PROBLEMA|PROBLEMA(?:\s+IDENTIFICADO)?|DESCRIÇÃO(?:\s+DO\s+PROBLEMA)?|NECESSIDADE|SOLICITAÇÃO)\b/i.test(cleaned))return "problema";
  if(/^(?:ANÁLISE(?:\s+DE\s+VIABILIDADE)?|CAUSA(?:\s+RAIZ)?|ORIGEM(?:\s+DO\s+PROBLEMA)?|DIAGNÓSTICO)\b/i.test(cleaned))return "causa";
- if(/^(?:CORREÇÃO|SOLUÇÃO|IMPLEMENTA(?:ÇÃO|DO)|O\s+QUE\s+FOI\s+(?:IMPLEMENTADO|ALTERADO|REALIZADO)|ALTERAÇÕES(?:\s+REALIZADAS)?|AGORA)\b/i.test(cleaned))return "correcao";
+ if(/^(?:CORREÇÃO|SOLUÇÃO|IMPLEMENTA(?:ÇÃO|DO)|O\s+QUE\s+O\s+DESENVOLVEDOR\s+ALTEROU|O\s+QUE\s+FOI\s+(?:IMPLEMENTADO|ALTERADO|REALIZADO)|ALTERAÇÕES(?:\s+REALIZADAS)?|AGORA)\b/i.test(cleaned))return "correcao";
  if(/^(?:RF[-\s]?\d+|RNF[-\s]?\d+|REQ[-\s]?\d+|REQUISITOS?|CRITÉRIOS?(?:\s+DE\s+ACEITE)?|REGRAS?(?:\s+DE\s+NEGÓCIO)?|VALIDAÇÕES|PERMISSÕES)\b/i.test(cleaned))return "requisitos";
- if(/^(?:CEN[ÁA]RIOS?(?:\s+\d+|\s+TESTADOS)?|CASOS?(?:\s+DE\s+TESTE)?|PASSOS?(?:\s+PARA\s+TESTAR)?|PROCEDIMENTO(?:S)?)\b/i.test(cleaned))return "cenarios";
+ if(/^(?:CEN[ÁA]RIOS?(?:\s+\d+|\s+TESTADOS)?|CASOS?(?:\s+DE\s+TESTE)?|PASSOS?(?:\s+PARA\s+TESTAR)?|TESTES?(?:\s+REALIZADOS?)?|PROCEDIMENTO(?:S)?)\b/i.test(cleaned))return "cenarios";
  if(/^(?:RESULTADO(?:\s+ESPERADO|\s+OBTIDO|\s+FINAL)?|CONCLUSÃO|O\s+QUE\s+FOI\s+TESTADO|TESTES?\s+EXECUTADOS?|EVIDÊNCIAS?)\b/i.test(cleaned))return "resultados";
  return null;
 }
@@ -145,9 +145,8 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
       if(indexes.length>1)include(indexes[1]);
     }
   }
-  const rankedGroups=[...groups.values()].sort((a,b)=>
-    Math.max(...b.map(i=>units[i].priority))-
-    Math.max(...a.map(i=>units[i].priority)));
+  const groupPriority=(indexes:number[])=>indexes.reduce((best,i)=>Math.max(best,units[i].priority),-Infinity);
+  const rankedGroups=[...groups.values()].sort((a,b)=>groupPriority(b)-groupPriority(a));
   for(const indexes of rankedGroups){
     const sorted=[...indexes].sort(rank);
     include(sorted[0]);
