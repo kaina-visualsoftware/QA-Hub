@@ -103,6 +103,7 @@ export async function readAuditTrail(taskId:string,userId:string){
 }
 export async function compareSourceVersions(taskId:string,taskText:string,
  approved:ApprovedSource[],events:AuditEvent[]){
+ if(!UUID.test(taskId))throw Error("Identificador da TF inválido.");
  const latest=new Map<string,AuditEvent>();
  for(const event of events){
   if(event.event_type!=="source_snapshot")continue;
