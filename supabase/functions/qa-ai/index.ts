@@ -1,5 +1,5 @@
 import {correlationId,promptChars,logAiAttempt} from "../_shared/ai-observability.mjs";
-import {discoverModels} from "../_shared/llm/models.mjs";
+import {discoverModels,MODEL_IDS} from "../_shared/llm/models.mjs";
 import {callModel} from "../_shared/llm/call-model.mjs";
 import {ProviderError} from "../_shared/llm/errors.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
@@ -9,12 +9,8 @@ import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, 
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
 
-// Only models verified in NVIDIA Build's Free Endpoint catalog.
-// The runtime also attempts GET /v1/models and skips unavailable IDs.
-const FREE_MODEL_IDS = [
-  "z-ai/glm-5.3-flash",
-  "nvidia/nemotron-3.5-lightning-30b-a3b"
-];
+// The explicit free-endpoint allowlist lives only in _shared/llm/models.mjs.
+// A runtime GET /v1/models filters it without accepting arbitrary model IDs.
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const ALLOWED_ORIGINS = new Set([
   "https://kaina-visualsoftware.github.io",
@@ -74,7 +70,7 @@ function promptForReport(text: string) {
   ];
 }
 async function listAllowedModels(key: string,trace: string) {
-  return discoverModels({apiKey:key,modelIds:FREE_MODEL_IDS,
+  return discoverModels({apiKey:key,modelIds:MODEL_IDS,
     timeoutMs:MODEL_DISCOVERY_TIMEOUT_MS,
     onDiscovery:event=>logAiAttempt({...event,correlation_id:trace,stage:"discovery"})
   });

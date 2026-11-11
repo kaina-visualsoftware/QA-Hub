@@ -104,9 +104,13 @@ async function parseStream(response,controller,onDelta,{maxChars,rejectLength,re
  controller.signal.addEventListener("abort",abortRead,{once:true});
  try{
   while(!state.done){
-   if(controller.signal.aborted)throw new ProviderError("aborted");
+   if(controller.signal.aborted)throw new ProviderError("aborted",{
+    partial:state.text,finishReason:state.finishReason,usage:state.usage
+   });
    const {done,value}=await reader.read();
-   if(controller.signal.aborted)throw new ProviderError("aborted");
+   if(controller.signal.aborted)throw new ProviderError("aborted",{
+    partial:state.text,finishReason:state.finishReason,usage:state.usage
+   });
    if(done)break;
    resetIdle();
    buffer+=decoder.decode(value,{stream:true});

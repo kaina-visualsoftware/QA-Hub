@@ -38,14 +38,16 @@ test('Reject empty, oversized and unavailable client payloads',async()=>{
 
 test('Edge Function has auth, secret env, free model allowlist and no hardcoded user keys',()=>{
  const code=readFileSync(new URL('../supabase/functions/qa-ai/index.ts',import.meta.url),'utf8');
+ const models=readFileSync(new URL('../supabase/functions/_shared/llm/models.mjs',import.meta.url),'utf8');
  assert.match(code,/Deno.env.get\("NVIDIA_API_KEY"\)/);
  assert.match(code,/auth.getUser\(token\)/);
  assert.match(code,/qa_ai_claim_minute_request/);
  assert.match(code,/Retry-After/);
  assert.doesNotMatch(code,/12 usos por dia/);
- assert.match(code,/nvidia\/nemotron-3.5-lightning-30b-a3b/);
- assert.match(code,/z-ai\/glm-5\.3-flash/);
-  assert.doesNotMatch(code,/z-ai\/glm-5-3-flash/);
+ assert.match(code,/modelIds:MODEL_IDS/);
+ assert.match(models,/nvidia\/nemotron-3.5-lightning-30b-a3b/);
+ assert.match(models,/z-ai\/glm-5\.3-flash/);
+ assert.doesNotMatch(models,/z-ai\/glm-5-3-flash/);
  assert.match(code,/Não invente|Nunca invente/);
  assert.doesNotMatch(code,/nvapi-[a-zA-Z0-9_-]+/);
 });

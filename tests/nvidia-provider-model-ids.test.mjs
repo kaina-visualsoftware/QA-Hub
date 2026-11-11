@@ -6,7 +6,11 @@ const edgePaths=[
 ];
 for(const name of edgePaths){
  test(name+" uses the current exact free NVIDIA GLM model ID as first choice",()=>{
-  const src=readFileSync(new URL("../supabase/functions/"+name+"/index.ts",import.meta.url),"utf8");
+  const edge=readFileSync(new URL("../supabase/functions/"+name+"/index.ts",import.meta.url),"utf8");
+  const src=name==="qa-ai"?
+   readFileSync(new URL("../supabase/functions/_shared/llm/models.mjs",import.meta.url),"utf8"):
+   edge;
+  if(name==="qa-ai")assert.match(edge,/modelIds:MODEL_IDS/);
   assert.ok(src.includes('"z-ai/glm-5.3-flash"'),"Official /v1/models ID missing");
   assert.ok(!src.includes("z-ai/glm-5-3-flash"),"Outdated/nonexistent ID remains");
   const glm=src.indexOf('"z-ai/glm-5.3-flash"');
