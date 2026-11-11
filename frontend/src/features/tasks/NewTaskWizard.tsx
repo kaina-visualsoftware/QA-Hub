@@ -21,6 +21,8 @@ import {prepareQaContext,prepareGeneratorContext} from "../generators/context-pr
 import type {ContextPreparation} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
 import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
+import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
+import type {AiWaitState} from "../../lib/ai-retry";
 import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
 import {useSemanticContext} from "../generators/useSemanticContext";
 import {
@@ -118,6 +120,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [recoverable,setRecoverable] = useState<ReturnType<typeof loadNewTaskDraft>>(null);
   const [streamText,setStreamText] = useState("");
   const [work,setWork]=useState<WorkStatus|null>(null);
+  const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const controller=useRef<AbortController|null>(null);
   const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
@@ -174,7 +177,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setStep(1);setCaseReview(false);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
       setRequirementText("");setDraft(blank());setCases([]);
       setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);
-      setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);
+      setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
     }
     wasOpen.current=open;
@@ -278,7 +281,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
 
   async function generateTask(){
     if(busy||!consentTask)return;
-    setAnalyzing(true);setError("");setNotice("");
+    setAnalyzing(true);setError("");setNotice("");setQuotaWait(null);
+    const abort=new AbortController();controller.current=abort;
     setWork({kind:"task",phase:0,detail:"Conferindo o conteúdo e os anexos selecionados."});
     // Avoid artificial headings in the content submitted to the model.
     const snapshot=combine("",sourceText,taskFiles);
@@ -295,7 +299,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       const response=await generateTaskAiDraft(snapshot,{
         aiText:sourcePreparation.prepared.mode==="integral"?undefined:
           semanticTask.enabled&&semanticTask.ready&&semanticTask.digest?
-            semanticTask.digest.task:sourcePreparation.prepared.text
+            semanticTask.digest.task:sourcePreparation.prepared.text,
+        signal:abort.signal,onWait:setQuotaWait
       });
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
       if(snapshot!==combine("",sourceText,taskFiles)){
@@ -335,7 +340,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
           : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.")+missingHint);
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
-    finally{setAnalyzing(false);setWork(null);}
+    finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;}
   }
   function continueManual(){
     if(busy)return;
@@ -377,7 +382,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   }
   async function generateCases(){
     if(busy||!consentCases)return;
-    setGenerating(true);setError("");setNotice("");setStreamText("");
+    setGenerating(true);setError("");setNotice("");setStreamText("");setQuotaWait(null);
     setWork({kind:"cases",phase:0,detail:"Preparando regras, requisitos e casos já identificados."});
     const abort=new AbortController();
     controller.current=abort;
@@ -404,7 +409,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           }
           setStreamText(previous=>previous+chunk);
         },
-        abort.signal
+        abort.signal,setQuotaWait
       );
       setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados esperados e casos repetidos."});
       const parsed=parseGeneratedCases(response.text);
@@ -420,7 +425,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           : "Nenhum caso novo e válido foi encontrado. Revise os requisitos ou tente novamente.");
     }catch(reason){setError(abort.signal.aborted?"Geração cancelada. Os casos anteriores foram preservados.":
       reason instanceof Error?reason.message:"Não foi possível gerar os casos de teste.");}
-    finally{setGenerating(false);controller.current=null;setWork(null);}
+    finally{setGenerating(false);controller.current=null;setWork(null);setQuotaWait(null);}
   }
   function editCase(index:number,patch:Partial<SuggestedScenario>){
     setCases(current=>current.map((item,i)=>i===index?{...item,...patch}:item));
@@ -561,9 +566,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <strong>{WORK_LABELS[work.kind]}</strong>
           <p>{work.detail}</p>
         </div>
-        {work.kind==="cases"&&<button type="button" className="qa-wizard-work-cancel"
+        {(work.kind==="cases"||work.kind==="task")&&<button type="button" className="qa-wizard-work-cancel"
           onClick={()=>controller.current?.abort()}>Cancelar</button>}
       </div>
+      <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
       {work.kind==="task"&&<AiBusyStatus title="NVIDIA: preparando campos da tarefa" detail="Acompanhe o tempo decorrido. Se os modelos falharem, o sistema tentará uma extração local e preservará a fonte original."/>}
       <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
       <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">

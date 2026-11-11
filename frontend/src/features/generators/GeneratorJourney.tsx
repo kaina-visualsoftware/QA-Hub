@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Circle, LoaderCircle, Square } from "lucide-react";
 import { Button } from "@heroui/react";
 
-export type ActivityPhase = "connecting" | "receiving" | "organizing";
+export type ActivityPhase = "connecting" | "receiving" | "organizing" | "cooldown";
 export type JourneyStage = "configure" | "generate" | "review" | "complete";
 
 const stages = [
@@ -33,6 +33,10 @@ export function GeneratorSteps({ stage, postMode }: {
 }
 
 const phaseCopy = {
+  cooldown:{
+    title:"Aguardando liberação de cota",
+    description:"A solicitação ainda não foi reiniciada. O contexto foi mantido."
+  },
   connecting: {
     title: "Conectando à NVIDIA",
     description: "Aguardando o início da resposta do serviço."
@@ -101,8 +105,8 @@ export function GeneratorActivity({ phase, raw, postMode, onCancel }: {
     <ol className="qa-generation-events" aria-label="Estados do processamento">
       {[
         { label: "Contexto preparado", done: true, active: false },
-        { label: "Conexão estabelecida", done: phase !== "connecting",
-          active: phase === "connecting" },
+        { label: "Conexão estabelecida", done: phase !== "connecting" && phase !== "cooldown",
+          active: phase === "connecting" || phase === "cooldown" },
         { label: "Resposta em streaming", done: phase === "organizing",
           active: phase === "receiving" },
         { label: "Revisão dos dados", done: false, active: phase === "organizing" }
