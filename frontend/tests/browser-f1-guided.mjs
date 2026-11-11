@@ -201,7 +201,7 @@ try{
   });
   await evidence.getByText("registro.txt").waitFor();
   await evidence.getByRole("button",{name:"Vincular ao teste"}).click();
-  await evidence.getByText("registro.txt").waitFor();
+  await evidence.getByRole("button",{name:"Baixar"}).waitFor({timeout:15000});
   assert.equal(evidenceRecords.length,1,"The uploaded file must be bound to a scenario");
   assert.equal(evidenceRecords[0].cenario_id,scenarios[3].id);
   assert.equal(await evidence.getByRole("button",{name:"Baixar"}).count(),1);
