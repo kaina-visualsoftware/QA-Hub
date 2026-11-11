@@ -1,3 +1,4 @@
+import type {Scenario} from "../../lib/contracts";
 /** F3.2: only explicit DB links count as requirement coverage.
  * Heuristic mentions in AI text never count as tested/covered.
  */
@@ -6,7 +7,7 @@ import {composeRequirementContext} from "../../lib/legacy/qa-requirements-contex
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
  descricao:string;criterios_aceite:string;ordem:number;tipo:string;updated_at:string};
 type ScenarioLink={tarefa_id:string;requisito_id:string;cenario_id:string};
-type SavedCase={id:string;tarefa_id:string;titulo:string;status:string};
+type SavedCase={id:string;tarefa_id:string;titulo:string;status:Scenario["status"]};
 export type CoverageCandidate={id:string;codigo:string;titulo:string;
  reason:"unlinked"|"changed";linkedCount:number;coverage:string};
 export function candidatesForReview(requirements:Requirement[],cases:SavedCase[],
