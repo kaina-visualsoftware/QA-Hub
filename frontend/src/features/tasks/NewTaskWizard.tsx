@@ -124,6 +124,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [work,setWork]=useState<WorkStatus|null>(null);
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const [taskPending,setTaskPending]=useState(0);
+  const [taskPartial,setTaskPartial]=useState(false);
   const taskCheckpoint=useRef<TaskPipelineCheckpoint|null>(null);
   const controller=useRef<AbortController|null>(null);
   const stepperRef=useRef<HTMLDivElement|null>(null);
@@ -183,7 +184,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
-      taskCheckpoint.current=null;setTaskPending(0);
+      taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
     }
     wasOpen.current=open;
   },[open,userId]);
@@ -244,7 +245,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setNotice("A origem da TF mudou. Gere a análise novamente ou revise os campos na etapa 2.");
     }else setNotice("");
     automaticallyFilled.current={};
-    taskCheckpoint.current=null;setTaskPending(0);
+    taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
     setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
   }
   function alterSource(value:string){
@@ -315,6 +316,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         signal:abort.signal,onWait:setQuotaWait
       });
       setTaskPending(response.pendingBatches+(response.fieldsPending?1:0));
+      setTaskPartial(response.partial);
       setWork({kind:"task",phase:3,detail:"Organizando o resultado para revisão humana."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
@@ -350,7 +352,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setNotice((response.partial
         ? "A análise ficou parcial. "+response.pendingBatches+" lote(s) de cenários pendente(s)"+
           (response.fieldsPending?" e campos ainda não concluídos":"")+
-          ". Os resultados já recebidos foram mantidos. Você pode retomar sem reenviar os lotes concluídos. "+
+          ". Os resultados já recebidos foram preservados. "+
+          (response.pendingBatches||response.fieldsPending
+            ?"Você pode retomar sem reenviar os lotes concluídos. ":"")+
           (response.extractionReason??"")
         : response.extractionSource==="local"
           ? "Extração local utilizada; confira os campos e cenários antes de salvar."
@@ -594,7 +598,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           onClick={()=>controller.current?.abort()}>Cancelar</button>}
       </div>
       <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
-      {work.kind==="task"&&<AiBusyStatus title="NVIDIA: preparando campos da tarefa" detail="Acompanhe o tempo decorrido. Se os modelos falharem, o sistema tentará uma extração local e preservará a fonte original."/>}
+      {work.kind==="task"&&<AiBusyStatus
+        title={work.phase===1?"NVIDIA: extraindo campos":
+          work.phase===2?"NVIDIA: processando cenários por lotes":"NVIDIA: preparando revisão"}
+        detail="Acompanhe o progresso. Se uma etapa falhar, o documento e os lotes concluídos continuam disponíveis."/>}
       <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
       <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
         {WORK_STEPS[work.kind].map((label,index)=><li key={label}
@@ -607,7 +614,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </ol>
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
-          {work.kind==="task"?"Lotes de cenários":
+          {work.kind==="task"?(work.phase===1?"Extração de campos":"Lotes de cenários"):
             (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
           {" "+Math.min(work.current??0,work.total)+" de "+work.total}
         </p>}
@@ -704,7 +711,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
-        <span>{aiUsed?(localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
+        <span>{aiUsed?(taskPartial?"Análise parcial — confira as pendências":
+  localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
       {aiUsed&&<div className="qa-wizard-ai-review">

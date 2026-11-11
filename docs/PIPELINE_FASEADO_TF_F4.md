@@ -20,6 +20,7 @@ Antes, a criação de uma tarefa no assistente fazia uma única requisição NVI
 - Lotes: 4 cenários por chamada, no máximo 2 em voo; a primeira versão processa com IA até **20 cenários locais** (mais casos permanecem preservados localmente e sujeitos à revisão, sem afirmar cobertura completa).
 - Se o parser local não extrair cenários explícitos, não se inventam casos: o QA pode usar a etapa independente de geração de casos posteriormente.
 - A retomada funciona apenas na mesma instância aberta do assistente, não entre recargas, navegadores ou computadores. Uma fila distribuída exigiria persistência segura e nova fase.
+- Se o parser local identificar mais de 20 cenários, os adicionais permanecem disponíveis localmente e o resultado é classificado como **parcial**, sem alegar que todos foram enviados à NVIDIA. O limite local de 200 mil caracteres também é comunicado explicitamente.
 - Erros de autenticação, cota não resolvida ou problemas de permissão não viram sucesso local silencioso. Quando o provedor falha temporariamente, a interface identifica os dados locais e as etapas incompletas.
 - A F5 trará confirmação estrita de citações e schema; a F4 só vincula cenários por índice de origem e exige revisão humana, não garante que o modelo reescreveu o texto exatamente.
 

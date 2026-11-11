@@ -25,6 +25,7 @@ export type TaskPipelineCheckpoint={
 export type PhasedTaskDraft=GeneratedTaskDraft&{
  partial:boolean;completedBatches:number;totalBatches:number;
  pendingBatches:number;fieldsPending:boolean;
+ unprocessedScenarios:number;localParsingLimited:boolean;
 };
 export const TASK_BATCH_SIZE=4;
 export const TASK_BATCH_CONCURRENCY=2;
@@ -103,7 +104,9 @@ function parsedBatch(data:unknown,seeds:ScenarioSeed[]):TaskScenarioRow[]{
 }
 function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
  reasons:string[]):PhasedTaskDraft{
- const partial=!checkpoint.resolvedFields||
+ const unprocessedScenarios=Math.max(0,(checkpoint.local?.cenarios.length??0)-MAX_SEEDS);
+ const localParsingLimited=!checkpoint.local&&checkpoint.source.length>200000;
+ const partial=!checkpoint.resolvedFields||unprocessedScenarios>0||localParsingLimited||
   batches.some((_,index)=>!Object.hasOwn(checkpoint.completedBatches,index));
  const enriched=(checkpoint.local?.cenarios??[]).map((original,index)=>{
   const updated=Object.values(checkpoint.completedBatches).flat()
@@ -123,9 +126,16 @@ function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
  return {
   fields,cenarios:enriched,
   extractionSource:nvidia?"nvidia":"local",
-  extractionReason:reasons.filter(Boolean).join(" ").slice(0,450)||undefined,
+  extractionReason:[
+   ...reasons,
+   ...(unprocessedScenarios>0?
+    [unprocessedScenarios+" cenário(s) adicionais não foram enviados à IA; permanecem disponíveis para revisão local."]:[]),
+   ...(localParsingLimited?
+    ["Fonte acima do limite de 200 mil caracteres do parser local; revise os cenários manualmente ou prepare blocos semânticos."]:[])
+  ].filter(Boolean).join(" ").slice(0,600)||undefined,
   partial,completedBatches:completed,totalBatches:batches.length,
-  pendingBatches:batches.length-completed,fieldsPending:!checkpoint.resolvedFields
+  pendingBatches:batches.length-completed,fieldsPending:!checkpoint.resolvedFields,
+  unprocessedScenarios,localParsingLimited
  };
 }
 export function checkpointMatches(checkpoint:TaskPipelineCheckpoint|null,
