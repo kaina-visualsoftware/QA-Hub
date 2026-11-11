@@ -75,12 +75,13 @@ export async function recordCoveragePreparation(taskId:string,userId:string,
 }
 export async function snapshotSources(taskId:string,userId:string,taskSource:string,
  approved:ApprovedSource[]){
+ if(approved.length>100)throw Error("É possível registrar até 100 requisitos por versão. Divida a seleção para não perder dados.");
  const rows:Omit<AuditRow,"tarefa_id"|"user_id">[]=[];
  rows.push({event_type:"source_snapshot",resource:"contexto",
   reference_hash:await sha256("TF:"+taskId),
   source_hash:await sha256(taskSource),before_hash:null,after_hash:null,
   requirement_code:null,decision:null});
- for(const item of approved.slice(0,100)){
+ for(const item of approved){
   if(!/^(RF|RNF|RN|CA)-[0-9]{3,4}$/.test(item.codigo))continue;
   const source=[item.codigo,item.titulo,item.descricao,
    item.criterios_aceite].join("\n");
