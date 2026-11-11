@@ -1,9 +1,10 @@
 import {useEffect,useMemo,useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
 import {marked} from 'marked';
 import DOMPurify from 'dompurify';
 import {Download,Eye,FileArchive,FileCode2,FileText,Image as ImageIcon} from 'lucide-react';
 import type {DocFile,PendingDocFile} from './documentation-data';
-import {readDocFile} from './documentation-data';
+import {listDocFiles,readDocFile} from './documentation-data';
 import DocumentationPreview from './DocumentationPreview';
 
 type Section={kind:'markdown';source:string}|{kind:'attachment';id:string};
@@ -104,11 +105,13 @@ function InlineDocumentAttachment({file,pending}:{file?:DocFile;pending?:Pending
   {preview&&(url||lazyUrl)&&<DocumentationPreview file={{nome:name,mime}} url={url||lazyUrl} text={source} onClose={()=>setPreview(false)}/>}
  </figure>;
 }
-export default function DocumentationMarkdown({markdown,files=[],pending=[]}:{
- markdown:string;files?:DocFile[];pending?:PendingDocFile[]
+export default function DocumentationMarkdown({markdown,files=[],pending=[],docId}:{
+ markdown:string;files?:DocFile[];pending?:PendingDocFile[];docId?:string
 }){
+ const loaded=useQuery({queryKey:['documentation-files',docId],queryFn:()=>listDocFiles(docId!),enabled:!!docId});
+ const visibleFiles=docId?(loaded.data??files):files;
  const parts=useMemo(()=>splitDocumentMarkdown(markdown),[markdown]);
- const existing=useMemo(()=>new Map(files.map(file=>[file.id.toLowerCase(),file])),[files]);
+ const existing=useMemo(()=>new Map(visibleFiles.map(file=>[file.id.toLowerCase(),file])),[visibleFiles]);
  const waiting=useMemo(()=>new Map(pending.map(file=>[file.id.toLowerCase(),file])),[pending]);
  return <article className="qa-doc-prose qa-doc-markdown" aria-label="Documentação renderizada">
   {parts.map((part,index)=>part.kind==='markdown'
