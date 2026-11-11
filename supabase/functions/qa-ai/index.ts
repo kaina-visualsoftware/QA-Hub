@@ -9,8 +9,8 @@ import { parseNvidiaDraft } from "./response.mjs";
 import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, hasMeaningfulTaskData } from "./request.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
-import {parseScenarioSeeds,taskFieldMessages,taskScenarioMessages,
- parseTaskFields,parseTaskScenarioBatch} from "./stages.mjs";
+import {parseScenarioSeeds,taskFieldMessages,taskScenarioMessages} from "./stages.mjs";
+import {groundedTaskFields,groundedTaskScenarios} from "./schemas.ts";
 
 // The explicit free-endpoint allowlist lives only in _shared/llm/models.mjs.
 // A runtime GET /v1/models filters it without accepting arbitrary model IDs.
@@ -204,14 +204,14 @@ Deno.serve(async req => {
         const summary=extractDiagramSummary(response);
         if(summary)return reply(200,{summary,model,provider:"NVIDIA Build"});
       }else if(fieldsMode){
-        const fields=parseTaskFields(response);
-        if(fields)return reply(200,{
-          stage:"fields",draft:fields,model,provider:"NVIDIA Build"
+        const validated=groundedTaskFields(response,text);
+        if(validated)return reply(200,{
+          stage:"fields",...validated,model,provider:"NVIDIA Build"
         });
       }else if(scenariosMode){
-        const rows=parseTaskScenarioBatch(response,stageSeeds);
-        if(rows)return reply(200,{
-          stage:"scenarios",draft:{cenarios:rows},model,provider:"NVIDIA Build"
+        const validated=groundedTaskScenarios(response,text,stageSeeds!);
+        if(validated)return reply(200,{
+          stage:"scenarios",...validated,model,provider:"NVIDIA Build"
         });
       }else{
         const extracted=parseNvidiaDraft(response);

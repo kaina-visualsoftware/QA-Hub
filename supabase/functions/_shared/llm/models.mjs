@@ -21,7 +21,7 @@ export const MODEL_REGISTRY=Object.freeze({
   params:Object.freeze({chat_template_kwargs:{enable_thinking:false}})
  })
 });
-const BUDGETS=Object.freeze({task:null,"task-fields":1800,"task-scenarios":2600,
+const BUDGETS=Object.freeze({task:null,"task-fields":3000,"task-scenarios":3200,
  diagram:3200,summary:2800,post:3500,
  teste:11000,semantic:3200,revision:3100});
 export function modelRequestOptions(model,mode="task",stream=false){

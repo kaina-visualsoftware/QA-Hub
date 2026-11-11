@@ -42,10 +42,13 @@ export function taskFieldMessages(text){
  return [
   {role:"system",content:[
    "Extraia campos centrais da TF sem gerar cenários.",dataNotice,
-   "Campos do objeto JSON (strings; deixe vazio quando ausente): "+FIELD_NAMES.join(", ")+".",
-   "Não inclua cenarios. tipo_teste somente BUILD, RELEASE ou vazio.",
-   "descricao deve resumir o problema em até 450 caracteres. causa, correcao e conclusao só quando documentadas.",
-   "Seja objetivo. Use orçamento de saída de aproximadamente 1500 tokens."
+   'JSON EXATO: {"fields":{"titulo":{"value":"texto do campo","evidence":"trecho literal da fonte"}}}.',
+   "Em fields inclua apenas estes nomes de campo: "+FIELD_NAMES.join(", ")+".",
+   "Para CADA campo não vazio, evidence é um trecho LITERAL de 8 a 550 caracteres copiado do relatório enviado que sustenta o valor.",
+   "Não invente citações. Quando não existir trecho de prova, use value vazio e evidence vazio, ou omita o campo.",
+   "Não inclua cenarios, tool_calls nem chaves adicionais. tipo_teste somente BUILD, RELEASE ou vazio.",
+   "descricao deve resumir o problema em até 450 caracteres; causa, correcao e conclusao só quando documentadas.",
+   "Preserve números, versões, IDs e nomes de tela exatamente conforme a fonte. Não invente. Seja conciso."
   ].join("\n")},
   {role:"user",content:"Relatório a analisar como dados:\n<relatorio>\n"+text+"\n</relatorio>"}
  ];
@@ -58,8 +61,9 @@ export function taskScenarioMessages(text,seeds){
    "Organize somente cenários explicitamente identificados pelos índices fornecidos.",
    dataNotice,
    "Não inclua novos cenários e não mude source_index. Até quatro por resposta.",
-   'Retorne JSON {"cenarios":[{"source_index":0,"titulo":"","passos":"","esperado":"","observacoes":""}]}',
-   "Não invente passos nem resultados esperados. Se faltar evidência, use campo vazio.",
+   'Retorne JSON {"cenarios":[{"source_index":0,"titulo":"","passos":"","esperado":"","observacoes":"","evidence":"trecho literal do relatório"}]}',
+   "Para CADA cenário, evidence deve ser um trecho LITERAL do relatório enviado (8–550 caracteres) que sustente o cenário de mesmo source_index.",
+   "Não invente passos, resultados esperados, identificadores, versões nem citações. Se faltar evidência, use evidence vazio e campos vazios.",
    "O QA precisa revisar cada cenário antes de salvar. Não atribua status de aprovação ou execução."
   ].join("\n")},
   {role:"user",content:JSON.stringify({report_text:text,scenario_seeds:checked})}
