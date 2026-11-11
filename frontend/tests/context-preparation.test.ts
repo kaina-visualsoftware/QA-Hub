@@ -94,7 +94,7 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.text.length).toBeLessThanOrEqual(5500);
  });
  it("F3: sinaliza excesso de orçamento estimado mesmo quando cabe em caracteres",()=>{
-  const text="RF-424: " + "🧪".repeat(3000) + " Não alterar descontos sem permissão.";
+  const text="RF-424: Não alterar descontos sem permissão.\n" + "🧪".repeat(3000);
   const result=prepareQaContext(text,{limit:30000,tokenLimit:900});
   expect(result.originalChars).toBeLessThan(30000);
   expect(estimateContextTokens(text)).toBeGreaterThan(900);
@@ -102,6 +102,11 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.mode).toBe("extrativo");
   expect(result.sentEstimatedTokens).toBeLessThanOrEqual(900);
   expect(result.originalEstimatedTokens).toBeGreaterThan(result.sentEstimatedTokens);
+ });
+ it("F3: não envia apenas um cabeçalho vazio quando nenhum trecho cabe no orçamento",()=>{
+  const text="🧪".repeat(3000);
+  expect(()=>prepareQaContext(text,{limit:30000,tokenLimit:800}))
+   .toThrow(/Divida a fonte/);
  });
  it("F3: mantém dados críticos sem confundir orçamento estimado com tokens oficiais",()=>{
   const text=["## Requisitos","RF-301: Não faturar quando bloqueado.",

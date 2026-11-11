@@ -26,7 +26,7 @@ Sem tokenizador específico dos dois modelos nem endpoint autenticado de contage
 
 Para cada envio, o sistema reserva o `max_tokens` da saída, subtrai margem adicional de 18% do contexto operacional e compara **todas as mensagens (inclusive system)** ao orçamento disponível. Se exceder, `callModel()` retorna erro `context_exceeded` **antes da RPC que desconta o limite de 15 chamadas/min**. A API retorna erro `model_context_exceeded`, sem cortar texto.
 
-No frontend, o compactador conserva os limites existentes de **30.000 caracteres da TF e 20.000 dos requisitos**, mas acrescenta limites estimados separados de `floor(caracteres/3)`. Texto muito denso em tokens, embora dentro do limite de caracteres, exige seleção extrativa com linhas identificadas, contagem de omissões e aprovação explícita do QA. A fonte original é preservada.
+No frontend, o compactador conserva os limites existentes de **30.000 caracteres da TF e 20.000 dos requisitos**, mas acrescenta limites estimados separados de `floor(caracteres/3)`. Texto muito denso em tokens, embora dentro do limite de caracteres, exige seleção extrativa com linhas identificadas, contagem de omissões e aprovação explícita do QA. Se nenhum trecho couber, o sistema exige divisão manual ou análise por blocos em vez de enviar um cabeçalho vazio. A fonte original é preservada.
 
 ## Escopo e limites de entrega
 

@@ -7,6 +7,8 @@ on:
       - 'supabase/functions/_shared/ai-observability.mjs'
       - 'supabase/functions/qa-ai/**'
       - 'frontend/src/features/generators/context-preparation.ts'
+      - 'frontend/src/features/generators/semantic-context.ts'
+      - 'frontend/tests/semantic-context.test.ts'
       - 'frontend/src/features/generators/ContextPreparationPanel.tsx'
       - 'frontend/src/lib/token-budget.ts'
       - 'frontend/tests/context-preparation.test.ts'
