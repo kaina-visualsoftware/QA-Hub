@@ -21,6 +21,21 @@ O registro deve permitir comparar falhas e latência por modo/modelo, e correlac
 
 A validação de `finish_reason=length` existe em `qa-ai/response.mjs` e `qa-context/facts.mjs`, mas não evita o consumo de tempo e cota antes do erro. Os orçamentos do contexto atual são **caracteres**, não tokens específicos dos modelos.
 
+### Evidência operacional de 11/11/2026 (logs existentes, antes da F0 em produção)
+
+Uma consulta **somente a metadados** do Supabase, iniciando em **11/11/2026 às 12:00 UTC**, retornou, no momento da consulta:
+
+| Endpoint | POST 200 | POST 503 |
+| --- | ---: | ---: |
+| `qa-ai` | 7 | 15 |
+| `qa-context` | 2 | 4 |
+| `qa-generators` | 6 | 0 registros nessa janela |
+
+Na mesma janela, os registros de execução continham **37 ocorrências textuais de `TimeoutError`**, **24 mensagens de exceção da `qa-ai`** e **10 mensagens `qa-context upstream`**. Esses conjuntos **não são mutuamente exclusivos** e uma única requisição pode produzir mais de uma mensagem. Os totais não são taxas de sucesso ou de erro de um período padronizado. HTTP 200 em SSE indica aceitação/abertura do stream e **não comprova que o conteúdo foi concluído**.
+
+**Conclusão sustentada:** houve timeouts e falhas HTTP 503 de forma recorrente. **Ainda não confirmado:** qual estágio provocou cada timeout, se o provedor consumiu tokens de raciocínio antes de responder, ou se o fallback esgotou a cota. A nova telemetria da F0 foi criada para responder a isso após publicação controlada. Não há evidência de mudança contratual na API NVIDIA.
+
+
 ## Hipóteses a confirmar após publicar a F0 (não são diagnósticos fechados)
 
 1. **Timeout:** a combinação de 35 s por modelo e de um payload grande aumenta o risco de esgotar a chamada; comparar `elapsed_ms`, `outcome=timeout` e `mode`.
