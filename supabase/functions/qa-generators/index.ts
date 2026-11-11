@@ -2,7 +2,7 @@ import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {messagesForGenerator} from "./prompts.mjs";
 
 // Only explicit free-endpoint NVIDIA Build models, not paid endpoints.
-const MODELS=["nvidia/nemotron-3.5-lightning-30b-a3b","z-ai/glm-5-3-flash"];
+const MODELS=["z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"];
 const BASE="https://integrate.api.nvidia.com/v1";
 const ORIGINS=new Set(["https://kaina-visualsoftware.github.io","http://127.0.0.1:8765","http://localhost:8765"]);
 function headers(origin){
