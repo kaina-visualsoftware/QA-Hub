@@ -14,7 +14,7 @@ const cors={
   "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type, prefer, accept",
   "Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"
 };
-const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[];
+const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[],semanticRequests=[];
 let taskWrites=0,caseWrites=0,rateLimited=false;
 let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},releaseCasesRequest=()=>{};
 let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
@@ -72,6 +72,17 @@ async function backend(route){
   });
   if(path.endsWith("/auth/v1/user"))return send(user);
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
+  if(path.endsWith("/functions/v1/qa-context")){
+    const input=req.postDataJSON();
+    semanticRequests.push(input);
+    assert.equal(input.goal,"task");
+    assert.equal(input.source,"TF");
+    assert.ok(input.text.length<=9000);
+    const quote=input.text.slice(0,Math.min(125,input.text.length)).trim();
+    return send({chunkId:input.chunkId,source:input.source,goal:input.goal,
+      provider:"NVIDIA Build",model:"test-fixture",unverified:0,
+      facts:[{category:"regra",quote,summary:"Regra confirmada no documento original."}]});
+  }
   if(path.endsWith("/functions/v1/qa-ai")){
     const payload=req.postDataJSON();
     aiRequests.push(payload);
@@ -370,4 +381,26 @@ try{
     "The full pasted report must be archived without truncation");
   assert.deepEqual(errors,[]);
   console.log("Nova TF em 3 etapas: fontes, IA, revisão, requisitos, deduplicação, persistência, pulo e 429.");
+  // F2/F3: opt-in semantic analysis, verified citations and review before extraction.
+  await page.getByRole("link",{name:"Todas as TFs"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).click();
+  const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
+    "RESULTADO: Nenhum teste executado foi informado.";
+  await wizard.getByLabel("Informações da tarefa").fill(semanticSource);
+  await wizard.getByRole("radio",{name:/Semântico por blocos/}).check();
+  assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
+  await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+  await wizard.getByRole("button",{name:"Analisar blocos com IA"}).click();
+  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:30000});
+  assert.ok(semanticRequests.length>=3,"Long source must be processed in multiple chunks");
+  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
+  await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+  assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
+  assert.match(aiRequests.at(-1).text,/TF-L\d+/);
+  await wizard.getByRole("button",{name:"Avançar"}).click();
+  await wizard.getByRole("button",{name:/Finalizar com/}).click();
+  await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
+  assert.deepEqual(errors,[]);
+  console.log("F2/F3: chunks, citations, consent and TF stored.");
 }finally{await browser.close();}
