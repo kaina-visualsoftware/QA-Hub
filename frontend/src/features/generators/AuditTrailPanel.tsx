@@ -81,7 +81,7 @@ export function AuditTrailPanel({taskId,userId,taskText,approved,onChangedCodes}
        <span>{labels[event.event_type]??event.event_type}</span>
        <small>{event.requirement_code??event.resource} · {new Date(event.created_at).toLocaleString("pt-BR")}</small>
        {event.decision&&<small>Decisão: {event.decision==="keep_both"?"Manter ambas":
-        event.decision==="prefer_left"?"Priorizar fonte A":"Priorizar fonte B"}</small>}
+        event.decision==="prefer_left"?"Priorizar fonte A":event.decision==="prefer_right"?"Priorizar fonte B":"Pendente de nova revisão"}</small>}
       </li>)}</ol>}
    </div>}
   </div>
