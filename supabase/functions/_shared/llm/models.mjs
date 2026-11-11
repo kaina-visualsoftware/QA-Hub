@@ -43,18 +43,18 @@ const isValidIds=(ids)=>Array.isArray(ids)&&ids.every(id=>MODEL_REGISTRY[id]);
  * retained in the cache. Concurrent requests in an isolate share one GET.
  */
 export async function discoverModels({
- apiKey,modelIds=MODEL_IDS,fetchImpl=fetch,baseUrl=NVIDIA_BASE,
+ apiKey,modelIds=MODEL_IDS,fetchImpl=fetch,
  timeoutMs=7000,now=()=>Date.now(),onDiscovery
 }={}){
  if(!isValidIds(modelIds))throw TypeError("Lista de modelos inválida.");
- const cacheKey=baseUrl+"|"+modelIds.join(",");
+ const cacheKey=NVIDIA_BASE+"|"+modelIds.join(",");
  const hit=cache.get(cacheKey);
  if(hit&&now()<hit.until)return [...hit.models];
  if(inFlight.has(cacheKey))return [...await inFlight.get(cacheKey)];
  const work=(async()=>{
   const started=Date.now();let status=0,outcome="upstream_error";
   try{
-   const response=await fetchImpl(baseUrl+"/models",{
+   const response=await fetchImpl(NVIDIA_BASE+"/models",{
     headers:{Authorization:"Bearer "+apiKey},
     signal:AbortSignal.timeout(timeoutMs)
    });

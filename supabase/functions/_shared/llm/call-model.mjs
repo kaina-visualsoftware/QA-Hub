@@ -168,7 +168,7 @@ export async function callModel({
  onDelta,signal,maxRetries=1,retryOnRateLimit=false,
  timeoutMs=35000,firstTokenTimeoutMs=12000,idleTimeoutMs=20000,
  deadlineAt=Date.now()+85000,now=()=>Date.now(),
- random=Math.random,sleep,baseUrl=NVIDIA_BASE,
+ random=Math.random,sleep,
  maxChars=115000,rejectLength=true,fallbackModel=false
 }={}){
  if(!MODEL_REGISTRY[model])throw new ProviderError("schema_invalid");
@@ -214,7 +214,7 @@ export async function callModel({
    signal?.addEventListener("abort",outerAbort,{once:true});
    timeoutTimer=setTimeout(stop,budget);
    firstTimer=setTimeout(stop,Math.min(firstTokenTimeoutMs,budget));
-   const response=await fetchImpl(baseUrl+"/chat/completions",{
+   const response=await fetchImpl(NVIDIA_BASE+"/chat/completions",{
     method:"POST",
     headers:{Authorization:"Bearer "+apiKey,"Content-Type":"application/json",
      Accept:stream?"text/event-stream":"application/json"},

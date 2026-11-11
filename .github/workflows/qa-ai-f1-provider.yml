@@ -37,3 +37,25 @@ jobs:
           node --check supabase/functions/_shared/llm/models.mjs
           node --check supabase/functions/_shared/llm/errors.mjs
           node --check supabase/functions/_shared/llm/call-model.mjs
+
+  frontend-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build

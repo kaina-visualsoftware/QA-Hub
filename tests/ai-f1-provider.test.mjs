@@ -201,3 +201,56 @@ test("pre-aborted request performs no outbound call",async()=>{
  })),e=>e.kind==="aborted");
  assert.equal(calls,0);
 });
+
+test("timed-out first token is classified, and bounded retry leaves no zombie quota",async()=>{
+ resetModelBreakers();
+ let slots=0,requests=0;
+ await assert.rejects(callModel(mockOpts({
+  timeoutMs:75,firstTokenTimeoutMs:15,maxRetries:0,
+  reserveAttempt:async()=>{slots++;return {allowed:true};},
+  fetchImpl:async(_url,init)=>{
+   requests++;
+   return await new Promise((resolve,reject)=>{
+    init.signal.addEventListener("abort",()=>reject(Object.assign(new Error("abort"),{
+     name:"AbortError"
+    })),{once:true});
+   });
+  }
+ })),error=>error.kind==="timeout");
+ assert.equal(slots,1);
+ assert.equal(requests,1);
+});
+test("idle SSE timeout is classified without claiming a second quota slot",async()=>{
+ resetModelBreakers();
+ let slots=0;
+ await assert.rejects(callModel({
+  apiKey:"synthetic",model,messages,stream:true,maxRetries:0,
+  timeoutMs:100,firstTokenTimeoutMs:80,idleTimeoutMs:15,
+  reserveAttempt:async()=>{slots++;return {allowed:true};},
+  fetchImpl:fetchFrom(()=>new Response(new ReadableStream({
+   start(controller){
+    controller.enqueue(new TextEncoder().encode(event({
+     choices:[{delta:{content:"first"},finish_reason:null}]
+    })));
+    // No following chunk; abort should cancel this stream.
+   }
+  }),{status:200}))
+ }),error=>error.kind==="timeout");
+ assert.equal(slots,1);
+});
+test("invalid JSON schema, empty body, and length are distinguishable",async()=>{
+ resetModelBreakers();
+ await assert.rejects(callModel(mockOpts({
+  fetchImpl:fetchFrom(()=>new Response(JSON.stringify({choices:[]}),{status:200}))
+ })),e=>e.kind==="schema_invalid");
+ await assert.rejects(callModel(mockOpts({
+  fetchImpl:fetchFrom(()=>new Response(JSON.stringify(payload("")),{status:200}))
+ })),e=>e.kind==="empty");
+});
+test("unknown model never reaches quota or network",async()=>{
+ let slots=0;
+ await assert.rejects(callModel(mockOpts({model:"user-supplied-model",
+  reserveAttempt:()=>{slots++;return {allowed:true};}
+ })),e=>e.kind==="schema_invalid");
+ assert.equal(slots,0);
+});
