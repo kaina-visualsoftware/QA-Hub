@@ -172,7 +172,7 @@ test("streaming is default, concatenates split SSE chunks, sends deltas and usag
  const output=sse([
   event({choices:[{delta:{content:"ola "},finish_reason:null}]}).slice(0,16),
   event({choices:[{delta:{content:"ola "},finish_reason:null}]}).slice(16),
-  event({choices:[{delta:{content:"mundo"},finish_reason:"stop"}]},
+  event({choices:[{delta:{content:"mundo"},finish_reason:"stop"}],
    usage:{prompt_tokens:12,completion_tokens:2}}),
   "data: [DONE]\n\n"
  ]);

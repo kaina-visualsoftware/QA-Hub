@@ -243,6 +243,7 @@ export async function callModel({
   }catch(error){
    failed=classifyException(error,timedOut);
    if(signal?.aborted)failed=new ProviderError("aborted",{model});
+   if(!failed.status&&httpStatus)failed.status=httpStatus;
    failed.model=model;
    noteFailure(model,failed,now());
    lastError=failed;

@@ -16,7 +16,10 @@ test("all four NVIDIA endpoints record catalog, quota and each provider attempt"
   assert.match(source,/stage:"quota"/,name);
   assert.match(source,/fallback_model:/,name);
   assert.match(source,/qa_ai_claim_minute_request/,name);
-  assert.match(source,/finally\s*\{/,name);
+  if(name==="qa-ai"){
+   assert.match(source,/callModel\(/,name);
+   assert.match(file("supabase/functions/_shared/llm/call-model.mjs"),/finally\s*\{/,name);
+  }else assert.match(source,/finally\s*\{/,name);
   assert.match(source,/promptChars\(messages\)/,name);
  }
 });
