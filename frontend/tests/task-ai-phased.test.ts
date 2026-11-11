@@ -251,6 +251,9 @@ describe("F4 — extração de tarefa em etapas",()=>{
   const result=await generateTaskAiDraftPhased(
    "RF-201: o sistema deve bloquear confirmação sem autorização.");
   expect(result.cenarios).toHaveLength(0);
-  expect(result.partial).toBe(false);
+  // F5 never claims full AI validation when the fixture proposes a title
+  // about discounts but the source only documents an authorization rule.
+  expect(result.partial).toBe(true);
+  expect(result.fieldReview.some(row=>row.status==="needs_review")).toBe(true);
  });
 });
