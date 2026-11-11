@@ -87,6 +87,39 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false}:{
       {digest.coverage.missingIds.length>40?" (e outros)":""}.
      </p>}
     </div>
+    {semantic.conflicts.length>0&&<section className="qa-semantic-conflicts"
+      aria-label="Revisão de divergências entre fontes">
+      <strong>Possíveis divergências entre fontes ({semantic.conflicts.length})</strong>
+      <p>Comparações automáticas podem gerar falsos positivos: mudanças de versão ou
+        de momento não são necessariamente contradições. Revise os dois trechos antes de decidir.
+        A IA não decide qual fonte é verdadeira.</p>
+      <ol>{semantic.conflicts.map((item,index)=><li key={item.id}>
+        <strong>{index+1}. {item.reason}</strong>
+        <div className="qa-semantic-compare">
+          <blockquote><small>Fonte A · {item.left.source}-L{item.left.line}</small>
+            {item.left.quote}</blockquote>
+          <blockquote><small>Fonte B · {item.right.source}-L{item.right.line}</small>
+            {item.right.quote}</blockquote>
+        </div>
+        <label>Decisão do QA
+          <select value={semantic.conflictDecisions[item.id]??"pending"}
+            disabled={disabled||semantic.working}
+            onChange={e=>semantic.setConflictDecision(item.id,
+              e.target.value as "pending"|"keep_both"|"prefer_left"|"prefer_right")}>
+            <option value="pending">Pendente de revisão</option>
+            <option value="keep_both">Manter ambas e sinalizar como não confirmado</option>
+            <option value="prefer_left">Priorizar a fonte A neste contexto</option>
+            <option value="prefer_right">Priorizar a fonte B neste contexto</option>
+          </select>
+        </label>
+      </li>)}</ol>
+      {!semantic.conflictsReviewed&&<p role="alert">
+        Revise todas as divergências antes de liberar a geração com contexto semântico.
+      </p>}
+      {semantic.conflictsReviewed&&<p role="status">
+        Divergências revisadas. A fonte original permanece intacta.
+      </p>}
+    </section>}
     <details><summary>Ver exatamente o contexto final que a IA receberá</summary>
      <label className="field">TF
       <textarea readOnly rows={8} value={digest.task}/></label>
@@ -99,7 +132,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false}:{
     </p>
     <label className="qa-semantic-consent">
      <input type="checkbox" checked={semantic.approved} disabled={disabled||semantic.working||
-      digest.coverage.selectedFacts===0} onChange={e=>semantic.setApproved(e.target.checked)}/>
+      digest.coverage.selectedFacts===0||!semantic.conflictsReviewed} onChange={e=>semantic.setApproved(e.target.checked)}/>
      Revisei a matriz de cobertura e autorizo gerar usando somente os trechos verificados.
     </label>
    </div>}
