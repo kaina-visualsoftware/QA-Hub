@@ -1,6 +1,7 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {supabase} from "../src/lib/supabase";
 import {extractLocalDraft} from "../src/lib/legacy/qa-assistant.mjs";
+import {locateEvidence} from "../src/features/tasks/task-evidence";
 import {generateTaskAiDraftPhased,newCheckpoint,pipelinePendingCount,TASK_BATCH_CONCURRENCY}
  from "../src/features/tasks/task-ai-phased";
 
@@ -22,17 +23,44 @@ const sourceWith=(count:number)=>[
   "Resultado esperado: Desconto removido na operação "+(i+1)+"."
  ].join("\n"))
 ].join("\n\n");
-const fields={provider:"NVIDIA Build",stage:"fields",
- draft:{titulo:"Corrigir remoção de descontos negativos",
-  descricao:"Desconto não é removido após exclusão.",
-  causa:"A rotina ignorava percentuais negativos.",
-  correcao:"A limpeza passou a considerar negativos."}};
-const cases=(seeds:unknown[])=>({provider:"NVIDIA Build",stage:"scenarios",
- draft:{cenarios:(seeds as {source_index:number;titulo:string;passos:string;esperado:string;observacoes:string}[])
-  .map(s=>({...s,titulo:s.titulo+" revisado"}))}});
+type TestSeed={source_index:number;titulo:string;passos:string;esperado:string;observacoes:string};
 function reply(body:Record<string,unknown>){
- if(body.mode==="task-fields")return {data:fields,error:null};
- if(body.mode==="task-scenarios")return {data:cases(body.seeds as unknown[]),error:null};
+ const source=String(body.text??"");
+ const lines=source.split("\n");
+ const proof=(quote:string)=>({quote,source_line:locateEvidence(source,quote),
+  status:"verified",reason:null});
+ const find=(pattern:RegExp)=>lines.find(line=>pattern.test(line))?.trim()||
+  lines.find(line=>line.trim().length>=8)?.trim()||source.slice(0,60);
+ if(body.mode==="task-fields"){
+  const phone=/telefone|estrangeiro/i.test(source);
+  const quote=find(phone?/telefone|estrangeiro/i:/desconto negativo/i);
+  const title=phone?"Validar máscara de telefone estrangeiro":
+   "Corrigir remoção de descontos negativos";
+  const entries=phone?{
+   titulo:title,descricao:"Validar máscara de telefone para clientes estrangeiros."
+  }:{
+   titulo:title,descricao:"Desconto não é removido após exclusão.",
+   causa:"A rotina ignorava percentuais negativos.",
+   correcao:"A limpeza passou a considerar negativos."
+  };
+  const quotes=phone?{titulo:quote,descricao:quote}:{
+   titulo:quote,descricao:quote,
+   causa:find(/rotina ignorava/i),correcao:find(/remoção passou/i)
+  };
+  return {data:{provider:"NVIDIA Build",stage:"fields",model:"glm-fixture",
+   repaired:false,draft:entries,
+   field_evidence:Object.fromEntries(Object.keys(entries).map(name=>[
+    name,proof(quotes[name as keyof typeof quotes])
+   ]))},error:null};
+ }
+ if(body.mode==="task-scenarios"){
+  const seeds=body.seeds as TestSeed[];
+  return {data:{provider:"NVIDIA Build",stage:"scenarios",model:"glm-fixture",
+   repaired:false,draft:{cenarios:seeds.map(seed=>{
+    const quote=find(new RegExp("CEN[ÁA]RIO\\s+"+(seed.source_index+1)+"\\b","i"));
+    return {...seed,titulo:seed.titulo+" revisado",evidence:proof(quote)};
+   })}},error:null};
+ }
  throw Error("Modo inesperado");
 }
 
@@ -42,7 +70,7 @@ describe("F4 — extração de tarefa em etapas",()=>{
    reply(args!.body as Record<string,unknown>) as never);
   const original="REQUISITO RF-103: validar máscara de telefone ao cadastrar estrangeiro.";
   const result=await generateTaskAiDraftPhased(original);
-  expect(result.fields.titulo).toBe("Corrigir remoção de descontos negativos");
+  expect(result.fields.titulo).toBe("Validar máscara de telefone estrangeiro");
   expect(result.partial).toBe(false);
   expect(result.totalBatches).toBe(0);
   expect(spy).toHaveBeenCalledTimes(1);
