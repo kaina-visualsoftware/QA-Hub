@@ -33,8 +33,6 @@ const blank = (): TaskDraft => ({
   versao: "", ambiente: "", base_teste: "", empresa: "", testador: "",
   explicacao: "", causa: "", correcao: "", conclusao: "", observacoes: ""
 });
-const CASE_TASK_LIMIT = 30000;
-const REQUIREMENT_LIMIT = 20000;
 const MAX_FILES = 6;
 
 type WorkKind="files"|"task"|"cases"|"save";
@@ -369,25 +367,16 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     let firstChunk=true;
     try{
       assertReadable(taskFiles);assertReadable(requirementFiles);
-      const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
-      const additionalFacts=[
-        draft.conclusao?"Conclusão registrada: "+draft.conclusao:"",
-        draft.observacoes?"Observações registradas: "+draft.observacoes:""
-      ].filter(Boolean).join("\n\n");
-      const context=sanitizeAiContext([
-        taskToGeneratorText(draft),additionalFacts,fullSource,
-        cases.length?"CASOS JÁ IDENTIFICADOS (não repetir):\n"+
-          cases.map(item=>"- "+item.titulo).join("\n"):""
-      ].filter(Boolean).join("\n\n"));
-      const requirements=sanitizeAiContext(
-        combine("REQUISITOS",requirementText,requirementFiles)
-      );
-      validateContext(context,CASE_TASK_LIMIT,"O contexto completo da TF");
-      if(requirements.length>REQUIREMENT_LIMIT)
-        throw Error("Os requisitos excedem 20.000 caracteres. Remova ou divida os arquivos.");
+      if(!casePreparation||!("prepared" in casePreparation))
+        throw Error(casePreparation&&"error" in casePreparation?casePreparation.error:
+          "Não foi possível preparar os casos.");
+      const taskPacked=casePreparation.prepared.task;
+      const reqPacked=casePreparation.prepared.requirements;
+      if((taskPacked.needsReview||reqPacked?.needsReview)&&!compactApprovedCases)
+        throw Error("Revise e autorize os contextos compactados antes de enviar.");
       setWork({kind:"cases",phase:1,detail:"Aguardando a NVIDIA elaborar novos cenários, variações e regressões."});
       const response=await generateWithNvidia(
-        "teste",context,requirements,chunk=>{
+        "teste",taskPacked.text,reqPacked?.text??"",chunk=>{
           if(firstChunk){
             firstChunk=false;
             setWork({kind:"cases",phase:2,detail:"Recebendo o roteiro de testes gerado."});
