@@ -14,9 +14,10 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
  return <section className="qa-context-optimizer" aria-label="Compactador de contexto">
   <div className="qa-context-optimizer-title">
    <ScanText size={20} aria-hidden="true"/>
-   <div><strong>Etapa anterior à IA · compactador de contexto</strong>
-    <p>Uma seleção extrativa local reduz repetições e prioriza regras, cenários, números e resultados.
-     Não é um resumo criado pela NVIDIA e não garante cobertura total.</p>
+   <div><strong>Leitura estrutural rápida concluída · com origem verificável</strong>
+    <p>A varredura percorreu toda a TF, classificou informações por seções e priorizou trechos de
+     problema, análise, correção, requisitos, testes e resultados. Trechos não escolhidos continuam
+     preservados na fonte. Isso não substitui uma interpretação semântica por IA.</p>
    </div>
   </div>
   <div className="qa-context-optimizer-metrics">
@@ -30,6 +31,14 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
     </small>
    </div>)}
   </div>
+  {items.some(item=>item.result.topics?.length)&&<div className="qa-context-topics" aria-label="Cobertura estrutural da leitura rápida">
+    {items.flatMap(item=>(item.result.topics??[]).map(topic=>(
+     <div key={item.label+topic.label}>
+      <strong>{item.label} · {topic.label}</strong>
+      <span>{topic.selected} de {topic.total} trechos selecionados</span>
+     </div>
+    )))}
+   </div>}
   {items.filter(item=>item.result.needsReview).map(({label,result,original})=>
    <details className="qa-context-optimizer-review" key={label}>
     <summary>Conferir seleção de {label} enviada à IA</summary>

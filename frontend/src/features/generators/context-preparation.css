@@ -37,3 +37,8 @@
  .qa-context-optimizer-metrics{grid-template-columns:minmax(0,1fr)}
  .qa-context-optimizer-review summary{min-height:44px}
 }
+
+.qa-context-topics{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px}
+.qa-context-topics>div{display:grid;gap:3px;border:1px solid #d4e7e5;background:#fff;border-radius:9px;padding:9px 11px;min-width:0}
+.qa-context-topics strong{font-size:.77rem;color:#1f5962}
+.qa-context-topics span{font-size:.72rem;color:#58747a;font-variant-numeric:tabular-nums}

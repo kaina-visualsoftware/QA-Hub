@@ -69,6 +69,27 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.task.needsReview).toBe(true);
   expect(result.requirements?.needsReview).toBe(true);
  });
+ it("prioriza blocos funcionais e expõe cobertura por seção mesmo com milhares de logs",()=>{
+  const source=[
+   "## Problema identificado","O saldo da venda não é atualizado.",
+   "## Logs de depuração",
+   ...Array.from({length:1200},(_,i)=>"INFO 2026-11-11 "+i+" Consulta técnica sem alteração. "+("ruído repetitivo ").repeat(6)),
+   "## Análise de viabilidade","A rotina antiga ignorava saldo negativo.",
+   "## Correção","O cálculo passou a considerar valores negativos.",
+   "## Cenários de teste","Cenário 1: Conferir baixa bancária.",
+   "Passos: Abrir venda, gerar baixa e consultar conta corrente.",
+   "Resultado esperado: O saldo deve ser atualizado.",
+   "## Requisitos","RF-902: A conciliação não pode duplicar a baixa."
+  ].join("\\n");
+  const result=prepareQaContext(source,{limit:5500});
+  expect(result.text).toContain("RF-902");
+  expect(result.text).toContain("Cenário 1");
+  expect(result.text).toContain("A rotina antiga ignorava saldo negativo");
+  expect(result.text).toContain("O cálculo passou a considerar valores negativos");
+  expect(result.topics?.some(topic=>topic.label==="Correção e implementação"&&topic.selected>0)).toBe(true);
+  expect(result.topics?.some(topic=>topic.label==="Outras informações"&&topic.total>topic.selected)).toBe(true);
+  expect(result.text.length).toBeLessThanOrEqual(5500);
+ });
  it("rejeita contextos acima da salvaguarda sem cortar",()=>{
   expect(()=>prepareQaContext("x".repeat(2000001),{limit:30000}))
    .toThrow(/2 milhões/);
