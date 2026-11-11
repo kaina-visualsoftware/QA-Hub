@@ -57,6 +57,7 @@ async function mock(route){
       return send([{tarefa_id:task.id,status:scenario.status}]);
     return send([scenario]);
   }
+  if(path.endsWith("/rest/v1/rpc/qa_public_tasks_v1"))return send([]);
   if(path.endsWith("/rest/v1/rpc/qa_public_documentacoes_v1")){
     const id=request.postDataJSON()?.p_id;
     return send(referenceRows.filter(row=>row.publica&&(!id||row.id===id)).map(({user_id,...row})=>row));
