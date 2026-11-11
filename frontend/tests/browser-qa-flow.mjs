@@ -314,9 +314,17 @@ try{
   assert.match(aiPayloads.at(-1).requisito,/Seja conciso/i);
   const postEditor=page.getByRole("textbox",{name:/Post em (Markdown|BBCode)/});
   const originalPost=await postEditor.inputValue();
+  assert.match(originalPost,/^# /,"Default format must be Markdown");
+  await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
+  await page.getByRole("radio",{name:/BBCode/}).check();
+  await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
+  const bbcodePost=await postEditor.inputValue();
+  assert.match(bbcodePost,/^\[size=18\]\[b\]/,"Switching the format must re-render the draft");
+  assert.doesNotMatch(bbcodePost,/^#\s+|\*\*[^\n]+\*\*/m,
+    "BBCode mode must not retain Markdown headings or bold text");
   await postEditor.fill("Rascunho revisto pelo usuário");
   assert.equal(await postEditor.inputValue(),"Rascunho revisto pelo usuário");
-  await postEditor.fill(originalPost);
+  await postEditor.fill(bbcodePost);
   await save.click();
   await page.getByText(/Post salvo em Documentos/).waitFor();
   assert.equal(postSaves,1);
