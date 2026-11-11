@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {markdownToBbcode,validateBbcodePost} from "../src/features/generators/post-format";
+import {markdownToBbcode,renderPostFormat,validateBbcodePost} from "../src/features/generators/post-format";
 const sample=[
  "# TESTE DE DESCONTO","---","A correção foi implementada.",
  "Anteriormente, o desconto permanecia. Agora, a rotina remove corretamente.",
@@ -29,4 +29,22 @@ describe("Saída BBCode do gerador de post",()=>{
    expect(validateBbcodePost("[b]Sem título[/b]")).toContain("Título");
    expect(validateBbcodePost("[size=18][b]Teste[/b][/size]")).toContain("Marcador de imagem");
  });
+ it("troca Markdown por BBCode a partir da fonte original, sem sintaxe Markdown residual",()=>{
+   const markdown=sample+"\n\n2. **Conferir totais**\n- Verificar pedido";
+   const first=renderPostFormat(markdown,"markdown");
+   const converted=renderPostFormat(markdown,"bbcode");
+   expect(first).toContain("# TESTE DE DESCONTO");
+   expect(converted).toContain("[size=18][b]TESTE DE DESCONTO[/b][/size]");
+   expect(converted).toContain("[list=1]");
+   expect(converted).toContain("[*][b]Conferir totais[/b]");
+   expect(converted).toContain("[list]");
+   expect(converted).not.toMatch(/^#\s|\*\*[^\n]+\*\*/m);
+   expect(validateBbcodePost(converted)).toEqual([]);
+   expect(renderPostFormat(markdown,"markdown")).toBe(first);
+ });
+ it("rejeita rascunho que contém Markdown mesmo com seleção BBCode",()=>{
+   expect(validateBbcodePost("[size=18][b]Teste[/b][/size]\n# Título em Markdown"))
+    .toContain("Sintaxe Markdown no BBCode");
+ });
+
 });
