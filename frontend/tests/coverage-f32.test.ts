@@ -2,11 +2,11 @@ import {describe,it,expect} from "vitest";
 import {candidatesForReview,prepareFocusedCoverageTask} from "../src/features/generators/coverage-f32";
 const taskId="11111111-1111-4111-8111-111111111111";
 const approved=[
- {id:"22222222-2222-4222-8222-222222222221",tarefa_id:taskId,estado:"aprovado",
+ {id:"22222222-2222-4222-8222-222222222221",tarefa_id:taskId,estado:"aprovado",tipo:"RF",updated_at:"2026-11-11T09:00:00Z",
   codigo:"RF-001",titulo:"Valor mínimo",descricao:"Validar valor mínimo.",criterios_aceite:"Valor de R$ 25,00.",ordem:1},
  {id:"22222222-2222-4222-8222-222222222222",tarefa_id:taskId,estado:"aprovado",
   codigo:"RF-002",titulo:"Bloqueio",descricao:"Bloquear alteração indevida.",criterios_aceite:"Acesso negado.",ordem:2},
- {id:"22222222-2222-4222-8222-222222222223",tarefa_id:taskId,estado:"rascunho",
+ {id:"22222222-2222-4222-8222-222222222223",tarefa_id:taskId,estado:"rascunho",tipo:"RF",updated_at:"2026-11-11T09:00:00Z",
   codigo:"RF-003",titulo:"Em elaboração",descricao:"Ainda não aprovado.",criterios_aceite:"Nenhum",ordem:3}
 ];
 const cases=[{id:"33333333-3333-4333-8333-333333333333",tarefa_id:taskId,
