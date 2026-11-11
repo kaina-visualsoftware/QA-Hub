@@ -240,7 +240,7 @@ Deno.serve(async req => {
     }
   }
   if(contextExceeded&&!hadReply)return reply(400,{
-    error:"model_context_exceeded",message:"O conteúdo excede a janela de contexto em tokens dos modelos NVIDIA disponíveis. O QA Hub não cortou o texto. Reduza o contexto ou utilize um modelo com janela maior."
+    error:"model_context_exceeded",message:"A estimativa de tokens ultrapassou o orçamento operacional desta geração. Esse orçamento é menor que a janela anunciada dos modelos. O QA Hub não cortou o texto. Revise a seleção de trechos ou utilize a análise semântica por blocos."
   });
   if(hadReply){
     if(summaryMode)return reply(502,{
