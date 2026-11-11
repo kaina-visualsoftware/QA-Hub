@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
@@ -17,6 +17,9 @@ import {
 } from "./task-ai";
 import type { SuggestedScenario } from "./task-ai";
 import { generateWithNvidia } from "../generators/stream";
+import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
+import type {ContextPreparation} from "../generators/context-preparation";
+import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
 import {
   prepareRequirementFile, registerRequirementFile
 } from "../requirements/requirements-data";
@@ -73,14 +76,6 @@ function assertReadable(files: PreparedFile[]) {
     ". Para incluir o conteúdo na análise da IA, cole o texto ou envie um arquivo com texto selecionável."
   );
 }
-function validateContext(text: string, limit: number, name: string) {
-  if(!text.trim()) throw Error("Informe " + name + " antes de gerar.");
-  if(text.length > limit) throw Error(
-    name + " possui " + text.length.toLocaleString("pt-BR") + " caracteres. " +
-    "O limite desta geração é " + limit.toLocaleString("pt-BR") +
-    ". Remova ou divida os documentos; o sistema não descarta trechos silenciosamente."
-  );
-}
 function keyOf(item: Pick<SuggestedScenario,"titulo">) {
   return item.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/^cen(?:ario|ário)\s*\d+\s*[-—–:.]?\s*/,"")
@@ -107,6 +102,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [cases,setCases] = useState<SuggestedScenario[]>([]);
   const [consentTask,setConsentTask] = useState(false);
   const [consentCases,setConsentCases] = useState(false);
+  const [compactApprovedTask,setCompactApprovedTask] = useState(false);
+  const [compactApprovedCases,setCompactApprovedCases] = useState(false);
   const [aiUsed,setAiUsed] = useState(false);
   const [localFallback,setLocalFallback] = useState(false);
   const [reading,setReading] = useState(false);
@@ -125,6 +122,43 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const busy=reading||analyzing||generating||finishing;
+  type SourcePreparation={original:string;prepared:ContextPreparation}|{error:string};
+  const sourcePreparation=useMemo<SourcePreparation|null>(()=>{
+    const original=combine("",sourceText,taskFiles);
+    if(!original.trim())return null;
+    try{
+      return {original,prepared:prepareQaContext(sanitizeAiContext(original),{
+        limit:28000,description:"criação de TF"
+      })};
+    }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
+  },[sourceText,taskFiles]);
+  type CasePreparation={
+    originalTask:string;originalRequirements:string;
+    prepared:ReturnType<typeof prepareGeneratorContext>
+  }|{error:string};
+  const casePreparation=useMemo<CasePreparation|null>(()=>{
+    if(step!==3)return null;
+    try{
+      const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
+      const additionalFacts=[
+        draft.conclusao?"Conclusão registrada: "+draft.conclusao:"",
+        draft.observacoes?"Observações registradas: "+draft.observacoes:""
+      ].filter(Boolean).join("\n\n");
+      const taskText=sanitizeAiContext([
+        taskToGeneratorText(draft),additionalFacts,fullSource,
+        cases.length?"CASOS JÁ IDENTIFICADOS (não repetir):\n"+
+          cases.map(item=>"- "+item.titulo).join("\n"):""
+      ].filter(Boolean).join("\n\n"));
+      const requirements=sanitizeAiContext(
+        combine("REQUISITOS",requirementText,requirementFiles));
+      if(!taskText.trim())throw Error("Informe o contexto da TF antes de gerar.");
+      return {originalTask:taskText,originalRequirements:requirements,
+        prepared:prepareGeneratorContext(taskText,requirements)};
+    }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
+  },[step,draft,sourceText,taskFiles,cases,requirementText,requirementFiles]);
+  useEffect(()=>setCompactApprovedTask(false),[sourceText,taskFiles]);
+  useEffect(()=>setCompactApprovedCases(false),[casePreparation]);
+
 
   useEffect(()=>{
     if(open && !wasOpen.current) setRecoverable(loadNewTaskDraft(userId));
