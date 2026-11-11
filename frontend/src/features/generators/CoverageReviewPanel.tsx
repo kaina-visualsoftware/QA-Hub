@@ -7,7 +7,7 @@ import type {CoverageCandidate} from "./coverage-f32";
 import "./ai-f32.css";
 
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
- descricao:string;criterios_aceite?:string;ordem?:number};
+ descricao:string;criterios_aceite:string;ordem?:number;tipo:string;updated_at:string};
 type SavedCase={id:string;tarefa_id:string;titulo:string;status:string};
 type Link={tarefa_id:string;requisito_id:string;cenario_id:string};
 export function CoverageReviewPanel({taskId,userId,approved,cases,changedCodes,
