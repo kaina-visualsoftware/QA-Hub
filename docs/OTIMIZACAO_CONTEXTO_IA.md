@@ -69,7 +69,30 @@ A preparação é direcionada: **posts** recebem prioridade para antes/depois, i
 - Respeitar a quota compartilhada de **15 requisições/minuto**, tempo máximo e cancelamento. Mostrar custo estimado em chamadas **antes** da execução; se atingir a quota, pausar o processo sem perder o que já foi revisado.
 - Não armazenar textos ou resumos sensíveis em serviços externos adicionais. Caso seja necessário persistir progresso, usar recursos já protegidos por RLS com escopo de proprietário.
 
-### F3.2 — Auditoria persistente e regeneração baseada em dependências (pendente)
+### F3.2 — Auditoria persistente e geração direcionada por cobertura (11/11/2026)
+
+**Implementação:**
+
+1. Nova tabela privada `qa_ai_audit_trail` com RLS e chave estrangeira composta da TF/proprietário, apenas `SELECT` e `INSERT` para usuários autenticados não anônimos. Registros são append-only (sem UPDATE/DELETE). Preserva decisões do QA, solicitações incrementais e revisões aprovadas.
+2. A auditoria armazena **somente hashes SHA-256, códigos de requisitos, tipo de evento, decisão e data**. Não guarda texto da TF, SQL, credenciais, imagens ou saída da NVIDIA.
+3. O QA pode clicar em **Registrar versão atual**. Depois, **Carregar histórico e comparar versões** informa mudanças no contexto e em cada requisito aprovado em relação ao último registro. A comparação identifica alteração do conteúdo; não interpreta semanticamente a diferença nem garante que ela seja erro.
+4. Decisões sobre possíveis divergências `prefer_left`, `prefer_right`, `keep_both` e `pending` são registradas **antes** de liberar a escolha na UI. A reversão de uma decisão também é registrada. Só a TF já cadastrada pode ter auditoria persistente; na criação de uma TF nova, a revisão antes do primeiro salvamento continua transitória.
+5. Regenerações parciais aprovadas são registradas antes de substituir o trecho. A proposta anterior permanece disponível se a gravação da auditoria falhar.
+6. Na revisão de **casos de teste**, uma matriz usa apenas requisitos **aprovados** e cenários **realmente vinculados** na tabela `qa_requisito_cenarios`, distinguindo sem vínculo, não executado, bloqueado, falha e validado. Comparação textual de títulos ou citações de IA não serve como prova de cobertura.
+7. Selecione requisitos **sem cenários vinculados** e/ou **alterados desde o último registro** e use **Preparar casos apenas para a seleção**. O QA revisa o contexto focado e autoriza um novo envio à NVIDIA. As sugestões novas são anexadas ao rascunho, sem substituir outras edições e **sem criar vínculos ou executar/aprovar testes automaticamente**.
+8. Há limites explícitos: até 100 requisitos aprovados por registro de versão, até 35 por geração focada e contratos de 30 mil caracteres de TF e 20 mil de requisitos. Exceder os limites gera erro, sem corte silencioso.
+
+**Ordem de implantação:** aplicar `supabase/qa_ai_f32_audit.sql` no projeto SIA e validar RLS, grants, políticas e índices; depois publicar o frontend React. As Edge Functions `qa-ai`, `qa-context`, `qa-generators` e `qa-revisions` permanecem inalteradas.
+
+**Limites conhecidos:** somente requisitos previamente aprovados com códigos válidos participam da matriz definitiva; outras regras extraídas de textos longos são hipóteses e precisam ser aprovadas como requisitos. A comparação de versões usa hashes de conteúdo (não destaca linhas alteradas). A auditoria é imutável e o usuário não pode editar registros anteriores; uma nova decisão cria um novo evento. O QA ainda precisa fazer a vinculação explícita dos casos aos requisitos e executar os testes.
+
+### Futuras evoluções F3.3
+
+- Mapear alterações entre fragmentos e versões por origem, com prévia da diferença em ambiente privado, sem duplicar textos sensíveis na auditoria.
+- Oferecer vínculo sugerido entre novos cenários e requisitos com confirmação individual do QA, sem atribuir aprovação automática.
+- Permitir filtros e exportação controlada do histórico privado, sem gerar dados confidenciais em logs.
+
+
 
 - Para **posts**, recuperar primeiro o que mudou, comportamento anterior/posterior, caminho e justificativa; para **casos**, critérios de aceite, exceções, permissões, dados e estados.
 - Distribuir orçamento por fonte relevante, sem confundir hipóteses com testes executados.

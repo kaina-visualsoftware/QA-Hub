@@ -28,6 +28,11 @@ import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
+import {AuditTrailPanel} from "./AuditTrailPanel";
+import {CoverageReviewPanel} from "./CoverageReviewPanel";
+import {prepareFocusedCoverageTask} from "./coverage-f32";
+import {recordConflictDecision,recordAppliedRevision,recordCoveragePreparation} from "./ai-audit";
+import type {SemanticConflict,ConflictDecision} from "./semantic-conflicts";
 import {applyCaseRevision,caseAsMarkdown,insertReviewedExcerpt,requestTargetedRevision,selectionFromText} from "./targeted-revision";
 import type {PostSelection,ReviewOperation} from "./targeted-revision";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
@@ -88,6 +93,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const controller = useRef<AbortController | null>(null);
   const revisionController=useRef<AbortController|null>(null);
   const [revisionBusy,setRevisionBusy]=useState(false);
+  const [auditBusy,setAuditBusy]=useState(false);
+  const [changedCodes,setChangedCodes]=useState<string[]>([]);
   const [revisionInstructions,setRevisionInstructions]=useState("");
   const [revisionConsent,setRevisionConsent]=useState(false);
   const [postSelection,setPostSelection]=useState<PostSelection|null>(null);
@@ -124,6 +131,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     revisionController.current?.abort();setRevisionBusy(false);
     setRevisionProposal(null);setPostSelection(null);
     setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
+    setChangedCodes([]);
     lastGenerationInput.current=null;
   }, [task.id, mode]);
 
@@ -147,8 +155,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const semantic=useSemanticContext(context?.taskContext.text??"",
     context?.approved.text??"",mode);
   useEffect(() => {
-    onBusyChange?.(generating || busySave || semantic.working || revisionBusy);
-  }, [generating, busySave, semantic.working, revisionBusy, onBusyChange]);
+    onBusyChange?.(generating || busySave || semantic.working || revisionBusy || auditBusy);
+  }, [generating, busySave, semantic.working, revisionBusy, auditBusy, onBusyChange]);
   const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
     context.prepared.requirements?.needsReview));
   useEffect(()=>{
@@ -156,7 +164,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPartialConsent(false);
     setCompactApproved(false);
   },[context?.taskContext.text,context?.approved.text]);
-  const canSend = formOwn && !generating && !busySave && !revisionBusy && !!context &&
+  const canSend = formOwn && !generating && !busySave && !revisionBusy && !auditBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent) &&
@@ -234,31 +242,51 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       messageOf(reason)+" Nenhum conteúdo foi substituído.");}
     finally{setRevisionBusy(false);revisionController.current=null;}
   }
-  function applyRevision(){
+  async function applyRevision(){
     const item=revisionProposal;
-    if(!item||generating||busySave||revisionBusy)return;
+    if(!item||generating||busySave||revisionBusy||auditBusy||!formOwn||!context)return;
     try{
-      if(item.operation==="post_excerpt"&&item.selection){
-        const updated=insertReviewedExcerpt(content,item.selection,item.after);
-        setContent(updated);setDirtyOutput(true);setCompleted(false);
-        setPostSelection(null);
-      }else if(item.operation==="test_case"&&item.caseIndex!==undefined){
-        const current=cases[item.caseIndex];
-        if(!current||JSON.stringify(current)!==item.caseFingerprint)
-          throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
-        const updated=applyCaseRevision(current,item.after);
-        setCases(list=>list.map((value,index)=>
-          index===item.caseIndex?updated:value));
-        setDirtyOutput(true);setCompleted(false);
-      }else throw Error("Proposta de revisão inválida.");
+      // Validate before recording an append-only event. No content changes
+      // are allowed while the hash-only audit write is pending.
+      const nextPost=item.operation==="post_excerpt"&&item.selection?
+        insertReviewedExcerpt(content,item.selection,item.after):null;
+      const currentCase=item.operation==="test_case"&&item.caseIndex!==undefined?
+        cases[item.caseIndex]:null;
+      if(currentCase&&JSON.stringify(currentCase)!==item.caseFingerprint)
+        throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
+      const nextCase=currentCase?applyCaseRevision(currentCase,item.after):null;
+      if(!nextPost&&!nextCase)throw Error("Proposta de revisão inválida.");
+      setAuditBusy(true);setError("");
+      await recordAppliedRevision(task.id,userId,context.taskContext.text,
+        item.operation,item.before,item.after);
+      if(nextPost!==null){
+        setContent(nextPost);setPostSelection(null);
+      }else if(nextCase&&item.caseIndex!==undefined){
+        const at=item.caseIndex;
+        setCases(list=>list.map((value,index)=>index===at?nextCase:value));
+      }
+      setDirtyOutput(true);setCompleted(false);
       setRevisionHistory(current=>[...current.slice(-19),{
         target:item.operation==="post_excerpt"?"Trecho do post":
           "Caso "+String((item.caseIndex??0)+1),
         time:new Date().toLocaleString("pt-BR")
       }]);
       setRevisionProposal(null);
-      setMessage("Alteração aplicada somente ao trecho selecionado. Revise antes de salvar.");
-    }catch(reason){setError(messageOf(reason));}
+      setMessage("Revisão aprovada e registrada na auditoria privada; somente o trecho selecionado foi alterado.");
+    }catch(reason){setError(messageOf(reason)+" A proposta continua disponível, sem alterações aplicadas.");}
+    finally{setAuditBusy(false);}
+  }
+  async function saveConflictDecision(item:SemanticConflict,decision:ConflictDecision){
+    if(auditBusy||!formOwn||!context||generating||busySave)return;
+    setAuditBusy(true);setError("");
+    try{
+      await recordConflictDecision(task.id,userId,
+        context.taskContext.text+"\n"+context.approved.text,item,decision);
+      semantic.setConflictDecision(item.id,decision);
+      setMessage("Decisão registrada na auditoria privada. O texto original não foi alterado.");
+    }catch(reason){
+      setError(messageOf(reason));throw reason;
+    }finally{setAuditBusy(false);}
   }
 
   async function generate() {
@@ -324,6 +352,51 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
     } finally {
       setGenerating(false); controller.current = null;
+      onBusyChange?.(false);
+    }
+  }
+
+  async function generateFocusedCases(ids:string[]){
+    if(mode!=="teste"||!context||!formOwn||generating||busySave||auditBusy||
+       revisionBusy)throw Error("Finalizar a operação atual antes de gerar novos casos.");
+    const source=lastGenerationInput.current?.task??context.prepared.task.text;
+    const prepared=prepareFocusedCoverageTask(
+      requirements.data??[],ids,task.id,source);
+    if(!window.confirm("Gerar sugestões somente para "+prepared.codes.join(", ")+
+       "? A execução, a cobertura e o salvamento continuarão pendentes de sua revisão."))
+      return;
+    const abort=new AbortController();
+    controller.current=abort;
+    setGenerating(true);setActivityPhase("connecting");
+    setError("");setMessage("");setCompleted(false);
+    onBusyChange?.(true);
+    try{
+      await recordCoveragePreparation(task.id,userId,context.taskContext.text,
+        prepared.codes);
+      const response=await generateWithNvidia("teste",prepared.task,prepared.requirements,
+        (chunk)=>{setActivityPhase("receiving");setRaw(prev=>prev+chunk);},abort.signal);
+      if(abort.signal.aborted)throw Error("Geração incremental cancelada.");
+      setActivityPhase("organizing");
+      const candidates=parseGeneratedCases(response.text);
+      const fresh=onlyNewScenarioCandidates(candidates,[...scenarios,...cases]);
+      if(fresh.length){
+        setCases(prev=>[...prev,...editableCopy(fresh)]);
+        setContent(prev=>[prev,response.text].filter(Boolean).join("\n\n---\n\n"));
+        setGeneratedCount(prev=>prev+candidates.length);
+        setDirtyOutput(true);
+      }
+      setTruncated(response.truncated);
+      setMessage(response.truncated?
+        "Parte da geração foi interrompida. Verifique os cenários antes de usar.":
+        fresh.length?
+          fresh.length+" caso(s) candidato(s) adicionados à revisão, sem alterar os anteriores. Vincule-os aos requisitos depois de salvar.":
+          "A IA não retornou casos novos distintos para esta seleção.");
+    }catch(reason){
+      const error=abort.signal.aborted?"Operação cancelada. Os casos anteriores foram preservados.":
+        messageOf(reason)+" Nenhum caso existente foi modificado.";
+      setError(error);throw Error(error);
+    }finally{
+      setGenerating(false);controller.current=null;
       onBusyChange?.(false);
     }
   }
@@ -462,6 +535,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
+    {context&&formOwn&&<AuditTrailPanel key={task.id} taskId={task.id} userId={userId}
+      taskText={context.taskContext.text}
+      approved={requirements.data??[]} onChangedCodes={setChangedCodes}/>}
     <div className={(postMode ? "qa-post-workspace" : "qa-generator-workspace") +
       (generating ? " is-processing" : "") +
       (!showConfiguration && !generating ? " is-review-only" : "")}>
@@ -532,7 +608,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
       {needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
-        disabled={generating||busySave}/>}
+        onConflictDecision={saveConflictDecision}
+        disabled={generating||busySave||auditBusy}/>}
       {!semantic.enabled&&<ContextPreparationPanel
         items={[
           {label:"TF",result:context.prepared.task,original:context.taskContext.text},
@@ -596,7 +673,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy}
+          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy||auditBusy}
             onSelect={(event)=>setPostSelection(selectionFromText(
               event.currentTarget.value,event.currentTarget.selectionStart,
               event.currentTarget.selectionEnd))}
@@ -642,6 +719,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           </Button>
         </div>
       </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
+        {context&&formOwn&&<CoverageReviewPanel
+          taskId={task.id} userId={userId} approved={requirements.data??[]}
+          cases={scenarios} changedCodes={changedCodes}
+          taskText={lastGenerationInput.current?.task??context.prepared.task.text}
+          busy={generating||busySave||revisionBusy||auditBusy}
+          onGenerate={generateFocusedCases}/>} 
         {available.length > 0 ? <>
           <div className="qa-ai-review-heading">
             <div>
@@ -688,7 +771,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                 </label>
               </div>
               <button type="button" className="qa-revision-case-btn"
-                disabled={revisionBusy||busySave||generating||!revisionConsent||!!revisionProposal}
+                disabled={revisionBusy||busySave||auditBusy||generating||!revisionConsent||!!revisionProposal}
                 onClick={()=>void requestRevision("test_case",item.caseIndex)}>
                 {revisionBusy?"Revisando…":"Regerar apenas este caso"}
               </button>
@@ -751,8 +834,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div className="qa-revision-preview-actions">
           <button type="button" disabled={revisionBusy||busySave}
             onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
-          <button type="button" disabled={revisionBusy||busySave}
-            onClick={applyRevision}>Aplicar somente neste trecho</button>
+          <button type="button" disabled={revisionBusy||busySave||auditBusy}
+            onClick={()=>void applyRevision()}>Aplicar somente neste trecho</button>
         </div>
       </section>}
       {!!revisionHistory.length&&<details className="qa-revision-history">
