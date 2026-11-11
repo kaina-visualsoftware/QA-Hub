@@ -26,6 +26,8 @@ import {
 import { generateWithNvidia } from "./stream";
 import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
+import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
+import {useSemanticContext} from "./useSemanticContext";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
 import { renderPostFormat, validateBbcodePost } from "./post-format";
 import type {PostOutputFormat} from "./post-format";
@@ -82,6 +84,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [error, setError] = useState("");
   const [generationId, setGenerationId] = useState(() => crypto.randomUUID());
   const controller = useRef<AbortController | null>(null);
+  const lastGenerationInput=useRef<{task:string;requirements:string}|null>(null);
   const formOwn = task.user_id === userId;
 
   const requirements = useQuery({
@@ -100,14 +103,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   useEffect(() => {
     return () => controller.current?.abort();
   }, []);
-  useEffect(() => {
-    onBusyChange?.(generating || busySave);
-  }, [generating, busySave, onBusyChange]);
+
   useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");setPostFormat("markdown");setCanonicalPost("");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
+    lastGenerationInput.current=null;
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
@@ -127,6 +129,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const generationError = assembly?.kind === "error" ? assembly.error : "";
   const context = assembly?.kind === "ready" ? assembly : null;
   const missingSources = context?.taskContext.failedSources ?? [];
+  const semantic=useSemanticContext(context?.taskContext.text??"",
+    context?.approved.text??"",mode);
+  useEffect(() => {
+    onBusyChange?.(generating || busySave || semantic.working);
+  }, [generating, busySave, semantic.working, onBusyChange]);
   const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
     context.prepared.requirements?.needsReview));
   useEffect(()=>{
@@ -138,7 +145,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent) &&
-    (!needsCompactReview || compactApproved);
+    (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved)) &&
+    !semantic.working;
 
   const available = useMemo(() =>
     markScenarioDuplicates(cases, scenarios)
@@ -191,21 +199,26 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     try {
       // All identity, support and approved requirements are scoped to this TF.
       // The full redacted payload is inspectable on screen before consent.
+      const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
+        ?semantic.digest.task:context.prepared.task.text;
+      const sentRequirements=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
+        ?semantic.digest.requirements:context.prepared.requirements?.text??"";
       const response = await generateWithNvidia(
-        mode, context.prepared.task.text, context.prepared.requirements?.text??"",
+        mode, sentTask, sentRequirements,
         (chunk) => {
           setActivityPhase("receiving");
           setRaw((previous) => previous + chunk);
         }, abort.signal
       );
       setActivityPhase("organizing");
+      lastGenerationInput.current={task:sentTask,requirements:sentRequirements};
       setGenerationId(nextId);
       setTruncated(response.truncated);
       setDirtyOutput(false);
       let newCases = 0;
       if (mode === "post") {
         const formatted = formatGeneratedPost(response.text, {
-          taskText: context.prepared.task.text
+          taskText: sentTask
         });
         setCanonicalPost(formatted);
         setContent(renderPostFormat(formatted,postFormat));
@@ -256,7 +269,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       try {
         const { error: historyError } = await supabase.from("qa_generator_posts").insert({
           user_id: userId, ts: Date.now(), titulo: title,
-          tarefa: context.prepared.task.text, requisito: context.prepared.requirements?.text??"", md: content
+          tarefa: lastGenerationInput.current?.task??context.prepared.task.text,
+          requisito: lastGenerationInput.current?.requirements??context.prepared.requirements?.text??"", md: content
         });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
@@ -289,8 +303,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       try {
         const { error: historyError } = await supabase.from("qa_generator_tests").upsert({
           id: generationId, user_id: userId, ts: Date.now(),
-          titulo: task.titulo, tarefa: context.prepared.task.text,
-          requisito: context.prepared.requirements?.text??"", md: content, exec: {}
+          titulo: task.titulo,
+          tarefa: lastGenerationInput.current?.task??context.prepared.task.text,
+          requisito: lastGenerationInput.current?.requirements??context.prepared.requirements?.text??"",
+          md: content, exec: {}
         }, { onConflict: "id" });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
@@ -434,14 +450,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <p>O formato selecionado será usado na prévia, ao copiar e ao salvar.
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
-      <ContextPreparationPanel
+      {needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
+        disabled={generating||busySave}/>}
+      {!semantic.enabled&&<ContextPreparationPanel
         items={[
           {label:"TF",result:context.prepared.task,original:context.taskContext.text},
           ...(context.prepared.requirements?[{label:"Requisitos e complemento",
             result:context.prepared.requirements,original:context.approved.text}]:[])
         ]}
         acknowledged={compactApproved} onAcknowledge={setCompactApproved}
-        disabled={generating||busySave}/>
+        disabled={generating||busySave}/>}
       {missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
@@ -452,8 +470,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </div>}
       <details className="generator-context">
         <summary>Ver dados enviados à IA</summary>
-        <label className="field mt-3">Contexto da TF enviado<textarea readOnly rows={9} value={context.prepared.task.text} /></label>
-        <label className="field mt-3">Requisitos e complemento enviados<textarea readOnly rows={5} value={context.prepared.requirements?.text??""} /></label>
+        <label className="field mt-3">Contexto da TF enviado<textarea readOnly rows={9} value={semantic.enabled&&semantic.ready&&semantic.digest?
+          semantic.digest.task:context.prepared.task.text} /></label>
+        <label className="field mt-3">Requisitos e complemento enviados<textarea readOnly rows={5} value={semantic.enabled&&semantic.ready&&semantic.digest?
+          semantic.digest.requirements:context.prepared.requirements?.text??""} /></label>
       </details>
       <div className="qa-ai-submit-row">
         <label className="qa-ai-consent-compact">
