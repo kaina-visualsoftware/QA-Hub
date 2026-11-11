@@ -1,3 +1,4 @@
+import "./context-preparation.css";
 import {FileCheck2,ScanText,ShieldAlert} from "lucide-react";
 import type {ContextPreparation} from "./context-preparation";
 
