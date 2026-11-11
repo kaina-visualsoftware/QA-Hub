@@ -359,6 +359,51 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     }
   }
 
+  async function generateFocusedCases(ids:string[]){
+    if(mode!=="teste"||!context||!formOwn||generating||busySave||auditBusy||
+       revisionBusy)throw Error("Finalizar a operação atual antes de gerar novos casos.");
+    const source=lastGenerationInput.current?.task??context.prepared.task.text;
+    const prepared=prepareFocusedCoverageTask(
+      requirements.data??[],ids,task.id,source);
+    if(!window.confirm("Gerar sugestões somente para "+prepared.codes.join(", ")+
+       "? A execução, a cobertura e o salvamento continuarão pendentes de sua revisão."))
+      return;
+    const abort=new AbortController();
+    controller.current=abort;
+    setGenerating(true);setActivityPhase("connecting");
+    setError("");setMessage("");setCompleted(false);
+    onBusyChange?.(true);
+    try{
+      await recordCoveragePreparation(task.id,userId,context.taskContext.text,
+        prepared.codes);
+      const response=await generateWithNvidia("teste",prepared.task,prepared.requirements,
+        (chunk)=>{setActivityPhase("receiving");setRaw(prev=>prev+chunk);},abort.signal);
+      if(abort.signal.aborted)throw Error("Geração incremental cancelada.");
+      setActivityPhase("organizing");
+      const candidates=parseGeneratedCases(response.text);
+      const fresh=onlyNewScenarioCandidates(candidates,[...scenarios,...cases]);
+      if(fresh.length){
+        setCases(prev=>[...prev,...editableCopy(fresh)]);
+        setContent(prev=>[prev,response.text].filter(Boolean).join("\n\n---\n\n"));
+        setGeneratedCount(prev=>prev+candidates.length);
+        setDirtyOutput(true);
+      }
+      setTruncated(response.truncated);
+      setMessage(response.truncated?
+        "Parte da geração foi interrompida. Verifique os cenários antes de usar.":
+        fresh.length?
+          fresh.length+" caso(s) candidato(s) adicionados à revisão, sem alterar os anteriores. Vincule-os aos requisitos depois de salvar.":
+          "A IA não retornou casos novos distintos para esta seleção.");
+    }catch(reason){
+      const error=abort.signal.aborted?"Operação cancelada. Os casos anteriores foram preservados.":
+        messageOf(reason)+" Nenhum caso existente foi modificado.";
+      setError(error);throw Error(error);
+    }finally{
+      setGenerating(false);controller.current=null;
+      onBusyChange?.(false);
+    }
+  }
+
   async function savePost() {
     if (mode !== "post" || !content.trim() || !context || !formOwn) return;
     if (postIssues.length) {
