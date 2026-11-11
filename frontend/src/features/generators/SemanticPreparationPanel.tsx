@@ -41,16 +41,16 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     <small>Até 8 blocos por lote. Cada tentativa utiliza a cota compartilhada de 15 chamadas/min.
      Se atingir o limite, o progresso já concluído fica disponível para retomada.</small>
    </div>
-   {semantic.working&&<div className="qa-semantic-live" role="status" aria-live="polite" aria-atomic="true">
+   {semantic.working&&<div className="qa-semantic-live" role="group" aria-label="Processamento da análise por blocos">
     <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
     <div>
-     <strong>Processando {semantic.activeChunk??"contexto"} · tentativa {semantic.attempt}</strong>
+     <strong role="status" aria-live="polite">Processando {semantic.activeChunk??"contexto"} · envio {semantic.attempt} neste lote</strong>
      <span>{semantic.activeStage==="preparing"?"Validando sessão":
        semantic.activeStage==="sending"?"Preparando solicitação segura":
        semantic.activeStage==="waiting"?"Aguardando resposta da NVIDIA":
        semantic.activeStage==="verifying"?"Conferindo as citações com a fonte original":
        "Preparando próxima parte"}</span>
-     <small>Tempo decorrido neste lote: {String(Math.floor(semantic.elapsed/60)).padStart(2,"0")}:{String(semantic.elapsed%60).padStart(2,"0")} ·
+     <small aria-live="off">Tempo decorrido neste lote: {String(Math.floor(semantic.elapsed/60)).padStart(2,"0")}:{String(semantic.elapsed%60).padStart(2,"0")} ·
       {semantic.count} de {plan.chunks.length} partes concluídas</small>
     </div>
    </div>}
