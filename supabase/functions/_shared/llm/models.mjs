@@ -42,6 +42,14 @@ const isValidIds=(ids)=>Array.isArray(ids)&&ids.every(id=>MODEL_REGISTRY[id]);
 /** Discovery is best effort, cached only on successful responses. No keys are
  * retained in the cache. Concurrent requests in an isolate share one GET.
  */
+/** @param {{
+ *  apiKey?:string,
+ *  modelIds?:readonly string[],
+ *  fetchImpl?:typeof fetch,
+ *  timeoutMs?:number,
+ *  now?:()=>number,
+ *  onDiscovery?:(metadata:Record<string,unknown>)=>void
+ * }} config */
 export async function discoverModels({
  apiKey,modelIds=MODEL_IDS,fetchImpl=fetch,
  timeoutMs=7000,now=()=>Date.now(),onDiscovery

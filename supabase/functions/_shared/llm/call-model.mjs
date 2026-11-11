@@ -166,6 +166,21 @@ function retryable(error,retryOnRateLimit){
  * The default is SSE streaming. qa-ai opts into stream:false to preserve its
  * existing JSON response, schema parser, and externally visible fallback.
  */
+/** @param {{
+ * apiKey?:string,model?:string,messages?:unknown[],mode?:string,
+ * stream?:boolean,options?:Record<string,unknown>,fetchImpl?:typeof fetch,
+ * reserveAttempt?:(metadata:{model:string,attempt:number})=>Promise<
+ *   {allowed?:boolean,kind?:string,retryAfterSeconds?:number}>,
+ * onAttempt?:(metadata:Record<string,unknown>)=>void,
+ * onQuotaDenied?:(metadata:Record<string,unknown>)=>void,
+ * onBreakerSkip?:(metadata:Record<string,unknown>)=>void,
+ * onDelta?:(chunk:string)=>void,
+ * signal?:AbortSignal,maxRetries?:number,retryOnRateLimit?:boolean,
+ * timeoutMs?:number,firstTokenTimeoutMs?:number,idleTimeoutMs?:number,
+ * deadlineAt?:number,now?:()=>number,random?:()=>number,
+ * sleep?:(ms:number)=>Promise<void>,maxChars?:number,
+ * rejectLength?:boolean,fallbackModel?:boolean
+ * }} config */
 export async function callModel({
  apiKey,model,messages,mode="task",stream=true,options={},
  fetchImpl=fetch,reserveAttempt,onAttempt,onQuotaDenied,onBreakerSkip,
