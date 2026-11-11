@@ -172,8 +172,8 @@ function retryable(error,retryOnRateLimit){
  * reserveAttempt?:(metadata:{model:string,attempt:number})=>Promise<
  *   {allowed?:boolean,kind?:string,retryAfterSeconds?:number}>,
  * onAttempt?:(metadata:Record<string,unknown>)=>void,
- * onQuotaDenied?:(metadata:Record<string,unknown>)=>void,
- * onBreakerSkip?:(metadata:Record<string,unknown>)=>void,
+ * onQuotaDenied?:(metadata:{kind:string,attempt:number,model:string,fallback_model:boolean})=>void,
+ * onBreakerSkip?:(metadata:{attempt:number,model:string,fallback_model:boolean})=>void,
  * onDelta?:(chunk:string)=>void,
  * signal?:AbortSignal,maxRetries?:number,retryOnRateLimit?:boolean,
  * timeoutMs?:number,firstTokenTimeoutMs?:number,idleTimeoutMs?:number,
