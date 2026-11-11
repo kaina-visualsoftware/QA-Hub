@@ -54,8 +54,9 @@ export function makeAttemptEvent({
  http_status,finish_reason,usage,outcome,attempt,fallback_model,stage="provider"
 }={}){
  const chars=clampInt(prompt_chars,20000000)??0;
- const start=clampInt(started_at,Number.MAX_SAFE_INTEGER);
- const end=clampInt(ended_at,Number.MAX_SAFE_INTEGER);
+ const safeTime=value=>typeof value==="number"&&Number.isSafeInteger(value)&&value>=0?value:null;
+ const start=safeTime(started_at);
+ const end=safeTime(ended_at);
  return {
   event:"qa_ai_attempt",version:1,
   correlation_id:correlationId(correlation_id),

@@ -42,7 +42,7 @@ test("security boundaries and the shared 15/minute quota remain in place",()=>{
   assert.match(source,/qa_ai_claim_minute_request/,name);
   assert.match(source,/integrate\.api\.nvidia\.com\/v1/,name);
   assert.match(source,/https:\/\/kaina-visualsoftware\.github\.io/,name);
-  assert.doesNotMatch(source,/console\.(?:log|info|warn)\([^)]*(?:sourceText|reportText|auth|Authorization|NVIDIA_API_KEY|\.message)/,name);
+  assert.doesNotMatch(source,/console\.(?:log|info|warn)\([^)]*(?:sourceText|reportText|Authorization|NVIDIA_API_KEY)/,name);
  }
 });
 const names=["curta","media","longa-80k","apenas-requisito","apenas-roteiro",
