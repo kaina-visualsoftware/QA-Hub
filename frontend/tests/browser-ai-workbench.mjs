@@ -24,7 +24,7 @@ const scenario={
 };
 const diagrams=[];
 const errors=[];
-const prompts=[];
+const prompts=[],revisionRequests=[];
 let diagramSaves=0,taskWrites=0,scenarioWrites=0;
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -77,6 +77,14 @@ async function fakeBackend(route){
     }
     throw Error("Unexpected diagram mutation");
   }
+  if(path.endsWith("/functions/v1/qa-revisions")){
+    const input=request.postDataJSON();
+    revisionRequests.push(input);
+    assert.equal(input.operation,"test_case");
+    assert.ok(input.current.includes("Validar recálculo"));
+    return send({operation:"test_case",provider:"NVIDIA Build",model:"fixture",
+      proposal:"## Cenário — Recalcular pedido sem desconto\n### Cenário\nConferir recálculo.\n### Passos\n1. Abrir pedido\n2. Remover desconto\n### Resultado esperado\nTotal recalculado sem desconto."});
+  }
   if(path.endsWith("/functions/v1/qa-ai")){
     assert.equal(method,"POST");
     const body=request.postDataJSON();
@@ -95,7 +103,7 @@ async function fakeBackend(route){
   errors.push(method+" "+path);
   return send({message:"Synthetic API not available"},500);
 }
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.QA_BROWSER_CHANNEL?{channel:process.env.QA_BROWSER_CHANNEL}:{})});
 try {
   const page=await browser.newPage({viewport:{width:390,height:844}});
   // Deterministic synthetic SSE: verify genuine progression instead of
@@ -264,6 +272,19 @@ try {
       await dialog.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true,
         "Returning to review must preserve the previous draft");
+      // F3.1: revise one case without touching other cases or saving a TF.
+      await dialog.getByRole("checkbox",{name:/Autorizo enviar à NVIDIA o contexto/}).check();
+      await dialog.getByRole("button",{name:"Regerar apenas este caso"}).click();
+      await dialog.getByRole("region",{name:"Comparação da revisão proposta"}).waitFor();
+      assert.equal(revisionRequests.length,1);
+      assert.equal(scenarioWrites,0);
+      await dialog.getByRole("button",{name:"Descartar proposta"}).click();
+      assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true);
+      await dialog.getByRole("button",{name:"Regerar apenas este caso"}).click();
+      await dialog.getByRole("button",{name:"Aplicar somente neste trecho"}).click();
+      await dialog.getByText("Recalcular pedido sem desconto").waitFor();
+      assert.equal(await dialog.getByText("Validar recálculo de desconto").count(),0);
+      assert.equal(scenarioWrites,0,"A revision is a draft until the QA explicitly saves cases.");
     }
     await page.getByRole("button",{name:mode==="Post"?
       "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
