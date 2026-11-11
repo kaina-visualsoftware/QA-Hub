@@ -4,7 +4,7 @@
 import {calculateRequirementCoverage} from "../../lib/legacy/qa-requirements-coverage.mjs";
 import {composeRequirementContext} from "../../lib/legacy/qa-requirements-context.mjs";
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
- descricao:string;criterios_aceite?:string;ordem?:number};
+ descricao:string;criterios_aceite:string;ordem?:number;tipo:string;updated_at:string};
 type ScenarioLink={tarefa_id:string;requisito_id:string;cenario_id:string};
 type SavedCase={id:string;tarefa_id:string;titulo:string;status:string};
 export type CoverageCandidate={id:string;codigo:string;titulo:string;
@@ -13,15 +13,17 @@ export function candidatesForReview(requirements:Requirement[],cases:SavedCase[]
  links:ScenarioLink[],taskId:string,changedCodes:string[]=[]){
  const matrix=calculateRequirementCoverage(requirements,cases,links,taskId);
  const changed=new Set(changedCodes);
- const candidates:CoverageCandidate[]=matrix.items.flatMap((r:{
-  id:string;codigo:string;titulo:string;linkedCount:number;coverage:string
- })=>r.linkedCount===0?[{
-  id:r.id,codigo:r.codigo,titulo:r.titulo,linkedCount:0,coverage:r.coverage,
-  reason:"unlinked" as const
- }]:changed.has(r.codigo)?[{
-  id:r.id,codigo:r.codigo,titulo:r.titulo,linkedCount:r.linkedCount,
-  coverage:r.coverage,reason:"changed" as const
- }]:[]);
+ const candidates:CoverageCandidate[]=[];
+ for(const r of matrix.items){
+  if(r.linkedCount===0)candidates.push({
+   id:r.id,codigo:r.codigo,titulo:r.titulo,linkedCount:0,
+   coverage:r.coverage,reason:"unlinked"
+  });
+  else if(changed.has(r.codigo))candidates.push({
+   id:r.id,codigo:r.codigo,titulo:r.titulo,linkedCount:r.linkedCount,
+   coverage:r.coverage,reason:"changed"
+  });
+ }
  return {matrix,candidates};
 }
 export function prepareFocusedCoverageTask(requirements:Requirement[],ids:string[],
