@@ -39,6 +39,17 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
      </div>
     )))}
    </div>}
+  {items.some(item=>item.result.findings?.length)&&<div className="qa-context-findings"
+    aria-label="Principais trechos identificados na análise local">
+    <strong>Principais evidências da TF · leitura local</strong>
+    <p>Frases extraídas literalmente da fonte, sem gerar conclusões não documentadas.</p>
+    {items.flatMap(item=>(item.result.findings??[]).map(finding=>(
+     <div key={item.label+finding.label} className="qa-context-finding">
+      <span>{item.label} · {finding.label} · linha {finding.line}</span>
+      <blockquote>{finding.excerpt}</blockquote>
+     </div>
+    )))}
+   </div>}
   {items.filter(item=>item.result.needsReview).map(({label,result,original})=>
    <details className="qa-context-optimizer-review" key={label}>
     <summary>Conferir seleção de {label} enviada à IA</summary>
