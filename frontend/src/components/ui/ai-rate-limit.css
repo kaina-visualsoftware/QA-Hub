@@ -1,0 +1,4 @@
+.qa-ai-quota-wait{display:grid;gap:5px;margin:9px 0;padding:11px 13px;border:1px solid #c6d7dc;background:#f5f8f9;border-radius:10px;color:#264e5b;font-size:.79rem;line-height:1.5}
+.qa-ai-quota-wait strong{font-weight:700}.qa-ai-quota-wait p{margin:0;color:#456370}
+.qa-ai-quota-wait button{justify-self:start;border:1px solid #9bb9c2;background:#fff;color:#285564;border-radius:8px;padding:6px 10px;cursor:pointer}
+@media (prefers-color-scheme:dark){.qa-ai-quota-wait{background:#17282e;color:#d2eaef;border-color:#3a5964}.qa-ai-quota-wait p{color:#b1cbd2}.qa-ai-quota-wait button{background:#263c46;color:#d2eaef;border-color:#4b727b}}
