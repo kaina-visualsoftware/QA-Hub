@@ -1,0 +1,42 @@
+name: QA Hub AI F0 — observabilidade segura
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/**'
+      - 'supabase/functions/qa-ai/**'
+      - 'supabase/functions/qa-generators/**'
+      - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
+      - 'tests/ai-f0-*.test.mjs'
+      - 'docs/DIAGNOSTICO_PIPELINE_IA.md'
+      - 'frontend/tests/fixtures/ia/**'
+      - '.github/workflows/qa-ai-f0-diagnostics.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/**'
+      - 'supabase/functions/qa-ai/**'
+      - 'supabase/functions/qa-generators/**'
+      - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
+      - 'tests/ai-f0-*.test.mjs'
+      - '.github/workflows/qa-ai-f0-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  telemetry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit tests for redaction, correlation and error taxonomy
+        run: node --test tests/ai-f0-telemetry.test.mjs
+      - name: Edge Function instrumentation and synthetic-fixture contracts
+        run: node --test tests/ai-f0-contract.test.mjs
+      - name: Existing NVIDIA / semantic parser regressions
+        run: node --test supabase/functions/qa-context/facts.test.mjs supabase/functions/qa-revisions/revision.test.mjs tests/nvidia-response.test.mjs tests/nvidia-completion-options.test.mjs tests/qa-semantic-context-server.test.mjs
