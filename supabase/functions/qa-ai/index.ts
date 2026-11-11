@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import {aiInputError} from "./input.mjs";
 import { parseNvidiaDraft } from "./response.mjs";
+import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, hasMeaningfulTaskData } from "./request.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
 
@@ -72,7 +73,7 @@ async function listAllowedModels(key: string) {
   try {
     const response = await fetch(NVIDIA_BASE + "/models", {
       headers: { Authorization: "Bearer " + key },
-      signal: AbortSignal.timeout(7000)
+      signal: AbortSignal.timeout(MODEL_DISCOVERY_TIMEOUT_MS)
     });
     if (!response.ok) return FREE_MODEL_IDS;
     const data = await response.json();
@@ -175,14 +176,9 @@ Deno.serve(async req => {
           model,
           messages:diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):
             summaryMode?diagramSummaryMessages(text):promptForReport(text),
-          temperature:0.1,
-          max_tokens:diagramMode?3200:summaryMode?2800:4800,
-          stream:false,
-          ...(model.startsWith("nvidia/nemotron-")?{
-            chat_template_kwargs:{enable_thinking:false}
-          }:{})
+          ...nvidiaRequestOptions(model,diagramMode?"diagram":summaryMode?"summary":"task")
         }),
-        signal:AbortSignal.timeout(23000)
+        signal:AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
       });
       lastStatus=result.status;
       if(result.status===401 || result.status===403) {
@@ -214,8 +210,9 @@ Deno.serve(async req => {
         if(summary)return respond(origin,200,{summary,model,provider:"NVIDIA Build"});
       }else{
         const extracted=parseNvidiaDraft(response);
-        if(extracted)return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
+        if(hasMeaningfulTaskData(extracted))return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
       }
+      // A truncated JSON reply or metadata-only response must not masquerade as a completed TF.
       console.warn("qa-ai unstructured response",{
         model,finish_reason:response?.choices?.[0]?.finish_reason||"unknown",
         content_present:Boolean(response?.choices?.[0]?.message?.content)

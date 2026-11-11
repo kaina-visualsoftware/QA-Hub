@@ -323,11 +323,16 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setAiUsed(true);
       setLocalFallback(response.extractionSource==="local");
       setStep(2);
-      setNotice(response.extractionSource==="local"
+      const missing=([
+        "titulo","descricao","sistema","versao","ambiente","base_teste",
+        "empresa","explicacao","causa","correcao","conclusao"
+      ] as const).filter(field=>!String(merged[field]??"").trim()).length;
+      const missingHint=missing?` ${missing} campo(s) sem informação identificada; complete apenas com dados da TF.`:"";
+      setNotice((response.extractionSource==="local"
         ? "A NVIDIA não respondeu ou não retornou dados estruturados. O texto foi extraído localmente; confira os campos e cenários antes de salvar."
         : sourcePreparation.prepared.needsReview
           ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
-          : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
+          : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.")+missingHint);
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
     finally{setAnalyzing(false);setWork(null);}
   }

@@ -12,7 +12,7 @@ export async function extractWithNvidia(text, db, onStatus=()=>{}) {
   onStatus('Enviando o relatório para a NVIDIA Build…');
   const {data,error}=await db.functions.invoke('qa-ai',{
     body:{text},
-    signal:AbortSignal.timeout(65000)
+    signal:AbortSignal.timeout(95000)
   });
   const fallback=()=>{
     onStatus('A NVIDIA não retornou campos utilizáveis; organizando o texto localmente.');
