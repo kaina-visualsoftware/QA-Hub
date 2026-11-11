@@ -1,4 +1,13 @@
-import {assertEquals,assert,assertNull} from "jsr:@std/assert@1";
+function assert(value:unknown):asserts value{
+ if(!value)throw Error("Condição não satisfeita.");
+}
+function assertEquals(actual:unknown,expected:unknown){
+ if(!Object.is(actual,expected))throw Error(
+  "Esperado: "+JSON.stringify(expected)+"; encontrado: "+JSON.stringify(actual));
+}
+function assertNull(value:unknown){
+ if(value!==null)throw Error("Esperado valor nulo.");
+}
 import {groundedTaskFields,groundedTaskScenarios} from "./schemas.ts";
 const model=(body:unknown,reason="stop")=>({
  choices:[{message:{content:JSON.stringify(body)},finish_reason:reason}]
