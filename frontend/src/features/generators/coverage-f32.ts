@@ -6,7 +6,7 @@ import {calculateRequirementCoverage} from "../../lib/legacy/qa-requirements-cov
 import {composeRequirementContext} from "../../lib/legacy/qa-requirements-context.mjs";
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
  descricao:string;criterios_aceite:string;ordem:number;tipo:string;updated_at:string};
-type ScenarioLink={tarefa_id:string;requisito_id:string;cenario_id:string};
+type ScenarioLink={id:string;tarefa_id:string;requisito_id:string;cenario_id:string};
 type SavedCase={id:string;tarefa_id:string;titulo:string;status:Scenario["status"]};
 export type CoverageCandidate={id:string;codigo:string;titulo:string;
  reason:"unlinked"|"changed";linkedCount:number;coverage:string};
