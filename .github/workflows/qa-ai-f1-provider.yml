@@ -38,6 +38,16 @@ jobs:
           node --check supabase/functions/_shared/llm/errors.mjs
           node --check supabase/functions/_shared/llm/call-model.mjs
 
+  edge-typecheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck deployed Edge Function entrypoint and shared imports
+        run: deno check supabase/functions/qa-ai/index.ts
   frontend-regressions:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

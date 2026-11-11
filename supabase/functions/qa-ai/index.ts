@@ -72,7 +72,7 @@ function promptForReport(text: string) {
 async function listAllowedModels(key: string,trace: string) {
   return discoverModels({apiKey:key,modelIds:MODEL_IDS,
     timeoutMs:MODEL_DISCOVERY_TIMEOUT_MS,
-    onDiscovery:event=>logAiAttempt({...event,correlation_id:trace,stage:"discovery"})
+    onDiscovery:(event:Record<string,unknown>)=>logAiAttempt({...event,correlation_id:trace,stage:"discovery"})
   });
 }
 
@@ -164,14 +164,14 @@ Deno.serve(async req => {
           return {allowed:false,kind:quota.error==="unauthorized"?"auth":"rate_limited",
             retryAfterSeconds:Math.max(1,Math.min(60,Math.ceil(Number(quota.retry_after_seconds)||60)))};
         },
-        onQuotaDenied:info=>logAiAttempt({...telemetry,stage:"quota",
+        onQuotaDenied:(info:{kind:string;attempt:number})=>logAiAttempt({...telemetry,stage:"quota",
           started_at:Date.now(),http_status:info.kind==="rate_limited"?429:
             info.kind==="auth"?401:503,
           outcome:info.kind==="rate_limited"?"rate_limited":"upstream_error",
           attempt:info.attempt}),
-        onBreakerSkip:info=>logAiAttempt({...telemetry,started_at:Date.now(),
+        onBreakerSkip:(info:{attempt:number})=>logAiAttempt({...telemetry,started_at:Date.now(),
           outcome:"breaker_open",attempt:info.attempt}),
-        onAttempt:event=>logAiAttempt({...telemetry,...event,
+        onAttempt:(event:Record<string,unknown>)=>logAiAttempt({...telemetry,...event,
           correlation_id:trace,prompt_chars:chars,
           attempt:modelIndex+1,fallback_model:modelIndex>0})
       });
