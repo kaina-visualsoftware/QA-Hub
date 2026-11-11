@@ -50,7 +50,7 @@ function reply(body:Record<string,unknown>){
   return {data:{provider:"NVIDIA Build",stage:"fields",model:"glm-fixture",
    repaired:false,draft:entries,
    field_evidence:Object.fromEntries(Object.keys(entries).map(name=>[
-    name,proof(quotes[name as keyof typeof quotes])
+    name,proof((quotes as Record<string,string>)[name]??quote)
    ])),review_fields:[]},error:null};
  }
  if(body.mode==="task-scenarios"){
