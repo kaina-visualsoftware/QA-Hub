@@ -42,3 +42,10 @@
 .qa-context-topics>div{display:grid;gap:3px;border:1px solid #d4e7e5;background:#fff;border-radius:9px;padding:9px 11px;min-width:0}
 .qa-context-topics strong{font-size:.77rem;color:#1f5962}
 .qa-context-topics span{font-size:.72rem;color:#58747a;font-variant-numeric:tabular-nums}
+
+.qa-context-findings{display:grid;gap:8px;padding:11px;border-radius:10px;border:1px solid #ccdfdc;background:#fff;min-width:0}
+.qa-context-findings>strong{color:#244b55;font-size:.82rem}
+.qa-context-findings>p{margin:0;color:#5b7178;font-size:.74rem;line-height:1.5}
+.qa-context-finding{display:grid;gap:5px;padding:8px 10px;border:1px solid #e1eceb;border-radius:8px;min-width:0}
+.qa-context-finding>span{font-size:.72rem;font-weight:700;color:#246773}
+.qa-context-finding blockquote{margin:0;font-size:.76rem;line-height:1.5;overflow-wrap:anywhere;color:#375560}
