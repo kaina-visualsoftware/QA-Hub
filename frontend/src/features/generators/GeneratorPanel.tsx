@@ -538,6 +538,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
           ? messageOf(support.error || requirements.error) : generationError}
       </p>}
+    {context&&formOwn&&<AuditTrailPanel key={task.id} taskId={task.id} userId={userId}
+      taskText={context.taskContext.text}
+      approved={requirements.data??[]} onChangedCodes={setChangedCodes}/>}
     <div className={(postMode ? "qa-post-workspace" : "qa-generator-workspace") +
       (generating ? " is-processing" : "") +
       (!showConfiguration && !generating ? " is-review-only" : "")}>
@@ -673,7 +676,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy}
+          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy||auditBusy}
             onSelect={(event)=>setPostSelection(selectionFromText(
               event.currentTarget.value,event.currentTarget.selectionStart,
               event.currentTarget.selectionEnd))}
@@ -719,6 +722,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           </Button>
         </div>
       </div> : <div className="qa-ai-review mt-4" aria-label="Revisão dos casos gerados">
+        {context&&formOwn&&<CoverageReviewPanel
+          taskId={task.id} userId={userId} approved={requirements.data??[]}
+          cases={scenarios} changedCodes={changedCodes}
+          taskText={lastGenerationInput.current?.task??context.prepared.task.text}
+          busy={generating||busySave||revisionBusy||auditBusy}
+          onGenerate={generateFocusedCases}/>} 
         {available.length > 0 ? <>
           <div className="qa-ai-review-heading">
             <div>
@@ -765,7 +774,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                 </label>
               </div>
               <button type="button" className="qa-revision-case-btn"
-                disabled={revisionBusy||busySave||generating||!revisionConsent||!!revisionProposal}
+                disabled={revisionBusy||busySave||auditBusy||generating||!revisionConsent||!!revisionProposal}
                 onClick={()=>void requestRevision("test_case",item.caseIndex)}>
                 {revisionBusy?"Revisando…":"Regerar apenas este caso"}
               </button>
@@ -829,7 +838,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           <button type="button" disabled={revisionBusy||busySave}
             onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
           <button type="button" disabled={revisionBusy||busySave}
-            onClick={()=>void applyRevision()}>Aplicar somente neste trecho</button>
+            onClick={()=>void applyRevision()} disabled={auditBusy}>Aplicar somente neste trecho</button>
         </div>
       </section>}
       {!!revisionHistory.length&&<details className="qa-revision-history">
