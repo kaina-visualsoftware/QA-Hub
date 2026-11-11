@@ -32,6 +32,9 @@ on:
       - 'frontend/tests/ai-audit-f32.test.ts'
       - 'frontend/tests/coverage-f32.test.ts'
   workflow_dispatch:
+concurrency:
+  group: qa-ai-semantic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
