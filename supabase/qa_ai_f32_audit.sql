@@ -8,7 +8,7 @@ create table if not exists public.qa_ai_audit_trail(
   user_id uuid not null,
   event_type text not null check(event_type in (
     'source_snapshot','conflict_decision','post_revision_applied',
-    'test_revision_applied','coverage_generation_prepared')),
+    'test_revision_applied','coverage_generation_requested')),
   resource text not null check(resource in ('contexto','requisito','post','teste')),
   reference_hash text not null check(reference_hash ~ '^[a-f0-9]{64}$'),
   source_hash text not null check(source_hash ~ '^[a-f0-9]{64}$'),
@@ -27,7 +27,7 @@ create table if not exists public.qa_ai_audit_trail(
     or
     (event_type='post_revision_applied' and resource='post' and decision is null)
     or
-    (event_type in ('test_revision_applied','coverage_generation_prepared') and resource='teste' and decision is null)
+    (event_type in ('test_revision_applied','coverage_generation_requested') and resource='teste' and decision is null)
   )
 );
 create index if not exists qa_ai_audit_recent_idx
