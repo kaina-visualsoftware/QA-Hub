@@ -71,3 +71,10 @@
   .qa-scenario-evidence .qa-scenario-file-button{justify-content:center}
   .qa-scenario-image-actions button{min-height:44px}
 }
+
+.qa-scenario-evidence h5 .qa-scenario-load-files{border:1px solid #b9d4d0;
+  border-radius:7px;background:white;color:#23636a;font-size:.73rem;
+  padding:5px 9px;font-weight:720;min-height:32px}
+.qa-scenario-evidence h5 .qa-scenario-load-files:hover{background:#e8f5f3}
+.qa-scenario-evidence h5 .qa-scenario-load-files:focus-visible{
+  outline:3px solid #208f94;outline-offset:2px}
