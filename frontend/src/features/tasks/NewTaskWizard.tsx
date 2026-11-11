@@ -276,10 +276,17 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     // Avoid artificial headings in the content submitted to the model.
     const snapshot=combine("",sourceText,taskFiles);
     try{
+      if(!sourcePreparation||!("prepared" in sourcePreparation))throw Error(
+        sourcePreparation&&"error" in sourcePreparation?sourcePreparation.error:
+          "Não foi possível preparar o contexto.");
+      if(sourcePreparation.prepared.needsReview&&!compactApprovedTask)
+        throw Error("Revise e autorize o contexto compactado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
-      const response=await generateTaskAiDraft(snapshot);
+      const response=await generateTaskAiDraft(snapshot,{
+        aiText:sourcePreparation.prepared.mode==="integral"?undefined:sourcePreparation.prepared.text
+      });
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
@@ -309,7 +316,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setStep(2);
       setNotice(response.extractionSource==="local"
         ? "A NVIDIA não retornou dados estruturados. Foi usada a extração local; revise todos os campos."
-        : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
+        : sourcePreparation.prepared.needsReview
+          ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
+          : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
     finally{setAnalyzing(false);setWork(null);}
   }
