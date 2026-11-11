@@ -1,0 +1,72 @@
+name: QA Hub AI F3 — orçamento estimado de tokens
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f2-rate-limit-errors-20261111]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/_shared/ai-observability.mjs'
+      - 'supabase/functions/qa-ai/**'
+      - 'frontend/src/features/generators/context-preparation.ts'
+      - 'frontend/src/features/generators/ContextPreparationPanel.tsx'
+      - 'frontend/src/lib/token-budget.ts'
+      - 'frontend/tests/context-preparation.test.ts'
+      - 'tests/ai-f3-*.test.mjs'
+      - '.github/workflows/qa-ai-f3-token-budget.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'frontend/src/lib/token-budget.ts'
+      - 'tests/ai-f3-*.test.mjs'
+permissions:
+  contents: read
+jobs:
+  provider-and-budget:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify budgets, boundaries, quota and F0-F2 compatibility
+        run: node --test tests/ai-f3-token-budget.test.mjs tests/ai-f3-integration.test.mjs tests/ai-f2-error-contract.test.mjs tests/ai-f1-provider.test.mjs tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs
+      - name: Check ESM syntax
+        run: |
+          node --check supabase/functions/_shared/llm/token-budget.mjs
+          node --check supabase/functions/_shared/llm/call-model.mjs
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck qa-ai + F2 functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Complete frontend tests
+        run: npm test
+      - name: Production build
+        run: npm run build
