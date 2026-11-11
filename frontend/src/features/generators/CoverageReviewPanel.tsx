@@ -10,7 +10,7 @@ import "./ai-f32.css";
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
  descricao:string;criterios_aceite:string;ordem:number;tipo:string;updated_at:string};
 type SavedCase={id:string;tarefa_id:string;titulo:string;status:Scenario["status"]};
-type Link={tarefa_id:string;requisito_id:string;cenario_id:string};
+type Link={id:string;tarefa_id:string;requisito_id:string;cenario_id:string};
 export function CoverageReviewPanel({taskId,userId,approved,cases,changedCodes,
  taskText,busy=false,onGenerate}:{
  taskId:string;userId:string;approved:Requirement[];cases:SavedCase[];
@@ -26,7 +26,7 @@ export function CoverageReviewPanel({taskId,userId,approved,cases,changedCodes,
   enabled:approved.length>0,
   queryFn:async()=>{
    const {data,error}=await supabase.from("qa_requisito_cenarios")
-    .select("tarefa_id,requisito_id,cenario_id")
+    .select("id,tarefa_id,requisito_id,cenario_id")
     .eq("tarefa_id",taskId).eq("user_id",userId).limit(2001);
    if(error)throw error;
    if((data??[]).length>2000)throw Error("Há mais de 2000 vínculos. Consulte a matriz completa de requisitos.");
