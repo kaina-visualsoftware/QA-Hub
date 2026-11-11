@@ -48,8 +48,12 @@ export function classifyStatus(status,body="",retryAfter=null){
  return new ProviderError(kind,{status,retryAfterSeconds:retryAfter});
 }
 export function classifyException(error,timedOut=false){
+ // A local timeout aborts fetch/read with AbortError or ProviderError("aborted").
+ // Preserve the actual cause before inspecting the nested error type.
+ if(timedOut)return new ProviderError("timeout",{status:error?.status??0,
+  partial:error?.partial,usage:error?.usage,finishReason:error?.finishReason});
  if(error instanceof ProviderError)return error;
- if(timedOut||error?.name==="TimeoutError")return new ProviderError("timeout");
+ if(error?.name==="TimeoutError")return new ProviderError("timeout");
  if(error?.name==="AbortError")return new ProviderError("aborted");
  return new ProviderError("upstream");
 }
