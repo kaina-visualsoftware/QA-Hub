@@ -16,6 +16,9 @@ on:
       - 'supabase/functions/qa-ai/**'
       - 'frontend/src/features/tasks/task-ai-phased.ts'
       - 'tests/ai-f4-stages.test.mjs'
+concurrency:
+  group: qa-ai-f4-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
