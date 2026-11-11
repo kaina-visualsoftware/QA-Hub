@@ -8,6 +8,8 @@ const normalize=content=>{
  return typeof content==="string"?content:"";
 };
 export function parseModelFacts(payload,source){
+ if(payload?.choices?.[0]?.finish_reason==="length")
+  return {facts:[],unverified:0,valid:false};
  let txt=normalize(payload?.choices?.[0]?.message?.content).trim();
  if(!txt)return {facts:[],unverified:0,valid:false};
  const fence=String.fromCharCode(96).repeat(3);

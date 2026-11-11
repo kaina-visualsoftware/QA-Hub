@@ -1,4 +1,4 @@
-import {BookOpenCheck,CheckCircle2,FileSearch,PauseCircle,RefreshCcw,ShieldAlert} from "lucide-react";
+import {BookOpenCheck,CheckCircle2,FileSearch,LoaderCircle,PauseCircle,RefreshCcw,ShieldAlert} from "lucide-react";
 import {useSemanticContext} from "./useSemanticContext";
 import type {ConflictDecision,SemanticConflict} from "./semantic-conflicts";
 import {useState} from "react";
@@ -21,7 +21,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
    <label><input type="radio" name="qa-semantic-mode" value="fast"
     checked={!semantic.enabled} disabled={disabled||semantic.working}
     onChange={()=>semantic.setEnabled(false)}/>
-    <span><strong>Rápido</strong><small>Sem chamadas extras de IA. Você revisa os trechos escolhidos.</small></span>
+    <span><strong>Rápido</strong><small>Leitura estrutural local: identifica problema, causas, correções, regras e testes, com origem verificável. Não interpreta tudo como uma IA.</small></span>
    </label>
    <label><input type="radio" name="qa-semantic-mode" value="semantic"
     checked={semantic.enabled} disabled={disabled||semantic.working||!plan}
@@ -41,6 +41,19 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     <small>Até 8 blocos por lote. Cada tentativa utiliza a cota compartilhada de 15 chamadas/min.
      Se atingir o limite, o progresso já concluído fica disponível para retomada.</small>
    </div>
+   {semantic.working&&<div className="qa-semantic-live" role="status" aria-live="polite" aria-atomic="true">
+    <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
+    <div>
+     <strong>Processando {semantic.activeChunk??"contexto"} · tentativa {semantic.attempt}</strong>
+     <span>{semantic.activeStage==="preparing"?"Validando sessão":
+       semantic.activeStage==="sending"?"Preparando solicitação segura":
+       semantic.activeStage==="waiting"?"Aguardando resposta da NVIDIA":
+       semantic.activeStage==="verifying"?"Conferindo as citações com a fonte original":
+       "Preparando próxima parte"}</span>
+     <small>Tempo decorrido neste lote: {String(Math.floor(semantic.elapsed/60)).padStart(2,"0")}:{String(semantic.elapsed%60).padStart(2,"0")} ·
+      {semantic.count} de {plan.chunks.length} partes concluídas</small>
+    </div>
+   </div>}
    <div className="qa-semantic-actions">
     {!semantic.complete&&<button type="button" disabled={disabled||semantic.working||!authorized}
      onClick={()=>void semantic.run(undefined,authorized)}>
@@ -53,14 +66,15 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
    {!authorized&&<p className="qa-semantic-muted">Marque a autorização de envio à NVIDIA antes de analisar.</p>}
    {semantic.message&&<p className="qa-semantic-muted" role="status">{semantic.message}</p>}
    {semantic.error&&<p className="notice error" role="alert">{semantic.error}</p>}
-   {!!semantic.count&&<details className="qa-semantic-blocks">
-    <summary>Conferir citações por parte ({semantic.count} analisadas)</summary>
+   <details className="qa-semantic-blocks" open={semantic.working||semantic.count===0?true:undefined}>
+    <summary>Estado de cada parte ({semantic.count} de {plan.chunks.length} concluídas)</summary>
     <ol>{plan.chunks.map(chunk=>{
      const outcome=semantic.outcomes[chunk.id];
      return <li key={chunk.id}>
       <span><strong>{chunk.id}</strong> · Linhas {chunk.startLine}–{chunk.endLine}</span>
       {outcome?<span>{outcome.facts.length} citações verificadas · {outcome.unverified} rejeitadas</span>:
-       <span>Não analisado</span>}
+       semantic.activeChunk===chunk.id?<span className="qa-semantic-current"><LoaderCircle size={13} className="qa-semantic-spinner" aria-hidden="true"/> Em análise</span>:
+       <span>Aguardando análise</span>}
       {outcome&&<button type="button" disabled={disabled||semantic.working||!authorized}
        aria-label={"Reanalisar "+chunk.id} onClick={()=>void semantic.run(chunk.id,authorized)}>
        <RefreshCcw size={14} aria-hidden="true"/> Reanalisar</button>}
@@ -73,7 +87,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
       </details>}
      </li>;
     })}</ol>
-   </details>}
+   </details>
    {semantic.complete&&digest&&<div className="qa-semantic-review">
     <div className="qa-semantic-summary">
      <strong><CheckCircle2 size={17} aria-hidden="true"/> Matriz de cobertura do contexto</strong>

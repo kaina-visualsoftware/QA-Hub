@@ -9,6 +9,11 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [enabled,setEnabledState]=useState(false);
  const [outcomes,setOutcomes]=useState<Record<string,ChunkOutcome>>({});
  const [working,setWorking]=useState(false);
+ const [activeChunk,setActiveChunk]=useState<string|null>(null);
+ const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|null>(null);
+ const [attempt,setAttempt]=useState(0);
+ const [elapsed,setElapsed]=useState(0);
+ const [startedAt,setStartedAt]=useState<number|null>(null);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
  const [approved,setApproved]=useState(false);
@@ -23,6 +28,13 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   catch(reason){return {plan:null,error:reason instanceof Error?reason.message:String(reason)};}
  },[task,requirements]);
  const plan=planState.plan;
+ useEffect(()=>{
+  if(!working||startedAt===null)return;
+  const tick=()=>setElapsed(Math.floor((Date.now()-startedAt)/1000));
+  tick();
+  const timer=window.setInterval(tick,1000);
+  return ()=>window.clearInterval(timer);
+ },[working,startedAt]);
  const complete=Boolean(plan&&plan.chunks.every(c=>outcomes[c.id]));
  const count=plan?.chunks.filter(c=>outcomes[c.id]).length??0;
  const conflicts=useMemo(()=>detectSemanticConflicts(
@@ -42,6 +54,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   controller.current=null;workingRef.current=false;
   setOutcomes({});setEnabledState(false);setWorking(false);
   setApproved(false);setConflictDecisions({});setMessage("");setError("");
+  setActiveChunk(null);setActiveStage(null);setAttempt(0);setElapsed(0);setStartedAt(null);
  },[sourceKey]);
  useEffect(()=>()=>controller.current?.abort(),[]);
  function setEnabled(value:boolean){
@@ -61,6 +74,8 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   if(!pending.length)return;
   workingRef.current=true;setWorking(true);
   setError("");setMessage("");
+  setElapsed(0);setStartedAt(Date.now());setActiveStage("preparing");
+  setAttempt(0);
   setApproved(false);
   const abort=new AbortController();controller.current=abort;
   const signature=sourceKey;
@@ -68,11 +83,16 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   try{
    for(const chunk of pending.slice(0,id?1:SEMANTIC_REQUEST_BATCH)){
     if(abort.signal.aborted||signature!==latest.current)throw Error("Análise cancelada.");
-    const result=await analyzeSemanticChunk(chunk,goal,abort.signal);
+    setActiveChunk(chunk.id);setAttempt(value=>value+1);
+    setActiveStage("preparing");
+    const result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
+      if(signature===latest.current&&!abort.signal.aborted)setActiveStage(stage);
+    });
     if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
     next={...next,[chunk.id]:result};
     setOutcomes(next);done++;
-    setMessage("Trechos analisados: "+Object.keys(next).length+" de "+plan.chunks.length+".");
+    setMessage("Bloco "+chunk.id+" concluído: "+result.facts.length+
+      " citação(ões) verificada(s). "+Object.keys(next).length+" de "+plan.chunks.length+".");
    }
    if(Object.keys(next).length===plan.chunks.length)
     setMessage("Todos os blocos foram analisados. Revise a cobertura e autorize a geração.");
@@ -85,9 +105,11 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
    }
   }finally{
    workingRef.current=false;controller.current=null;setWorking(false);
+   setActiveChunk(null);setActiveStage(null);setStartedAt(null);
   }
  }
  return {enabled,setEnabled,working,message,error,approved,setApproved,ready,plan,
   planError:planState.error,outcomes,count,complete,digest,run,cancel,
-  conflicts,conflictsReviewed,conflictDecisions,setConflictDecision};
+  conflicts,conflictsReviewed,conflictDecisions,setConflictDecision,
+  activeChunk,activeStage,attempt,elapsed};
 }

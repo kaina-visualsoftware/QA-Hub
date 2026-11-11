@@ -13,11 +13,15 @@ const responseSchema=z.object({
  })).max(80)
 });
 
+export type SemanticRequestStage="preparing"|"sending"|"waiting"|"verifying";
 export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
- signal:AbortSignal):Promise<ChunkOutcome>{
+ signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{}):Promise<ChunkOutcome>{
+ onStage("preparing");
  const {data,error}=await supabase.auth.getSession();
  if(error)throw error;
  if(!data.session?.access_token)throw Error("Faça login novamente para analisar o contexto.");
+ onStage("sending");
+ onStage("waiting");
  const response=await fetch(supabaseUrl.replace(/\/$/,"")+"/functions/v1/qa-context",{
   method:"POST",signal,
   headers:{Authorization:"Bearer "+data.session.access_token,apikey:publishableKey,
@@ -25,15 +29,17 @@ export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal
   body:JSON.stringify({chunkId:chunk.id,source:chunk.source,goal,text:chunk.text})
  });
  if(!response.ok){
-  let message="Não foi possível preparar esta parte do contexto.";
+  let message="Não foi possível preparar esta parte do contexto (HTTP "+response.status+").";
   try{
    const value:unknown=await response.json();
    if(value&&typeof value==="object"&&"message" in value&&
     typeof value.message==="string")message=value.message;
   }catch{/* keep generic message */}
-  if(response.status===429)message+=" O progresso das partes anteriores foi preservado.";
+  if(response.status===429)message+=" A cota compartilhada foi atingida; tente continuar depois. O progresso foi preservado.";
+  if(response.status===503)message+=" A NVIDIA está indisponível ou demorou demais. Você pode tentar novamente ou usar o modo rápido sem novas chamadas de IA.";
   throw Error(message);
  }
+ onStage("verifying");
  const result=responseSchema.parse(await response.json());
  if(result.chunkId!==chunk.id||result.source!==chunk.source||result.goal!==goal)
   throw Error("A resposta semântica não corresponde ao trecho solicitado.");
