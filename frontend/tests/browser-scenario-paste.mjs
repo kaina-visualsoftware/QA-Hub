@@ -72,9 +72,9 @@ try{
  await page.getByRole("heading",{name:task.titulo}).waitFor({timeout:15000});
  await page.getByRole("tab",{name:"Cenários"}).click();
  await page.getByRole("button",{name:"Lista",exact:true}).click();
- const toggler=page.getByText("Colar captura ou visualizar imagens deste teste",{exact:true});
+ const toggler=page.getByText("Evidências deste cenário",{exact:true});
  await toggler.click();
- const paste=page.getByRole("group",{name:"Colar captura de tela no teste "+scenario.titulo});
+ const paste=page.getByRole("group",{name:"Colar imagem ou arrastar arquivo no cenário "+scenario.titulo});
  await paste.waitFor();
  await paste.focus();
  await page.evaluate(base64=>{
@@ -85,10 +85,10 @@ try{
    document.querySelector(".qa-scenario-paste")?.dispatchEvent(event);
  },png.toString("base64"));
  await page.getByText(/captura-\d+\.png/).first().waitFor();
- await page.getByRole("textbox",{name:"Observação da captura"}).fill("Captura após reprovação do teste");
+ await page.getByRole("textbox",{name:"Observação da evidência"}).fill("Captura após reprovação do teste");
  assert.equal(await page.getByRole("checkbox",{name:/pública|publicação/}).count(),0);
  await page.getByRole("button",{name:"Vincular ao teste"}).click();
- await page.getByText("Captura vinculada ao cenário "+scenario.titulo).waitFor({timeout:14000});
+ await page.getByText("Evidência vinculada ao cenário "+scenario.titulo).waitFor({timeout:14000});
  assert.equal(files.length,1);assert.equal(files[0].publica,false,"Legacy flag is ignored; TF visibility controls access");
  assert.equal(stored.length,1);
  await page.getByText("Pública — acompanha a TF").waitFor();
