@@ -1,5 +1,6 @@
 import {NVIDIA_BASE,MODEL_REGISTRY,modelRequestOptions} from "./models.mjs";
 import {ProviderError,classifyStatus,classifyException,retryAfterSeconds,telemetryOutcome} from "./errors.mjs";
+import {planTokenBudget} from "./token-budget.mjs";
 
 /** Process-local breaker. It is intentionally NOT a distributed availability
  * claim: a fresh Edge Function isolate starts with an empty history.
@@ -175,6 +176,7 @@ function retryable(error,retryOnRateLimit){
  * onQuotaDenied?:(metadata:{kind:string,attempt:number,model:string,fallback_model:boolean})=>void,
  * onBreakerSkip?:(metadata:{attempt:number,model:string,fallback_model:boolean})=>void,
  * onDelta?:(chunk:string)=>void,
+ * onBudget?:(budget:Record<string,unknown>)=>void,
  * signal?:AbortSignal,maxRetries?:number,retryOnRateLimit?:boolean,
  * timeoutMs?:number,firstTokenTimeoutMs?:number,idleTimeoutMs?:number,
  * deadlineAt?:number,now?:()=>number,random?:()=>number,
@@ -184,7 +186,7 @@ function retryable(error,retryOnRateLimit){
 export async function callModel({
  apiKey,model,messages,mode="task",stream=true,options={},
  fetchImpl=fetch,reserveAttempt,onAttempt,onQuotaDenied,onBreakerSkip,
- onDelta,signal,maxRetries=1,retryOnRateLimit=false,
+ onDelta,onBudget,signal,maxRetries=1,retryOnRateLimit=false,
  timeoutMs=35000,firstTokenTimeoutMs=12000,idleTimeoutMs=20000,
  deadlineAt=Date.now()+85000,now=()=>Date.now(),
  random=Math.random,sleep,
@@ -193,6 +195,11 @@ export async function callModel({
  if(!MODEL_REGISTRY[model])throw new ProviderError("schema_invalid");
  if(!apiKey||!Array.isArray(messages))throw new ProviderError("schema_invalid");
  const prepared=safeOptions(model,mode,stream,options);
+ // Refuse locally before consuming any 15/min quota slot or attempting HTTP.
+ // This is an estimate; the provider's tokenizer may still reject the input.
+ const budget=planTokenBudget({messages,model,mode,maxOutputTokens:prepared.max_tokens});
+ onBudget?.(budget);
+ if(!budget.fits)throw new ProviderError("context_exceeded",{model});
  const startedJob=now();
  let lastError;
  for(let attempt=1;attempt<=Math.max(1,Math.min(3,Math.floor(maxRetries)+1));attempt++){
@@ -271,6 +278,7 @@ export async function callModel({
    signal?.removeEventListener("abort",outerAbort);
    onAttempt?.({mode,model,attempt,fallback_model:fallbackModel,
     started_at:started,http_status:httpStatus,max_tokens:prepared.max_tokens,
+    estimated_prompt_tokens:budget.estimatedInputTokens,
     finish_reason:result?.finishReason??failed?.finishReason??null,
     usage:result?.usage??failed?.usage??null,
     outcome:failed?telemetryOutcome(failed):

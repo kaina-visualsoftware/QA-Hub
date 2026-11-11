@@ -46,7 +46,7 @@ test("output reserve and model-specific availability are explicit",()=>{
  assert.throws(()=>planTokenBudget({messages:msg("x"),model:"arbitrary-model"}));
  assert.throws(()=>planTokenBudget({messages:msg("x"),model,maxOutputTokens:0}));
 });
-test("frontend and backend use matching UTF-8 estimate (guard against drift)",()=>{
+test("frontend and backend use matching UTF-8 estimate (guard against drift)",async()=>{
  const {readFileSync}=await import("node:fs");
  const file=readFileSync(new URL("../frontend/src/lib/token-budget.ts",import.meta.url),"utf8");
  assert.match(file,/Math\.ceil\(encoder\.encode\(text\)\.length\/3\)/);

@@ -1,7 +1,7 @@
 /** NVIDIA Build free-endpoint model catalogue.
- * Context windows are intentionally unknown until confirmed by the provider
- * for these *hosted endpoints*. F3 will add token budgets.
+ * Advertised context is from model cards, NOT a hosted API service guarantee.
  */
+import {MODEL_CONTEXT_PUBLISHED} from "./token-budget.mjs";
 export const NVIDIA_BASE="https://integrate.api.nvidia.com/v1";
 export const MODEL_IDS=Object.freeze([
  "z-ai/glm-5.3-flash",
@@ -9,12 +9,14 @@ export const MODEL_IDS=Object.freeze([
 ]);
 export const MODEL_REGISTRY=Object.freeze({
  "z-ai/glm-5.3-flash":Object.freeze({
-  id:"z-ai/glm-5.3-flash",contextTokens:null,maxOutputTokens:null,
+  id:"z-ai/glm-5.3-flash",contextTokens:MODEL_CONTEXT_PUBLISHED["z-ai/glm-5.3-flash"],maxOutputTokens:null,
+  contextSource:"published_model_spec_not_hosted_guarantee",
   supportsJsonMode:true,reasoning:"always",priority:0,
   params:Object.freeze({reasoning_effort:"low"})
  }),
  "nvidia/nemotron-3.5-lightning-30b-a3b":Object.freeze({
-  id:"nvidia/nemotron-3.5-lightning-30b-a3b",contextTokens:null,maxOutputTokens:null,
+  id:"nvidia/nemotron-3.5-lightning-30b-a3b",contextTokens:MODEL_CONTEXT_PUBLISHED["nvidia/nemotron-3.5-lightning-30b-a3b"],maxOutputTokens:null,
+  contextSource:"published_model_spec_not_hosted_guarantee",
   supportsJsonMode:true,reasoning:"off",priority:1,
   params:Object.freeze({chat_template_kwargs:{enable_thinking:false}})
  })

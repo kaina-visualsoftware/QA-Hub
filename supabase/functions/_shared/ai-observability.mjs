@@ -51,7 +51,8 @@ export function httpOutcome(status){
 }
 export function makeAttemptEvent({
  correlation_id,mode,model,prompt_chars,max_tokens,started_at,ended_at,
- http_status,finish_reason,usage,outcome,attempt,fallback_model,stage="provider"
+ http_status,finish_reason,usage,outcome,attempt,fallback_model,stage="provider",
+ estimated_prompt_tokens
 }={}){
  const chars=clampInt(prompt_chars,20000000)??0;
  const safeTime=value=>typeof value==="number"&&Number.isSafeInteger(value)&&value>=0?value:null;
@@ -64,7 +65,7 @@ export function makeAttemptEvent({
   mode:safeString(mode,MODES,"task"),
   model:safeString(model,MODELS,"catalog"),
   prompt_chars:chars,
-  prompt_tokens_est:Math.ceil(chars/4),
+  prompt_tokens_est:clampInt(estimated_prompt_tokens,10000000)??Math.ceil(chars/4),
   max_tokens:clampInt(max_tokens,100000)??0,
   elapsed_ms:start!==null&&end!==null?Math.max(0,Math.min(end-start,3600000)):0,
   http_status:clampInt(http_status,599)??0,
