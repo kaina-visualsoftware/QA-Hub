@@ -396,7 +396,7 @@ try{
   const fileModal=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
   await fileModal.getByRole("button",{name:"Evidência do teste"}).click();
   await fileModal.getByRole("textbox",{name:"Descrição (opcional)"}).fill("Captura sintética do pedido");
-  await fileModal.getByLabel("Selecionar arquivo",{exact:true}).setInputFiles({
+  await fileModal.locator('input[type="file"]').first().setInputFiles({
     name:"captura.png",mimeType:"image/png",buffer:samplePng
   });
   await page.getByRole("button",{name:"Anexar arquivo"}).click();
