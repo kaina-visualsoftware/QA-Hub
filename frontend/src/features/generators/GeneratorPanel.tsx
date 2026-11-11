@@ -594,9 +594,35 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={content} disabled={busySave}
-            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
+          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy}
+            onSelect={(event)=>setPostSelection(selectionFromText(
+              event.currentTarget.value,event.currentTarget.selectionStart,
+              event.currentTarget.selectionEnd))}
+            onChange={(event) => { setContent(event.target.value);setPostSelection(null);
+              setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>
+        <div className="qa-targeted-revision">
+          <strong>Revisar somente um trecho com IA</strong>
+          <p>Selecione no próprio texto um parágrafo ou uma seção do post.
+            O restante será preservado, inclusive suas edições e o formato BBCode.</p>
+          <small>{postSelection?postSelection.oldText.length+" caracteres selecionados":
+            "Selecione de 12 a 9.000 caracteres para revisar."}</small>
+          <label className="field">Orientação para esta revisão (opcional)
+            <textarea rows={2} maxLength={1200} value={revisionInstructions}
+              onChange={e=>setRevisionInstructions(e.target.value)}
+              disabled={revisionBusy||busySave}
+              placeholder="Ex.: esclarecer as permissões sem inventar novos comportamentos."/>
+          </label>
+          <label className="qa-revision-consent">
+            <input type="checkbox" checked={revisionConsent} disabled={revisionBusy||busySave}
+              onChange={e=>setRevisionConsent(e.target.checked)}/>
+            Autorizo enviar o contexto da geração e o trecho selecionado à NVIDIA.
+          </label>
+          <button type="button" disabled={!postSelection||!revisionConsent||revisionBusy||busySave||
+            generating||!!revisionProposal} onClick={()=>void requestRevision("post_excerpt")}>
+            {revisionBusy?"Revisando trecho…":"Sugerir revisão do trecho"}
+          </button>
+        </div>
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
         </p>}
@@ -607,7 +633,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div className="qa-post-output-actions">
           <Button type="button" variant="secondary" onPress={() => void navigator.clipboard.writeText(content || raw)}
             isDisabled={!content}><Clipboard size={16} /> Copiar</Button>
-          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || completed}>
+          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || revisionBusy || completed}>
             {busySave?<LoaderCircle className="qa-ai-spinner" size={16} aria-hidden="true"/>:
               <FileCheck2 size={16}/>}
             {busySave?"Salvando post…":completed?"Post salvo":"Salvar post na TF"}
@@ -628,6 +654,21 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                 onClick={() => selectAllVisible(false)}>Limpar seleção</button>
             </div>
           </div>
+          <div className="qa-targeted-revision">
+            <strong>Revisar somente um caso com IA</strong>
+            <p>Cada caso pode ser regenerado individualmente, sem alterar os demais.
+              A proposta só é aplicada após comparação e confirmação.</p>
+            <label className="field">Orientação para esta revisão (opcional)
+              <textarea rows={2} maxLength={1200} value={revisionInstructions}
+                onChange={e=>setRevisionInstructions(e.target.value)}
+                disabled={revisionBusy||busySave}/>
+            </label>
+            <label className="qa-revision-consent">
+              <input type="checkbox" checked={revisionConsent} disabled={revisionBusy||busySave}
+                onChange={e=>setRevisionConsent(e.target.checked)}/>
+              Autorizo enviar à NVIDIA o contexto da geração e o caso escolhido.
+            </label>
+          </div>
           <div className="qa-ai-review-list" aria-label="Casos disponíveis">
             {available.map((item,index) => <article
               key={String(item.source_index)+"-"+item.caseIndex}
@@ -644,6 +685,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                   </span>
                 </label>
               </div>
+              <button type="button" className="qa-revision-case-btn"
+                disabled={revisionBusy||busySave||generating||!revisionConsent||!!revisionProposal}
+                onClick={()=>void requestRevision("test_case",item.caseIndex)}>
+                {revisionBusy?"Revisando…":"Regerar apenas este caso"}
+              </button>
               <div className="qa-ai-case-preview">
                 <p><b>Passos</b> {item.passos.slice(0,230)}{item.passos.length>230?"…":""}</p>
                 <p><b>Esperado</b> {item.esperado.slice(0,230)}{item.esperado.length>230?"…":""}</p>
@@ -670,7 +716,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               {invalidSelection&&<p role="status">
                 Revise título, passos e resultado esperado dos casos selecionados.</p>}
             </div>
-            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || completed}
+            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || revisionBusy || completed}
               onPress={() => void attachCases()}>
               <Send size={16} /> {completed ? "Casos adicionados" : chosen.length === 0 ? "Selecione casos" : `Anexar ${chosen.length} ${chosen.length === 1 ? "caso" : "casos"} à TF`}
             </Button>
