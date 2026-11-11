@@ -63,3 +63,15 @@
 .qa-semantic-conflicts label{display:grid;gap:6px;font-weight:750;font-size:.8rem}
 .qa-semantic-conflicts select{max-width:100%;min-height:42px;border:1px solid #d1b78b;background:#fff;border-radius:8px;padding:8px;color:#57452e}
 @media(max-width:620px){.qa-semantic-compare{grid-template-columns:1fr}}
+
+/* Live block-level telemetry: deliberate progress without an invented ETA. */
+.qa-semantic-live{display:flex;align-items:flex-start;gap:12px;padding:12px;
+ background:#fff;border:1px solid #aacdc9;border-radius:10px;min-width:0}
+.qa-semantic-live>div{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.qa-semantic-live strong{font-size:.84rem;color:#1b5b60}
+.qa-semantic-live span,.qa-semantic-live small{font-size:.76rem;color:#426975}
+.qa-semantic-live small{line-height:1.5;font-variant-numeric:tabular-nums}
+.qa-semantic-spinner{flex:0 0 auto;animation:qa-semantic-spin 1s linear infinite}
+.qa-semantic-current{display:flex;align-items:center;gap:6px;color:#185b64;font-weight:700}
+@keyframes qa-semantic-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.qa-semantic-spinner{animation:none}}

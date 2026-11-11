@@ -150,7 +150,7 @@ export async function loadTaskAiSource(taskId:string):Promise<string|null>{
   return data?.texto_extraido||null;
 }
 
-export type GeneratedTaskDraft=LocalDraft & {extractionSource:"nvidia"|"local"};
+export type GeneratedTaskDraft=LocalDraft & {extractionSource:"nvidia"|"local";extractionReason?:string};
 
 /** The provider can respond with HTTP 200 but no structured content. In that
  * case use the existing deterministic report parser, never an empty "success".
@@ -224,12 +224,20 @@ export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}=
       "auth_unconfigured","rate_limit_not_ready","rate_limited",
       "nvidia_rate_limited"
     ]);
-    if(recoverable.has(code)||(status===503&&!protectedErrors.has(code))){
+    const transportFailure=!status&&(!code||code==="");
+    const retryableHttp=[500,502,503,504,522,524].includes(status);
+    if(recoverable.has(code)||(retryableHttp&&!protectedErrors.has(code))||transportFailure){
       const local=localSourceDraft(relevant);
-      if(local)return {...local,extractionSource:"local"};
-      throw Error("A NVIDIA está indisponível e a extração local não conseguiu estruturar o texto integral. O conteúdo original foi preservado. Revise os campos manualmente.");
+      const cause=status?"HTTP "+status:transportFailure?"falha de conexão ou tempo limite":code;
+      if(local)return {...local,extractionSource:"local",extractionReason:cause};
+      throw Error("A NVIDIA não respondeu ("+cause+"). O texto integral da TF foi preservado, mas não foi possível extrair os campos localmente. Revise ou tente novamente.");
     }
-    throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
+    if(status===429||code==="rate_limited"||code==="nvidia_rate_limited")
+      throw Error(detail.message||"A NVIDIA atingiu a cota de chamadas. O documento foi preservado; tente novamente após a liberação.");
+    if(status===401||status===403)
+      throw Error(detail.message||"Sessão inválida para acessar a NVIDIA. Entre novamente no QA Hub.");
+    throw Error(detail.message||"A NVIDIA não concluiu a análise"+
+      (status?" (HTTP "+status+")":"")+". O texto foi mantido; tente novamente ou continue manualmente.");
   }
   if(data?.provider!=="NVIDIA Build")
     throw Error("A resposta da análise não foi autenticada como NVIDIA Build.");

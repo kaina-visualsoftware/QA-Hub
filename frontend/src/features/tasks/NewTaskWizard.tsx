@@ -20,6 +20,7 @@ import { generateWithNvidia } from "../generators/stream";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
 import type {ContextPreparation} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
+import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
 import {useSemanticContext} from "../generators/useSemanticContext";
 import {
@@ -329,7 +330,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       ] as const).filter(field=>!String(merged[field]??"").trim()).length;
       const missingHint=missing?` ${missing} campo(s) sem informação identificada; complete apenas com dados da TF.`:"";
       setNotice((response.extractionSource==="local"
-        ? "A NVIDIA não respondeu ou não retornou dados estruturados. O texto foi extraído localmente; confira os campos e cenários antes de salvar."
+        ? "A NVIDIA não concluiu a análise ("+(response.extractionReason??"resposta sem estrutura")+"). Extração local utilizada; confira os campos e cenários antes de salvar."
         : sourcePreparation.prepared.needsReview
           ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
           : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.")+missingHint);
@@ -563,6 +564,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         {work.kind==="cases"&&<button type="button" className="qa-wizard-work-cancel"
           onClick={()=>controller.current?.abort()}>Cancelar</button>}
       </div>
+      {work.kind==="task"&&<AiBusyStatus title="NVIDIA: preparando campos da tarefa" detail="Acompanhe o tempo decorrido. Se os modelos falharem, o sistema tentará uma extração local e preservará a fonte original."/>}
       <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
       <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
         {WORK_STEPS[work.kind].map((label,index)=><li key={label}

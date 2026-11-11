@@ -61,7 +61,7 @@ Deno.serve(async(req:Request)=>{
  if(!key)return respond(origin,503,{message:"A chave NVIDIA não está configurada."});
  const models=await freeModels(key);
  if(!models.length)return respond(origin,503,{message:"Nenhum modelo gratuito disponível."});
- let lastStatus=0,hadUnstructured=false;
+ let lastStatus=0,hadUnstructured=false,hadTimeout=false;
  for(const model of models){
   // Each upstream attempt consumes the same shared rolling quota (15/min).
   const claim=await db.rpc("qa_ai_claim_minute_request");
@@ -80,9 +80,11 @@ Deno.serve(async(req:Request)=>{
      Accept:"application/json"},
     body:JSON.stringify({model,messages:semanticMessages(goal,source,chunkId,text),
      temperature:0,max_tokens:3200,stream:false,
-     ...(model.startsWith("nvidia/nemotron-")?
+     response_format:{type:"json_object"},
+     ...(model==="z-ai/glm-5.3-flash"?{reasoning_effort:"low"}:
+      model.startsWith("nvidia/nemotron-")?
       {chat_template_kwargs:{enable_thinking:false}}:{})}),
-    signal:AbortSignal.timeout(52000)
+    signal:AbortSignal.timeout(30000)
    });
    lastStatus=response.status;
    if(response.status===401||response.status===403)
@@ -97,12 +99,15 @@ Deno.serve(async(req:Request)=>{
    return respond(origin,200,{chunkId,source,goal,
     facts:result.facts,unverified:result.unverified,model,provider:"NVIDIA Build"});
   }catch(reason){
+   if(reason instanceof DOMException&&reason.name==="TimeoutError")hadTimeout=true;
    console.warn("qa-context upstream",{model,
     reason:reason instanceof DOMException?reason.name:"request_failed"});
   }
  }
- return respond(origin,503,{error:"semantic_unavailable",status:lastStatus,
-  message:hadUnstructured?
+ return respond(origin,503,{error:hadTimeout?"semantic_timeout":"semantic_unavailable",status:lastStatus,
+  message:hadTimeout?
+   "Os modelos NVIDIA ultrapassaram o tempo de resposta desta parte. Os blocos concluídos foram mantidos; tente continuar ou escolha o modo rápido.":
+   hadUnstructured?
    "A NVIDIA não retornou citações estruturadas. O texto original permanece disponível.":
    "Não foi possível analisar esta parte. Retome sem perder o progresso."});
 });
