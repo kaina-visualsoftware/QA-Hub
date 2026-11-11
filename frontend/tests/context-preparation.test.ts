@@ -80,7 +80,7 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
    "Passos: Abrir venda, gerar baixa e consultar conta corrente.",
    "Resultado esperado: O saldo deve ser atualizado.",
    "## Requisitos","RF-902: A conciliação não pode duplicar a baixa."
-  ].join("\\n");
+  ].join("\n");
   const result=prepareQaContext(source,{limit:5500});
   expect(result.text).toContain("RF-902");
   expect(result.text).toContain("Cenário 1");
