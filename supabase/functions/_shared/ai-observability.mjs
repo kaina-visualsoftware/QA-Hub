@@ -6,7 +6,7 @@ const MODES=new Set(["discovery","task","diagram","diagram-summary","post","test
  "semantic:task","semantic:post","semantic:teste","revision:post_excerpt","revision:test_case"]);
 const MODELS=new Set(["catalog","z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"]);
 const OUTCOMES=new Set(["ok","timeout","length","empty","schema_invalid","context_exceeded",
- "rate_limited","upstream_5xx","http_error","aborted","upstream_error","stream_overflow"]);
+ "rate_limited","upstream_5xx","http_error","aborted","upstream_error","stream_overflow","breaker_open"]);
 const STAGES=new Set(["provider","quota","discovery"]);
 const FINISH_REASONS=new Set(["stop","length","content_filter","tool_calls","function_call"]);
 const clampInt=(v,limit=1000000000)=>typeof v==="number"&&Number.isFinite(v)&&v>=0?
