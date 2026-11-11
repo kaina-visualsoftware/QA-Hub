@@ -60,6 +60,11 @@ test('recovers tool-call JSON and array content',()=>{
   assert.equal(parseNvidiaDraft(parts).titulo,'Via content part');
 });
 
+test('rejects truncated JSON even when its prefix parses successfully',()=>{
+  const response={choices:[{finish_reason:'length',message:{content:'{"titulo":"Incompleto","descricao":"Resumo parcial"}'}}]};
+  assert.equal(parseNvidiaDraft(response),null);
+});
+
 test('returns null safely for unusable or incomplete responses',()=>{
   assert.equal(parseNvidiaDraft({choices:[{message:{content:''},finish_reason:'length'}]}),null);
   const partial={choices:[{message:{content:'JSON parcial: {"titulo":'}}]};

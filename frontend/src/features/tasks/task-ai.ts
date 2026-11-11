@@ -205,7 +205,7 @@ export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}=
   const prepared=aiText?cleanQaSourceText(aiText):relevant;
   if(!prepared.trim())throw Error("O contexto preparado da TF está vazio.");
   const {data,error}=await supabase.functions.invoke("qa-ai",{
-    body:{text:prepared},signal:AbortSignal.timeout(65000)
+    body:{text:prepared},signal:AbortSignal.timeout(95000)
   });
   if(error){
     let detail:{message?:string;error?:string}={};

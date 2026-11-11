@@ -115,6 +115,8 @@ function parseText(input){
   return canonical(output);
 }
 export function parseNvidiaDraft(response){
+  // A syntactically valid prefix is still incomplete when the model hits its token limit.
+  if(response?.choices?.[0]?.finish_reason==="length")return null;
   const inputs=[];
   if(response&&typeof response==='object'){
     const choice=response.choices?.[0]||{};
