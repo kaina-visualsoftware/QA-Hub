@@ -732,6 +732,32 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               <p>A resposta não trouxe casos no formato esperado. Tente gerar novamente.</p>
             </div>)}
       </div>}
+      {revisionBusy&&<div className="qa-revision-inflight" role="status">
+        Reescrevendo apenas o trecho selecionado…
+        <button type="button" onClick={()=>revisionController.current?.abort()}>
+          Cancelar revisão</button>
+      </div>}
+      {revisionProposal&&<section className="qa-revision-preview" aria-label="Comparação da revisão proposta">
+        <div>
+          <strong>Prévia da alteração — nenhuma edição aplicada ainda</strong>
+          <p>Compare o trecho anterior com a sugestão. O restante do conteúdo permanece intacto.</p>
+        </div>
+        <div className="qa-revision-diff">
+          <label>Antes<textarea readOnly rows={8} value={revisionProposal.before}/></label>
+          <label>Proposta da IA<textarea readOnly rows={8} value={revisionProposal.after}/></label>
+        </div>
+        <div className="qa-revision-preview-actions">
+          <button type="button" disabled={revisionBusy||busySave}
+            onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
+          <button type="button" disabled={revisionBusy||busySave}
+            onClick={applyRevision}>Aplicar somente neste trecho</button>
+        </div>
+      </section>}
+      {!!revisionHistory.length&&<details className="qa-revision-history">
+        <summary>Histórico de revisões nesta sessão ({revisionHistory.length})</summary>
+        <ol>{revisionHistory.map((event,index)=>
+          <li key={index}>{event.time} — {event.target} aprovado pelo QA</li>)}</ol>
+      </details>}
     </section>}
 
     </div>
