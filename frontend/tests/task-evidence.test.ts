@@ -22,6 +22,12 @@ describe("F5 — evidência literal, schema e confirmação humana",()=>{
   expect(result.review[0].status).toBe("verified");
   expect(result.verifiedCount).toBe(1);
  });
+ it("citação real sobre assunto diferente não comprova a afirmação do modelo",()=>{
+  const response=parseGroundedFieldReply(answer({titulo:"Corrigir taxas indevidas"},
+   {titulo:evidence}),source);
+  expect(response.values.titulo).toBe("");
+  expect(response.review[0].status).toBe("needs_review");
+ });
  it("número inventado e citação falsa ficam em needs_review, sem preencher campos",()=>{
   const result=parseGroundedFieldReply(answer({
    titulo:"Falha no pedido 99999",causa:"Causa não documentada"

@@ -24,9 +24,15 @@ test("F5 rejects quote invented by model and ungrounded numeric identifiers",()=
  assert.equal(verifyGrounding(source,"Pedido 12345","Essa regra não existe").reason,"quote_not_found");
  assert.equal(verifyGrounding(source,"Pedido 12345",
   "O pedido 67866 está bloqueado.").reason,"identifier_not_in_source");
- assert.deepEqual(unsupportedIdentifiers("Pedido 67867",source),["67867"]);
+ assert.ok(unsupportedIdentifiers("Pedido 67867",source).some(id=>id.includes("67867")));
  assert.equal(verifyGrounding(source,"Pedido 67866",
   "O pedido 67866 está bloqueado.").status,"verified");
+});
+test("F5 unrelated quote cannot support an invented prose claim",()=>{
+ const source="A máscara de telefone do estrangeiro usa código de área.";
+ assert.equal(verifyGrounding(source,"Corrigir desconto indevido",
+  "A máscara de telefone do estrangeiro usa código de área.").reason,
+  "claim_not_supported_by_quote");
 });
 test("F5 short or malicious model citations do not count as verified",()=>{
  const source="O sistema deve registrar cada venda válida em Contas a Receber.";

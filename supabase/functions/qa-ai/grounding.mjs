@@ -27,7 +27,7 @@ export function findEvidence(source,quote){
    if(pendingSpace){
     normalized+=" ";offsets.push(spacePos);pendingSpace=false;
    }
-   for(const letter of lowered){normalized+=letter;offsets.push(i);}
+   normalized+=lowered;for(let k=0;k<lowered.length;k++)offsets.push(i);
   }
   i+=delta;
  }
@@ -51,6 +51,13 @@ export function unsupportedIdentifiers(value,source){
  return [...names].filter(id=>!original.includes(id));
 }
 const suspicious=/\b(?:javascript:|ignore (?:all|previous) instructions|reveal (?:the )?(?:secret|token|password))\b/iu;
+const common=new Set(["para","como","pela","pelo","deve","quando","onde","esta","este","essa","esse","ainda","antes","depois","outros","outro","sobre","todos","serao","dados","sistema","tarefa","valor","campos","passos"]);
+function sharedEvidenceTerms(value,quote){
+ const terms=s=>new Set((evidenceKey(s).match(/[a-z0-9]{4,}/g)??[])
+  .filter(w=>!common.has(w)).map(w=>w.slice(0,5)));
+ const a=terms(value),b=terms(quote);
+ return a.size===0||[...a].some(term=>b.has(term));
+}
 /** A verified citation proves the quote occurs in submitted source, NOT that
  * every paraphrase is logically entailed. Unverifiable content stays in review.
  */
@@ -62,5 +69,9 @@ export function verifyGrounding(source,value,quote){
   reason:"identifier_not_in_source",quote:found.quote};
  if(suspicious.test(value))return {status:"needs_review",source_line:found.line,
   reason:"untrusted_instruction",quote:found.quote};
+ if(!sharedEvidenceTerms(value,found.quote))return {
+  status:"needs_review",source_line:found.line,
+  reason:"claim_not_supported_by_quote",quote:found.quote
+ };
  return {status:"verified",source_line:found.line,reason:null,quote:found.quote};
 }

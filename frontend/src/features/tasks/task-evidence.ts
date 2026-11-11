@@ -88,10 +88,17 @@ export function hasUnsupportedIdentifiers(value:string,source:string):boolean{
   .some(token=>!s.includes(token));
 }
 const suspicious=/\b(?:javascript:|ignore (?:all|previous) instructions|reveal (?:the )?(?:secret|token|password))\b/iu;
+const common=new Set(["para","como","pela","pelo","deve","quando","onde","esta","este","essa","esse","ainda","antes","depois","outros","outro","sobre","todos","serao","dados","sistema","tarefa","valor","campos","passos"]);
+function sharesTerms(value:string,quote:string):boolean{
+ const terms=(s:string)=>new Set((norm(s).match(/[a-z0-9]{4,}/g)??[])
+  .filter(w=>!common.has(w)).map(w=>w.slice(0,5)));
+ const words=terms(value),citation=terms(quote);
+ return words.size===0||[...words].some(word=>citation.has(word));
+}
 function verified(source:string,value:string,quote:string,line:number|null):boolean{
  const found=locateEvidence(source,quote);
  return found!==null&&found===line&&
-  !hasUnsupportedIdentifiers(value,source)&&!suspicious.test(value);
+  !hasUnsupportedIdentifiers(value,source)&&!suspicious.test(value)&&sharesTerms(value,quote);
 }
 export const EVIDENCE_REASONS:Record<string,string>={
  quote_not_found:"Citação não localizada no texto enviado",
@@ -100,7 +107,8 @@ export const EVIDENCE_REASONS:Record<string,string>={
  json_repaired:"Resposta JSON reparada; exige conferência",
  citation_unrelated_to_seed:"Citação não corresponde ao cenário indicado",
  line_mismatch:"Linha de origem divergente",
- unverified_model:"Evidência ainda não verificada"
+ unverified_model:"Evidência ainda não verificada",
+ claim_not_supported_by_quote:"A afirmação não compartilha termos relevantes com a citação"
 };
 export function parseGroundedFieldReply(data:unknown,source:string){
  const response=fieldsReply.safeParse(data);
