@@ -17,7 +17,7 @@ for(const name of edgePaths){
     "Provider attempts must still count against the shared quota.");
  });
 }
-test("task extraction bounds two provider attempts inside frontend's 65s timeout",()=>{
+test("task extraction bounds two provider attempts inside frontend's 95s timeout",()=>{
  const src=readFileSync(new URL("../supabase/functions/qa-ai/index.ts",import.meta.url),"utf8");
  const request=readFileSync(new URL("../supabase/functions/qa-ai/request.mjs",import.meta.url),"utf8");
  const frontend=readFileSync(new URL("../frontend/src/features/tasks/task-ai.ts",import.meta.url),"utf8");
