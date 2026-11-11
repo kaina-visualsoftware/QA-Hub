@@ -147,6 +147,7 @@ async function backend(route){
       return send(null,201);
     }
   }
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
   if(path.endsWith("/rest/v1/qa_requisito_fontes")){
     if(method==="GET")return send(sources);
     if(method==="POST"){
