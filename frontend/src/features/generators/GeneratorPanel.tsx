@@ -278,9 +278,6 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   }
   async function saveConflictDecision(item:SemanticConflict,decision:ConflictDecision){
     if(auditBusy||!formOwn||!context||generating||busySave)return;
-    if(decision==="pending"){
-      semantic.setConflictDecision(item.id,decision);return;
-    }
     setAuditBusy(true);setError("");
     try{
       await recordConflictDecision(task.id,userId,
