@@ -10,7 +10,7 @@ const labels={
  conflict_decision:"Divergência revisada",
  post_revision_applied:"Trecho do post aprovado",
  test_revision_applied:"Caso revisado aprovado",
- coverage_generation_prepared:"Casos incrementais preparados"
+ coverage_generation_requested:"Geração incremental solicitada"
 };
 export function AuditTrailPanel({taskId,userId,taskText,approved,onChangedCodes}:{
  taskId:string;userId:string;taskText:string;approved:ApprovedSource[];
