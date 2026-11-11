@@ -210,8 +210,25 @@ export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}=
   if(error){
     let detail:{message?:string;error?:string}={};
     try{detail=await error.context?.json?.()??{};}catch{}
-    if(detail.error==="nvidia_not_configured")
-      throw Error("A NVIDIA ainda não está configurada. Preencha manualmente ou tente mais tarde.");
+    const code=detail.error??"";
+    const status=typeof error.context?.status==="number"?error.context.status:0;
+    // Provider outages must never block a recoverable TF source. We only use
+    // the full, unchanged input for the deterministic local parser. Do not
+    // hide authentication, upstream-key, quota or database failures.
+    const recoverable=new Set([
+      "ai_temporarily_unavailable","free_model_unavailable",
+      "model_context_exceeded","nvidia_not_configured"
+    ]);
+    const protectedErrors=new Set([
+      "unauthorized","forbidden","nvidia_key_invalid",
+      "auth_unconfigured","rate_limit_not_ready","rate_limited",
+      "nvidia_rate_limited"
+    ]);
+    if(recoverable.has(code)||(status===503&&!protectedErrors.has(code))){
+      const local=localSourceDraft(relevant);
+      if(local)return {...local,extractionSource:"local"};
+      throw Error("A NVIDIA está indisponível e a extração local não conseguiu estruturar o texto integral. O conteúdo original foi preservado. Revise os campos manualmente.");
+    }
     throw Error(detail.message||"Falha ao analisar a TF com IA NVIDIA.");
   }
   if(data?.provider!=="NVIDIA Build")
