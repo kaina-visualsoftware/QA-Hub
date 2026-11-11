@@ -7,19 +7,19 @@ import {messagesForGenerator} from "./prompts.mjs";
 const MODELS=["z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"];
 const BASE="https://integrate.api.nvidia.com/v1";
 const ORIGINS=new Set(["https://kaina-visualsoftware.github.io","http://127.0.0.1:8765","http://localhost:8765"]);
-function headers(origin){
+function headers(origin:string|null){
   return {"Access-Control-Allow-Origin":origin&&ORIGINS.has(origin)?origin:"https://kaina-visualsoftware.github.io",
     "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type",
     "Access-Control-Allow-Methods":"POST, OPTIONS","Cache-Control":"no-store","Vary":"Origin"};
 }
-function json(origin,status,body,extraHeaders={},trace=""){
+function json(origin:string|null,status:number,body:Record<string,unknown>,extraHeaders:Record<string,string>={},trace:string=""){
   const payload=status>=400?errorBody(status,body,trace):body;
   return new Response(JSON.stringify(payload),{status,headers:{...headers(origin),
     "Content-Type":"application/json; charset=utf-8",
     "Access-Control-Expose-Headers":"Retry-After, X-Request-ID",
     ...errorHeaders(status>=400?body:{},extraHeaders,trace)}});
 }
-async function allowedModels(key,trace){
+async function allowedModels(key:string,trace:string){
   const started=Date.now();
   let status=0,outcome="upstream_error";
   try{
@@ -28,7 +28,7 @@ async function allowedModels(key,trace){
     if(!r.ok)return MODELS;
     const d=await r.json();
     if(!Array.isArray(d.data))return MODELS;
-    const found=new Set(d.data.map(x=>x.id));
+    const found=new Set(d.data.map((x:{id?:string})=>x.id));
     return MODELS.filter(m=>found.has(m));
   }catch(error){outcome=exceptionOutcome(error);return MODELS;}
   finally{
@@ -37,22 +37,22 @@ async function allowedModels(key,trace){
       outcome,attempt:0,fallback_model:false});
   }
 }
-function readDelta(part){
+function readDelta(part:any){
   const msg=part?.choices?.[0]?.delta;
   if(typeof msg?.content==="string")return msg.content;
-  if(Array.isArray(msg?.content))return msg.content.map(p=>p.text||"").join("");
+  if(Array.isArray(msg?.content))return msg.content.map((p:{text?:string})=>p.text||"").join("");
   return "";
 }
-const sse=(event,body)=>"event: "+event+"\ndata: "+JSON.stringify(body)+"\n\n";
-function sendStream(upstream,origin,model,telemetry,trace){
+const sse=(event:string,body:unknown)=>"event: "+event+"\ndata: "+JSON.stringify(body)+"\n\n";
+function sendStream(upstream:Response,origin:string|null,model:string,telemetry:Record<string,unknown>,trace:string){
   const decoder=new TextDecoder();
   const encoder=new TextEncoder();
   return new Response(new ReadableStream({
     async start(controller){
-      const send=(e,d)=>controller.enqueue(encoder.encode(sse(e,d)));
-      let content="",raw="",finishReason=null,stopped=false,usage=null,outcome="empty";
-      const reader=upstream.body.getReader();
-      function processEvent(eventText){
+      const send=(e:string,d:unknown)=>controller.enqueue(encoder.encode(sse(e,d)));
+      let content="",raw="",finishReason:string|null=null,stopped=false,usage:unknown=null,outcome="empty";
+      const reader=upstream.body!.getReader();
+      function processEvent(eventText:string){
         const data=eventText.split(/\r?\n/).filter(l=>l.startsWith("data:")).map(l=>l.slice(5).trimStart()).join("\n");
         if(!data)return;
         if(data==="[DONE]"){stopped=true;return;}
@@ -78,7 +78,7 @@ function sendStream(upstream,origin,model,telemetry,trace){
           let pos;
           while((pos=raw.search(/\r?\n\r?\n/))>=0){
             const event=raw.slice(0,pos);
-            const separator=raw.slice(pos).match(/^\r?\n\r?\n/)[0];
+            const separator=raw.slice(pos).match(/^\r?\n\r?\n/)?.[0]??"\n\n";
             raw=raw.slice(pos+separator.length);
             processEvent(event);
             if(stopped)break;
@@ -92,7 +92,7 @@ function sendStream(upstream,origin,model,telemetry,trace){
           send("done",{model,truncated:finishReason==="length",characters:content.length});
         }
       }catch(error){
-        outcome=error?.message==="stream_overflow"?"stream_overflow":exceptionOutcome(error);
+        outcome=error instanceof Error&&error.message==="stream_overflow"?"stream_overflow":exceptionOutcome(error);
         console.warn("qa-generators stream failure",{model,reason:error instanceof DOMException?error.name:"read_failed"});
         send("error",{message:"A conexão com a NVIDIA foi interrompida. O texto parcial pode ser recuperado."});
       }finally{
@@ -109,7 +109,7 @@ function sendStream(upstream,origin,model,telemetry,trace){
 Deno.serve(async req=>{
   const trace=correlationId(req.headers.get("x-correlation-id"));
   const origin=req.headers.get("Origin");
-  const reply=(status,body,extra={})=>json(origin,status,body,extra,trace);
+  const reply=(status:number,body:Record<string,unknown>,extra:Record<string,string>={})=>json(origin,status,body,extra,trace);
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:headers(origin)});
   if(req.method!=="POST")return reply(405,{error:"method_not_allowed",message:"Método não permitido."});
   if(origin&&!ORIGINS.has(origin))return reply(403,{error:"forbidden",message:"Origem não autorizada."});
@@ -121,7 +121,7 @@ Deno.serve(async req=>{
   const {data:identity,error:authError}=await db.auth.getUser(auth.slice(7));
   if(authError||!identity.user||identity.user.is_anonymous)
     return reply(401,{error:"unauthorized",message:"Faça login novamente para gerar com IA."});
-  let data;
+  let data:{mode?:string;tarefa?:string;requisito?:string}|null;
   try{
     if(Number(req.headers.get("Content-Length")||0)>120000)throw Error("large");
     data=await req.json();
