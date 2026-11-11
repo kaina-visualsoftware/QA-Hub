@@ -197,6 +197,70 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       visibleIndices.has(index) ? {...item,selected:value} : item));
   }
 
+  async function requestRevision(operation:ReviewOperation,caseIndex?:number){
+    if(!revisionConsent||generating||busySave||revisionBusy||!context||!formOwn)return;
+    const input=lastGenerationInput.current??{
+      task:context.prepared.task.text,requirements:context.prepared.requirements?.text??""
+    };
+    const source=operation==="post_excerpt"?content:null;
+    const selected=operation==="post_excerpt"?postSelection:null;
+    const candidate=operation==="test_case"&&caseIndex!==undefined?cases[caseIndex]:null;
+    const current=operation==="post_excerpt"&&selected?selected.oldText:
+      candidate?caseAsMarkdown(candidate):"";
+    if(!current.trim()){setError("Selecione um trecho ou caso válido antes de revisar.");return;}
+    if(operation==="post_excerpt"&&selected&&content.slice(selected.start,selected.end)!==selected.oldText){
+      setError("A seleção mudou. Escolha novamente o trecho.");return;
+    }
+    const abort=new AbortController();revisionController.current=abort;
+    setRevisionBusy(true);setRevisionProposal(null);setError("");setMessage("");
+    try{
+      const proposal=await requestTargetedRevision({
+        operation,task:input.task,requirements:input.requirements,
+        current,format:operation==="post_excerpt"?postFormat:"markdown",
+        instructions:revisionInstructions
+      },abort.signal);
+      if(abort.signal.aborted)throw Error("A revisão foi cancelada.");
+      if(operation==="post_excerpt"&&selected){
+        // Validate against the latest content when accepting; never overwrite other edits.
+        setRevisionProposal({operation,before:current,after:proposal,
+          postSource:source??"",selection:selected});
+      }else if(candidate&&caseIndex!==undefined){
+        setRevisionProposal({operation,before:current,after:proposal,
+          caseIndex,caseFingerprint:JSON.stringify(candidate)});
+      }
+      setMessage("Proposta pronta. Compare as versões e aplique somente se estiver correta.");
+    }catch(reason){setError(abort.signal.aborted?
+      "Revisão cancelada. O rascunho anterior continua intacto.":
+      messageOf(reason)+" Nenhum conteúdo foi substituído.");}
+    finally{setRevisionBusy(false);revisionController.current=null;}
+  }
+  function applyRevision(){
+    const item=revisionProposal;
+    if(!item||generating||busySave||revisionBusy)return;
+    try{
+      if(item.operation==="post_excerpt"&&item.selection){
+        const updated=insertReviewedExcerpt(content,item.selection,item.after);
+        setContent(updated);setDirtyOutput(true);setCompleted(false);
+        setPostSelection(null);
+      }else if(item.operation==="test_case"&&item.caseIndex!==undefined){
+        const current=cases[item.caseIndex];
+        if(!current||JSON.stringify(current)!==item.caseFingerprint)
+          throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
+        const updated=applyCaseRevision(current,item.after);
+        setCases(list=>list.map((value,index)=>
+          index===item.caseIndex?updated:value));
+        setDirtyOutput(true);setCompleted(false);
+      }else throw Error("Proposta de revisão inválida.");
+      setRevisionHistory(current=>[...current.slice(-19),{
+        target:item.operation==="post_excerpt"?"Trecho do post":
+          "Caso "+String((item.caseIndex??0)+1),
+        time:new Date().toLocaleString("pt-BR")
+      }]);
+      setRevisionProposal(null);
+      setMessage("Alteração aplicada somente ao trecho selecionado. Revise antes de salvar.");
+    }catch(reason){setError(messageOf(reason));}
+  }
+
   async function generate() {
     if (!canSend || !context) return;
     // Never discard human-edited drafts just because the user requests another answer.
