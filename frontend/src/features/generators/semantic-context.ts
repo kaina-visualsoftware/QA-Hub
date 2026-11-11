@@ -1,3 +1,4 @@
+import {estimateContextTokens} from "../../lib/token-budget";
 /** F2/F3 — explicit source-by-source semantic context, with client-side citation verification.
  * A quote must match the original exact substring. No ungrounded model statement
  * is inserted in the generated post/cases payload.
@@ -18,6 +19,7 @@ const CATEGORY_SET=new Set<SemanticCategory>([
 ]);
 const limits={TF:30000,REQ:20000} as const;
 export const SEMANTIC_CHUNK_SIZE=9000;
+export const SEMANTIC_CHUNK_TOKEN_BUDGET=6000; // estimated, not tokenizer-exact
 export const SEMANTIC_REQUEST_BATCH=8;
 export const SEMANTIC_MAX_CHUNKS=75;
 const identifiers=(text:string)=>new Set((text.match(/\b(?:RF|RNF|REQ|CR|CT)[-_ ]?\d{1,6}\b/gi)??[])
@@ -32,14 +34,31 @@ function sourceChunks(input:string,source:"TF"|"REQ"):SemanticChunk[]{
  const chunks:SemanticChunk[]=[];
  let pos=0,line=1,index=0;
  while(pos<input.length){
-  const max=Math.min(input.length,pos+SEMANTIC_CHUNK_SIZE);
+  let max=Math.min(input.length,pos+SEMANTIC_CHUNK_SIZE);
+  // F3: independently cap the estimated token density of Unicode-rich text.
+  // Binary search avoids splitting only on character count for CJK and emoji.
+  if(estimateContextTokens(input.slice(pos,max))>SEMANTIC_CHUNK_TOKEN_BUDGET){
+   let low=pos+1,high=max;
+   while(low<high){
+    const middle=Math.floor((low+high+1)/2);
+    if(estimateContextTokens(input.slice(pos,middle))<=SEMANTIC_CHUNK_TOKEN_BUDGET)
+     low=middle;
+    else high=middle-1;
+   }
+   max=Math.max(pos+1,low);
+  }
+  // Keep surrogate pairs intact. This prevents broken emojis at chunk edges.
+  if(max<input.length&&max>pos&&
+   /[\uD800-\uDBFF]/.test(input.charAt(max-1))&&
+   /[\uDC00-\uDFFF]/.test(input.charAt(max)))max--;
   let stop=max;
   if(max<input.length){
    const window=input.slice(pos,max);
    const section=window.lastIndexOf("\n## ");
    const breakLine=window.lastIndexOf("\n");
-   if(section>SEMANTIC_CHUNK_SIZE*.4)stop=pos+section+1;
-   else if(breakLine>SEMANTIC_CHUNK_SIZE*.5)stop=pos+breakLine+1;
+   const size=max-pos;
+   if(section>size*.4)stop=pos+section+1;
+   else if(breakLine>size*.5)stop=pos+breakLine+1;
   }
   const text=input.slice(pos,stop);
   const endLine=line+(text.match(/\n/g)?.length??0);

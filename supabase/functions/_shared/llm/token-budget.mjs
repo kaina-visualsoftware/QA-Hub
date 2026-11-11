@@ -44,7 +44,7 @@ export function normalizedMode(mode){
 }
 /** @param {{messages?:unknown, model?:string, mode?:string,
  * maxOutputTokens?:number, marginRatio?:number}} args */
-export function planTokenBudget({messages,model,mode="task",maxOutputTokens=8192,
+export function planTokenBudget({messages,model="",mode="task",maxOutputTokens=8192,
   marginRatio=.18}={}){
  const configured=APP_CONTEXT_BUDGETS[normalizedMode(mode)];
  if(!MODEL_CONTEXT_PUBLISHED[model])throw TypeError("Modelo não registrado.");
