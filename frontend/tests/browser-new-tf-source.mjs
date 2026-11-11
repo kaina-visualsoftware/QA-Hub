@@ -351,11 +351,18 @@ try{
   const longSource="Pedido 88771. Condição de desconto e regra fiscal. ".repeat(2200)+" MARCADOR FINAL DO RELATÓRIO";
   await wizard.getByLabel("Informações da tarefa").fill(longSource);
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),longSource);
+  const compact=wizard.getByRole("region",{name:"Compactador de contexto"});
+  await compact.waitFor();
+  assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true,
+    "Large sources require explicit review before NVIDIA receives an extract.");
+  await compact.getByText(/trechos omitidos/).first().waitFor();
+  await compact.getByRole("checkbox",{name:/Revisei o contexto compactado/}).check();
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
-  assert.ok(aiRequests.at(-1).text.length>80000,"A context beyond both old caps must reach the Edge Function");
-  assert.ok(aiRequests.at(-1).text.endsWith("MARCADOR FINAL DO RELATÓRIO"),"No tail truncation");
+  assert.ok(aiRequests.at(-1).text.length<=28000,"Only the reviewed selection fits the model budget");
+  assert.ok(aiRequests.at(-1).text.includes("MARCADOR FINAL DO RELATÓRIO"),
+    "The final evidence line must survive context preparation");
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("button",{name:/Finalizar com/}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();

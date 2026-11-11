@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
@@ -17,6 +17,9 @@ import {
 } from "./task-ai";
 import type { SuggestedScenario } from "./task-ai";
 import { generateWithNvidia } from "../generators/stream";
+import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
+import type {ContextPreparation} from "../generators/context-preparation";
+import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
 import {
   prepareRequirementFile, registerRequirementFile
 } from "../requirements/requirements-data";
@@ -30,8 +33,6 @@ const blank = (): TaskDraft => ({
   versao: "", ambiente: "", base_teste: "", empresa: "", testador: "",
   explicacao: "", causa: "", correcao: "", conclusao: "", observacoes: ""
 });
-const CASE_TASK_LIMIT = 30000;
-const REQUIREMENT_LIMIT = 20000;
 const MAX_FILES = 6;
 
 type WorkKind="files"|"task"|"cases"|"save";
@@ -73,14 +74,6 @@ function assertReadable(files: PreparedFile[]) {
     ". Para incluir o conteúdo na análise da IA, cole o texto ou envie um arquivo com texto selecionável."
   );
 }
-function validateContext(text: string, limit: number, name: string) {
-  if(!text.trim()) throw Error("Informe " + name + " antes de gerar.");
-  if(text.length > limit) throw Error(
-    name + " possui " + text.length.toLocaleString("pt-BR") + " caracteres. " +
-    "O limite desta geração é " + limit.toLocaleString("pt-BR") +
-    ". Remova ou divida os documentos; o sistema não descarta trechos silenciosamente."
-  );
-}
 function keyOf(item: Pick<SuggestedScenario,"titulo">) {
   return item.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/^cen(?:ario|ário)\s*\d+\s*[-—–:.]?\s*/,"")
@@ -107,6 +100,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [cases,setCases] = useState<SuggestedScenario[]>([]);
   const [consentTask,setConsentTask] = useState(false);
   const [consentCases,setConsentCases] = useState(false);
+  const [compactApprovedTask,setCompactApprovedTask] = useState(false);
+  const [compactApprovedCases,setCompactApprovedCases] = useState(false);
   const [aiUsed,setAiUsed] = useState(false);
   const [localFallback,setLocalFallback] = useState(false);
   const [reading,setReading] = useState(false);
@@ -125,6 +120,43 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const busy=reading||analyzing||generating||finishing;
+  type SourcePreparation={original:string;prepared:ContextPreparation}|{error:string};
+  const sourcePreparation=useMemo<SourcePreparation|null>(()=>{
+    const original=combine("",sourceText,taskFiles);
+    if(!original.trim())return null;
+    try{
+      return {original,prepared:prepareQaContext(sanitizeAiContext(original),{
+        limit:28000,description:"criação de TF"
+      })};
+    }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
+  },[sourceText,taskFiles]);
+  type CasePreparation={
+    originalTask:string;originalRequirements:string;
+    prepared:ReturnType<typeof prepareGeneratorContext>
+  }|{error:string};
+  const casePreparation=useMemo<CasePreparation|null>(()=>{
+    if(step!==3)return null;
+    try{
+      const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
+      const additionalFacts=[
+        draft.conclusao?"Conclusão registrada: "+draft.conclusao:"",
+        draft.observacoes?"Observações registradas: "+draft.observacoes:""
+      ].filter(Boolean).join("\n\n");
+      const taskText=sanitizeAiContext([
+        taskToGeneratorText(draft),additionalFacts,fullSource,
+        cases.length?"CASOS JÁ IDENTIFICADOS (não repetir):\n"+
+          cases.map(item=>"- "+item.titulo).join("\n"):""
+      ].filter(Boolean).join("\n\n"));
+      const requirements=sanitizeAiContext(
+        combine("REQUISITOS",requirementText,requirementFiles));
+      if(!taskText.trim())throw Error("Informe o contexto da TF antes de gerar.");
+      return {originalTask:taskText,originalRequirements:requirements,
+        prepared:prepareGeneratorContext(taskText,requirements)};
+    }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
+  },[step,draft,sourceText,taskFiles,cases,requirementText,requirementFiles]);
+  useEffect(()=>setCompactApprovedTask(false),[sourceText,taskFiles]);
+  useEffect(()=>setCompactApprovedCases(false),[casePreparation]);
+
 
   useEffect(()=>{
     if(open && !wasOpen.current) setRecoverable(loadNewTaskDraft(userId));
@@ -242,10 +274,17 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     // Avoid artificial headings in the content submitted to the model.
     const snapshot=combine("",sourceText,taskFiles);
     try{
+      if(!sourcePreparation||!("prepared" in sourcePreparation))throw Error(
+        sourcePreparation&&"error" in sourcePreparation?sourcePreparation.error:
+          "Não foi possível preparar o contexto.");
+      if(sourcePreparation.prepared.needsReview&&!compactApprovedTask)
+        throw Error("Revise e autorize o contexto compactado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
-      const response=await generateTaskAiDraft(snapshot);
+      const response=await generateTaskAiDraft(snapshot,{
+        aiText:sourcePreparation.prepared.mode==="integral"?undefined:sourcePreparation.prepared.text
+      });
       setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
@@ -275,7 +314,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setStep(2);
       setNotice(response.extractionSource==="local"
         ? "A NVIDIA não retornou dados estruturados. Foi usada a extração local; revise todos os campos."
-        : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
+        : sourcePreparation.prepared.needsReview
+          ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
+          : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
     finally{setAnalyzing(false);setWork(null);}
   }
@@ -326,25 +367,16 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     let firstChunk=true;
     try{
       assertReadable(taskFiles);assertReadable(requirementFiles);
-      const fullSource=combine("TEXTO ORIGINAL",sourceText,taskFiles);
-      const additionalFacts=[
-        draft.conclusao?"Conclusão registrada: "+draft.conclusao:"",
-        draft.observacoes?"Observações registradas: "+draft.observacoes:""
-      ].filter(Boolean).join("\n\n");
-      const context=sanitizeAiContext([
-        taskToGeneratorText(draft),additionalFacts,fullSource,
-        cases.length?"CASOS JÁ IDENTIFICADOS (não repetir):\n"+
-          cases.map(item=>"- "+item.titulo).join("\n"):""
-      ].filter(Boolean).join("\n\n"));
-      const requirements=sanitizeAiContext(
-        combine("REQUISITOS",requirementText,requirementFiles)
-      );
-      validateContext(context,CASE_TASK_LIMIT,"O contexto completo da TF");
-      if(requirements.length>REQUIREMENT_LIMIT)
-        throw Error("Os requisitos excedem 20.000 caracteres. Remova ou divida os arquivos.");
+      if(!casePreparation||!("prepared" in casePreparation))
+        throw Error(casePreparation&&"error" in casePreparation?casePreparation.error:
+          "Não foi possível preparar os casos.");
+      const taskPacked=casePreparation.prepared.task;
+      const reqPacked=casePreparation.prepared.requirements;
+      if((taskPacked.needsReview||reqPacked?.needsReview)&&!compactApprovedCases)
+        throw Error("Revise e autorize os contextos compactados antes de enviar.");
       setWork({kind:"cases",phase:1,detail:"Aguardando a NVIDIA elaborar novos cenários, variações e regressões."});
       const response=await generateWithNvidia(
-        "teste",context,requirements,chunk=>{
+        "teste",taskPacked.text,reqPacked?.text??"",chunk=>{
           if(firstChunk){
             firstChunk=false;
             setWork({kind:"cases",phase:2,detail:"Recebendo o roteiro de testes gerado."});
@@ -554,6 +586,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {!!taskContextLength&&<p className="qa-wizard-size">
         {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
       </p>}
+      {sourcePreparation&&"error" in sourcePreparation&&<p role="alert" className="notice error">{sourcePreparation.error}</p>}
+      {sourcePreparation&&"prepared" in sourcePreparation&&
+        <ContextPreparationPanel
+          items={[{label:"TF",result:sourcePreparation.prepared,original:sourcePreparation.original}]}
+          acknowledged={compactApprovedTask} onAcknowledge={setCompactApprovedTask} disabled={busy}/>}
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
@@ -567,7 +604,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
         <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
-          !taskContextLength}
+          !taskContextLength||!sourcePreparation||!("prepared" in sourcePreparation)||
+          (sourcePreparation.prepared.needsReview&&!compactApprovedTask)}
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
@@ -706,7 +744,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </p>}
       <div className="qa-wizard-source-panel">
         <label className="field">Requisitos e critérios de aceite (opcional)
-          <textarea id="qa-wizard-requirement" rows={5} maxLength={20000}
+          <textarea id="qa-wizard-requirement" rows={5} maxLength={250000}
             value={requirementText} disabled={busy}
             onChange={event=>{setRequirementText(event.target.value);setConsentCases(false);}}
             placeholder="Cole os requisitos funcionais, regras de negócio, exceções e critérios de aceite."/>
@@ -716,6 +754,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <p>Anexe PDFs, DOCX, TXT ou MD com regras complementares.</p>
         </div>
       </div>
+      {casePreparation&&"error" in casePreparation&&<p role="alert" className="notice error">{casePreparation.error}</p>}
+      {casePreparation&&"prepared" in casePreparation&&<ContextPreparationPanel
+        items={[
+          {label:"TF",result:casePreparation.prepared.task,original:casePreparation.originalTask},
+          ...(casePreparation.prepared.requirements?[{label:"Requisitos",
+            result:casePreparation.prepared.requirements,original:casePreparation.originalRequirements}]:[])
+        ]}
+        acknowledged={compactApprovedCases} onAcknowledge={setCompactApprovedCases} disabled={busy}/>}
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
@@ -728,7 +774,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onChange={event=>setConsentCases(event.target.checked)}/>
           Autorizo enviar o contexto da TF e os requisitos à NVIDIA para gerar casos.
         </label>
-        <Button className="qa-wizard-primary" isDisabled={busy||!consentCases}
+        <Button className="qa-wizard-primary" isDisabled={busy||!consentCases||
+          !casePreparation||!("prepared" in casePreparation)||
+          ((casePreparation.prepared.task.needsReview||
+            casePreparation.prepared.requirements?.needsReview)&&!compactApprovedCases)}
           onPress={()=>void generateCases()}>
           {generating?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}

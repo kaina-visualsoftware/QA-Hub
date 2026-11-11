@@ -192,15 +192,20 @@ function completeSourceDraft(fromAi:LocalDraft,local:LocalDraft|null):LocalDraft
   };
 }
 
-export async function generateTaskAiDraft(text:string):Promise<GeneratedTaskDraft>{
+export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}={}):Promise<GeneratedTaskDraft>{
   const source=text.trim();
   if(!source)throw Error("Informe a descrição da tarefa para gerar com IA.");
   // Preserve the original report separately; do not send copied UI controls to NVIDIA.
   const relevant=cleanQaSourceText(source);
   if(!relevant||relevant.length<10)
     throw Error("A descrição contém apenas elementos de interface. Cole o conteúdo da TF.");
+  // For extremely large TFs, the QA reviews an explicit extractive
+  // selection before sending it. The full original remains available for the
+  // local parser and is archived unchanged once the TF is created.
+  const prepared=aiText?cleanQaSourceText(aiText):relevant;
+  if(!prepared.trim())throw Error("O contexto preparado da TF está vazio.");
   const {data,error}=await supabase.functions.invoke("qa-ai",{
-    body:{text:relevant},signal:AbortSignal.timeout(65000)
+    body:{text:prepared},signal:AbortSignal.timeout(65000)
   });
   if(error){
     let detail:{message?:string;error?:string}={};

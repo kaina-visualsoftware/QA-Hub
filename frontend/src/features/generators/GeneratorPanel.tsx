@@ -24,6 +24,8 @@ import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
+import {prepareGeneratorContext} from "./context-preparation";
+import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
 import { renderPostFormat, validateBbcodePost } from "./post-format";
 import type {PostOutputFormat} from "./post-format";
@@ -32,7 +34,8 @@ import type { GeneratorMode } from "./stream";
 
 type GeneratorAssembly =
   | { kind: "ready"; taskContext: ReturnType<typeof composeFullTaskContext>;
-      approved: ReturnType<typeof composeRequirementContext> }
+      approved: ReturnType<typeof composeRequirementContext>;
+      prepared: ReturnType<typeof prepareGeneratorContext> }
   | { kind: "error"; error: string };
 
 type Props = {
@@ -63,6 +66,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [selected, setSelected] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [partialConsent, setPartialConsent] = useState(false);
+  const [compactApproved, setCompactApproved] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activityPhase, setActivityPhase] = useState<ActivityPhase>("connecting");
   const [showSetup, setShowSetup] = useState(true);
@@ -109,12 +113,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const assembly = useMemo<GeneratorAssembly | null>(() => {
     if (!support.data || !requirements.data) return null;
     try {
-      const taskContext = composeFullTaskContext(task, support.data, { limit: 30000 });
+      const taskContext = composeFullTaskContext(task, support.data, { limit: 250000 });
       const approved = composeRequirementContext(
         requirements.data, selected, sanitizeAiContext(combinedInstructions(mode,preset,extra)),
-        { taskId: task.id, limit: 20000 }
+        { taskId: task.id, limit: 250000 }
       );
-      return { kind: "ready", taskContext, approved };
+      const prepared=prepareGeneratorContext(taskContext.text,approved.text);
+      return { kind: "ready", taskContext, approved, prepared };
     } catch (reason) {
       return { kind: "error", error: messageOf(reason) };
     }
@@ -122,14 +127,18 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const generationError = assembly?.kind === "error" ? assembly.error : "";
   const context = assembly?.kind === "ready" ? assembly : null;
   const missingSources = context?.taskContext.failedSources ?? [];
+  const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
+    context.prepared.requirements?.needsReview));
   useEffect(()=>{
     setConsent(false);
     setPartialConsent(false);
+    setCompactApproved(false);
   },[context?.taskContext.text,context?.approved.text]);
   const canSend = formOwn && !generating && !busySave && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
-    (!missingSources.length || partialConsent);
+    (!missingSources.length || partialConsent) &&
+    (!needsCompactReview || compactApproved);
 
   const available = useMemo(() =>
     markScenarioDuplicates(cases, scenarios)
@@ -183,7 +192,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       // All identity, support and approved requirements are scoped to this TF.
       // The full redacted payload is inspectable on screen before consent.
       const response = await generateWithNvidia(
-        mode, context.taskContext.text, context.approved.text,
+        mode, context.prepared.task.text, context.prepared.requirements?.text??"",
         (chunk) => {
           setActivityPhase("receiving");
           setRaw((previous) => previous + chunk);
@@ -196,7 +205,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       let newCases = 0;
       if (mode === "post") {
         const formatted = formatGeneratedPost(response.text, {
-          taskText: context.taskContext.text
+          taskText: context.prepared.task.text
         });
         setCanonicalPost(formatted);
         setContent(renderPostFormat(formatted,postFormat));
@@ -247,7 +256,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       try {
         const { error: historyError } = await supabase.from("qa_generator_posts").insert({
           user_id: userId, ts: Date.now(), titulo: title,
-          tarefa: context.taskContext.text, requisito: context.approved.text, md: content
+          tarefa: context.prepared.task.text, requisito: context.prepared.requirements?.text??"", md: content
         });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
@@ -280,8 +289,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       try {
         const { error: historyError } = await supabase.from("qa_generator_tests").upsert({
           id: generationId, user_id: userId, ts: Date.now(),
-          titulo: task.titulo, tarefa: context.taskContext.text,
-          requisito: context.approved.text, md: content, exec: {}
+          titulo: task.titulo, tarefa: context.prepared.task.text,
+          requisito: context.prepared.requirements?.text??"", md: content, exec: {}
         }, { onConflict: "id" });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
@@ -425,6 +434,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <p>O formato selecionado será usado na prévia, ao copiar e ao salvar.
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
+      <ContextPreparationPanel
+        items={[
+          {label:"TF",result:context.prepared.task,original:context.taskContext.text},
+          ...(context.prepared.requirements?[{label:"Requisitos e complemento",
+            result:context.prepared.requirements,original:context.approved.text}]:[])
+        ]}
+        acknowledged={compactApproved} onAcknowledge={setCompactApproved}
+        disabled={generating||busySave}/>
       {missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
@@ -435,8 +452,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </div>}
       <details className="generator-context">
         <summary>Ver dados enviados à IA</summary>
-        <label className="field mt-3">Contexto da TF<textarea readOnly rows={9} value={context.taskContext.text} /></label>
-        <label className="field mt-3">Requisitos e complemento<textarea readOnly rows={5} value={context.approved.text} /></label>
+        <label className="field mt-3">Contexto da TF enviado<textarea readOnly rows={9} value={context.prepared.task.text} /></label>
+        <label className="field mt-3">Requisitos e complemento enviados<textarea readOnly rows={5} value={context.prepared.requirements?.text??""} /></label>
       </details>
       <div className="qa-ai-submit-row">
         <label className="qa-ai-consent-compact">
