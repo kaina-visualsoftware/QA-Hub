@@ -19,11 +19,12 @@ export function imageFromClipboard(event:React.ClipboardEvent):File|null {
   const extension=file.type==="image/jpeg"?"jpg":file.type==="image/webp"?"webp":"png";
   return new File([file],"captura-"+Date.now()+"."+extension,{type:file.type});
 }
-export function ScenarioEvidencePanel({task,userId,scenario}:{
- task:Task;userId:string;scenario:Scenario
+export function ScenarioEvidencePanel({task,userId,scenario,autoLoad=false}:{
+ task:Task;userId:string;scenario:Scenario;autoLoad?:boolean
 }) {
   const queryClient=useQueryClient();
   const [selected,setSelected]=useState<File|null>(null);
+  const [activated,setActivated]=useState(autoLoad);
   const [description,setDescription]=useState("");
   const [busy,setBusy]=useState(false);
   const [editingFile,setEditingFile]=useState<string|null>(null);
@@ -36,7 +37,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
   const files=useQuery({
     queryKey:["evidence-files",userId,task.id],
     queryFn:()=>listEvidenceFiles(supabase,task.id),
-    enabled:privateOwner
+    enabled:privateOwner&&activated
   });
   const current=(files.data??[]).filter(f=>f.cenario_id===scenario.id);
   const [fileUrl,setFileUrl]=useState("");
@@ -54,6 +55,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
     if(file&&!/\.(png|jpe?g|webp|pdf|txt)$/i.test(file.name)){
       setError("Selecione PNG, JPG, WEBP, PDF ou TXT (até 10 MB).");return;
     }
+    if(file)setActivated(true);
     setError("");setMessage("");setSelected(file);
   }
   async function upload(){
@@ -113,7 +115,10 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
   if(!privateOwner)return null;
   return <section className="qa-scenario-evidence" aria-label={"Evidências do cenário "+scenario.titulo}>
     <h5><FileText size={17} aria-hidden="true"/> Evidências do cenário
-      <span>{current.length}</span></h5>
+      <span>{activated?current.length:"—"}</span>
+      {!activated&&<button type="button" className="qa-scenario-load-files"
+        onClick={()=>setActivated(true)}>Ver anexos</button>}
+    </h5>
     {current.length>0&&<div className="qa-scenario-image-list">
       {current.map(file=><article key={file.id} className="qa-scenario-image-entry">
         <div className="qa-scenario-file-name">
@@ -206,7 +211,7 @@ export function ScenarioEvidenceToggle({task,userId,scenario}:{
       onClick={()=>setExpanded(true)}>Evidências deste cenário</button>
     <QAModal open={expanded} title={"Evidências do cenário — "+scenario.titulo}
       size="lg" onClose={()=>setExpanded(false)}>
-      {expanded&&<ScenarioEvidencePanel task={task} userId={userId} scenario={scenario}/>}
+      {expanded&&<ScenarioEvidencePanel task={task} userId={userId} scenario={scenario} autoLoad/>}
     </QAModal>
   </>;
 }
