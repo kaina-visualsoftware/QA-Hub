@@ -7,8 +7,8 @@ import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
 // Only models verified in NVIDIA Build's Free Endpoint catalog.
 // The runtime also attempts GET /v1/models and skips unavailable IDs.
 const FREE_MODEL_IDS = [
-  "nvidia/nemotron-3.5-lightning-30b-a3b",
-  "z-ai/glm-5-3-flash"
+  "z-ai/glm-5.3-flash",
+  "nvidia/nemotron-3.5-lightning-30b-a3b"
 ];
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const ALLOWED_ORIGINS = new Set([
@@ -182,7 +182,7 @@ Deno.serve(async req => {
             chat_template_kwargs:{enable_thinking:false}
           }:{})
         }),
-        signal:AbortSignal.timeout(46000)
+        signal:AbortSignal.timeout(23000)
       });
       lastStatus=result.status;
       if(result.status===401 || result.status===403) {
