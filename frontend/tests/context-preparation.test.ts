@@ -87,6 +87,8 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.text).toContain("A rotina antiga ignorava saldo negativo");
   expect(result.text).toContain("O cálculo passou a considerar valores negativos");
   expect(result.topics?.some(topic=>topic.label==="Correção e implementação"&&topic.selected>0)).toBe(true);
+  expect(result.findings?.some(f=>f.label==="Correção e implementação"&&f.excerpt.includes("cálculo passou"))).toBe(true);
+  expect(result.findings?.every(f=>f.line>0)).toBe(true);
   expect(result.topics?.some(topic=>topic.label==="Outras informações"&&topic.total>topic.selected)).toBe(true);
   expect(result.text.length).toBeLessThanOrEqual(5500);
  });
