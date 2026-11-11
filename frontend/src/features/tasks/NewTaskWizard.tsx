@@ -12,10 +12,12 @@ import { extractLocalDraft, normalizeDraft } from "../../lib/legacy/qa-assistant
 import { taskToGeneratorText, parseGeneratedCases } from "../../lib/legacy/qa-workspace.mjs";
 import { sanitizeAiContext } from "../../lib/legacy/qa-test-context.mjs";
 import {
-  archiveTaskAiSource, freshTaskAiScenarios, generateTaskAiDraft,
+  archiveTaskAiSource, freshTaskAiScenarios,
   mergeTaskAiCreation, onlyNewTaskAiSelections, taskAiFieldValues
 } from "./task-ai";
 import type { SuggestedScenario } from "./task-ai";
+import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
+import type {TaskPipelineCheckpoint} from "./task-ai-phased";
 import { generateWithNvidia } from "../generators/stream";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
 import type {ContextPreparation} from "../generators/context-preparation";
@@ -47,7 +49,7 @@ type WorkStatus={
 };
 const WORK_STEPS: Record<WorkKind,string[]>={
   files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
-  task:["Validar conteúdo","Consultar NVIDIA","Estruturar campos"],
+  task:["Validar contexto","Extrair campos","Gerar cenários em lotes","Revisar resultados"],
   cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
   save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
 };
@@ -121,6 +123,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [streamText,setStreamText] = useState("");
   const [work,setWork]=useState<WorkStatus|null>(null);
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
+  const [taskPending,setTaskPending]=useState(0);
+  const taskCheckpoint=useRef<TaskPipelineCheckpoint|null>(null);
   const controller=useRef<AbortController|null>(null);
   const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
@@ -179,6 +183,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
+      taskCheckpoint.current=null;setTaskPending(0);
     }
     wasOpen.current=open;
   },[open,userId]);
@@ -239,6 +244,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setNotice("A origem da TF mudou. Gere a análise novamente ou revise os campos na etapa 2.");
     }else setNotice("");
     automaticallyFilled.current={};
+    taskCheckpoint.current=null;setTaskPending(0);
     setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
   }
   function alterSource(value:string){
@@ -295,14 +301,21 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         throw Error("Revise e autorize o contexto preparado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
-      setWork({kind:"task",phase:1,detail:"Solicitação enviada. Aguardando a NVIDIA analisar o problema, a causa e a correção."});
-      const response=await generateTaskAiDraft(snapshot,{
+      const response=await generateTaskAiDraftPhased(snapshot,{
         aiText:sourcePreparation.prepared.mode==="integral"?undefined:
           semanticTask.enabled&&semanticTask.ready&&semanticTask.digest?
             semanticTask.digest.task:sourcePreparation.prepared.text,
+        checkpoint:taskPending>0?taskCheckpoint.current:null,
+        onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
+          setTaskPending(pipelinePendingCount(checkpoint));},
+        onProgress:progress=>setWork({kind:"task",
+          phase:progress.stage==="fields"?1:progress.stage==="scenarios"?2:3,
+          detail:progress.detail,
+          current:progress.current,total:progress.total}),
         signal:abort.signal,onWait:setQuotaWait
       });
-      setWork({kind:"task",phase:2,detail:"Organizando os campos e identificando cenários relevantes."});
+      setTaskPending(response.pendingBatches+(response.fieldsPending?1:0));
+      setWork({kind:"task",phase:3,detail:"Organizando o resultado para revisão humana."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
       }
@@ -325,7 +338,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       })) as Partial<TaskDraft>;
       automaticallyFilled.current=applied;
       setDraft(merged);
-      setCases(freshTaskAiScenarios(response,[],true));
+      setCases(current=>addUnique(current,freshTaskAiScenarios(response,current,true)));
       setAiUsed(true);
       setLocalFallback(response.extractionSource==="local");
       setStep(2);
@@ -334,12 +347,23 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         "empresa","explicacao","causa","correcao","conclusao"
       ] as const).filter(field=>!String(merged[field]??"").trim()).length;
       const missingHint=missing?` ${missing} campo(s) sem informação identificada; complete apenas com dados da TF.`:"";
-      setNotice((response.extractionSource==="local"
-        ? "A NVIDIA não concluiu a análise ("+(response.extractionReason??"resposta sem estrutura")+"). Extração local utilizada; confira os campos e cenários antes de salvar."
-        : sourcePreparation.prepared.needsReview
-          ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
-          : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.")+missingHint);
-    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao analisar a TF.");}
+      setNotice((response.partial
+        ? "A análise ficou parcial. "+response.pendingBatches+" lote(s) de cenários pendente(s)"+
+          (response.fieldsPending?" e campos ainda não concluídos":"")+
+          ". Os resultados já recebidos foram mantidos. Você pode retomar sem reenviar os lotes concluídos. "+
+          (response.extractionReason??"")
+        : response.extractionSource==="local"
+          ? "Extração local utilizada; confira os campos e cenários antes de salvar."
+          : sourcePreparation.prepared.needsReview
+            ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
+            : "Campos e cenários organizados pela NVIDIA. Revise antes de avançar.")+missingHint);
+    }catch(reason){
+      if(abort.signal.aborted&&taskCheckpoint.current)
+        setTaskPending(pipelinePendingCount(taskCheckpoint.current));
+      setError(abort.signal.aborted
+        ? "Análise cancelada. Campos e lotes concluídos foram preservados nesta sessão; clique em retomar."
+        :reason instanceof Error?reason.message:"Falha ao analisar a TF.");
+    }
     finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;}
   }
   function continueManual(){
@@ -583,8 +607,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </ol>
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
-          {work.kind==="files"?"Lendo":"Registrando"} arquivo
-          {work.total>1?"s":""} · {Math.min(work.current??0,work.total)} de {work.total}
+          {work.kind==="task"?"Lotes de cenários":
+            (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
+          {" "+Math.min(work.current??0,work.total)+" de "+work.total}
         </p>}
       {work.kind==="cases"&&streamText.length>0&&<p className="qa-wizard-work-metric">
         {streamText.length.toLocaleString("pt-BR")} caracteres recebidos
@@ -640,7 +665,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
-          {analyzing?"Analisando tarefa…":"Gerar tarefa com IA"}
+          {analyzing?"Analisando tarefa…":taskPending?
+  "Retomar análise ("+taskPending+" etapa(s) pendentes)":"Gerar tarefa com IA"}
           {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
         </Button>
       </div>
@@ -693,7 +719,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={16} aria-hidden="true"/>}
-          {analyzing?"Analisando…":"Analisar novamente"}
+          {analyzing?"Analisando…":taskPending?
+  "Retomar "+taskPending+" etapa(s) pendentes":"Analisar novamente"}
         </Button>
       </div>}
       <div className="qa-wizard-fields-panel">

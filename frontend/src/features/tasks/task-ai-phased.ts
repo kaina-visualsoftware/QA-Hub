@@ -132,6 +132,11 @@ export function checkpointMatches(checkpoint:TaskPipelineCheckpoint|null,
  source:string,prepared:string):boolean{
  return Boolean(checkpoint&&checkpoint.source===source&&checkpoint.prepared===prepared);
 }
+export function pipelinePendingCount(checkpoint:TaskPipelineCheckpoint):number{
+ const total=toBatches(seedsFor(checkpoint.local)).length;
+ return (checkpoint.resolvedFields?0:1)+
+  Math.max(0,total-Object.keys(checkpoint.completedBatches).length);
+}
 export function newCheckpoint(source:string,prepared:string):TaskPipelineCheckpoint{
  return {source,prepared,local:localSourceDraft(source),fields:null,
   resolvedFields:false,completedBatches:{}};
