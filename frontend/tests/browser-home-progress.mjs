@@ -85,6 +85,7 @@ async function fakeBackend(route){
     assert.ok(tasks.some(t=>t.id===id),"Task detail must constrain scenario list");
     return send(scenarios.filter(item=>item.tarefa_id===id));
   }
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
   if(method!=="GET") writes.push(method+" "+path);
   unexpected.push(method+" "+path);
   return send({message:"Unsupported synthetic endpoint"},500);

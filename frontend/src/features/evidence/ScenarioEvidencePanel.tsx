@@ -1,10 +1,10 @@
 import {useEffect,useRef,useState} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
-import {ClipboardPaste,ImagePlus,Image as ImageIcon,Eye} from "lucide-react";
+import {ClipboardPaste,FileUp,Image as ImageIcon,Eye,FileText,Download} from "lucide-react";
 import type {Scenario,Task} from "../../lib/contracts";
 import {supabase} from "../../lib/supabase";
-import {listEvidenceFiles,readPrivateEvidence,uploadEvidenceFile,
+import {ACCEPT_EVIDENCE,listEvidenceFiles,readPrivateEvidence,uploadEvidenceFile,
   updateEvidenceDescription,removeEvidenceFile} from "./evidence-files";
 import type {EvidenceFile} from "./evidence-files";
 import "./scenario-evidence.css";
@@ -19,11 +19,12 @@ export function imageFromClipboard(event:React.ClipboardEvent):File|null {
   const extension=file.type==="image/jpeg"?"jpg":file.type==="image/webp"?"webp":"png";
   return new File([file],"captura-"+Date.now()+"."+extension,{type:file.type});
 }
-export function ScenarioEvidencePanel({task,userId,scenario}:{
- task:Task;userId:string;scenario:Scenario
+export function ScenarioEvidencePanel({task,userId,scenario,autoLoad=false}:{
+ task:Task;userId:string;scenario:Scenario;autoLoad?:boolean
 }) {
   const queryClient=useQueryClient();
   const [selected,setSelected]=useState<File|null>(null);
+  const [activated,setActivated]=useState(autoLoad);
   const [description,setDescription]=useState("");
   const [busy,setBusy]=useState(false);
   const [editingFile,setEditingFile]=useState<string|null>(null);
@@ -36,12 +37,12 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
   const files=useQuery({
     queryKey:["evidence-files",userId,task.id],
     queryFn:()=>listEvidenceFiles(supabase,task.id),
-    enabled:privateOwner
+    enabled:privateOwner&&activated
   });
-  const current=(files.data??[]).filter(f=>f.cenario_id===scenario.id&&images.includes(f.mime_type));
+  const current=(files.data??[]).filter(f=>f.cenario_id===scenario.id);
   const [fileUrl,setFileUrl]=useState("");
   useEffect(()=>{
-    if(!selected){setFileUrl("");return;}
+    if(!selected||!images.includes(selected.type)){setFileUrl("");return;}
     const url=URL.createObjectURL(selected);
     setFileUrl(url);
     return()=>URL.revokeObjectURL(url);
@@ -51,9 +52,10 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
     return()=>{if(url)URL.revokeObjectURL(url);};
   },[openPreview]);
   function pick(file:File|null) {
-    if(file&&!images.includes(file.type)){
-      setError("Cole ou selecione uma imagem PNG, JPG ou WEBP.");return;
+    if(file&&!/\.(png|jpe?g|webp|pdf|txt)$/i.test(file.name)){
+      setError("Selecione PNG, JPG, WEBP, PDF ou TXT (até 10 MB).");return;
     }
+    if(file)setActivated(true);
     setError("");setMessage("");setSelected(file);
   }
   async function upload(){
@@ -65,7 +67,7 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
         scenarioIds:[scenario.id],description
       });
       await queryClient.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
-      setMessage("Captura vinculada ao cenário "+scenario.titulo+".");
+      setMessage("Evidência vinculada ao cenário "+scenario.titulo+".");
       setSelected(null);setDescription("");
       if(input.current)input.current.value="";
     }catch(reason){setError(reason instanceof Error?reason.message:"Falha no envio.");}
@@ -75,7 +77,15 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
     setError("");
     try {
       const blob=await readPrivateEvidence(supabase,file,userId,task.id);
-      setOpenPreview({file,url:URL.createObjectURL(blob)});
+      const url=URL.createObjectURL(blob);
+      if(images.includes(file.mime_type)){
+        setOpenPreview({file,url});
+      }else{
+        const download=document.createElement("a");
+        download.href=url;download.download=file.nome_original;
+        document.body.appendChild(download);download.click();download.remove();
+        window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }
     }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível abrir a imagem.");}
   }
   async function saveEdited(file:EvidenceFile){
@@ -84,12 +94,12 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
       await updateEvidenceDescription(supabase,file,userId,task.id,editedDescription);
       setEditingFile(null);
       await queryClient.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
-      setMessage("Observação da imagem atualizada.");
-    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao editar a imagem.");}
+      setMessage("Observação da evidência atualizada.");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Falha ao editar a evidência.");}
     finally{setBusy(false);}
   }
-  async function deleteImage(file:EvidenceFile){
-    if(!window.confirm("Excluir a imagem '"+file.nome_original+"' definitivamente?"+
+  async function deleteEvidence(file:EvidenceFile){
+    if(!window.confirm("Excluir a evidência '"+file.nome_original+"' definitivamente?"+
       (task.publica?" Ela deixará de aparecer na página pública imediatamente.":"")+
       " Esta ação não pode ser desfeita."))return;
     setBusy(true);setError("");setMessage("");
@@ -98,32 +108,39 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
       if(openPreview?.file.id===file.id)setOpenPreview(null);
       setEditingFile(null);
       await queryClient.invalidateQueries({queryKey:["evidence-files",userId,task.id]});
-      setMessage("Imagem excluída.");
-    }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível excluir a imagem.");}
+      setMessage("Evidência excluída.");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível excluir a evidência.");}
     finally{setBusy(false);}
   }
   if(!privateOwner)return null;
-  return <section className="qa-scenario-evidence" aria-label={"Imagens do cenário "+scenario.titulo}>
-    <h5><ImageIcon size={16} aria-hidden="true"/> Imagens deste teste
-      <span>{current.length}</span></h5>
+  return <section className="qa-scenario-evidence" aria-label={"Evidências do cenário "+scenario.titulo}>
+    <h5><FileText size={17} aria-hidden="true"/> Evidências do cenário
+      <span>{activated?current.length:"—"}</span>
+      {!activated&&<button type="button" className="qa-scenario-load-files"
+        onClick={()=>setActivated(true)}>Ver anexos</button>}
+    </h5>
     {current.length>0&&<div className="qa-scenario-image-list">
       {current.map(file=><article key={file.id} className="qa-scenario-image-entry">
-        <div><strong>{file.nome_original}</strong>
+        <div className="qa-scenario-file-name">
+          {images.includes(file.mime_type)?<ImageIcon size={17} aria-hidden="true"/>:
+            <FileText size={17} aria-hidden="true"/>}
+          <div><strong>{file.nome_original}</strong>
           {file.descricao&&<p>{file.descricao}</p>}
-          <small>{task.publica?"Pública — acompanha a TF":"Privada — acompanha a TF"}</small>
+          <small>{task.publica?"Pública — acompanha a TF":"Privada — acompanha a TF"}</small></div>
         </div>
         <div className="qa-scenario-image-actions">
           <button type="button" disabled={busy} onClick={()=>void preview(file)}>
-            <Eye size={15}/> Visualizar</button>
+            {images.includes(file.mime_type)?<Eye size={15}/>:<Download size={15}/>}
+            {images.includes(file.mime_type)?"Visualizar":"Baixar"}</button>
           <button type="button" disabled={busy} onClick={()=>{
             setEditingFile(file.id);setEditedDescription(file.descricao);
           }}>Editar observação</button>
           <button type="button" className="qa-scenario-crud-danger" disabled={busy}
-            onClick={()=>void deleteImage(file)}>Excluir imagem</button>
+            onClick={()=>void deleteEvidence(file)}>Excluir</button>
         </div>
-        {editingFile===file.id&&<QAModal open title="Editar observação da imagem" size="md" busy={busy} onClose={()=>setEditingFile(null)}><form className="qa-crud-inline-form"
+        {editingFile===file.id&&<QAModal open title="Editar observação da evidência" size="md" busy={busy} onClose={()=>setEditingFile(null)}><form className="qa-crud-inline-form"
           onSubmit={event=>{event.preventDefault();void saveEdited(file);}}>
-          <label className="field">Observação da imagem
+          <label className="field">Observação da evidência
             <input maxLength={1000} value={editedDescription}
               onChange={e=>setEditedDescription(e.target.value)}/>
           </label>
@@ -137,30 +154,32 @@ export function ScenarioEvidencePanel({task,userId,scenario}:{
     </div>}
     <div tabIndex={0} role="group"
       className="qa-scenario-paste"
-      aria-label={"Colar captura de tela no teste "+scenario.titulo}
+      aria-label={"Colar imagem ou arrastar arquivo no cenário "+scenario.titulo}
+      onDragOver={event=>event.preventDefault()}
+      onDrop={event=>{event.preventDefault();pick(event.dataTransfer.files?.[0]??null);}}
       onPaste={event=>{
         const image=imageFromClipboard(event);
         if(image){event.preventDefault();pick(image);}
       }}>
       <ClipboardPaste size={19} aria-hidden="true"/>
-      <span><strong>Cole uma captura aqui com Ctrl+V</strong>
-        <small>Ou escolha uma imagem; máximo 10 MB.</small></span>
+      <span><strong>Cole uma imagem com Ctrl+V ou arraste um arquivo aqui</strong>
+        <small>Imagens, PDF ou TXT · máximo 10 MB por evidência</small></span>
       <label className="qa-scenario-file-button">
-        <ImagePlus size={16} aria-hidden="true"/> Escolher imagem
-        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp"
+        <FileUp size={16} aria-hidden="true"/> Selecionar arquivo
+        <input ref={input} type="file" accept={ACCEPT_EVIDENCE}
           disabled={busy} onChange={e=>pick(e.target.files?.[0]??null)}/>
       </label>
     </div>
     {selected&&<div className="qa-scenario-pending">
-      {fileUrl&&<img src={fileUrl} alt="Prévia da captura ainda não salva"/>}
+      {fileUrl&&<img src={fileUrl} alt="Prévia da evidência ainda não salva"/>}
       <div>
         <strong>{selected.name}</strong>
-        <label>Observação da captura
+        <label>Observação da evidência
           <input maxLength={1000} value={description}
             onChange={e=>setDescription(e.target.value)}
             placeholder="Ex.: situação encontrada após executar o cenário"/>
         </label>
-        <p className="text-muted text-sm">A visibilidade da captura acompanha a configuração geral da TF.</p>
+        <p className="text-muted text-sm">A visibilidade da evidência acompanha a configuração geral da TF.</p>
         <div className="qa-scenario-save-actions">
           <Button size="sm" onPress={()=>void upload()} isDisabled={busy}>
             {busy?"Enviando…":"Vincular ao teste"}
@@ -189,10 +208,10 @@ export function ScenarioEvidenceToggle({task,userId,scenario}:{
   const [expanded,setExpanded]=useState(false);
   return <>
     <button type="button" className="secondary-link qa-scenario-evidence-toggle"
-      onClick={()=>setExpanded(true)}>Colar captura ou visualizar imagens deste teste</button>
-    <QAModal open={expanded} title={"Imagens do cenário — "+scenario.titulo}
+      onClick={()=>setExpanded(true)}>Evidências deste cenário</button>
+    <QAModal open={expanded} title={"Evidências do cenário — "+scenario.titulo}
       size="lg" onClose={()=>setExpanded(false)}>
-      {expanded&&<ScenarioEvidencePanel task={task} userId={userId} scenario={scenario}/>}
+      {expanded&&<ScenarioEvidencePanel task={task} userId={userId} scenario={scenario} autoLoad/>}
     </QAModal>
   </>;
 }

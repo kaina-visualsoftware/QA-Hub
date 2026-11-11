@@ -253,17 +253,6 @@ export default function TaskPage() {
       "Não há casos pendentes. Adicione um cenário ou consulte os resultados registrados.");
   }
 
-  function openGuidedEvidence(scenario: Scenario) {
-    if(task?.user_id!==userId)return;
-    setEvidenceTarget(scenario.id);
-    setEvidenceRequest(n=>n+1);
-    setResourceView("files");
-    setResourceFileType("evidence");
-    setActiveTab("resources");
-    setShowResourceImport(true);
-  }
-
-
   const taskForm = useForm<TaskDraft>({
     resolver: zodResolver(taskDraftSchema),
     defaultValues: { titulo: "", descricao: "", tipo_teste: "BUILD", codigo: "", sistema: "", versao: "" }
@@ -956,7 +945,7 @@ export default function TaskPage() {
       <div hidden={executionMode!=="guided"} className="qa-guided-container">
         <GuidedExecution key={task.id} task={task} userId={userId} scenarios={scenarios.data ?? []} owner={canExecute}
           canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
-          onEvidence={openGuidedEvidence} onNewScenario={startScenario}
+          onNewScenario={startScenario}
           canManage={own} onEdit={openScenarioEditor}
           onDelete={scenario=>void requestScenarioDeletion(scenario)}/>
       </div>

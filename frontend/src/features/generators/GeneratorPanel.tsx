@@ -25,7 +25,7 @@ import {
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
-import { markdownToBbcode, validateBbcodePost } from "./post-format";
+import { renderPostFormat, validateBbcodePost } from "./post-format";
 import type {PostOutputFormat} from "./post-format";
 import type { ActivityPhase, JourneyStage } from "./GeneratorJourney";
 import type { GeneratorMode } from "./stream";
@@ -58,6 +58,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const client = useQueryClient();
   const [extra, setExtra] = useState("");
   const [postFormat, setPostFormat] = useState<PostOutputFormat>("markdown");
+  const [canonicalPost, setCanonicalPost] = useState("");
   const [preset, setPreset] = useState("essencial");
   const [selected, setSelected] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
@@ -100,7 +101,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   }, [generating, busySave, onBusyChange]);
   useEffect(() => {
     setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
-    setPreset("essencial");setExtra("");setPostFormat("markdown");
+    setPreset("essencial");setExtra("");setPostFormat("markdown");setCanonicalPost("");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
   }, [task.id, mode]);
@@ -140,6 +141,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const allSelected = available.length > 0 && chosen.length === available.length;
   const postIssues = mode === "post" && content
     ? postFormat === "bbcode" ? validateBbcodePost(content) : validatePostStructure(content) : [];
+
+  function choosePostFormat(next:PostOutputFormat) {
+    if(next===postFormat)return;
+    if(content.trim()&&dirtyOutput&&
+      !window.confirm("Trocar o formato substituirá as edições manuais do post. Continuar?"))return;
+    setPostFormat(next);
+    if(canonicalPost){
+      setContent(renderPostFormat(canonicalPost,next));
+      setDirtyOutput(false);setCompleted(false);setMessage("");setError("");
+    }
+  }
 
   function replaceCase(index: number, patch: Partial<GeneratedCase>) {
     if (Object.keys(patch).some(key => key !== "selected")) setDirtyOutput(true);
@@ -186,7 +198,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         const formatted = formatGeneratedPost(response.text, {
           taskText: context.taskContext.text
         });
-        setContent(postFormat === "bbcode" ? markdownToBbcode(formatted) : formatted);
+        setCanonicalPost(formatted);
+        setContent(renderPostFormat(formatted,postFormat));
       } else {
         const candidates = parseGeneratedCases(response.text);
         const fresh = onlyNewScenarioCandidates(candidates, scenarios);
@@ -399,13 +412,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           <label><input type="radio" name="post-output-format"
             value="markdown" checked={postFormat==="markdown"}
             disabled={generating||busySave}
-            onChange={()=>setPostFormat("markdown")}/>
+            onChange={()=>choosePostFormat("markdown")}/>
             <span><strong>Markdown</strong><small>Para editores com # e **negrito**</small></span>
           </label>
           <label><input type="radio" name="post-output-format"
             value="bbcode" checked={postFormat==="bbcode"}
             disabled={generating||busySave}
-            onChange={()=>setPostFormat("bbcode")}/>
+            onChange={()=>choosePostFormat("bbcode")}/>
             <span><strong>BBCode</strong><small>Para fóruns com [b] e [size]</small></span>
           </label>
         </div>

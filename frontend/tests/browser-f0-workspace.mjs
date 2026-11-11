@@ -141,7 +141,7 @@ try{
     await importDialog.getByRole("button",{name:"Fechar Importar requisitos"}).click();
     await resources.getByRole("tab",{name:"Arquivos e evidências"}).click();
     await page.getByRole("heading",{name:"Documentos e fontes da TF"}).waitFor();
-    assert.equal(await page.getByLabel("Selecionar arquivo").count(),0,
+    assert.equal(await resources.getByLabel("Selecionar arquivo").count(),0,
       "File uploader must not render in the read-only library");
     await page.getByRole("button",{name:"Adicionar arquivo",exact:true}).click();
     const fileDialog=page.getByRole("dialog",{name:"Importar arquivos e evidências"});
