@@ -21,7 +21,8 @@ export const MODEL_REGISTRY=Object.freeze({
   params:Object.freeze({chat_template_kwargs:{enable_thinking:false}})
  })
 });
-const BUDGETS=Object.freeze({task:null,diagram:3200,summary:2800,post:3500,
+const BUDGETS=Object.freeze({task:null,"task-fields":1800,"task-scenarios":2600,
+ diagram:3200,summary:2800,post:3500,
  teste:11000,semantic:3200,revision:3100});
 export function modelRequestOptions(model,mode="task",stream=false){
  const item=MODEL_REGISTRY[model];
@@ -31,7 +32,7 @@ export function modelRequestOptions(model,mode="task",stream=false){
   temperature:mode==="semantic"?0:mode==="revision"?0.12:
    ["post","teste"].includes(mode)?0.15:0.1,
   max_tokens,stream:Boolean(stream),
-  ...(["task","semantic"].includes(mode)&&item.supportsJsonMode?
+  ...(["task","task-fields","task-scenarios","semantic"].includes(mode)&&item.supportsJsonMode?
    {response_format:{type:"json_object"}}:{}),
   ...item.params
  };

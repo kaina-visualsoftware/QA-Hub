@@ -2,7 +2,8 @@
  * Keep this module independent of the provider orchestrator planned for F1.
  * Never pass source text, prompts, responses, headers, credentials or SQL to logs.
  */
-const MODES=new Set(["discovery","task","diagram","diagram-summary","post","teste",
+const MODES=new Set(["discovery","task","task-fields","task-scenarios",
+ "diagram","diagram-summary","post","teste",
  "semantic:task","semantic:post","semantic:teste","revision:post_excerpt","revision:test_case"]);
 const MODELS=new Set(["catalog","z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"]);
 const OUTCOMES=new Set(["ok","timeout","length","empty","schema_invalid","context_exceeded",

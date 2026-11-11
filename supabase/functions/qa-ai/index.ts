@@ -9,6 +9,8 @@ import { parseNvidiaDraft } from "./response.mjs";
 import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, hasMeaningfulTaskData } from "./request.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
+import {parseScenarioSeeds,taskFieldMessages,taskScenarioMessages,
+ parseTaskFields,parseTaskScenarioBatch} from "./stages.mjs";
 
 // The explicit free-endpoint allowlist lives only in _shared/llm/models.mjs.
 // A runtime GET /v1/models filters it without accepting arbitrary model IDs.
@@ -111,6 +113,13 @@ Deno.serve(async req => {
   const text=typeof (body as {text?:unknown})?.text==="string" ? (body as {text:string}).text.trim():"";
   const diagramMode=(body as {mode?:unknown})?.mode==="diagram";
   const summaryMode=(body as {mode?:unknown})?.mode==="diagram-summary";
+  const fieldsMode=(body as {mode?:unknown})?.mode==="task-fields";
+  const scenariosMode=(body as {mode?:unknown})?.mode==="task-scenarios";
+  const stageSeeds=scenariosMode?parseScenarioSeeds((body as {seeds?:unknown})?.seeds):null;
+  if(scenariosMode&&!stageSeeds)
+    return reply(400,{error:"bad_request",message:"Envie até quatro cenários locais com índices de origem válidos."});
+  if((fieldsMode||scenariosMode)&&text.length>30000)
+    return reply(413,{error:"too_long",message:"Prepare o contexto de cada etapa em até 30.000 caracteres."});
   const previousMermaid=typeof (body as {mermaid?:unknown})?.mermaid==="string"
     ? (body as {mermaid:string}).mermaid.trim():"";
   const syntaxError=typeof (body as {syntaxError?:unknown})?.syntaxError==="string"
@@ -139,22 +148,27 @@ Deno.serve(async req => {
       message:"Nenhum dos modelos NVIDIA com endpoint gratuito está disponível agora."
     });
   }
-  const telemetryMode=diagramMode?"diagram":summaryMode?"diagram-summary":"task";
+  const telemetryMode=diagramMode?"diagram":summaryMode?"diagram-summary":
+    fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task";
   const messages=diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):
-    summaryMode?diagramSummaryMessages(text):promptForReport(text);
+    summaryMode?diagramSummaryMessages(text):
+      fieldsMode?taskFieldMessages(text):
+        scenariosMode?taskScenarioMessages(text,stageSeeds):promptForReport(text);
   const chars=promptChars(messages);
   let hadReply=false;
   let lastStatus=0;
   let contextExceeded=false;
   for(const [modelIndex,model] of available.entries()) {
-    const options=nvidiaRequestOptions(model,diagramMode?"diagram":summaryMode?"summary":"task");
+    const options=nvidiaRequestOptions(model,diagramMode?"diagram":summaryMode?"summary":
+      fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task");
     const telemetry={correlation_id:trace,mode:telemetryMode,model,
       prompt_chars:chars,max_tokens:options.max_tokens,
       attempt:modelIndex+1,fallback_model:modelIndex>0};
     try {
       const result=await callModel({
         apiKey:key,model,messages,
-        mode:diagramMode?"diagram":summaryMode?"summary":"task",
+        mode:diagramMode?"diagram":summaryMode?"summary":
+          fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task",
         stream:false,options,maxRetries:0,rejectLength:false,
         timeoutMs:PROVIDER_TIMEOUT_MS,firstTokenTimeoutMs:PROVIDER_TIMEOUT_MS,
         deadlineAt,fallbackModel:modelIndex>0,
@@ -189,6 +203,16 @@ Deno.serve(async req => {
       }else if(summaryMode){
         const summary=extractDiagramSummary(response);
         if(summary)return reply(200,{summary,model,provider:"NVIDIA Build"});
+      }else if(fieldsMode){
+        const fields=parseTaskFields(response);
+        if(fields)return reply(200,{
+          stage:"fields",draft:fields,model,provider:"NVIDIA Build"
+        });
+      }else if(scenariosMode){
+        const rows=parseTaskScenarioBatch(response,stageSeeds);
+        if(rows)return reply(200,{
+          stage:"scenarios",draft:{cenarios:rows},model,provider:"NVIDIA Build"
+        });
       }else{
         const extracted=parseNvidiaDraft(response);
         if(hasMeaningfulTaskData(extracted))
@@ -243,6 +267,9 @@ Deno.serve(async req => {
     error:"model_context_exceeded",message:"A estimativa de tokens ultrapassou o orçamento operacional desta geração. Esse orçamento é menor que a janela anunciada dos modelos. O QA Hub não cortou o texto. Revise a seleção de trechos ou utilize a análise semântica por blocos."
   });
   if(hadReply){
+    if(fieldsMode||scenariosMode)return reply(502,{
+      error:"output_invalid",message:"A NVIDIA não devolveu dados estruturados válidos para esta etapa. Os resultados anteriores e a fonte original foram preservados."
+    });
     if(summaryMode)return reply(502,{
       error:"summary_incomplete",
       message:"A NVIDIA não concluiu um resumo confiável. Tente novamente sem perder os dados da TF."
