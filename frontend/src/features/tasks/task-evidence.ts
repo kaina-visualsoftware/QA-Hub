@@ -14,14 +14,24 @@ const proof=z.strictObject({
  status:z.enum(["verified","needs_review"]),
  reason:z.string().max(80).nullable()
 });
+const reviewCandidate=z.strictObject({
+ field:z.string().min(1).max(40),value:z.string().max(20000),
+ evidence:proof
+});
 const fieldsReply=z.strictObject({
  stage:z.literal("fields"),provider:z.literal("NVIDIA Build"),
  model:z.string().min(1),repaired:z.boolean(),
  draft:z.record(z.string(),z.string().max(20000)),
- field_evidence:z.record(z.string(),proof)
+ field_evidence:z.record(z.string(),proof),
+ review_fields:z.array(reviewCandidate).max(15)
 }).superRefine((v,ctx)=>{
  const names=Object.keys(v.draft);
- if(names.length<1||names.some(k=>!allowedFields.has(k))||
+ const candidates=v.review_fields.map(item=>item.field);
+ if(!names.length&&!candidates.length||
+  candidates.some(k=>!allowedFields.has(k)||names.includes(k))||
+  new Set(candidates).size!==candidates.length||
+  v.review_fields.some(item=>item.evidence.status!=="needs_review")||
+  names.some(k=>!allowedFields.has(k))||
   Object.keys(v.field_evidence).length!==names.length||
   names.some(k=>!v.field_evidence[k])){
   ctx.addIssue({code:"custom",message:"Campos ou evidências inconsistentes"});
@@ -38,7 +48,13 @@ const scenario=z.strictObject({
 const scenariosReply=z.strictObject({
  stage:z.literal("scenarios"),provider:z.literal("NVIDIA Build"),
  model:z.string().min(1),repaired:z.boolean(),
- draft:z.strictObject({cenarios:z.array(scenario).min(1).max(4)})
+ draft:z.strictObject({cenarios:z.array(scenario).max(4)}),
+ review_scenarios:z.array(scenario).max(4)
+}).superRefine((data,ctx)=>{
+ if(!data.draft.cenarios.length&&!data.review_scenarios.length||
+  data.draft.cenarios.length+data.review_scenarios.length>4||
+  data.review_scenarios.some(row=>row.evidence.status!=="needs_review"))
+  ctx.addIssue({code:"custom",message:"Lote de cenários inválido"});
 });
 export type FieldReview={
  field:string;value:string;quote:string;sourceLine:number|null;
@@ -128,6 +144,12 @@ export function parseGroundedFieldReply(data:unknown,source:string){
     evidence.reason??"line_mismatch",origin:"NVIDIA"
   });
  }
+ for(const item of response.data.review_fields){
+  const line=locateEvidence(source,item.evidence.quote);
+  review.push({field:item.field,value:item.value,quote:item.evidence.quote,
+   sourceLine:line,status:"needs_review",
+   reason:item.evidence.reason??"unverified_model",origin:"NVIDIA"});
+ }
  return {values,review,repaired:response.data.repaired,
   verifiedCount:review.filter(x=>x.status==="verified").length};
 }
@@ -137,7 +159,7 @@ export function parseGroundedScenarioReply(data:unknown,source:string,
  if(!response.success)throw Error("Os cenários não respeitam o schema de evidências.");
  const allowed=new Set(seeds.map(s=>s.source_index));
  const seen=new Set<number>(),accepted:GroundedScenario[]=[],review:ScenarioReview[]=[];
- for(const row of response.data.draft.cenarios){
+ for(const row of [...response.data.draft.cenarios,...response.data.review_scenarios]){
   if(!allowed.has(row.source_index)||seen.has(row.source_index))
    throw Error("A NVIDIA retornou um índice fora dos cenários de origem.");
   seen.add(row.source_index);
