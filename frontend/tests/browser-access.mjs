@@ -46,6 +46,7 @@ function responder({admin=false}={}){
   if(path.endsWith("/auth/v1/user"))return send(user);
   if(await mockF4Rpc(route,tasks,[]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(admin?{user_id:userId}:null);
+  if(path.endsWith("/rest/v1/rpc/qa_public_documentacoes_v1"))return send([]);
   if(path.endsWith("/rest/v1/rpc/qa_public_tasks_v1")) {
     publicRpcReads++;
     assert.equal(method,"POST","Public list must use the allowlisted RPC");
