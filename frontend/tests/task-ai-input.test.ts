@@ -89,6 +89,63 @@ describe('abertura de TF com requisito ou teste colado',()=>{
 });
 
 
+
+describe('indisponibilidade temporária da NVIDIA não bloqueia a abertura de TF',()=>{
+ const source=[
+  'QUAL É O PROBLEMA IDENTIFICADO?--',
+  'Ao excluir o desconto do pedido 67866, o valor permanece inalterado.',
+  'ANÁLISE DE VIABILIDADE:',
+  'A rotina antiga ignora percentuais negativos dos kits.',
+  'O QUE O DESENVOLVEDOR ALTEROU:',
+  'A remoção agora considera os descontos negativos.'
+ ].join('\\n');
+ it('faz extração local para 503 ai_temporarily_unavailable de produção',async()=>{
+  vi.spyOn(supabase.functions,'invoke').mockResolvedValue({
+   data:null,error:{context:{
+    status:503,json:async()=>({
+      error:'ai_temporarily_unavailable',
+      message:'A NVIDIA está temporariamente indisponível. O texto pode ser organizado localmente.'
+    })
+   }}
+  } as never);
+  const draft=await generateTaskAiDraft(source);
+  expect(draft.extractionSource).toBe('local');
+  expect(draft.fields.descricao).toMatch(/valor permanece inalterado/i);
+  expect(draft.fields.causa).toMatch(/percentuais negativos/i);
+  expect(draft.fields.correcao).toMatch(/considera os descontos negativos/i);
+ });
+ it('permite fallback local para 503 temporário sem JSON, sem inventar dados',async()=>{
+  vi.spyOn(supabase.functions,'invoke').mockResolvedValue({
+   data:null,error:{context:{status:503,json:async()=>{throw Error('No JSON');}}}
+  } as never);
+  const draft=await generateTaskAiDraft('Requisitos:\\n- O sistema deve validar a máscara de telefone do cliente estrangeiro.');
+  expect(draft.extractionSource).toBe('local');
+  expect(draft.fields.descricao).toMatch(/máscara de telefone/i);
+ });
+ it('continua mostrando erros de quota, autenticação, chave e controle de limite',async()=>{
+  const spy=vi.spyOn(supabase.functions,'invoke');
+  for(const detail of [
+   {status:429,error:'rate_limited',message:'Cota atingida'},
+   {status:401,error:'unauthorized',message:'Faça login'},
+   {status:503,error:'nvidia_key_invalid',message:'Chave inválida'},
+   {status:503,error:'rate_limit_not_ready',message:'Controle de limite indisponível'}
+  ]){
+   spy.mockResolvedValue({data:null,error:{context:{
+    status:detail.status,json:async()=>detail
+   }}} as never);
+   await expect(generateTaskAiDraft(source)).rejects.toThrow(detail.message);
+  }
+ });
+ it('não dá falso sucesso para texto sem extração local possível',async()=>{
+  vi.spyOn(supabase.functions,'invoke').mockResolvedValue({
+   data:null,error:{context:{status:503,json:async()=>({error:'ai_temporarily_unavailable'})}}
+  } as never);
+  const veryLong='Requisito: preservar todos os registros do pedido. '.repeat(5000);
+  await expect(generateTaskAiDraft(veryLong)).rejects.toThrow(/texto integral/i);
+ });
+});
+
+
 describe('blocos de relato técnico na abertura',()=>{
  it('separa problema, análise de viabilidade e alteração sem confundir causa com descrição',async()=>{
   const text=[
