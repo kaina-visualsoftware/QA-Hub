@@ -31,7 +31,7 @@ export function insertReviewedExcerpt(full:string,selection:PostSelection,newTex
 export function caseAsMarkdown(item:GeneratedCase){
  return [
   "## Cenário — "+item.titulo,
-  "### Cenário","Revisar somente este caso, sem repetir outros testes.",
+  "### Cenário",item.titulo,
   "### Passos",item.passos,
   "### Resultado esperado",item.esperado,
   ...(item.observacoes?["### Observações",item.observacoes]:[])
