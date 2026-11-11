@@ -135,7 +135,7 @@ Deno.serve(async req=>{
   if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
   const models=await allowedModels(key,trace);
   if(!models.length)return reply(503,{error:"models_unavailable",message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
-  const messages=messagesForGenerator(mode,tarefa,requisito);
+  const messages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
   const chars=promptChars(messages);
   const maxTokens=mode==="teste"?11000:3500;
   for(const [modelIndex,model] of models.entries()){
