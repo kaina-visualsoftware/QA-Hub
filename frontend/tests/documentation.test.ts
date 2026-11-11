@@ -30,7 +30,9 @@ describe('Documentações',()=>{
   const source=['# Manual','',docAttachmentToken(id),'','```sql',docAttachmentToken(id),'```'].join(String.fromCharCode(10));
   const parts=splitDocumentMarkdown(source);
   expect(parts.filter(item=>item.kind==='attachment')).toEqual([{kind:'attachment',id}]);
-  expect(parts.at(-1)?.kind).toBe('markdown');
-  expect(parts.at(-1)?.kind==='markdown'&&parts.at(-1).source).toContain('```sql');
+  const last=parts.at(-1);
+  expect(last?.kind).toBe('markdown');
+  if(last?.kind!=='markdown')throw Error('Missing trailing Markdown section');
+  expect(last.source).toContain('```sql');
  });
 });
