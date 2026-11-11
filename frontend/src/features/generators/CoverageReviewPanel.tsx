@@ -1,3 +1,4 @@
+import type {Scenario} from "../../lib/contracts";
 import {useEffect,useMemo,useState} from "react";
 import {useQuery} from "@tanstack/react-query";
 import {FileCheck2,Layers,RefreshCcw} from "lucide-react";
@@ -8,7 +9,7 @@ import "./ai-f32.css";
 
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
  descricao:string;criterios_aceite:string;ordem:number;tipo:string;updated_at:string};
-type SavedCase={id:string;tarefa_id:string;titulo:string;status:string};
+type SavedCase={id:string;tarefa_id:string;titulo:string;status:Scenario["status"]};
 type Link={tarefa_id:string;requisito_id:string;cenario_id:string};
 export function CoverageReviewPanel({taskId,userId,approved,cases,changedCodes,
  taskText,busy=false,onGenerate}:{
