@@ -1,6 +1,7 @@
 import "./context-preparation.css";
 import {FileCheck2,ScanText,ShieldAlert} from "lucide-react";
 import type {ContextPreparation} from "./context-preparation";
+import {TOKEN_ESTIMATE_NOTICE} from "../../lib/token-budget";
 
 /** A separate, explicit review stage when the model cannot receive the full text. */
 export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabled=false}:{
@@ -9,7 +10,7 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
 }) {
  const needsReview=items.some(item=>item.result.needsReview);
  if(!needsReview)return <p className="qa-context-inline-ready">
-  <FileCheck2 size={16} aria-hidden="true"/> Contexto dentro dos limites de envio, sem omissões.
+  <FileCheck2 size={16} aria-hidden="true"/> Contexto dentro dos limites de envio e do orçamento estimado, sem omissões.
  </p>;
  return <section className="qa-context-optimizer" aria-label="Compactador de contexto">
   <div className="qa-context-optimizer-title">
@@ -24,6 +25,7 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
    {items.map(({label,result})=><div key={label}>
     <strong>{label}</strong>
     <span>{result.originalChars.toLocaleString("pt-BR")} → {result.sentChars.toLocaleString("pt-BR")} caracteres</span>
+    <span>{result.originalEstimatedTokens.toLocaleString("pt-BR")} → {result.sentEstimatedTokens.toLocaleString("pt-BR")} tokens estimados · orçamento {result.tokenBudget.toLocaleString("pt-BR")}</span>
     <small>{result.mode==="extrativo"
       ?result.omittedLines.toLocaleString("pt-BR")+" trechos omitidos · "+
        result.criticalOmissions.toLocaleString("pt-BR")+" potencialmente relevantes"
@@ -31,6 +33,7 @@ export function ContextPreparationPanel({items,acknowledged,onAcknowledge,disabl
     </small>
    </div>)}
   </div>
+  <p className="qa-semantic-muted">{TOKEN_ESTIMATE_NOTICE} Os limites operacionais do QA Hub não representam a capacidade máxima anunciada dos modelos.</p>
   {items.some(item=>item.result.topics?.length)&&<div className="qa-context-topics" aria-label="Cobertura estrutural da leitura rápida">
     {items.flatMap(item=>(item.result.topics??[]).map(topic=>(
      <div key={item.label+topic.label}>

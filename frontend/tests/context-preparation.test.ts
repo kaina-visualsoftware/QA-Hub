@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest";
 import {prepareGeneratorContext,prepareQaContext} from "../src/features/generators/context-preparation";
+import {estimateContextTokens} from "../src/lib/token-budget";
 
 describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
  it("mantém o texto curto exatamente como chegou, inclusive SQL e resultados negativos",()=>{
@@ -91,6 +92,26 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.findings?.every(f=>f.line>0)).toBe(true);
   expect(result.topics?.some(topic=>topic.label==="Outras informações"&&topic.total>topic.selected)).toBe(true);
   expect(result.text.length).toBeLessThanOrEqual(5500);
+ });
+ it("F3: sinaliza excesso de orçamento estimado mesmo quando cabe em caracteres",()=>{
+  const text="RF-424: " + "🧪".repeat(3000) + " Não alterar descontos sem permissão.";
+  const result=prepareQaContext(text,{limit:30000,tokenLimit:900});
+  expect(result.originalChars).toBeLessThan(30000);
+  expect(estimateContextTokens(text)).toBeGreaterThan(900);
+  expect(result.needsReview).toBe(true);
+  expect(result.mode).toBe("extrativo");
+  expect(result.sentEstimatedTokens).toBeLessThanOrEqual(900);
+  expect(result.originalEstimatedTokens).toBeGreaterThan(result.sentEstimatedTokens);
+ });
+ it("F3: mantém dados críticos sem confundir orçamento estimado com tokens oficiais",()=>{
+  const text=["## Requisitos","RF-301: Não faturar quando bloqueado.",
+   ...Array.from({length:100},(_,i)=>"Log "+i+" detalhes operacionais sem relevância."),
+   "## Resultado esperado","Não duplicar a baixa bancária."]
+   .join("\n");
+  const result=prepareQaContext(text,{limit:2500,tokenLimit:700});
+  expect(result.needsReview).toBe(true);
+  expect(result.text).toContain("RF-301");
+  expect(result.sentEstimatedTokens).toBeLessThanOrEqual(result.tokenBudget);
  });
  it("rejeita contextos acima da salvaguarda sem cortar",()=>{
   expect(()=>prepareQaContext("x".repeat(2000001),{limit:30000}))
