@@ -51,12 +51,12 @@ function reply(body:Record<string,unknown>){
    repaired:false,draft:entries,
    field_evidence:Object.fromEntries(Object.keys(entries).map(name=>[
     name,proof(quotes[name as keyof typeof quotes])
-   ]))},error:null};
+   ])),review_fields:[]},error:null};
  }
  if(body.mode==="task-scenarios"){
   const seeds=body.seeds as TestSeed[];
   return {data:{provider:"NVIDIA Build",stage:"scenarios",model:"glm-fixture",
-   repaired:false,draft:{cenarios:seeds.map(seed=>{
+   repaired:false,review_scenarios:[],draft:{cenarios:seeds.map(seed=>{
     const quote=find(new RegExp("CEN[ÁA]RIO\\s+"+(seed.source_index+1)+"\\b","i"));
     return {...seed,titulo:seed.titulo+" revisado",evidence:proof(quote)};
    })}},error:null};
@@ -192,12 +192,15 @@ describe("F4 — extração de tarefa em etapas",()=>{
    const response=reply(body);
    if(body.mode!=="task-fields")return response as never;
    const data=response.data as {draft:Record<string,string>;
-    field_evidence:Record<string,unknown>};
-   return {data:{...data,draft:{...data.draft,titulo:"Problema de tarifa inventada"},
-    field_evidence:{...data.field_evidence,titulo:{
-     quote:"Texto que não aparece no relatório",source_line:null,
-     status:"needs_review",reason:"quote_not_found"
-    }}},error:null} as never;
+    field_evidence:Record<string,unknown>;review_fields:unknown[]};
+   const withoutTitle=(input:Record<string,unknown>)=>
+    Object.fromEntries(Object.entries(input).filter(([key])=>key!=="titulo"));
+   return {data:{...data,draft:withoutTitle(data.draft),
+    field_evidence:withoutTitle(data.field_evidence),
+    review_fields:[{field:"titulo",value:"Problema de tarifa inventada",
+     evidence:{quote:"Texto que não aparece no relatório",
+      source_line:null,status:"needs_review",reason:"quote_not_found"}}]
+   },error:null} as never;
   });
   const result=await generateTaskAiDraftPhased(original);
   expect(result.fieldReview.some(r=>r.field==="titulo"&&r.status==="needs_review")).toBe(true);
@@ -213,12 +216,13 @@ describe("F4 — extração de tarefa em etapas",()=>{
    const response=reply(body);
    if(body.mode!=="task-scenarios")return response as never;
    const data=response.data as {draft:{cenarios:{source_index:number;
-    evidence:unknown}[]}};
-   const rows=data.draft.cenarios.map((row,index)=>index===0?{
-    ...row,evidence:{quote:"Citação inexistente",
-     source_line:null,status:"needs_review",reason:"quote_not_found"}
-   }:row);
-   return {data:{...data,draft:{cenarios:rows}},error:null} as never;
+    evidence:unknown}[]};review_scenarios:unknown[]};
+   const first=data.draft.cenarios[0];
+   const rejected={...first,evidence:{quote:"Citação inexistente",
+    source_line:null,status:"needs_review",reason:"quote_not_found"}};
+   return {data:{...data,
+    draft:{cenarios:data.draft.cenarios.slice(1)},
+    review_scenarios:[rejected]},error:null} as never;
   });
   const result=await generateTaskAiDraftPhased(original);
   expect(result.partial).toBe(true);
