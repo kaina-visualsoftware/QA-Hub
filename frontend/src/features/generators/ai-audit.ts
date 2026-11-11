@@ -12,7 +12,7 @@ export type AuditEvent={
  id:string;tarefa_id:string;user_id:string;event_type:AuditEventType;
  resource:AuditResource;reference_hash:string;source_hash:string;
  before_hash:string|null;after_hash:string|null;requirement_code:string|null;
- decision:Exclude<ConflictDecision,"pending">|null;created_at:string;
+ decision:ConflictDecision|null;created_at:string;
 };
 export type ApprovedSource={
  id:string;codigo:string;titulo:string;descricao:string;
@@ -41,7 +41,7 @@ export async function recordAuditRows(taskId:string,userId:string,rows:Omit<Audi
  if(error)throw Error("Não foi possível registrar a auditoria privada: "+error.message);
 }
 export async function recordConflictDecision(taskId:string,userId:string,
- sourceText:string,item:SemanticConflict,decision:Exclude<ConflictDecision,"pending">){
+ sourceText:string,item:SemanticConflict,decision:ConflictDecision){
  const [reference_hash,source_hash,before_hash,after_hash]=await Promise.all([
   sha256(item.id),sha256(sourceText),
   sha256(item.left.quote),sha256(item.right.quote)
