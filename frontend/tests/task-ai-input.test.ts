@@ -98,7 +98,7 @@ describe('indisponibilidade temporária da NVIDIA não bloqueia a abertura de TF
   'A rotina antiga ignora percentuais negativos dos kits.',
   'O QUE O DESENVOLVEDOR ALTEROU:',
   'A remoção agora considera os descontos negativos.'
- ].join('\\n');
+ ].join('\n');
  it('faz extração local para 503 ai_temporarily_unavailable de produção',async()=>{
   vi.spyOn(supabase.functions,'invoke').mockResolvedValue({
    data:null,error:{context:{
@@ -118,7 +118,7 @@ describe('indisponibilidade temporária da NVIDIA não bloqueia a abertura de TF
   vi.spyOn(supabase.functions,'invoke').mockResolvedValue({
    data:null,error:{context:{status:503,json:async()=>{throw Error('No JSON');}}}
   } as never);
-  const draft=await generateTaskAiDraft('Requisitos:\\n- O sistema deve validar a máscara de telefone do cliente estrangeiro.');
+  const draft=await generateTaskAiDraft('Requisitos:\n- O sistema deve validar a máscara de telefone do cliente estrangeiro.');
   expect(draft.extractionSource).toBe('local');
   expect(draft.fields.descricao).toMatch(/máscara de telefone/i);
  });
