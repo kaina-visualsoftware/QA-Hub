@@ -28,6 +28,8 @@ import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
+import {applyCaseRevision,caseAsMarkdown,insertReviewedExcerpt,requestTargetedRevision,selectionFromText} from "./targeted-revision";
+import type {PostSelection,ReviewOperation} from "./targeted-revision";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
 import { renderPostFormat, validateBbcodePost } from "./post-format";
 import type {PostOutputFormat} from "./post-format";
@@ -84,6 +86,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [error, setError] = useState("");
   const [generationId, setGenerationId] = useState(() => crypto.randomUUID());
   const controller = useRef<AbortController | null>(null);
+  const revisionController=useRef<AbortController|null>(null);
+  const [revisionBusy,setRevisionBusy]=useState(false);
+  const [revisionInstructions,setRevisionInstructions]=useState("");
+  const [revisionConsent,setRevisionConsent]=useState(false);
+  const [postSelection,setPostSelection]=useState<PostSelection|null>(null);
+  const [revisionProposal,setRevisionProposal]=useState<{
+    operation:ReviewOperation;before:string;after:string;
+    postSource?:string;selection?:PostSelection;caseIndex?:number;caseFingerprint?:string
+  }|null>(null);
+  const [revisionHistory,setRevisionHistory]=useState<{target:string;time:string}[]>([]);
   const lastGenerationInput=useRef<{task:string;requirements:string}|null>(null);
   const formOwn = task.user_id === userId;
 
@@ -101,7 +113,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     if (requirements.data) setSelected(requirements.data.map((item) => item.id));
   }, [requirements.data]);
   useEffect(() => {
-    return () => controller.current?.abort();
+    return () => {controller.current?.abort();revisionController.current?.abort();};
   }, []);
 
   useEffect(() => {
@@ -109,6 +121,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPreset("essencial");setExtra("");setPostFormat("markdown");setCanonicalPost("");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
+    revisionController.current?.abort();setRevisionBusy(false);
+    setRevisionProposal(null);setPostSelection(null);
+    setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
     lastGenerationInput.current=null;
   }, [task.id, mode]);
 
@@ -132,8 +147,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const semantic=useSemanticContext(context?.taskContext.text??"",
     context?.approved.text??"",mode);
   useEffect(() => {
-    onBusyChange?.(generating || busySave || semantic.working);
-  }, [generating, busySave, semantic.working, onBusyChange]);
+    onBusyChange?.(generating || busySave || semantic.working || revisionBusy);
+  }, [generating, busySave, semantic.working, revisionBusy, onBusyChange]);
   const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
     context.prepared.requirements?.needsReview));
   useEffect(()=>{
@@ -141,7 +156,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPartialConsent(false);
     setCompactApproved(false);
   },[context?.taskContext.text,context?.approved.text]);
-  const canSend = formOwn && !generating && !busySave && !!context &&
+  const canSend = formOwn && !generating && !busySave && !revisionBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent) &&
