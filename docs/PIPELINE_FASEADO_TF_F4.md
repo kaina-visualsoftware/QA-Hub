@@ -17,7 +17,7 @@ Antes, a criação de uma tarefa no assistente fazia uma única requisição NVI
 ## Limites explícitos
 
 - Entrada do modo faseado: até 30.000 caracteres preparados, preservando o original completo para arquivo após confirmação humana.
-- Lotes: 4 cenários por chamada, no máximo 2 em voo; a primeira versão processa com IA até **20 cenários locais** (mais casos permanecem preservados localmente e sujeitos à revisão, sem afirmar cobertura completa).
+- Lotes: no máximo 4 cenários por chamada, até 13,5 kB de exemplos e no máximo 2 em voo; a primeira versão processa com IA até **20 cenários locais** (mais casos permanecem preservados localmente e sujeitos à revisão, sem afirmar cobertura completa). Lotes longos podem ter menos de quatro itens. Se um único cenário superar o orçamento em bytes, ele é mantido só localmente e identificado como não processado. Campos extensos dos cenários são comunicados como seleção parcial, não como leitura integral.
 - Se o parser local não extrair cenários explícitos, não se inventam casos: o QA pode usar a etapa independente de geração de casos posteriormente.
 - A retomada funciona apenas na mesma instância aberta do assistente, não entre recargas, navegadores ou computadores. Uma fila distribuída exigiria persistência segura e nova fase.
 - Se o parser local identificar mais de 20 cenários, os adicionais permanecem disponíveis localmente e o resultado é classificado como **parcial**, sem alegar que todos foram enviados à NVIDIA. O limite local de 200 mil caracteres também é comunicado explicitamente.

@@ -30,6 +30,8 @@ export type PhasedTaskDraft=GeneratedTaskDraft&{
 export const TASK_BATCH_SIZE=4;
 export const TASK_BATCH_CONCURRENCY=2;
 const MAX_SEEDS=20;
+const MAX_BATCH_BYTES=13500; // below the Edge Function 14 kB cap
+const encoder=new TextEncoder();
 
 const abortError=()=>new DOMException("Análise cancelada; o progresso anterior foi preservado.","AbortError");
 const protectedError=(error:unknown)=>error instanceof AiRequestError&&(
@@ -56,8 +58,20 @@ function seedsFor(local:LocalDraft|null):ScenarioSeed[]{
 }
 function toBatches(items:ScenarioSeed[]){
  const batches:ScenarioSeed[][]=[];
- for(let i=0;i<items.length;i+=TASK_BATCH_SIZE)
-  batches.push(items.slice(i,i+TASK_BATCH_SIZE));
+ let active:ScenarioSeed[]=[];
+ for(const seed of items){
+  // A too-large single seed stays in the local result; never send an
+  // oversized batch that the server will reject on every resume.
+  const candidate=[...active,seed];
+  if(active.length>=TASK_BATCH_SIZE||
+     encoder.encode(JSON.stringify(candidate)).length>MAX_BATCH_BYTES){
+    if(active.length)batches.push(active);
+    active=[];
+  }
+  if(encoder.encode(JSON.stringify([seed])).length<=MAX_BATCH_BYTES)
+   active.push(seed);
+ }
+ if(active.length)batches.push(active);
  return batches;
 }
 async function stageRequest(body:Record<string,unknown>,signal:AbortSignal|undefined,
@@ -104,9 +118,15 @@ function parsedBatch(data:unknown,seeds:ScenarioSeed[]):TaskScenarioRow[]{
 }
 function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
  reasons:string[]):PhasedTaskDraft{
- const unprocessedScenarios=Math.max(0,(checkpoint.local?.cenarios.length??0)-MAX_SEEDS);
+ const processable=new Set(batches.flat().map(seed=>seed.source_index));
+ const unprocessedScenarios=Math.max(0,
+  (checkpoint.local?.cenarios.length??0)-processable.size);
+ const sourceExcerptLimits=(checkpoint.local?.cenarios??[]).slice(0,MAX_SEEDS)
+  .filter(item=>item.passos.length>3400||item.esperado.length>1800||
+    item.observacoes.length>1500).length;
  const localParsingLimited=!checkpoint.local&&checkpoint.source.length>200000;
- const partial=!checkpoint.resolvedFields||unprocessedScenarios>0||localParsingLimited||
+ const partial=!checkpoint.resolvedFields||unprocessedScenarios>0||
+  sourceExcerptLimits>0||localParsingLimited||
   batches.some((_,index)=>!Object.hasOwn(checkpoint.completedBatches,index));
  const enriched=(checkpoint.local?.cenarios??[]).map((original,index)=>{
   const updated=Object.values(checkpoint.completedBatches).flat()
@@ -131,8 +151,10 @@ function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
    ...(unprocessedScenarios>0?
     [unprocessedScenarios+" cenário(s) adicionais não foram enviados à IA; permanecem disponíveis para revisão local."]:[]),
    ...(localParsingLimited?
-    ["Fonte acima do limite de 200 mil caracteres do parser local; revise os cenários manualmente ou prepare blocos semânticos."]:[])
-  ].filter(Boolean).join(" ").slice(0,600)||undefined,
+    ["Fonte acima do limite de 200 mil caracteres do parser local; revise os cenários manualmente ou prepare blocos semânticos."]:[]),
+   ...(sourceExcerptLimits>0?
+    [sourceExcerptLimits+" cenário(s) tinham passos/resultado/observações extensos; a IA recebeu somente os trechos limitados, e a versão original continua disponível."] : [])
+  ].filter(Boolean).join(" ").slice(0,850)||undefined,
   partial,completedBatches:completed,totalBatches:batches.length,
   pendingBatches:batches.length-completed,fieldsPending:!checkpoint.resolvedFields,
   unprocessedScenarios,localParsingLimited

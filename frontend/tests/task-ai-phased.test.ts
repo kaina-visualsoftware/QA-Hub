@@ -140,6 +140,23 @@ describe("F4 — extração de tarefa em etapas",()=>{
   expect(pipelinePendingCount(checkpoints[0])).toBeGreaterThan(0);
   expect(spy).not.toHaveBeenCalled();
  });
+ it("F4: preserva localmente cenários muito extensos sem reenviar lotes inválidos",async()=>{
+  const original=[
+   "CENÁRIO 1 — Caso com relatório extenso",
+   "Passos:",
+   ...Array.from({length:180},(_,i)=>
+    "1. Verificar registro de exemplo "+i+" e seu comportamento de negócio documentado."),
+   "Resultado esperado: Nenhuma duplicidade de dados."
+  ].join("\n");
+  const local=extractLocalDraft(original);
+  expect(local.cenarios.length).toBeGreaterThan(0);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
+   reply(args!.body as Record<string,unknown>) as never);
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.partial).toBe(true);
+  expect(result.cenarios).toHaveLength(local.cenarios.length);
+  expect(result.extractionReason).toMatch(/trechos limitados|não foram enviados/i);
+ });
  it("não inventa cenários quando só existe requisito documental",async()=>{
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
    reply(args!.body as Record<string,unknown>) as never);
