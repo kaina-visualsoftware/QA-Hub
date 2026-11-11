@@ -44,7 +44,8 @@ test('Edge Function has auth, secret env, free model allowlist and no hardcoded 
  assert.match(code,/Retry-After/);
  assert.doesNotMatch(code,/12 usos por dia/);
  assert.match(code,/nvidia\/nemotron-3.5-lightning-30b-a3b/);
- assert.match(code,/z-ai\/glm-5-3-flash/);
+ assert.match(code,/z-ai\/glm-5\.3-flash/);
+  assert.doesNotMatch(code,/z-ai\/glm-5-3-flash/);
  assert.match(code,/Não invente|Nunca invente/);
  assert.doesNotMatch(code,/nvapi-[a-zA-Z0-9_-]+/);
 });
