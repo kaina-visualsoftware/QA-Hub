@@ -17,7 +17,7 @@ for(const name of edgePaths){
   const nemotron=src.indexOf('"nvidia/nemotron-3.5-lightning-30b-a3b"');
   assert.ok(glm>=0&&nemotron>=0&&glm<nemotron,
     "The fast fallback must be preferred over a saturated Nemotron endpoint");
-  assert.match(src,/qa_ai_claim_minute_request/,
+  assert.match(edge,/qa_ai_claim_minute_request/,
     "Provider attempts must still count against the shared quota.");
  });
 }
