@@ -28,6 +28,11 @@ import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
+import {AuditTrailPanel} from "./AuditTrailPanel";
+import {CoverageReviewPanel} from "./CoverageReviewPanel";
+import {prepareFocusedCoverageTask} from "./coverage-f32";
+import {recordConflictDecision,recordAppliedRevision,recordCoveragePreparation} from "./ai-audit";
+import type {SemanticConflict,ConflictDecision} from "./semantic-conflicts";
 import {applyCaseRevision,caseAsMarkdown,insertReviewedExcerpt,requestTargetedRevision,selectionFromText} from "./targeted-revision";
 import type {PostSelection,ReviewOperation} from "./targeted-revision";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
@@ -88,6 +93,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const controller = useRef<AbortController | null>(null);
   const revisionController=useRef<AbortController|null>(null);
   const [revisionBusy,setRevisionBusy]=useState(false);
+  const [auditBusy,setAuditBusy]=useState(false);
+  const [changedCodes,setChangedCodes]=useState<string[]>([]);
   const [revisionInstructions,setRevisionInstructions]=useState("");
   const [revisionConsent,setRevisionConsent]=useState(false);
   const [postSelection,setPostSelection]=useState<PostSelection|null>(null);
@@ -124,6 +131,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     revisionController.current?.abort();setRevisionBusy(false);
     setRevisionProposal(null);setPostSelection(null);
     setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
+    setChangedCodes([]);
     lastGenerationInput.current=null;
   }, [task.id, mode]);
 
@@ -147,8 +155,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const semantic=useSemanticContext(context?.taskContext.text??"",
     context?.approved.text??"",mode);
   useEffect(() => {
-    onBusyChange?.(generating || busySave || semantic.working || revisionBusy);
-  }, [generating, busySave, semantic.working, revisionBusy, onBusyChange]);
+    onBusyChange?.(generating || busySave || semantic.working || revisionBusy || auditBusy);
+  }, [generating, busySave, semantic.working, revisionBusy, auditBusy, onBusyChange]);
   const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
     context.prepared.requirements?.needsReview));
   useEffect(()=>{
@@ -156,7 +164,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPartialConsent(false);
     setCompactApproved(false);
   },[context?.taskContext.text,context?.approved.text]);
-  const canSend = formOwn && !generating && !busySave && !revisionBusy && !!context &&
+  const canSend = formOwn && !generating && !busySave && !revisionBusy && !auditBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent) &&
