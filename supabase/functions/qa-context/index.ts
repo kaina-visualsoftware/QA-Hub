@@ -67,7 +67,8 @@ Deno.serve(async(req:Request)=>{
   body=parsed as Record<string,unknown>;
  }catch{return reply(400,{message:"Envie um trecho de texto válido."});}
  const goal=body.goal,source=body.source,chunkId=body.chunkId,text=body.text;
- if(!GOALS.includes(goal)||!["TF","REQ"].includes(source)||
+ if(typeof goal!=="string"||!GOALS.includes(goal)||
+  typeof source!=="string"||!["TF","REQ"].includes(source)||
   typeof chunkId!=="string"||!/^(TF|REQ)-\d{3}$/.test(chunkId)||
   !chunkId.startsWith(source+"-")||
   typeof text!=="string"||text.trim().length<10||text.length>9000){
