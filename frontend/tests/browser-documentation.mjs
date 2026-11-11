@@ -163,7 +163,9 @@ try{
  await viewer.getByText("exemplo.zip").first().waitFor();
  await viewer.getByRole("article").filter({hasText:"passos.txt"}).getByRole("button",{name:"Visualizar",exact:true}).click();
  const preview=page.getByRole("dialog",{name:"Visualizar anexo — passos.txt"});await preview.getByText("Passos detalhados do arquivo").waitFor();
- await page.keyboard.press("Escape");await preview.waitFor({state:"detached"});assert.equal(await viewer.evaluate(el=>el.contains(document.activeElement)),true);
+ await page.keyboard.press("Escape");await preview.waitFor({state:"detached"});
+ await page.waitForFunction(()=>[...document.querySelectorAll('[role="dialog"]')].some(el=>el.querySelector("h2")?.textContent==="Resolver falha de emissão"&&el.contains(document.activeElement)));
+ assert.equal(await viewer.evaluate(el=>el.contains(document.activeElement)),true);
  await viewer.getByRole("article").filter({hasText:"tutorial.webm"}).getByRole("button",{name:"Visualizar",exact:true}).click();
  const videoPreview=page.getByRole("dialog",{name:"Visualizar anexo — tutorial.webm"});await videoPreview.waitFor();
  await page.waitForFunction(()=>document.querySelector("video")?.readyState>=1);
