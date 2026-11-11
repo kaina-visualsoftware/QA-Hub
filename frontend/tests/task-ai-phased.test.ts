@@ -185,6 +185,62 @@ describe("F4 — extração de tarefa em etapas",()=>{
   expect(result.cenarios).toHaveLength(local.cenarios.length);
   expect(result.extractionReason).toMatch(/trechos limitados|não foram enviados/i);
  });
+ it("F5: não preenche automaticamente título sem citação, apesar de outros campos verificados",async()=>{
+  const original=sourceWith(2);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   if(body.mode!=="task-fields")return response as never;
+   const data=response.data as {draft:Record<string,string>;
+    field_evidence:Record<string,unknown>};
+   return {data:{...data,draft:{...data.draft,titulo:"Problema de tarifa inventada"},
+    field_evidence:{...data.field_evidence,titulo:{
+     quote:"Texto que não aparece no relatório",source_line:null,
+     status:"needs_review",reason:"quote_not_found"
+    }}},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.fieldReview.some(r=>r.field==="titulo"&&r.status==="needs_review")).toBe(true);
+  expect(result.fields.titulo).not.toBe("Problema de tarifa inventada");
+  expect(result.needsReviewCount).toBeGreaterThan(0);
+  expect(result.partial).toBe(true);
+ });
+ it("F5: cenário com citação falsa não substitui a versão local nem conclui o lote",async()=>{
+  const original=sourceWith(2);
+  const local=extractLocalDraft(original);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   if(body.mode!=="task-scenarios")return response as never;
+   const data=response.data as {draft:{cenarios:{source_index:number;
+    evidence:unknown}[]}};
+   const rows=data.draft.cenarios.map((row,index)=>index===0?{
+    ...row,evidence:{quote:"Citação inexistente",
+     source_line:null,status:"needs_review",reason:"quote_not_found"}
+   }:row);
+   return {data:{...data,draft:{cenarios:rows}},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.partial).toBe(true);
+  expect(result.pendingBatches).toBeGreaterThan(0);
+  expect(result.scenarioReview.some(item=>item.status==="needs_review")).toBe(true);
+  expect(result.cenarios[0].titulo).toBe(local.cenarios[0].titulo);
+  expect(result.cenarios[0].status).toBe("nao_executado");
+ });
+ it("F5: resposta reparada exige revisão e mantém preenchimento local",async()=>{
+  const original=sourceWith(0);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   const data=response.data as Record<string,unknown>;
+   return {data:{...data,repaired:true},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.partial).toBe(true);
+  expect(result.fieldReview.every(r=>r.status==="needs_review")).toBe(true);
+  expect(result.fieldReview.some(r=>r.reason==="json_repaired")).toBe(true);
+  expect(result.extractionSource).toBe("local");
+ });
  it("não inventa cenários quando só existe requisito documental",async()=>{
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
    reply(args!.body as Record<string,unknown>) as never);
