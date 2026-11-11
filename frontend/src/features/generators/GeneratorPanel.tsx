@@ -385,7 +385,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           titulo: task.titulo,
           tarefa: lastGenerationInput.current?.task??context.prepared.task.text,
           requisito: lastGenerationInput.current?.requirements??context.prepared.requirements?.text??"",
-          md: content, exec: {}
+          md: revisionHistory.some(item=>item.target.startsWith("Caso "))?
+            chosen.map(caseAsMarkdown).join("\n\n---\n\n"):content,
+          exec: {}
         }, { onConflict: "id" });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
