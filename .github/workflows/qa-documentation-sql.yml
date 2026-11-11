@@ -2,7 +2,7 @@ name: QA Hub documentation SQL
 on:
   pull_request:
     branches: [main]
-    paths: ['supabase/qa_documentacoes.sql', 'tests/sql/qa_documentacao_*.sql', '.github/workflows/qa-documentation-sql.yml']
+    paths: ['supabase/qa_documentacoes.sql', 'supabase/qa_documentacoes_markdown.sql', 'tests/sql/qa_documentacao_*.sql', '.github/workflows/qa-documentation-sql.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,4 +33,7 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_documentacao_fixture.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes.sql
           psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes_markdown.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/qa_documentacoes_markdown.sql
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_documentacao_post.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/qa_documentacao_markdown_post.sql
