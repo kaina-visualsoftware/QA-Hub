@@ -18,7 +18,7 @@ describe('Documentações',()=>{
   expect(documentationFileFormat({name:'resposta.json',type:'application/json',size:100})).toBe('json');
   const id='22222222-2222-4222-8222-222222222222';
   expect(docAttachmentToken(id)).toBe('{{arquivo:'+id+'}}');
-  expect([...documentReferencedFileIds('# Manual\\n\\n'+docAttachmentToken(id))]).toEqual([id]);
+  expect([...documentReferencedFileIds(['# Manual','',''].join(String.fromCharCode(10))+docAttachmentToken(id))]).toEqual([id]);
  });
  it('detecta SQL colado, sem confundir texto comum com comandos',()=>{
   expect(looksLikeSql('CREATE TABLE usuarios (password text, token text);')).toBe(true);
@@ -27,7 +27,7 @@ describe('Documentações',()=>{
  });
  it('renderiza arquivos no ponto inserido sem interpretar marcadores dentro de blocos SQL',()=>{
   const id='22222222-2222-4222-8222-222222222222';
-  const source=['# Manual','',docAttachmentToken(id),'','```sql',docAttachmentToken(id),'```'].join('\\n');
+  const source=['# Manual','',docAttachmentToken(id),'','```sql',docAttachmentToken(id),'```'].join(String.fromCharCode(10));
   const parts=splitDocumentMarkdown(source);
   expect(parts.filter(item=>item.kind==='attachment')).toEqual([{kind:'attachment',id}]);
   expect(parts.at(-1)?.kind).toBe('markdown');
