@@ -62,7 +62,7 @@ export function taskScenarioMessages(text,seeds){
    dataNotice,
    "Não inclua novos cenários e não mude source_index. Até quatro por resposta.",
    'Retorne JSON {"cenarios":[{"source_index":0,"titulo":"","passos":"","esperado":"","observacoes":"","evidence":"trecho literal do relatório"}]}',
-   "Para CADA cenário, evidence deve ser um trecho LITERAL do relatório enviado (8–550 caracteres) que sustente o cenário de mesmo source_index.",
+   "Para CADA cenário, evidence deve ser um trecho LITERAL do relatório enviado (12–550 caracteres) que sustente o cenário de mesmo source_index.",
    "Não invente passos, resultados esperados, identificadores, versões nem citações. Se faltar evidência, use evidence vazio e campos vazios.",
    "O QA precisa revisar cada cenário antes de salvar. Não atribua status de aprovação ou execução."
   ].join("\n")},

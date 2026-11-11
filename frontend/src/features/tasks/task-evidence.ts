@@ -71,9 +71,9 @@ const norm=(s:string)=>s.normalize("NFD").replace(/\p{M}/gu,"")
  * the line and we independently recalculate it to resist a malformed reply.
  */
 export function locateEvidence(source:string,quote:string):number|null{
- if(quote.trim().length<8||quote.length>550)return null;
+ if(quote.trim().length<12||quote.length>550)return null;
  const target=norm(quote);
- if(target.length<8)return null;
+ if(target.length<12)return null;
  // Build a normalized string and map every UTF-16 code unit to source offsets.
  let result="",offsets:number[]=[],space=false,spaceAt=0;
  for(let i=0;i<source.length;){

@@ -197,9 +197,9 @@ export async function callModel({
  const prepared=safeOptions(model,mode,stream,options);
  // Refuse locally before consuming any 15/min quota slot or attempting HTTP.
  // This is an estimate; the provider's tokenizer may still reject the input.
- const budget=planTokenBudget({messages,model,mode,maxOutputTokens:prepared.max_tokens});
- onBudget?.(budget);
- if(!budget.fits)throw new ProviderError("context_exceeded",{model});
+ const tokenBudget=planTokenBudget({messages,model,mode,maxOutputTokens:prepared.max_tokens});
+ onBudget?.(tokenBudget);
+ if(!tokenBudget.fits)throw new ProviderError("context_exceeded",{model});
  const startedJob=now();
  let lastError;
  for(let attempt=1;attempt<=Math.max(1,Math.min(3,Math.floor(maxRetries)+1));attempt++){
@@ -278,7 +278,7 @@ export async function callModel({
    signal?.removeEventListener("abort",outerAbort);
    onAttempt?.({mode,model,attempt,fallback_model:fallbackModel,
     started_at:started,http_status:httpStatus,max_tokens:prepared.max_tokens,
-    estimated_prompt_tokens:budget.estimatedInputTokens,
+    estimated_prompt_tokens:tokenBudget.estimatedInputTokens,
     finish_reason:result?.finishReason??failed?.finishReason??null,
     usage:result?.usage??failed?.usage??null,
     outcome:failed?telemetryOutcome(failed):

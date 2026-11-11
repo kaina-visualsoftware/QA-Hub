@@ -12,9 +12,9 @@ export function evidenceKey(text){
  */
 export function findEvidence(source,quote){
  if(typeof source!=="string"||typeof quote!=="string"||
-  quote.trim().length<8||quote.length>550)return null;
+  quote.trim().length<12||quote.length>550)return null;
  const normQuote=evidenceKey(quote);
- if(normQuote.length<8)return null;
+ if(normQuote.length<12)return null;
  let normalized="",offsets=[],pendingSpace=false,spacePos=0;
  for(let i=0;i<source.length;){
   const cp=source.codePointAt(i);
