@@ -834,8 +834,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div className="qa-revision-preview-actions">
           <button type="button" disabled={revisionBusy||busySave}
             onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
-          <button type="button" disabled={revisionBusy||busySave}
-            onClick={()=>void applyRevision()} disabled={auditBusy}>Aplicar somente neste trecho</button>
+          <button type="button" disabled={revisionBusy||busySave||auditBusy}
+            onClick={()=>void applyRevision()}>Aplicar somente neste trecho</button>
         </div>
       </section>}
       {!!revisionHistory.length&&<details className="qa-revision-history">
