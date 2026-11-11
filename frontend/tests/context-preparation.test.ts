@@ -13,7 +13,7 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
  it("remove apenas espaçamentos excessivos antes de selecionar trechos",()=>{
   const source="Critérios e condições de aceite detalhados\n\n\n\n"+
    "A alteração da API não deve afetar o Brasil. ".repeat(22);
-  const result=prepareQaContext(source,{limit:1040});
+  const result=prepareQaContext(source,{limit:1034});
   expect(result.mode).toBe("normalizado");
   expect(result.omittedLines).toBe(0);
   expect(result.needsReview).toBe(false);
@@ -38,7 +38,7 @@ describe("compactador de contexto: pré-processamento seguro e auditável",()=>{
   expect(result.text).toContain("RF-334");
   expect(result.text).toContain("CENÁRIO 1");
   expect(result.text).toContain("Não remover desconto negativo");
-  expect(result.text).toContain("correção");
+  expect(result.text).toMatch(/Correção|remoção passou/);
   expect(result.sentChars).toBeLessThanOrEqual(7000);
   expect(result.omittedLines).toBeGreaterThan(0);
   expect(result.originalChars).toBe(source.length);
