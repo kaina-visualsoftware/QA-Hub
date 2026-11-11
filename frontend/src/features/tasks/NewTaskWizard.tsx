@@ -586,6 +586,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {!!taskContextLength&&<p className="qa-wizard-size">
         {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
       </p>}
+      {sourcePreparation&&"error" in sourcePreparation&&<p role="alert" className="notice error">{sourcePreparation.error}</p>}
+      {sourcePreparation&&"prepared" in sourcePreparation&&
+        <ContextPreparationPanel
+          items={[{label:"TF",result:sourcePreparation.prepared,original:sourcePreparation.original}]}
+          acknowledged={compactApprovedTask} onAcknowledge={setCompactApprovedTask} disabled={busy}/>}
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
@@ -599,7 +604,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
         <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
-          !taskContextLength}
+          !taskContextLength||!sourcePreparation||!("prepared" in sourcePreparation)||
+          (sourcePreparation.prepared.needsReview&&!compactApprovedTask)}
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
@@ -738,7 +744,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </p>}
       <div className="qa-wizard-source-panel">
         <label className="field">Requisitos e critérios de aceite (opcional)
-          <textarea id="qa-wizard-requirement" rows={5} maxLength={20000}
+          <textarea id="qa-wizard-requirement" rows={5} maxLength={250000}
             value={requirementText} disabled={busy}
             onChange={event=>{setRequirementText(event.target.value);setConsentCases(false);}}
             placeholder="Cole os requisitos funcionais, regras de negócio, exceções e critérios de aceite."/>
@@ -748,6 +754,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <p>Anexe PDFs, DOCX, TXT ou MD com regras complementares.</p>
         </div>
       </div>
+      {casePreparation&&"error" in casePreparation&&<p role="alert" className="notice error">{casePreparation.error}</p>}
+      {casePreparation&&"prepared" in casePreparation&&<ContextPreparationPanel
+        items={[
+          {label:"TF",result:casePreparation.prepared.task,original:casePreparation.originalTask},
+          ...(casePreparation.prepared.requirements?[{label:"Requisitos",
+            result:casePreparation.prepared.requirements,original:casePreparation.originalRequirements}]:[])
+        ]}
+        acknowledged={compactApprovedCases} onAcknowledge={setCompactApprovedCases} disabled={busy}/>}
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
@@ -760,7 +774,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onChange={event=>setConsentCases(event.target.checked)}/>
           Autorizo enviar o contexto da TF e os requisitos à NVIDIA para gerar casos.
         </label>
-        <Button className="qa-wizard-primary" isDisabled={busy||!consentCases}
+        <Button className="qa-wizard-primary" isDisabled={busy||!consentCases||
+          !casePreparation||!("prepared" in casePreparation)||
+          ((casePreparation.prepared.task.needsReview||
+            casePreparation.prepared.requirements?.needsReview)&&!compactApprovedCases)}
           onPress={()=>void generateCases()}>
           {generating?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
