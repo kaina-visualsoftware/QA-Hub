@@ -24,7 +24,7 @@ const scenario={
 };
 const diagrams=[];
 const errors=[];
-const prompts=[],revisionRequests=[];
+const prompts=[],revisionRequests=[],auditRows=[];
 let diagramSaves=0,taskWrites=0,scenarioWrites=0;
 const cors={
   "Access-Control-Allow-Origin":"*",
@@ -46,6 +46,24 @@ async function fakeBackend(route){
   if(path.endsWith("/auth/v1/user"))return send(user);
   if(await mockF4Rpc(route,[task],[scenario]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
+  if(path.endsWith("/rest/v1/qa_ai_audit_trail")){
+    if(method==="GET")return send(auditRows);
+    if(method==="POST"){
+      const records=request.postDataJSON();
+      for(const event of Array.isArray(records)?records:[records]){
+        assert.equal(event.user_id,owner);
+        assert.equal(event.tarefa_id,taskId);
+        assert.match(event.source_hash,/^[a-f0-9]{64}$/);
+        assert.match(event.reference_hash,/^[a-f0-9]{64}$/);
+        assert.equal(Object.hasOwn(event,"prompt"),false);
+        assert.equal(Object.hasOwn(event,"model_response"),false);
+        auditRows.unshift({...event,id:"99999999-9999-4999-8999-"+String(auditRows.length+1).padStart(12,"0"),
+          created_at:new Date().toISOString()});
+      }
+      return send(null,201);
+    }
+    throw Error("Unexpected audit mutation: "+method);
+  }
   if(path.endsWith("/rest/v1/qa_tarefas")){
     if(method!=="GET")taskWrites++;
     return send([task]);
@@ -285,6 +303,8 @@ try {
       await dialog.getByText("Recalcular pedido sem desconto").waitFor();
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count(),0);
       assert.equal(scenarioWrites,0,"A revision is a draft until the QA explicitly saves cases.");
+      assert.equal(auditRows.filter(row=>row.event_type==="test_revision_applied").length,1,
+        "Approved individual rewrite must create a private, hash-only audit event.");
     }
     await page.getByRole("button",{name:mode==="Post"?
       "Fechar Gerar post com IA":"Fechar Gerar casos com IA"}).click();
