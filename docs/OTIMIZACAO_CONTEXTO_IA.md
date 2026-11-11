@@ -25,9 +25,25 @@ Foi adicionada uma etapa local **Compactador de contexto**, anterior ao envio NV
 - Uma entrada única acima de 2 milhões de caracteres deve ser dividida em fontes menores.
 - A conversão de caracteres para tokens **não é exata**. Um modelo ainda pode retornar erro de janela de contexto. A aplicação deve reportar o problema sem chamar a geração de sucesso.
 
-## Próximas fases recomendadas
+## Implementação F2/F3 — compactação semântica opcional (11/11/2026)
 
-### F2 — Compactação semântica em múltiplas passagens
+O QA pode optar entre **compactação rápida** (extrativa, sem chamadas adicionais) e **semântica por blocos**, disponível quando o contexto excede o orçamento. A opção semântica mantém o texto de cada fonte integralmente segmentado em partes de até 9.000 caracteres, com origem **TF** ou **REQ**, índice e linhas.
+
+A nova função privada `qa-context` autentica o usuário, usa a quota compartilhada de 15 tentativas/minuto e solicita à NVIDIA fatos estruturados com **citações literalmente existentes na parte analisada**. Citações que não existirem são rejeitadas tanto na função quanto no frontend. O resumo livre da IA não é utilizado como prova; apenas o trecho textual verificado é enviado ao gerador final.
+
+A preparação funciona em até oito partes por lote para permitir cancelamento e retomada. O usuário vê quantas partes serão analisadas, quantas já foram concluídas, quais não retornaram evidências, quantas citações foram rejeitadas, os identificadores de requisitos não cobertos e os fatos fora do orçamento. Há reanálise de **um bloco** sem reiniciar as demais partes, com revisão e autorização explícitas antes da geração.
+
+A preparação é direcionada: **posts** recebem prioridade para antes/depois, implementação e permissões; **casos** para critérios, condições negativas, pré-requisitos e dados; **TFs** para problema, causa, alteração e evidências. Isso não garante precisão sem revisão humana nem cobertura integral. O original permanece na TF; os resultados semânticos são transitórios no navegador. Não foi criada tabela nem houve migração do banco.
+
+### Implantação
+
+1. Publicar a Edge Function `qa-context` com `index.ts` e `facts.mjs` e `verify_jwt=true`.
+2. Validar os testes de segurança e as citações verificadas; publicar frontend após os checks.
+3. Não substituir as funções `qa-ai` e `qa-generators`.
+
+## Evoluções ainda recomendadas
+
+### F2.1 — Consolidação semântica avançada (pendente)
 
 - Dividir o texto em blocos por tópico e fronteiras de documento, preservando IDs, faixas da origem e vínculos de requisitos/cenários.
 - Enviar os blocos sequencialmente para gerar **sumários estruturados por fonte**, não um único resumo solto. Cada regra, condição negativa, resultado, caminho e parâmetro deve referenciar o trecho que a originou.
@@ -36,7 +52,7 @@ Foi adicionada uma etapa local **Compactador de contexto**, anterior ao envio NV
 - Respeitar a quota compartilhada de **15 requisições/minuto**, tempo máximo e cancelamento. Mostrar custo estimado em chamadas **antes** da execução; se atingir a quota, pausar o processo sem perder o que já foi revisado.
 - Não armazenar textos ou resumos sensíveis em serviços externos adicionais. Caso seja necessário persistir progresso, usar recursos já protegidos por RLS com escopo de proprietário.
 
-### F3 — Geração guiada por objetivo (busca por evidência)
+### F3.1 — Geração incremental do artefato e verificações cruzadas (pendente)
 
 - Para **posts**, recuperar primeiro o que mudou, comportamento anterior/posterior, caminho e justificativa; para **casos**, critérios de aceite, exceções, permissões, dados e estados.
 - Distribuir orçamento por fonte relevante, sem confundir hipóteses com testes executados.

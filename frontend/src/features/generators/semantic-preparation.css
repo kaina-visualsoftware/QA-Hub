@@ -1,0 +1,52 @@
+.qa-semantic-panel{display:grid;gap:13px;padding:14px;border:1px solid #cbdfe1;border-radius:13px;background:#f6fafa;min-width:0;color:#294e58}
+.qa-semantic-heading{display:flex;align-items:flex-start;gap:10px}
+.qa-semantic-heading>svg{flex:0 0 20px;color:#216e79;margin-top:2px}
+.qa-semantic-heading strong{font-size:.89rem}
+.qa-semantic-heading p{margin-top:4px;font-size:.76rem;line-height:1.5;color:#547079}
+.qa-semantic-strategies{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.qa-semantic-strategies label{display:flex;align-items:flex-start;gap:10px;
+ padding:12px;border:1px solid #d1e1e3;border-radius:10px;background:#fff;cursor:pointer}
+.qa-semantic-strategies label:has(input:checked){background:#ecf8f4;border-color:#73b5af}
+.qa-semantic-strategies input{flex:0 0 18px;width:18px;height:18px;margin-top:3px;accent-color:#1b7977}
+.qa-semantic-strategies span{display:grid;gap:4px}
+.qa-semantic-strategies strong{font-size:.82rem}
+.qa-semantic-strategies small{font-size:.74rem;line-height:1.45;color:#527079}
+.qa-semantic-work{display:grid;gap:12px;padding-top:10px;border-top:1px solid #d7e5e6}
+.qa-semantic-progress{display:grid;gap:7px;font-size:.8rem}
+.qa-semantic-progress progress{width:100%;height:10px;accent-color:#2f8c85}
+.qa-semantic-progress small,.qa-semantic-muted{font-size:.75rem;line-height:1.55;color:#56717a}
+.qa-semantic-actions{display:flex;flex-wrap:wrap;gap:8px}
+.qa-semantic-actions button,.qa-semantic-blocks button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;
+ padding:8px 12px;border:1px solid #bbd9d6;background:white;color:#275c67;border-radius:9px;font-size:.8rem;font-weight:700}
+.qa-semantic-actions button:first-child{background:#246c74;color:#fff;border-color:#246c74}
+.qa-semantic-actions button:disabled,.qa-semantic-blocks button:disabled{opacity:.55;cursor:not-allowed}
+.qa-semantic-blocks,.qa-semantic-review>details{border:1px solid #d7e5e8;border-radius:9px;background:white;min-width:0}
+.qa-semantic-blocks>summary,.qa-semantic-review>details>summary{cursor:pointer;padding:11px 13px;font-size:.81rem;color:#265d68;font-weight:700}
+.qa-semantic-blocks ol{display:grid;gap:8px;margin:0;padding:12px;list-style:none}
+.qa-semantic-blocks ol>li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+ border:1px solid #e0e9ea;background:#fafcfc;padding:9px;border-radius:8px;font-size:.74rem;min-width:0}
+.qa-semantic-blocks li>details{flex:1 0 100%;min-width:0}
+.qa-semantic-blocks li>details>summary{cursor:pointer;color:#2d7077;padding:7px}
+.qa-semantic-blocks li ul{margin:0;padding:8px 10px 8px 28px}
+.qa-semantic-blocks li ul li{padding:7px;border-top:1px solid #e1ebeb;overflow-wrap:anywhere}
+.qa-semantic-blocks blockquote{padding:8px 12px;margin:5px 0;background:#eef5f5;line-height:1.6;border-left:3px solid #78b5b2;white-space:pre-wrap}
+.qa-semantic-review{display:grid;gap:11px}
+.qa-semantic-summary{display:grid;gap:9px;padding:12px;background:white;border:1px solid #cbdfe0;border-radius:10px;font-size:.8rem}
+.qa-semantic-summary>strong{display:flex;align-items:center;gap:8px}
+.qa-semantic-summary p{margin:0;color:#8b5430}
+.qa-semantic-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.qa-semantic-metrics span{display:grid;gap:3px;padding:8px;background:#f2f8f8;border-radius:8px;font-size:.72rem}
+.qa-semantic-metrics strong{font-size:.95rem;color:#1f5966}
+.qa-semantic-review>details .field{display:grid;gap:7px;margin:11px}
+.qa-semantic-review textarea{box-sizing:border-box;width:100%;font:normal .78rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.qa-semantic-caution{display:flex;gap:8px;align-items:flex-start;margin:0;color:#805e31;line-height:1.55;font-size:.76rem}
+.qa-semantic-caution svg{flex:0 0 17px;margin-top:2px}
+.qa-semantic-consent{display:flex;align-items:flex-start;gap:9px;background:white;border:1px solid #c6dcdf;
+ padding:11px;border-radius:9px;line-height:1.5;font-size:.8rem;font-weight:700}
+.qa-semantic-consent input{flex:0 0 18px;width:18px;height:18px;margin:3px 0 0;accent-color:#247c76}
+.qa-semantic-panel :is(button,summary,input,textarea):focus-visible{outline:3px solid #258b97;outline-offset:2px}
+@media(max-width:620px){.qa-semantic-panel{padding:12px}
+ .qa-semantic-strategies{grid-template-columns:1fr}
+ .qa-semantic-actions button{width:100%}
+ .qa-semantic-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

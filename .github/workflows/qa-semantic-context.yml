@@ -1,0 +1,73 @@
+name: QA Hub semantic context F2/F3
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa-context/**'
+      - 'frontend/src/features/generators/**'
+      - 'frontend/src/features/tasks/NewTaskWizard.tsx'
+      - 'frontend/tests/semantic-context.test.ts'
+      - 'frontend/tests/browser-new-tf-source.mjs'
+      - '.github/workflows/qa-semantic-context.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa-context/**'
+      - 'frontend/src/features/generators/**'
+      - 'frontend/src/features/tasks/NewTaskWizard.tsx'
+      - 'frontend/tests/semantic-context.test.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  semantic-context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Edge Function's pure evidence checks
+        working-directory: .
+        run: node --test supabase/functions/qa-context/facts.test.mjs
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Verify type checking
+        run: npm run typecheck
+      - name: Test semantic chunking, citations, and coverage
+        run: npx vitest run tests/semantic-context.test.ts tests/context-preparation.test.ts
+      - name: Production build
+        run: npm run build
+  browser-semantic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Use preinstalled Chrome and install only Node packages
+        run: |
+          npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+          npm install --no-save --no-package-lock playwright@1.56.1
+          command -v google-chrome
+          google-chrome --version
+      - name: Build test frontend
+        run: npm run build
+      - name: Validate TF creation and semantic review in system Chrome
+        env:
+          QA_BROWSER_CHANNEL: chrome
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/qa-semantic-preview.log 2>&1 &
+          for x in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:4173/QA-Hub/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-new-tf-source.mjs
