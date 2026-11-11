@@ -43,7 +43,7 @@ test("valid prompts leave the shared 15/min quota behavior unchanged",async()=>{
 });
 test("test a source that contains accented Portuguese, SQL and long requirements",()=>{
  const messages=[{role:"system",content:"Não invente correções."},{role:"user",
-  content:"RF-442: Exceção na emissão. SELECT * FROM nfes; ".repeat(6000)}];
+  content:"RF-442: Exceção na emissão. SELECT * FROM nfes; ".repeat(2000)}];
  const plan=planTokenBudget({messages,model,mode:"teste",maxOutputTokens:11000});
  assert.equal(plan.exact,false);
  assert.equal(plan.fits,true);

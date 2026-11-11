@@ -5,6 +5,7 @@
  */
 export const TOKEN_ESTIMATE_METHOD="utf8_bytes_div_3_with_chat_overhead";
 export const TOKEN_ESTIMATE_WARNING="Estimativa local, não é a contagem oficial do tokenizador NVIDIA.";
+/** @type {Readonly<Record<string,number>>} */
 export const MODEL_CONTEXT_PUBLISHED=Object.freeze({
  "z-ai/glm-5.3-flash":1048576,
  "nvidia/nemotron-3.5-lightning-30b-a3b":1000000
@@ -13,15 +14,18 @@ export const MODEL_CONTEXT_PUBLISHED=Object.freeze({
  * purpose is to reduce slow/expensive long context requests on free endpoints.
  * They are NOT limitations claimed by the NVIDIA hosted service.
  */
+/** @type {Readonly<Record<string,number>>} */
 export const APP_CONTEXT_BUDGETS=Object.freeze({
  task:150000,diagram:60000,summary:60000,post:90000,
  teste:90000,semantic:32000,revision:90000
 });
 const encoder=new TextEncoder();
+/** @param {unknown} input */
 export function estimateTextTokens(input){
  if(typeof input!=="string")throw TypeError("Conteúdo deve ser texto.");
  return Math.ceil(encoder.encode(input).length/3);
 }
+/** @param {unknown} messages */
 export function estimateMessageTokens(messages){
  if(!Array.isArray(messages)||!messages.length)throw TypeError("Mensagens inválidas.");
  for(const message of messages){
@@ -32,11 +36,14 @@ export function estimateMessageTokens(messages){
  const serialized=JSON.stringify(messages);
  return estimateTextTokens(serialized)+messages.length*16+64;
 }
+/** @param {unknown} mode */
 export function normalizedMode(mode){
  const value=typeof mode==="string"?mode:"task";
  return value.startsWith("semantic")?"semantic":value.startsWith("revision")?"revision":
   Object.hasOwn(APP_CONTEXT_BUDGETS,value)?value:"task";
 }
+/** @param {{messages?:unknown, model?:string, mode?:string,
+ * maxOutputTokens?:number, marginRatio?:number}} args */
 export function planTokenBudget({messages,model,mode="task",maxOutputTokens=8192,
   marginRatio=.18}={}){
  const configured=APP_CONTEXT_BUDGETS[normalizedMode(mode)];
