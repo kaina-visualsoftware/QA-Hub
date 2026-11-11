@@ -2,6 +2,11 @@
 -- Stores only SHA-256 fingerprints and bounded identifiers; never source text,
 -- evidence bytes, model responses, credentials or authorization headers.
 -- Must be applied after qa_r4_requirement_coverage.sql.
+-- PostgreSQL requires a unique referenced key for the composite ownership FK.
+-- The task ID is already a primary key; this additional unique index
+-- makes the (id,user_id) pair referenceable without changing existing rows.
+create unique index if not exists qa_tarefas_id_user_audit_uq
+  on public.qa_tarefas(id,user_id);
 create table if not exists public.qa_ai_audit_trail(
   id uuid primary key default gen_random_uuid(),
   tarefa_id uuid not null,
