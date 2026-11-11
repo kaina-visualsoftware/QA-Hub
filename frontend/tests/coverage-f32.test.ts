@@ -11,7 +11,7 @@ const approved=[
 ];
 const cases=[{id:"33333333-3333-4333-8333-333333333333",tarefa_id:taskId,
  titulo:"Bloquear alteração",status:"nao_executado" as const}];
-const links=[{tarefa_id:taskId,requisito_id:approved[1].id,cenario_id:cases[0].id}];
+const links=[{id:"44444444-4444-4444-8444-444444444444",tarefa_id:taskId,requisito_id:approved[1].id,cenario_id:cases[0].id}];
 describe("F3.2 — only saved links count as coverage",()=>{
  it("flags unlinked only; linked but unexecuted is not validated",()=>{
   const view=candidatesForReview(approved,cases,links,taskId);
