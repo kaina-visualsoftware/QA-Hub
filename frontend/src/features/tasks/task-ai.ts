@@ -230,7 +230,7 @@ export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}=
       const local=localSourceDraft(relevant);
       const cause=status?"HTTP "+status:transportFailure?"falha de conexão ou tempo limite":code;
       if(local)return {...local,extractionSource:"local",extractionReason:cause};
-      throw Error("A NVIDIA não respondeu ("+cause+"). A fonte foi preservada, mas não foi possível extrair os campos localmente. Revise ou tente novamente.");
+      throw Error("A NVIDIA não respondeu ("+cause+"). O texto integral da TF foi preservado, mas não foi possível extrair os campos localmente. Revise ou tente novamente.");
     }
     if(status===429||code==="rate_limited"||code==="nvidia_rate_limited")
       throw Error(detail.message||"A NVIDIA atingiu a cota de chamadas. O documento foi preservado; tente novamente após a liberação.");
