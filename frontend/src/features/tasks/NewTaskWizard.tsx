@@ -324,7 +324,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setLocalFallback(response.extractionSource==="local");
       setStep(2);
       setNotice(response.extractionSource==="local"
-        ? "A NVIDIA não retornou dados estruturados. Foi usada a extração local; revise todos os campos."
+        ? "A NVIDIA não respondeu ou não retornou dados estruturados. O texto foi extraído localmente; confira os campos e cenários antes de salvar."
         : sourcePreparation.prepared.needsReview
           ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
           : "Campos identificados pela NVIDIA. Revise os valores antes de avançar.");
