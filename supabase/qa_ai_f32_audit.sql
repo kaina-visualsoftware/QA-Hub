@@ -16,7 +16,7 @@ create table if not exists public.qa_ai_audit_trail(
   after_hash text check(after_hash is null or after_hash ~ '^[a-f0-9]{64}$'),
   requirement_code text check(requirement_code is null or requirement_code ~ '^(RF|RNF|RN|CA)-[0-9]{3,4}$'),
   decision text check(decision is null or decision in (
-    'keep_both','prefer_left','prefer_right')),
+    'keep_both','prefer_left','prefer_right','pending')),
   created_at timestamptz not null default now(),
   constraint qa_ai_audit_owner foreign key(tarefa_id,user_id)
     references public.qa_tarefas(id,user_id) on delete cascade,
