@@ -58,7 +58,7 @@ const markdown=[
   "- O total respeita a regra"
 ].join("\n");
 
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.QA_BROWSER_CHANNEL?{channel:process.env.QA_BROWSER_CHANNEL}:{})});
 async function backend(route){
   const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method();
   const send=(data,status=200)=>route.fulfill({
