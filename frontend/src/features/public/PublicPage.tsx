@@ -2,13 +2,14 @@ import {BrandLogo} from "../../components/ui/BrandLogo";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, Eye, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpenText, ExternalLink, Eye, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@heroui/react";
 import { z } from "zod";
 import { listPublishedTasks, loadPublishedTask, publicEvidenceImageUrl } from "./public-data";
 import {QAModal} from "../../components/ui/QAModal";
 import {DiagramViewer} from "../diagrams/DiagramViewer";
 import {PublicResources} from "./PublicResources";
+import {docTypes,listDocumentation} from "../documentation/documentation-data";
 import type { PublicDiagram, PublicTaskDetail } from "./public-data";
 
 const facts: Array<[keyof PublicTaskDetail, string]> = [
@@ -78,6 +79,7 @@ export default function PublicPage() {
   const list = useQuery({
     queryKey: ["public-tasks"], queryFn: listPublishedTasks, enabled: !tf
   });
+  const publicDocs=useQuery({queryKey:["public-documentations"],queryFn:()=>listDocumentation('public'),enabled:!tf});
   const detail = useQuery({
     queryKey: ["public-task", chosen], queryFn: () => loadPublishedTask(chosen!),
     staleTime:0, refetchOnMount:"always", refetchOnWindowFocus:"always",
@@ -99,7 +101,10 @@ export default function PublicPage() {
         <BrandLogo/>
         <span><strong>QA Hub</strong><small>BIBLIOTECA PÚBLICA</small></span>
       </Link>
-      <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>
+      <div className="qa-public-header-links">
+       <Link to="/documentacoes" search={{}} className="secondary-link"><BookOpenText size={16}/> Documentações públicas</Link>
+       <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>
+      </div>
     </header>
     <main id="public-content" tabIndex={-1} className="public-react-main">
       {!tf && <>
@@ -130,6 +135,26 @@ export default function PublicPage() {
             </span><span className="public-react-readonly">Pública</span>
           </Link>)}
         </div>
+        <section className="qa-public-documents mt-5" aria-label="Documentações públicas">
+          <div className="section-heading">
+           <div><p className="eyebrow">CONHECIMENTO COMPARTILHADO</p><h2>Documentações públicas</h2>
+            <p className="text-muted">Manuais, SQL, procedimentos e arquivos disponíveis sem login.</p>
+           </div>
+           <Link to="/documentacoes" search={{}} className="secondary-link">Ver biblioteca completa</Link>
+          </div>
+          {publicDocs.isPending&&<p role="status">Carregando documentações públicas…</p>}
+          {publicDocs.isError&&<p role="alert" className="notice error">{publicDocs.error.message}</p>}
+          {publicDocs.isSuccess&&!publicDocs.data.length&&<p className="text-muted">Ainda não há documentações públicas.</p>}
+          <div className="public-react-list mt-4">
+           {publicDocs.data?.slice(0,8).map(doc=><Link key={doc.id} to="/documentacoes"
+             search={{doc:doc.id}} className="task-row">
+             <span className="task-initial"><BookOpenText size={20} aria-hidden="true"/></span>
+             <span className="task-text"><strong>{doc.titulo}</strong>
+              <small>{docTypes[doc.tipo_documentacao]??'Documento'} · {new Date(doc.updated_at??doc.created_at).toLocaleDateString('pt-BR')}</small>
+             </span><span className="public-react-readonly">Pública</span>
+           </Link>)}
+          </div>
+        </section>
       </>}
       {tf && <>
         <Link to="/publicas" search={{}} className="back-link">
