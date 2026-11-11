@@ -113,11 +113,11 @@ export default function DocumentationMarkdown({markdown,files=[],pending=[],docI
  const parts=useMemo(()=>splitDocumentMarkdown(markdown),[markdown]);
  const existing=useMemo(()=>new Map(visibleFiles.map(file=>[file.id.toLowerCase(),file])),[visibleFiles]);
  const waiting=useMemo(()=>new Map(pending.map(file=>[file.id.toLowerCase(),file])),[pending]);
- return <article className="qa-doc-prose qa-doc-markdown" aria-label="Documentação renderizada">
+ return <div className="qa-doc-prose qa-doc-markdown" role="document" aria-label="Documentação renderizada">
   {parts.map((part,index)=>part.kind==='markdown'
    ?<SafeMarkdown key={'text-'+index} source={part.source}/>
    :existing.has(part.id)||waiting.has(part.id)
     ?<InlineDocumentAttachment key={'file-'+part.id} file={existing.get(part.id)} pending={waiting.get(part.id)}/>
     :<p className="qa-doc-missing-file" key={'missing-'+index}>Anexo indisponível ou não autorizado.</p>)}
- </article>;
+ </div>;
 }
