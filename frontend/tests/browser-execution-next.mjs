@@ -79,6 +79,7 @@ async function mock(route) {
       return send({id},200);
     }
   }
+  if(path.endsWith("/rest/v1/qa_evidencia_arquivos") && method==="GET")return send([]);
   errors.push(method+" "+path);
   return send({message:"API inesperada"},500);
 }
