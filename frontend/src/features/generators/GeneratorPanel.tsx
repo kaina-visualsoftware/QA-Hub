@@ -28,6 +28,8 @@ import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
+import {applyCaseRevision,caseAsMarkdown,insertReviewedExcerpt,requestTargetedRevision,selectionFromText} from "./targeted-revision";
+import type {PostSelection,ReviewOperation} from "./targeted-revision";
 import { GeneratorActivity, GeneratorSteps } from "./GeneratorJourney";
 import { renderPostFormat, validateBbcodePost } from "./post-format";
 import type {PostOutputFormat} from "./post-format";
@@ -84,6 +86,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [error, setError] = useState("");
   const [generationId, setGenerationId] = useState(() => crypto.randomUUID());
   const controller = useRef<AbortController | null>(null);
+  const revisionController=useRef<AbortController|null>(null);
+  const [revisionBusy,setRevisionBusy]=useState(false);
+  const [revisionInstructions,setRevisionInstructions]=useState("");
+  const [revisionConsent,setRevisionConsent]=useState(false);
+  const [postSelection,setPostSelection]=useState<PostSelection|null>(null);
+  const [revisionProposal,setRevisionProposal]=useState<{
+    operation:ReviewOperation;before:string;after:string;
+    postSource?:string;selection?:PostSelection;caseIndex?:number;caseFingerprint?:string
+  }|null>(null);
+  const [revisionHistory,setRevisionHistory]=useState<{target:string;time:string}[]>([]);
   const lastGenerationInput=useRef<{task:string;requirements:string}|null>(null);
   const formOwn = task.user_id === userId;
 
@@ -101,7 +113,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     if (requirements.data) setSelected(requirements.data.map((item) => item.id));
   }, [requirements.data]);
   useEffect(() => {
-    return () => controller.current?.abort();
+    return () => {controller.current?.abort();revisionController.current?.abort();};
   }, []);
 
   useEffect(() => {
@@ -109,6 +121,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPreset("essencial");setExtra("");setPostFormat("markdown");setCanonicalPost("");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
+    revisionController.current?.abort();setRevisionBusy(false);
+    setRevisionProposal(null);setPostSelection(null);
+    setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
     lastGenerationInput.current=null;
   }, [task.id, mode]);
 
@@ -132,8 +147,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const semantic=useSemanticContext(context?.taskContext.text??"",
     context?.approved.text??"",mode);
   useEffect(() => {
-    onBusyChange?.(generating || busySave || semantic.working);
-  }, [generating, busySave, semantic.working, onBusyChange]);
+    onBusyChange?.(generating || busySave || semantic.working || revisionBusy);
+  }, [generating, busySave, semantic.working, revisionBusy, onBusyChange]);
   const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
     context.prepared.requirements?.needsReview));
   useEffect(()=>{
@@ -141,7 +156,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setPartialConsent(false);
     setCompactApproved(false);
   },[context?.taskContext.text,context?.approved.text]);
-  const canSend = formOwn && !generating && !busySave && !!context &&
+  const canSend = formOwn && !generating && !busySave && !revisionBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
     (!missingSources.length || partialConsent) &&
@@ -180,6 +195,70 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const visibleIndices = new Set(available.map(item => item.caseIndex));
     setCases(current => current.map((item,index)=>
       visibleIndices.has(index) ? {...item,selected:value} : item));
+  }
+
+  async function requestRevision(operation:ReviewOperation,caseIndex?:number){
+    if(!revisionConsent||generating||busySave||revisionBusy||!context||!formOwn)return;
+    const input=lastGenerationInput.current??{
+      task:context.prepared.task.text,requirements:context.prepared.requirements?.text??""
+    };
+    const source=operation==="post_excerpt"?content:null;
+    const selected=operation==="post_excerpt"?postSelection:null;
+    const candidate=operation==="test_case"&&caseIndex!==undefined?cases[caseIndex]:null;
+    const current=operation==="post_excerpt"&&selected?selected.oldText:
+      candidate?caseAsMarkdown(candidate):"";
+    if(!current.trim()){setError("Selecione um trecho ou caso válido antes de revisar.");return;}
+    if(operation==="post_excerpt"&&selected&&content.slice(selected.start,selected.end)!==selected.oldText){
+      setError("A seleção mudou. Escolha novamente o trecho.");return;
+    }
+    const abort=new AbortController();revisionController.current=abort;
+    setRevisionBusy(true);setRevisionProposal(null);setError("");setMessage("");
+    try{
+      const proposal=await requestTargetedRevision({
+        operation,task:input.task,requirements:input.requirements,
+        current,format:operation==="post_excerpt"?postFormat:"markdown",
+        instructions:revisionInstructions
+      },abort.signal);
+      if(abort.signal.aborted)throw Error("A revisão foi cancelada.");
+      if(operation==="post_excerpt"&&selected){
+        // Validate against the latest content when accepting; never overwrite other edits.
+        setRevisionProposal({operation,before:current,after:proposal,
+          postSource:source??"",selection:selected});
+      }else if(candidate&&caseIndex!==undefined){
+        setRevisionProposal({operation,before:current,after:proposal,
+          caseIndex,caseFingerprint:JSON.stringify(candidate)});
+      }
+      setMessage("Proposta pronta. Compare as versões e aplique somente se estiver correta.");
+    }catch(reason){setError(abort.signal.aborted?
+      "Revisão cancelada. O rascunho anterior continua intacto.":
+      messageOf(reason)+" Nenhum conteúdo foi substituído.");}
+    finally{setRevisionBusy(false);revisionController.current=null;}
+  }
+  function applyRevision(){
+    const item=revisionProposal;
+    if(!item||generating||busySave||revisionBusy)return;
+    try{
+      if(item.operation==="post_excerpt"&&item.selection){
+        const updated=insertReviewedExcerpt(content,item.selection,item.after);
+        setContent(updated);setDirtyOutput(true);setCompleted(false);
+        setPostSelection(null);
+      }else if(item.operation==="test_case"&&item.caseIndex!==undefined){
+        const current=cases[item.caseIndex];
+        if(!current||JSON.stringify(current)!==item.caseFingerprint)
+          throw Error("O caso mudou durante a revisão. Faça uma nova solicitação.");
+        const updated=applyCaseRevision(current,item.after);
+        setCases(list=>list.map((value,index)=>
+          index===item.caseIndex?updated:value));
+        setDirtyOutput(true);setCompleted(false);
+      }else throw Error("Proposta de revisão inválida.");
+      setRevisionHistory(current=>[...current.slice(-19),{
+        target:item.operation==="post_excerpt"?"Trecho do post":
+          "Caso "+String((item.caseIndex??0)+1),
+        time:new Date().toLocaleString("pt-BR")
+      }]);
+      setRevisionProposal(null);
+      setMessage("Alteração aplicada somente ao trecho selecionado. Revise antes de salvar.");
+    }catch(reason){setError(messageOf(reason));}
   }
 
   async function generate() {
@@ -306,7 +385,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           titulo: task.titulo,
           tarefa: lastGenerationInput.current?.task??context.prepared.task.text,
           requisito: lastGenerationInput.current?.requirements??context.prepared.requirements?.text??"",
-          md: content, exec: {}
+          md: revisionHistory.some(item=>item.target.startsWith("Caso "))?
+            chosen.map(caseAsMarkdown).join("\n\n---\n\n"):content,
+          exec: {}
         }, { onConflict: "id" });
         if (historyError) throw historyError;
       } catch (reason) { warnings.push("Histórico do gerador: " + messageOf(reason)); }
@@ -515,9 +596,35 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
-          <textarea rows={15} maxLength={80000} value={content} disabled={busySave}
-            onChange={(event) => { setContent(event.target.value); setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
+          <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy}
+            onSelect={(event)=>setPostSelection(selectionFromText(
+              event.currentTarget.value,event.currentTarget.selectionStart,
+              event.currentTarget.selectionEnd))}
+            onChange={(event) => { setContent(event.target.value);setPostSelection(null);
+              setDirtyOutput(true); setCompleted(false); setMessage(""); }} />
         </label>
+        <div className="qa-targeted-revision">
+          <strong>Revisar somente um trecho com IA</strong>
+          <p>Selecione no próprio texto um parágrafo ou uma seção do post.
+            O restante será preservado, inclusive suas edições e o formato BBCode.</p>
+          <small>{postSelection?postSelection.oldText.length+" caracteres selecionados":
+            "Selecione de 12 a 9.000 caracteres para revisar."}</small>
+          <label className="field">Orientação para esta revisão (opcional)
+            <textarea rows={2} maxLength={1200} value={revisionInstructions}
+              onChange={e=>setRevisionInstructions(e.target.value)}
+              disabled={revisionBusy||busySave}
+              placeholder="Ex.: esclarecer as permissões sem inventar novos comportamentos."/>
+          </label>
+          <label className="qa-revision-consent">
+            <input type="checkbox" checked={revisionConsent} disabled={revisionBusy||busySave}
+              onChange={e=>setRevisionConsent(e.target.checked)}/>
+            Autorizo enviar o contexto da geração e o trecho selecionado à NVIDIA.
+          </label>
+          <button type="button" disabled={!postSelection||!revisionConsent||revisionBusy||busySave||
+            generating||!!revisionProposal} onClick={()=>void requestRevision("post_excerpt")}>
+            {revisionBusy?"Revisando trecho…":"Sugerir revisão do trecho"}
+          </button>
+        </div>
         {postIssues.length > 0 && <p className="notice error" role="alert">
           Estrutura a revisar: {postIssues.join(", ")}.
         </p>}
@@ -528,7 +635,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <div className="qa-post-output-actions">
           <Button type="button" variant="secondary" onPress={() => void navigator.clipboard.writeText(content || raw)}
             isDisabled={!content}><Clipboard size={16} /> Copiar</Button>
-          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || completed}>
+          <Button onPress={() => void savePost()} isDisabled={!content || !!postIssues.length || busySave || generating || revisionBusy || completed}>
             {busySave?<LoaderCircle className="qa-ai-spinner" size={16} aria-hidden="true"/>:
               <FileCheck2 size={16}/>}
             {busySave?"Salvando post…":completed?"Post salvo":"Salvar post na TF"}
@@ -549,6 +656,21 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                 onClick={() => selectAllVisible(false)}>Limpar seleção</button>
             </div>
           </div>
+          <div className="qa-targeted-revision">
+            <strong>Revisar somente um caso com IA</strong>
+            <p>Cada caso pode ser regenerado individualmente, sem alterar os demais.
+              A proposta só é aplicada após comparação e confirmação.</p>
+            <label className="field">Orientação para esta revisão (opcional)
+              <textarea rows={2} maxLength={1200} value={revisionInstructions}
+                onChange={e=>setRevisionInstructions(e.target.value)}
+                disabled={revisionBusy||busySave}/>
+            </label>
+            <label className="qa-revision-consent">
+              <input type="checkbox" checked={revisionConsent} disabled={revisionBusy||busySave}
+                onChange={e=>setRevisionConsent(e.target.checked)}/>
+              Autorizo enviar à NVIDIA o contexto da geração e o caso escolhido.
+            </label>
+          </div>
           <div className="qa-ai-review-list" aria-label="Casos disponíveis">
             {available.map((item,index) => <article
               key={String(item.source_index)+"-"+item.caseIndex}
@@ -565,6 +687,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                   </span>
                 </label>
               </div>
+              <button type="button" className="qa-revision-case-btn"
+                disabled={revisionBusy||busySave||generating||!revisionConsent||!!revisionProposal}
+                onClick={()=>void requestRevision("test_case",item.caseIndex)}>
+                {revisionBusy?"Revisando…":"Regerar apenas este caso"}
+              </button>
               <div className="qa-ai-case-preview">
                 <p><b>Passos</b> {item.passos.slice(0,230)}{item.passos.length>230?"…":""}</p>
                 <p><b>Esperado</b> {item.esperado.slice(0,230)}{item.esperado.length>230?"…":""}</p>
@@ -591,7 +718,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               {invalidSelection&&<p role="status">
                 Revise título, passos e resultado esperado dos casos selecionados.</p>}
             </div>
-            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || completed}
+            <Button isDisabled={!chosen.length || invalidSelection || busySave || generating || revisionBusy || completed}
               onPress={() => void attachCases()}>
               <Send size={16} /> {completed ? "Casos adicionados" : chosen.length === 0 ? "Selecione casos" : `Anexar ${chosen.length} ${chosen.length === 1 ? "caso" : "casos"} à TF`}
             </Button>
@@ -607,6 +734,32 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               <p>A resposta não trouxe casos no formato esperado. Tente gerar novamente.</p>
             </div>)}
       </div>}
+      {revisionBusy&&<div className="qa-revision-inflight" role="status">
+        Reescrevendo apenas o trecho selecionado…
+        <button type="button" onClick={()=>revisionController.current?.abort()}>
+          Cancelar revisão</button>
+      </div>}
+      {revisionProposal&&<section className="qa-revision-preview" aria-label="Comparação da revisão proposta">
+        <div>
+          <strong>Prévia da alteração — nenhuma edição aplicada ainda</strong>
+          <p>Compare o trecho anterior com a sugestão. O restante do conteúdo permanece intacto.</p>
+        </div>
+        <div className="qa-revision-diff">
+          <label>Antes<textarea readOnly rows={8} value={revisionProposal.before}/></label>
+          <label>Proposta da IA<textarea readOnly rows={8} value={revisionProposal.after}/></label>
+        </div>
+        <div className="qa-revision-preview-actions">
+          <button type="button" disabled={revisionBusy||busySave}
+            onClick={()=>setRevisionProposal(null)}>Descartar proposta</button>
+          <button type="button" disabled={revisionBusy||busySave}
+            onClick={applyRevision}>Aplicar somente neste trecho</button>
+        </div>
+      </section>}
+      {!!revisionHistory.length&&<details className="qa-revision-history">
+        <summary>Histórico de revisões nesta sessão ({revisionHistory.length})</summary>
+        <ol>{revisionHistory.map((event,index)=>
+          <li key={index}>{event.time} — {event.target} aprovado pelo QA</li>)}</ol>
+      </details>}
     </section>}
 
     </div>

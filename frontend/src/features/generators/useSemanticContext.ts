@@ -2,6 +2,8 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {analyzeSemanticChunk} from "./semantic-service";
 import {buildSemanticPlan,compileSemanticContext,SEMANTIC_REQUEST_BATCH} from "./semantic-context";
 import type {ChunkOutcome,SemanticGoal} from "./semantic-context";
+import {detectSemanticConflicts,excludedFacts,conflictNotes} from "./semantic-conflicts";
+import type {ConflictDecision} from "./semantic-conflicts";
 
 export function useSemanticContext(task:string,requirements:string,goal:SemanticGoal){
  const [enabled,setEnabledState]=useState(false);
@@ -10,6 +12,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
  const [approved,setApproved]=useState(false);
+ const [conflictDecisions,setConflictDecisions]=useState<Record<string,ConflictDecision>>({});
  const controller=useRef<AbortController|null>(null);
  const workingRef=useRef(false);
  const sourceKey=goal+"|"+task+"|"+requirements;
@@ -22,20 +25,33 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const plan=planState.plan;
  const complete=Boolean(plan&&plan.chunks.every(c=>outcomes[c.id]));
  const count=plan?.chunks.filter(c=>outcomes[c.id]).length??0;
+ const conflicts=useMemo(()=>detectSemanticConflicts(
+  new Map(Object.entries(outcomes))),[outcomes]);
+ const conflictsReviewed=conflicts.every(item=>Boolean(conflictDecisions[item.id])&&
+  conflictDecisions[item.id]!=="pending");
  const digest=useMemo(()=>plan?compileSemanticContext(
-  plan,new Map(Object.entries(outcomes)),goal):null,
-  [plan,outcomes,goal]);
- const ready=Boolean(enabled&&complete&&digest&&digest.coverage.selectedFacts>0&&approved);
+  plan,new Map(Object.entries(outcomes)),goal,{
+   excluded:excludedFacts(conflicts,conflictDecisions),
+   reviewNote:conflictsReviewed?conflictNotes(conflicts,conflictDecisions):""
+  }):null,
+  [plan,outcomes,goal,conflicts,conflictDecisions,conflictsReviewed]);
+ const ready=Boolean(enabled&&complete&&conflictsReviewed&&digest&&
+  digest.coverage.selectedFacts>0&&approved);
  useEffect(()=>{
   controller.current?.abort();
   controller.current=null;workingRef.current=false;
   setOutcomes({});setEnabledState(false);setWorking(false);
-  setApproved(false);setMessage("");setError("");
+  setApproved(false);setConflictDecisions({});setMessage("");setError("");
  },[sourceKey]);
  useEffect(()=>()=>controller.current?.abort(),[]);
  function setEnabled(value:boolean){
   if(workingRef.current)return;
   setEnabledState(value);setApproved(false);setMessage("");setError("");
+ }
+ function setConflictDecision(id:string,decision:ConflictDecision){
+  if(workingRef.current||!conflicts.some(item=>item.id===id))return;
+  setConflictDecisions(current=>({...current,[id]:decision}));
+  setApproved(false);
  }
  function cancel(){controller.current?.abort();}
  async function run(id?:string,authorized=false){
@@ -72,5 +88,6 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   }
  }
  return {enabled,setEnabled,working,message,error,approved,setApproved,ready,plan,
-  planError:planState.error,outcomes,count,complete,digest,run,cancel};
+  planError:planState.error,outcomes,count,complete,digest,run,cancel,
+  conflicts,conflictsReviewed,conflictDecisions,setConflictDecision};
 }
