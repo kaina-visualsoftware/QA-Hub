@@ -230,7 +230,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         operation,task:input.task,requirements:input.requirements,
         current,format:operation==="post_excerpt"?postFormat:"markdown",
         instructions:revisionInstructions
-      },abort.signal);
+      },abort.signal,setRevisionWait);
       if(abort.signal.aborted)throw Error("A revisão foi cancelada.");
       if(operation==="post_excerpt"&&selected){
         // Validate against the latest content when accepting; never overwrite other edits.
@@ -319,7 +319,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         (chunk) => {
           setActivityPhase("receiving");
           setRaw((previous) => previous + chunk);
-        }, abort.signal
+        }, abort.signal,setGeneratorWait
       );
       setActivityPhase("organizing");
       lastGenerationInput.current={task:sentTask,requirements:sentRequirements};
@@ -823,7 +823,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
             </div>)}
       </div>}
       {revisionBusy&&<div className="qa-revision-inflight" role="status">
-        Reescrevendo apenas o trecho selecionado…
+        {revisionWait?<AiQuotaWait state={revisionWait} onCancel={()=>revisionController.current?.abort()}/>:
+          "Reescrevendo apenas o trecho selecionado…"}
         <button type="button" onClick={()=>revisionController.current?.abort()}>
           Cancelar revisão</button>
       </div>}
