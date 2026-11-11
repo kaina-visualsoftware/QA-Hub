@@ -43,7 +43,24 @@ A preparação é direcionada: **posts** recebem prioridade para antes/depois, i
 
 ## Evoluções ainda recomendadas
 
-### F2.1 — Consolidação semântica avançada (pendente)
+### F2.1/F3.1 — Revisão cruzada e regeneração isolada (11/11/2026)
+
+- **Suspeitas de divergência**, não decisões: a aplicação compara fatos literalmente citados de diferentes partes e apresenta possíveis diferenças de valores, permissões/negações e situação. A comparação exige assunto similar ou um identificador comum. O confronto intencional **Anteriormente/Agora** não é tratado como contradição automaticamente.
+- O QA revisa cada par com as duas citações e respectivas linhas e escolhe **priorizar A**, **priorizar B** ou **manter ambas como pendência**. Sem decisão, a geração semântica fica bloqueada. A seleção influencia somente o contexto transitório enviado ao modelo; **a documentação original não é editada**.
+- Quando ambas permanecem, o contexto recebe um alerta de divergência não confirmada e orienta a IA a não afirmar qual versão é verdadeira.
+- Em **posts**, é possível selecionar 12–9.000 caracteres diretamente na caixa de texto, solicitar uma redação alternativa e aplicar só naquela faixa, mantendo todo o texto restante, inclusive BBCode. A prévia lado a lado é obrigatória.
+- Em **casos de teste**, cada cenário pode ser revisado individualmente; título, passos e resultado esperado da sugestão só substituem aquele caso após aprovação. Casos não enviados para revisão, seleção atual e identificador original permanecem.
+- A nova Edge Function `qa-revisions` autentica com JWT, respeita a mesma quota de 15/min da NVIDIA, não salva texto no servidor e nunca modifica registros sem a confirmação posterior do QA. Alterações aceitas aparecem em um histórico **somente na sessão atual**. O salvamento definitivo continua na ação existente do usuário.
+
+**Limitações:** a identificação automática de contradições é heurística e pode gerar falsos positivos ou deixar casos reais sem alerta. Uma divergência pode representar versões diferentes; só o QA pode decidir. A reescrita isolada ainda pode propor fatos incorretos: nada é aplicado automaticamente e a revisão humana continua obrigatória. O histórico desta fase é temporário, não uma auditoria persistente.
+
+### Próximos aprimoramentos
+
+- Comparação semântica entre versões com relacionamento explícito entre fontes, datas, parâmetros e permissões.
+- Persistência opcional de decisões e alterações por usuário, com RLS e histórico de versões, sem armazenar credenciais.
+- Validação de cobertura entre requisitos originais e casos efetivamente criados; regeneração incremental somente dos não cobertos.
+
+### F2.1 — Consolidação semântica avançada (ampliação futura)
 
 - Dividir o texto em blocos por tópico e fronteiras de documento, preservando IDs, faixas da origem e vínculos de requisitos/cenários.
 - Enviar os blocos sequencialmente para gerar **sumários estruturados por fonte**, não um único resumo solto. Cada regra, condição negativa, resultado, caminho e parâmetro deve referenciar o trecho que a originou.
@@ -52,7 +69,7 @@ A preparação é direcionada: **posts** recebem prioridade para antes/depois, i
 - Respeitar a quota compartilhada de **15 requisições/minuto**, tempo máximo e cancelamento. Mostrar custo estimado em chamadas **antes** da execução; se atingir a quota, pausar o processo sem perder o que já foi revisado.
 - Não armazenar textos ou resumos sensíveis em serviços externos adicionais. Caso seja necessário persistir progresso, usar recursos já protegidos por RLS com escopo de proprietário.
 
-### F3.1 — Geração incremental do artefato e verificações cruzadas (pendente)
+### F3.2 — Auditoria persistente e regeneração baseada em dependências (pendente)
 
 - Para **posts**, recuperar primeiro o que mudou, comportamento anterior/posterior, caminho e justificativa; para **casos**, critérios de aceite, exceções, permissões, dados e estados.
 - Distribuir orçamento por fonte relevante, sem confundir hipóteses com testes executados.
