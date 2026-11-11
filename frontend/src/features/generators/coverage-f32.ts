@@ -4,7 +4,7 @@
 import {calculateRequirementCoverage} from "../../lib/legacy/qa-requirements-coverage.mjs";
 import {composeRequirementContext} from "../../lib/legacy/qa-requirements-context.mjs";
 type Requirement={id:string;tarefa_id:string;estado:string;codigo:string;titulo:string;
- descricao:string;criterios_aceite:string;ordem?:number;tipo:string;updated_at:string};
+ descricao:string;criterios_aceite:string;ordem:number;tipo:string;updated_at:string};
 type ScenarioLink={tarefa_id:string;requisito_id:string;cenario_id:string};
 type SavedCase={id:string;tarefa_id:string;titulo:string;status:string};
 export type CoverageCandidate={id:string;codigo:string;titulo:string;
@@ -29,7 +29,8 @@ export function candidatesForReview(requirements:Requirement[],cases:SavedCase[]
 export function prepareFocusedCoverageTask(requirements:Requirement[],ids:string[],
  taskId:string,taskContext:string){
  if(!ids.length||ids.length>35)throw Error("Selecione de 1 a 35 requisitos para gerar casos.");
- const approved=requirements.filter(r=>r.tarefa_id===taskId&&r.estado==="aprovado");
+ const approved=requirements.filter((r):r is Requirement&{estado:"aprovado"}=>
+  r.tarefa_id===taskId&&r.estado==="aprovado");
  const selected=new Set(ids);
  if(approved.filter(r=>selected.has(r.id)).length!==selected.size)
   throw Error("A seleção contém requisitos indisponíveis ou não aprovados.");
