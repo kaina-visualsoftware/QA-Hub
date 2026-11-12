@@ -1,12 +1,16 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import type {AiWaitState} from "../../lib/ai-retry";
 import {analyzeSemanticChunk} from "./semantic-service";
-import {buildSemanticPlan,compileSemanticContext,SEMANTIC_REQUEST_BATCH} from "./semantic-context";
+import {buildSemanticPlan,compileSemanticContext} from "./semantic-context";
 import type {ChunkOutcome,SemanticGoal} from "./semantic-context";
 import {detectSemanticConflicts,excludedFacts,conflictNotes} from "./semantic-conflicts";
 import type {ConflictDecision} from "./semantic-conflicts";
 
-export function useSemanticContext(task:string,requirements:string,goal:SemanticGoal){
+/** Long sources automatically use the verified chunk pipeline. A one-shot
+ * extraction cannot read every line after the model input limit is reached.
+ * Authorization and explicit QA review are still required for each source.
+ */
+export function useSemanticContext(task:string,requirements:string,goal:SemanticGoal,autoEnable=false){
  const [enabled,setEnabledState]=useState(false);
  const [outcomes,setOutcomes]=useState<Record<string,ChunkOutcome>>({});
  const [working,setWorking]=useState(false);
@@ -54,11 +58,11 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  useEffect(()=>{
   controller.current?.abort();
   controller.current=null;workingRef.current=false;
-  setOutcomes({});setEnabledState(false);setWorking(false);
+  setOutcomes({});setEnabledState(autoEnable&&Boolean(plan));setWorking(false);
   setApproved(false);setConflictDecisions({});setMessage("");setError("");
   setActiveChunk(null);setActiveStage(null);setAttempt(0);setElapsed(0);setStartedAt(null);
   setQuotaWait(null);
- },[sourceKey]);
+ },[sourceKey,autoEnable,plan]);
  useEffect(()=>()=>controller.current?.abort(),[]);
  function setEnabled(value:boolean){
   if(workingRef.current)return;
@@ -84,7 +88,10 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   const signature=sourceKey;
   let next={...outcomes},done=0;
   try{
-   for(const chunk of pending.slice(0,id?1:SEMANTIC_REQUEST_BATCH)){
+   // Analyze the whole approved source in a single user-triggered workflow.
+   // Each completed part is checkpointed; quota retries remain bounded in
+   // analyzeSemanticChunk, and cancel preserves completed work.
+   for(const chunk of pending){
     if(abort.signal.aborted||signature!==latest.current)throw Error("Análise cancelada.");
     setActiveChunk(chunk.id);setAttempt(value=>value+1);
     setActiveStage("preparing");
@@ -103,7 +110,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
    if(Object.keys(next).length===plan.chunks.length)
     setMessage("Todos os blocos foram analisados. Revise a cobertura e autorize a geração.");
    else
-    setMessage("Lote concluído: "+done+" parte(s). Continue para analisar as próximas.");
+    setMessage("Processamento interrompido após "+done+" parte(s); a análise poderá ser retomada.");
   }catch(reason){
    if(signature===latest.current){
     setError(abort.signal.aborted?"Análise interrompida. Os blocos concluídos foram mantidos.":

@@ -362,18 +362,23 @@ try{
   const longSource="Pedido 88771. Condição de desconto e regra fiscal. ".repeat(2200)+" MARCADOR FINAL DO RELATÓRIO";
   await wizard.getByLabel("Informações da tarefa").fill(longSource);
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),longSource);
-  const compact=wizard.getByRole("region",{name:"Compactador de contexto"});
-  await compact.waitFor();
+  const longContextPanel=wizard.getByRole("region",{name:"Preparação semântica do contexto"});
+  await longContextPanel.waitFor();
+  assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0,
+    "Long sources should not ask the user to choose a processing algorithm");
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true,
-    "Large sources require explicit review before NVIDIA receives an extract.");
-  await compact.getByText(/trechos omitidos/).first().waitFor();
-  await compact.getByRole("checkbox",{name:/Revisei o contexto compactado/}).check();
+    "Unreviewed long sources cannot silently use a partial extract.");
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+  const beforeChunks=semanticRequests.length;
+  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
+  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:60000});
+  assert.ok(semanticRequests.length-beforeChunks>=10,
+    "The original report must be read in successive chunks, not one shortened prompt.");
+  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
-  assert.ok(aiRequests.at(-1).text.length<=28000,"Only the reviewed selection fits the model budget");
-  assert.ok(aiRequests.at(-1).text.includes("MARCADOR FINAL DO RELATÓRIO"),
-    "The final evidence line must survive context preparation");
+  assert.ok(aiRequests.at(-1).text.length<=30000,"Verified citations fit the model budget");
+  assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("button",{name:/Finalizar com/}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
@@ -387,10 +392,11 @@ try{
   const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
     "RESULTADO: Nenhum teste executado foi informado.";
   await wizard.getByLabel("Informações da tarefa").fill(semanticSource);
-  await wizard.getByRole("radio",{name:/Semântico por blocos/}).check();
+  await wizard.getByRole("region",{name:"Preparação semântica do contexto"}).waitFor();
+  assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0);
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
-  await wizard.getByRole("button",{name:"Analisar blocos com IA"}).click();
+  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:30000});
   assert.ok(semanticRequests.length>=3,"Long source must be processed in multiple chunks");
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
