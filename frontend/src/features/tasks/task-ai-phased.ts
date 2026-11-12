@@ -5,6 +5,8 @@ import {supabase} from "../../lib/supabase";
 import {AiRequestError,readAiInvokeError,withAiRateLimitRetry} from "../../lib/ai-retry";
 import type {AiWaitCallback,AiWaitState} from "../../lib/ai-retry";
 import type {GeneratedTaskDraft} from "./task-ai";
+import {parseGroundedFieldReply,parseGroundedScenarioReply} from "./task-evidence";
+import type {FieldReview,ScenarioReview} from "./task-evidence";
 
 export type TaskPipelineStage="fields"|"scenarios"|"complete";
 export type TaskPipelineProgress={
@@ -21,11 +23,14 @@ export type TaskPipelineCheckpoint={
  source:string;prepared:string;local:LocalDraft|null;
  fields:LocalDraft["fields"]|null;
  resolvedFields:boolean;completedBatches:Record<number,TaskScenarioRow[]>;
+ fieldReview:FieldReview[];scenarioReview:Record<number,ScenarioReview[]>;
 };
 export type PhasedTaskDraft=GeneratedTaskDraft&{
  partial:boolean;completedBatches:number;totalBatches:number;
  pendingBatches:number;fieldsPending:boolean;
  unprocessedScenarios:number;localParsingLimited:boolean;
+ fieldReview:FieldReview[];scenarioReview:ScenarioReview[];
+ needsReviewCount:number;verifiedEvidenceCount:number;
 };
 export const TASK_BATCH_SIZE=4;
 export const TASK_BATCH_CONCURRENCY=2;
@@ -86,36 +91,11 @@ async function stageRequest(body:Record<string,unknown>,signal:AbortSignal|undef
   return response.data;
  },{signal:requestSignal,onWait});
 }
-function isStageReply(data:unknown,stage:string):data is {provider:string;stage:string;draft:Record<string,unknown>}{
- return Boolean(data&&typeof data==="object"&&
-  (data as Record<string,unknown>).provider==="NVIDIA Build"&&
-  (data as Record<string,unknown>).stage===stage&&
-  (data as Record<string,unknown>).draft&&
-  typeof (data as Record<string,unknown>).draft==="object"&&
-  !Array.isArray((data as Record<string,unknown>).draft));
-}
-function parsedBatch(data:unknown,seeds:ScenarioSeed[]):TaskScenarioRow[]{
- if(!isStageReply(data,"scenarios"))throw Error("A NVIDIA não estruturou o lote em cenários.");
- const rows=data.draft.cenarios;
- if(!Array.isArray(rows))throw Error("O lote não contém cenários verificáveis.");
- const allowed=new Set(seeds.map(seed=>seed.source_index)),seen=new Set<number>();
- const out:TaskScenarioRow[]=[];
- for(const row of rows){
-  if(!row||typeof row!=="object"||Array.isArray(row))continue;
-  const values=row as Record<string,unknown>,id=values.source_index;
-  if(typeof id!=="number"||!Number.isInteger(id)||!allowed.has(id)||seen.has(id))continue;
-  const title=values.titulo,steps=values.passos,expected=values.esperado;
-  if(typeof title!=="string"||typeof steps!=="string"||typeof expected!=="string"||
-    !title.trim()||!steps.trim()||!expected.trim())continue;
-  const source=seeds.find(seed=>seed.source_index===id)!;
-  seen.add(id);out.push({source_index:id,
-   titulo:title.slice(0,240),passos:steps.slice(0,3400),esperado:expected.slice(0,1800),
-   observacoes:typeof values.observacoes==="string"?
-    values.observacoes.slice(0,1500):source.observacoes});
- }
- if(out.length!==seeds.length)
-  throw Error("A NVIDIA não concluiu todos os cenários do lote.");
- return out;
+/** Unverified AI batches are not applied; local evidence stays intact. */
+function parsedBatch(data:unknown,source:string,seeds:ScenarioSeed[]){
+ const checked=parseGroundedScenarioReply(data,source,seeds);
+ return {accepted:checked.review.some(item=>item.status!=="verified")
+  ?null:checked.accepted,review:checked.review};
 }
 function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
  reasons:string[]):PhasedTaskDraft{
@@ -126,7 +106,13 @@ function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
   .filter(item=>item.passos.length>3400||item.esperado.length>1800||
     item.observacoes.length>1500).length;
  const localParsingLimited=!checkpoint.local&&checkpoint.source.length>200000;
- const partial=!checkpoint.resolvedFields||unprocessedScenarios>0||
+ const fieldReview=checkpoint.fieldReview;
+ const scenarioReview=Object.values(checkpoint.scenarioReview).flat();
+ const needsReviewCount=fieldReview.filter(item=>item.status==="needs_review").length+
+  scenarioReview.filter(item=>item.status==="needs_review").length;
+ const verifiedEvidenceCount=fieldReview.filter(item=>item.status==="verified").length+
+  scenarioReview.filter(item=>item.status==="verified").length;
+ const partial=!checkpoint.resolvedFields||needsReviewCount>0||unprocessedScenarios>0||
   sourceExcerptLimits>0||localParsingLimited||
   batches.some((_,index)=>!Object.hasOwn(checkpoint.completedBatches,index));
  const enriched=(checkpoint.local?.cenarios??[]).map((original,index)=>{
@@ -154,11 +140,13 @@ function combine(checkpoint:TaskPipelineCheckpoint,batches:ScenarioSeed[][],
    ...(localParsingLimited?
     ["Fonte acima do limite de 200 mil caracteres do parser local; revise os cenários manualmente ou prepare blocos semânticos."]:[]),
    ...(sourceExcerptLimits>0?
-    [sourceExcerptLimits+" cenário(s) tinham passos/resultado/observações extensos; a IA recebeu somente os trechos limitados, e a versão original continua disponível."] : [])
-  ].filter(Boolean).join(" ").slice(0,850)||undefined,
+    [sourceExcerptLimits+" cenário(s) tinham passos/resultado/observações extensos; a IA recebeu somente os trechos limitados, e a versão original continua disponível."] : []),
+   ...(needsReviewCount>0?[needsReviewCount+" proposta(s) da IA exigem revisão da evidência."] : [])
+  ].filter(Boolean).join(" ").slice(0,1050)||undefined,
   partial,completedBatches:completed,totalBatches:batches.length,
   pendingBatches:batches.length-completed,fieldsPending:!checkpoint.resolvedFields,
-  unprocessedScenarios,localParsingLimited
+  unprocessedScenarios,localParsingLimited,
+  fieldReview,scenarioReview,needsReviewCount,verifiedEvidenceCount
  };
 }
 export function checkpointMatches(checkpoint:TaskPipelineCheckpoint|null,
@@ -172,7 +160,7 @@ export function pipelinePendingCount(checkpoint:TaskPipelineCheckpoint):number{
 }
 export function newCheckpoint(source:string,prepared:string):TaskPipelineCheckpoint{
  return {source,prepared,local:localSourceDraft(source),fields:null,
-  resolvedFields:false,completedBatches:{}};
+  resolvedFields:false,completedBatches:{},fieldReview:[],scenarioReview:{}};
 }
 
 /** F4 pipeline. One fields request followed by source-indexed batches, max
@@ -202,12 +190,13 @@ export async function generateTaskAiDraftPhased(text:string,{
    detail:"Extraindo título, descrição, causa e correção em uma chamada curta."});
   try{
    const data=await stageRequest({text:prepared,mode:"task-fields"},signal,onWait);
-   if(!isStageReply(data,"fields"))
-    throw Error("A NVIDIA não retornou campos estruturados válidos.");
-   const extracted=normalizeDraft(data.draft);
-   if(!Object.keys(extracted.fields).length)
-    throw Error("A NVIDIA não identificou campos suficientes.");
-   state.fields=extracted.fields;state.resolvedFields=true;
+   const extracted=parseGroundedFieldReply(data,prepared);
+   state.fieldReview=extracted.review;
+   state.fields=normalizeDraft(extracted.values).fields;
+   onCheckpoint(state);
+   if(!Object.keys(state.fields).length)
+    throw Error("A NVIDIA não retornou campos com prova; os candidatos aguardam revisão.");
+   state.resolvedFields=true;
    onCheckpoint(state);
   }catch(error){
    if(signal?.aborted)throw abortError();
@@ -240,7 +229,12 @@ export async function generateTaskAiDraftPhased(text:string,{
     const data=await stageRequest({text:prepared,mode:"task-scenarios",seeds:job.seeds},
      signal,wait=>reportWait(job.index,wait));
     if(signal?.aborted)throw abortError();
-    state.completedBatches[job.index]=parsedBatch(data,job.seeds);
+    const result=parsedBatch(data,prepared,job.seeds);
+    state.scenarioReview[job.index]=result.review;
+    onCheckpoint(state);
+    if(!result.accepted)
+     throw Error("O lote contém cenário sem evidência; os casos locais seguem preservados.");
+    state.completedBatches[job.index]=result.accepted;
     onCheckpoint(state);
     completed++;
    }catch(error){

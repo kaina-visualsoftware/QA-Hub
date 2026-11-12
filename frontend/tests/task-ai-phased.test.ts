@@ -1,6 +1,7 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {supabase} from "../src/lib/supabase";
 import {extractLocalDraft} from "../src/lib/legacy/qa-assistant.mjs";
+import {locateEvidence} from "../src/features/tasks/task-evidence";
 import {generateTaskAiDraftPhased,newCheckpoint,pipelinePendingCount,TASK_BATCH_CONCURRENCY}
  from "../src/features/tasks/task-ai-phased";
 
@@ -22,17 +23,44 @@ const sourceWith=(count:number)=>[
   "Resultado esperado: Desconto removido na operação "+(i+1)+"."
  ].join("\n"))
 ].join("\n\n");
-const fields={provider:"NVIDIA Build",stage:"fields",
- draft:{titulo:"Corrigir remoção de descontos negativos",
-  descricao:"Desconto não é removido após exclusão.",
-  causa:"A rotina ignorava percentuais negativos.",
-  correcao:"A limpeza passou a considerar negativos."}};
-const cases=(seeds:unknown[])=>({provider:"NVIDIA Build",stage:"scenarios",
- draft:{cenarios:(seeds as {source_index:number;titulo:string;passos:string;esperado:string;observacoes:string}[])
-  .map(s=>({...s,titulo:s.titulo+" revisado"}))}});
+type TestSeed={source_index:number;titulo:string;passos:string;esperado:string;observacoes:string};
 function reply(body:Record<string,unknown>){
- if(body.mode==="task-fields")return {data:fields,error:null};
- if(body.mode==="task-scenarios")return {data:cases(body.seeds as unknown[]),error:null};
+ const source=String(body.text??"");
+ const lines=source.split("\n");
+ const proof=(quote:string)=>({quote,source_line:locateEvidence(source,quote),
+  status:"verified",reason:null});
+ const find=(pattern:RegExp)=>lines.find(line=>pattern.test(line))?.trim()||
+  lines.find(line=>line.trim().length>=8)?.trim()||source.slice(0,60);
+ if(body.mode==="task-fields"){
+  const phone=/telefone|estrangeiro/i.test(source);
+  const quote=find(phone?/telefone|estrangeiro/i:/desconto negativo/i);
+  const title=phone?"Validar máscara de telefone estrangeiro":
+   "Corrigir remoção de descontos negativos";
+  const entries=phone?{
+   titulo:title,descricao:"Validar máscara de telefone para clientes estrangeiros."
+  }:{
+   titulo:title,descricao:"Desconto não é removido após exclusão.",
+   causa:"A rotina ignorava percentuais negativos.",
+   correcao:"A limpeza passou a considerar negativos."
+  };
+  const quotes=phone?{titulo:quote,descricao:quote}:{
+   titulo:quote,descricao:quote,
+   causa:find(/rotina ignorava/i),correcao:find(/remoção passou/i)
+  };
+  return {data:{provider:"NVIDIA Build",stage:"fields",model:"glm-fixture",
+   repaired:false,draft:entries,
+   field_evidence:Object.fromEntries(Object.keys(entries).map(name=>[
+    name,proof((quotes as Record<string,string>)[name]??quote)
+   ])),review_fields:[]},error:null};
+ }
+ if(body.mode==="task-scenarios"){
+  const seeds=body.seeds as TestSeed[];
+  return {data:{provider:"NVIDIA Build",stage:"scenarios",model:"glm-fixture",
+   repaired:false,review_scenarios:[],draft:{cenarios:seeds.map(seed=>{
+    const quote=find(new RegExp("CEN[ÁA]RIO\\s+"+(seed.source_index+1)+"\\b","i"));
+    return {...seed,titulo:seed.titulo+" revisado",evidence:proof(quote)};
+   })}},error:null};
+ }
  throw Error("Modo inesperado");
 }
 
@@ -42,7 +70,7 @@ describe("F4 — extração de tarefa em etapas",()=>{
    reply(args!.body as Record<string,unknown>) as never);
   const original="REQUISITO RF-103: validar máscara de telefone ao cadastrar estrangeiro.";
   const result=await generateTaskAiDraftPhased(original);
-  expect(result.fields.titulo).toBe("Corrigir remoção de descontos negativos");
+  expect(result.fields.titulo).toBe("Validar máscara de telefone estrangeiro");
   expect(result.partial).toBe(false);
   expect(result.totalBatches).toBe(0);
   expect(spy).toHaveBeenCalledTimes(1);
@@ -157,12 +185,75 @@ describe("F4 — extração de tarefa em etapas",()=>{
   expect(result.cenarios).toHaveLength(local.cenarios.length);
   expect(result.extractionReason).toMatch(/trechos limitados|não foram enviados/i);
  });
+ it("F5: não preenche automaticamente título sem citação, apesar de outros campos verificados",async()=>{
+  const original=sourceWith(2);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   if(body.mode!=="task-fields")return response as never;
+   const data=response.data as {draft:Record<string,string>;
+    field_evidence:Record<string,unknown>;review_fields:unknown[]};
+   const withoutTitle=(input:Record<string,unknown>)=>
+    Object.fromEntries(Object.entries(input).filter(([key])=>key!=="titulo"));
+   return {data:{...data,draft:withoutTitle(data.draft),
+    field_evidence:withoutTitle(data.field_evidence),
+    review_fields:[{field:"titulo",value:"Problema de tarifa inventada",
+     evidence:{quote:"Texto que não aparece no relatório",
+      source_line:null,status:"needs_review",reason:"quote_not_found"}}]
+   },error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.fieldReview.some(r=>r.field==="titulo"&&r.status==="needs_review")).toBe(true);
+  expect(result.fields.titulo).not.toBe("Problema de tarifa inventada");
+  expect(result.needsReviewCount).toBeGreaterThan(0);
+  expect(result.partial).toBe(true);
+ });
+ it("F5: cenário com citação falsa não substitui a versão local nem conclui o lote",async()=>{
+  const original=sourceWith(2);
+  const local=extractLocalDraft(original);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   if(body.mode!=="task-scenarios")return response as never;
+   const data=response.data as {draft:{cenarios:{source_index:number;
+    evidence:unknown}[]};review_scenarios:unknown[]};
+   const first=data.draft.cenarios[0];
+   const rejected={...first,evidence:{quote:"Citação inexistente",
+    source_line:null,status:"needs_review",reason:"quote_not_found"}};
+   return {data:{...data,
+    draft:{cenarios:data.draft.cenarios.slice(1)},
+    review_scenarios:[rejected]},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.partial).toBe(true);
+  expect(result.pendingBatches).toBeGreaterThan(0);
+  expect(result.scenarioReview.some(item=>item.status==="needs_review")).toBe(true);
+  expect(result.cenarios[0].titulo).toBe(local.cenarios[0].titulo);
+  expect(result.cenarios[0].status).toBe("nao_executado");
+ });
+ it("F5: resposta reparada exige revisão e mantém preenchimento local",async()=>{
+  const original=sourceWith(0);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   const response=reply(body);
+   const data=response.data as Record<string,unknown>;
+   return {data:{...data,repaired:true},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(original);
+  expect(result.partial).toBe(true);
+  expect(result.fieldReview.every(r=>r.status==="needs_review")).toBe(true);
+  expect(result.fieldReview.some(r=>r.reason==="json_repaired")).toBe(true);
+  expect(result.extractionSource).toBe("local");
+ });
  it("não inventa cenários quando só existe requisito documental",async()=>{
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
    reply(args!.body as Record<string,unknown>) as never);
   const result=await generateTaskAiDraftPhased(
    "RF-201: o sistema deve bloquear confirmação sem autorização.");
   expect(result.cenarios).toHaveLength(0);
-  expect(result.partial).toBe(false);
+  // F5 never claims full AI validation when the fixture proposes a title
+  // about discounts but the source only documents an authorization rule.
+  expect(result.partial).toBe(true);
+  expect(result.fieldReview.some(row=>row.status==="needs_review")).toBe(true);
  });
 });

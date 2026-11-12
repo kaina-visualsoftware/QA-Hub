@@ -18,6 +18,8 @@ import {
 import type { SuggestedScenario } from "./task-ai";
 import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
+import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
+import type {FieldReview,ScenarioReview} from "./task-evidence";
 import { generateWithNvidia } from "../generators/stream";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
 import type {ContextPreparation} from "../generators/context-preparation";
@@ -125,6 +127,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const [taskPending,setTaskPending]=useState(0);
   const [taskPartial,setTaskPartial]=useState(false);
+  const [fieldEvidence,setFieldEvidence]=useState<FieldReview[]>([]);
+  const [scenarioEvidence,setScenarioEvidence]=useState<ScenarioReview[]>([]);
+  const [fieldEvidenceApproved,setFieldEvidenceApproved]=useState<Record<string,boolean>>({});
   const taskCheckpoint=useRef<TaskPipelineCheckpoint|null>(null);
   const controller=useRef<AbortController|null>(null);
   const stepperRef=useRef<HTMLDivElement|null>(null);
@@ -185,6 +190,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+      setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
     }
     wasOpen.current=open;
   },[open,userId]);
@@ -246,6 +252,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }else setNotice("");
     automaticallyFilled.current={};
     taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+      setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
     setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
   }
   function alterSource(value:string){
@@ -308,7 +315,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             semanticTask.digest.task:sourcePreparation.prepared.text,
         checkpoint:taskPending>0?taskCheckpoint.current:null,
         onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
-          setTaskPending(pipelinePendingCount(checkpoint));},
+          setTaskPending(pipelinePendingCount(checkpoint));
+          setFieldEvidence([...checkpoint.fieldReview]);
+          setScenarioEvidence(Object.values(checkpoint.scenarioReview).flat());},
         onProgress:progress=>setWork({kind:"task",
           phase:progress.stage==="fields"?1:progress.stage==="scenarios"?2:3,
           detail:progress.detail,
@@ -317,6 +326,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       });
       setTaskPending(response.pendingBatches+(response.fieldsPending?1:0));
       setTaskPartial(response.partial);
+      setFieldEvidence(response.fieldReview);setScenarioEvidence(response.scenarioReview);
       setWork({kind:"task",phase:3,detail:"Organizando o resultado para revisão humana."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
@@ -340,7 +350,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       })) as Partial<TaskDraft>;
       automaticallyFilled.current=applied;
       setDraft(merged);
-      setCases(current=>addUnique(current,freshTaskAiScenarios(response,current,true)));
+      // Cases are suggestions only. The QA must opt in per scenario to save.
+      setCases(current=>addUnique(current,freshTaskAiScenarios(response,current,false)));
       setAiUsed(true);
       setLocalFallback(response.extractionSource==="local");
       setStep(2);
@@ -715,6 +726,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
+      <TaskFieldEvidenceReview fields={fieldEvidence}
+        confirmed={fieldEvidenceApproved}
+        disabled={busy}
+        onConfirm={(field,checked)=>setFieldEvidenceApproved(old=>({...old,[field]:checked}))}
+        onApply={(field,value)=>{
+          update(field as keyof TaskDraft,value);
+          delete automaticallyFilled.current[field as keyof TaskDraft];
+          setFieldEvidenceApproved(old=>({...old,[field]:false}));
+        }}/>
       {aiUsed&&<div className="qa-wizard-ai-review">
         <div>
           <strong>{missingFields.length?
@@ -856,6 +876,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         </Button>
       </div>
       </>}
+      <TaskScenarioEvidenceReview rows={scenarioEvidence}/>
       {caseReview&&cases.length>0&&<div className="qa-wizard-case-review">
         <div className="qa-wizard-case-head">
           <strong>{totalSelected} de {cases.length} casos selecionados</strong>
