@@ -15,11 +15,11 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
  return <section className="qa-semantic-panel" aria-label="Preparação semântica do contexto">
   <div className="qa-semantic-heading">
    <FileSearch size={20} aria-hidden="true"/>
-   <div><strong>Preparação automática do texto extenso</strong>
-    <p>O texto é dividido sem descartar trechos. Quando a NVIDIA estiver disponível,
-     ela seleciona citações verificáveis; se falhar, o sistema continua com seleção
-     literal no navegador, identificada como sem IA. Revise as decisões e a cobertura
-     antes de gerar.</p></div>
+   <div><strong>Análise automática do texto extenso</strong>
+    <p>O conteúdo ultrapassa o limite de uma chamada. A IA lê todas as partes em sequência
+     e identifica evidências verificáveis; você confere os resultados antes de gerar.
+     Se a NVIDIA não responder, nenhuma extração local será feita e apenas os
+     blocos concluídos pela IA serão mantidos.</p></div>
   </div>
   {plan&&<p className="qa-semantic-muted">{plan.chunks.length} parte(s) identificada(s).
    Os trechos originais são preservados; a síntese final pode omitir informações
@@ -27,17 +27,18 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
   {semantic.planError&&<p className="notice error" role="alert">{semantic.planError}</p>}
   {semantic.enabled&&plan&&<div className="qa-semantic-work">
    <div className="qa-semantic-progress">
-    <span>Partes preparadas <strong>{semantic.count} / {plan.chunks.length}</strong></span>
+    <span>Partes verificadas <strong>{semantic.count} / {plan.chunks.length}</strong></span>
     <progress value={semantic.count} max={plan.chunks.length}
      aria-label="Blocos analisados"/>
-    <small>Máximo de 15 chamadas NVIDIA/min. Quando o serviço falha, a seleção local segue sem novas chamadas; os trechos completos permanecem na TF, e o progresso fica preservado enquanto esta tela estiver aberta.</small>
+    <small>A análise percorre todas as partes em sequência e respeita a cota compartilhada
+     de 15 chamadas/min. Pode ser cancelada e retomada; as partes concluídas são preservadas
+     nesta sessão.</small>
    </div>
    {semantic.working&&<div className="qa-semantic-live" role="group" aria-label="Processamento da análise por blocos">
     <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
     <div>
      <strong role="status" aria-live="polite">Processando {semantic.activeChunk??"contexto"} · envio {semantic.attempt} neste lote</strong>
-     <span>{semantic.activeStage==="local"?"Selecionando trechos literais localmente, sem IA":
-      semantic.activeStage==="preparing"?"Validando sessão":
+     <span>{semantic.activeStage==="preparing"?"Validando sessão":
        semantic.activeStage==="sending"?"Preparando solicitação segura":
        semantic.activeStage==="waiting"?"Aguardando resposta da NVIDIA":
        semantic.activeStage==="verifying"?"Conferindo as citações com a fonte original":
@@ -51,7 +52,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     {!semantic.complete&&<button type="button" disabled={disabled||semantic.working||!authorized}
      onClick={()=>void semantic.run(undefined,authorized)}>
      <BookOpenCheck size={17} aria-hidden="true"/>
-     {semantic.count?"Retomar preparação do texto":"Preparar todo o texto"}
+     {semantic.count?"Retomar análise do texto":"Analisar todo o texto com IA"}
     </button>}
     {semantic.working&&<button type="button" onClick={semantic.cancel}>
      <PauseCircle size={16} aria-hidden="true"/> Interromper e manter progresso</button>}
@@ -65,7 +66,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
      const outcome=semantic.outcomes[chunk.id];
      return <li key={chunk.id}>
       <span><strong>{chunk.id}</strong> · Linhas {chunk.startLine}–{chunk.endLine}</span>
-      {outcome?<span>{outcome.facts.length} citações literais · {outcome.method==="local"?"seleção local (sem IA)":outcome.model+" (IA)"} · {outcome.unverified} rejeitadas</span>:
+      {outcome?<span>{outcome.facts.length} citações verificadas · {outcome.unverified} rejeitadas</span>:
        semantic.activeChunk===chunk.id?<span className="qa-semantic-current"><LoaderCircle size={13} className="qa-semantic-spinner" aria-hidden="true"/> Em análise</span>:
        <span>Aguardando análise</span>}
       {outcome&&<button type="button" disabled={disabled||semantic.working||!authorized}
@@ -87,16 +88,10 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
      <div className="qa-semantic-metrics">
       <span><strong>{digest.coverage.analyzedChunks}/{digest.coverage.totalChunks}</strong> fontes segmentadas</span>
       <span><strong>{digest.coverage.selectedFacts}</strong> citações utilizadas</span>
-      <span><strong>{digest.coverage.localChunks}</strong> partes selecionadas sem IA</span>
       <span><strong>{digest.coverage.unverifiedQuotes}</strong> citações rejeitadas</span>
       <span><strong>{digest.coverage.budgetOmissions}</strong> fatos fora do orçamento</span>
       <span><strong>{digest.coverage.missingIds.length}</strong> identificadores sem citação</span>
      </div>
-     {digest.coverage.localChunks>0&&<p role="alert">
-      Parte do contexto foi selecionada por regras locais, não interpretada pela NVIDIA.
-      A seleção é parcial: confira especialmente requisitos revisados, contradições entre versões,
-      resultados dos testes e trechos omitidos antes de aprovar.
-     </p>}
      {digest.coverage.failedChunks>0&&<p role="alert">Alguns blocos não retornaram evidências utilizáveis:
       {digest.coverage.failedChunks} bloco(s). Revise os textos antes de gerar.</p>}
      {!!digest.coverage.missingIds.length&&<p role="alert">
@@ -150,13 +145,13 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
       <textarea readOnly rows={5} value={digest.requirements}/></label>}
     </details>
     <p className="qa-semantic-caution"><ShieldAlert size={17} aria-hidden="true"/>
-A seleção por IA ou por regras locais pode deixar de encontrar informações importantes.
+     A IA seleciona citações existentes, mas pode deixar de encontrar regras importantes.
      A cobertura listada é a dos identificadores detectados no texto, não uma garantia de testes completos.
     </p>
     <label className="qa-semantic-consent">
      <input type="checkbox" checked={semantic.approved} disabled={disabled||semantic.working||
       digest.coverage.selectedFacts===0||!semantic.conflictsReviewed} onChange={e=>semantic.setApproved(e.target.checked)}/>
-     Revisei a matriz de cobertura, incluindo seleções locais sem IA, e autorizo gerar usando somente as citações exibidas.
+     Revisei a matriz de cobertura e autorizo gerar usando somente os trechos verificados.
     </label>
    </div>}
   </div>}
