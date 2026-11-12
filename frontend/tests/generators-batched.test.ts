@@ -1,7 +1,8 @@
 import {describe,expect,it,vi} from "vitest";
 import {assembleGeneratorSections,generateBatchedWithNvidia,
  mergeContinuation,newGeneratorCheckpoint,matchesGeneratorCheckpoint,
- unfinishedGeneratorStages} from "../src/features/generators/batched-stream";
+ unfinishedGeneratorStages,restartInterruptedGeneratorStage} from "../src/features/generators/batched-stream";
+import {recoverCompletedCases} from "../src/features/generators/recover-cases";
 import type {GeneratorBatchRequest,GeneratorMode} from "../src/features/generators/stream";
 const mock=(handler:(batch:GeneratorBatchRequest)=>{text:string;truncated:boolean}|Promise<{text:string;truncated:boolean}>)=>
  vi.fn(async(_mode:GeneratorMode,_task:string,_requirements:string,
@@ -103,6 +104,82 @@ describe("F6 — resumable batched SSE generation",()=>{
    onCheckpoint:c=>{cp=c;}})).rejects.toThrow(/duas continuidades/);
   expect(seen.map(b=>b.continuation)).toEqual([0,1,2]);
   expect(cp.currentStage).toBe(0);
+ });
+ it("recovers complete scenarios after three truncated replies without selecting them",async()=>{
+  let cp=newGeneratorCheckpoint("teste","TF","REQ");
+  const makeCase=(n:number)=>[
+   "## Cenário "+String(n).padStart(2,"0")+" — Validar regra "+n,
+   "### Passos",
+   "1. Abrir pedido "+n+".",
+   "### Resultado esperado",
+   "- Pedido "+n+" validado."
+  ].join("\n");
+  const streamed=[
+   ...Array.from({length:9},(_,index)=>makeCase(index+1)),
+   "## Cenário 10 — Caso interrompido",
+   "### Passos",
+   "1. Abrir pedido 10.",
+   "### Resultado esperado",
+   "- O pedido "
+  ].join("\n\n");
+  const calls:number[]=[];
+  const request=mock(batch=>{
+   calls.push(batch.continuation);
+   return {text:batch.continuation===0?streamed:
+    "Continuação documentada e terminada ao limite.",truncated:true};
+  });
+  await expect(generateBatchedWithNvidia("teste","TF","REQ",{
+   request,onCheckpoint:c=>{cp=c;}
+  })).rejects.toThrow(/duas continuidades/);
+  expect(calls).toEqual([0,1,2]);
+  expect(cp.currentStage).toBe(0);
+  const recovered=recoverCompletedCases(cp);
+  expect(recovered).toHaveLength(9);
+  expect(recovered[0].titulo).toContain("Validar regra 1");
+  expect(recovered.every(item=>!item.selected&&
+   Boolean(item.passos.trim()&&item.esperado.trim()))).toBe(true);
+  expect(recovered.some(item=>item.titulo.includes("interrompido"))).toBe(false);
+  // Explicit user retry can restart the failed stage while not replaying
+  // anything already confirmed in earlier sections.
+  const next=restartInterruptedGeneratorStage(cp);
+  expect(next.currentStage).toBe(0);
+  expect(next.partial).toBe("");
+  expect(next.continuation).toBe(0);
+  expect(cp.partial).toContain("Validar regra 9");
+  const resumedRequest=mock(batch=>({text:batch.stage==="setup"?
+   "# ROTEIRO DE TESTES\n## Objetivo\nValidar regra.\n## Pré-requisitos\n- A confirmar":
+   batch.stage==="positive"?makeCase(1):
+   batch.stage==="negative"?"[Sem cenários negativos adicionais documentados]":
+   batch.stage==="regression"?"[Sem cenários de regressão adicionais documentados]":
+   "## ✅ Critérios de aceite\n- [ ] Confirmar regra.",
+   truncated:false}));
+  const output=await generateBatchedWithNvidia("teste","TF","REQ",{
+   checkpoint:next,request:resumedRequest
+  });
+  expect(output.checkpoint.currentStage).toBe(5);
+  expect(output.text).toContain("## Cenário 01");
+ });
+ it("a retry of the last pending stage keeps previously completed sections",async()=>{
+  const original=newGeneratorCheckpoint("teste","TF","REQ");
+  original.sections=["# ROTEIRO DE TESTES\n## Objetivo\nValidar"];
+  original.currentStage=1;
+  original.partial="## Cenário 01 — Desconto\n### Passos\n1. Abrir\n";
+  original.continuation=2;
+  const next=restartInterruptedGeneratorStage(original);
+  expect(next.sections).toEqual(original.sections);
+  expect(next.sections).not.toBe(original.sections);
+  const called:number[]=[];
+  const request=mock(batch=>{
+   called.push(batch.index);
+   return {text:batch.stage==="positive"?
+    "## Cenário 01 — Validar desconto\n### Passos\n1. Abrir\n### Resultado esperado\n- Corrigido":
+    "[Sem cenários de regressão adicionais documentados]",truncated:false};
+  });
+  const done=await generateBatchedWithNvidia("teste","TF","REQ",{
+   checkpoint:next,request
+  });
+  expect(called).toEqual([1,2,3,4]);
+  expect(done.text).toContain("# ROTEIRO DE TESTES");
  });
  it("never changes task contexts during resume and preserves cancellation",async()=>{
   const cp=newGeneratorCheckpoint("teste","TF antiga","REQ antiga");
