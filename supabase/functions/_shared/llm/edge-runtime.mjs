@@ -69,11 +69,12 @@ export function edgeErrorHttp(error,{
  * apiKey:string,db:any,trace:string,mode:string,modelMode:string,
  * messages:unknown[],models?:string[],maxTokens:number,
  * timeoutMs?:number,deadlineMs?:number,
- * validate:(payload:unknown)=>unknown,options?:Record<string,unknown>
+ * validate:(payload:unknown)=>unknown,options?:Record<string,unknown>,
+ * fetchImpl?:typeof fetch
  * }} config */
 export async function edgeJsonModels({apiKey,db,trace,mode,modelMode,messages,
  models=MODEL_IDS,maxTokens,timeoutMs=35000,deadlineMs=83000,
- validate,options={}}){
+ validate,options={},fetchImpl=fetch}){
  let lastError=null,lastStatus=0,unstructured=false,timedOut=false,
   contextExceeded=false;
  const deadlineAt=Date.now()+deadlineMs;
@@ -81,7 +82,7 @@ export async function edgeJsonModels({apiKey,db,trace,mode,modelMode,messages,
   if(Date.now()>=deadlineAt)break;
   try{
    const result=await callModel({apiKey,model,messages,mode:modelMode,
-    stream:false,options:{...options,max_tokens:maxTokens},maxRetries:0,
+    fetchImpl,stream:false,options:{...options,max_tokens:maxTokens},maxRetries:0,
     rejectLength:false,timeoutMs,firstTokenTimeoutMs:timeoutMs,
     deadlineAt,fallbackModel:modelIndex>0,
     ...edgeHooks({db,trace,mode,model,modelIndex,messages,maxTokens})});
@@ -109,11 +110,11 @@ const sse=(event,body)=>encoder.encode("event: "+event+"\ndata: "+JSON.stringify
  * apiKey:string,db:any,trace:string,mode:string,modelMode:string,
  * messages:unknown[],models?:string[],maxTokens:number,
  * timeoutMs?:number,deadlineMs?:number,signal?:AbortSignal,
- * options?:Record<string,unknown>,maxChars?:number
+ * options?:Record<string,unknown>,maxChars?:number,fetchImpl?:typeof fetch
  * }} config */
 export async function edgeStreamingModels({apiKey,db,trace,mode,modelMode,
  messages,models=MODEL_IDS,maxTokens,timeoutMs=65000,deadlineMs=90000,
- signal,options={},maxChars=115000}){
+ signal,options={},maxChars=115000,fetchImpl=fetch}){
  const owner=new AbortController();
  const onAbort=()=>owner.abort();
  if(signal?.aborted)owner.abort();
@@ -145,7 +146,7 @@ export async function edgeStreamingModels({apiKey,db,trace,mode,modelMode,
    if(owner.signal.aborted)break;
    try{
     const result=await callModel({apiKey,model,messages,mode:modelMode,
-     stream:true,options:{...options,max_tokens:maxTokens},maxRetries:0,
+     fetchImpl,stream:true,options:{...options,max_tokens:maxTokens},maxRetries:0,
      rejectLength:false,timeoutMs,firstTokenTimeoutMs:12000,
      idleTimeoutMs:20000,deadlineAt,maxChars,
      signal:owner.signal,fallbackModel:modelIndex>0,
