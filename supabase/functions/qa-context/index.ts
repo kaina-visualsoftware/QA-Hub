@@ -1,3 +1,4 @@
+import {correlationId,promptChars,logAiAttempt,exceptionOutcome,httpOutcome} from "../_shared/ai-observability.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {GOALS,semanticMessages,parseModelFacts} from "./facts.mjs";
 
@@ -17,18 +18,27 @@ function respond(origin:string|null,status:number,body:Record<string,unknown>,
  return new Response(JSON.stringify(body),{status,
   headers:{...cors(origin),"Content-Type":"application/json; charset=utf-8",...extra}});
 }
-async function freeModels(key:string){
+async function freeModels(key:string,trace:string){
+ const started=Date.now();
+ let status=0,outcome="upstream_error";
  try{
   const response=await fetch(NVIDIA+"/models",{
    headers:{Authorization:"Bearer "+key},signal:AbortSignal.timeout(6000)});
+  status=response.status;outcome=response.ok?"ok":httpOutcome(status);
   if(!response.ok)return MODELS;
   const json=await response.json();
   if(!Array.isArray(json?.data))return MODELS;
   const ids=new Set(json.data.map((item:{id?:string})=>item.id));
   return MODELS.filter(id=>ids.has(id));
- }catch{return MODELS;}
+ }catch(error){outcome=exceptionOutcome(error);return MODELS;}
+ finally{
+  logAiAttempt({correlation_id:trace,stage:"discovery",mode:"discovery",model:"catalog",
+   prompt_chars:0,max_tokens:0,started_at:started,http_status:status,
+   outcome,attempt:0,fallback_model:false});
+ }
 }
 Deno.serve(async(req:Request)=>{
+ const trace=correlationId(req.headers.get("x-correlation-id"));
  const origin=req.headers.get("Origin");
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});
  if(req.method!=="POST")return respond(origin,405,{message:"Método não permitido."});
@@ -59,26 +69,35 @@ Deno.serve(async(req:Request)=>{
   return respond(origin,400,{message:"Contexto ou identificador da parte inválido."});
  }
  if(!key)return respond(origin,503,{message:"A chave NVIDIA não está configurada."});
- const models=await freeModels(key);
+ const models=await freeModels(key,trace);
  if(!models.length)return respond(origin,503,{message:"Nenhum modelo gratuito disponível."});
+ const mode="semantic:"+goal;
+ const messages=semanticMessages(goal,source,chunkId,text);
+ const chars=promptChars(messages);
  let lastStatus=0,hadUnstructured=false,hadTimeout=false;
- for(const model of models){
+ for(const [modelIndex,model] of models.entries()){
+  const telemetry={correlation_id:trace,mode,model,prompt_chars:chars,max_tokens:3200,
+   attempt:modelIndex+1,fallback_model:modelIndex>0};
   // Each upstream attempt consumes the same shared rolling quota (15/min).
   const claim=await db.rpc("qa_ai_claim_minute_request");
   if(claim.error||!claim.data||typeof claim.data!=="object")
    return respond(origin,503,{message:"Não foi possível consultar a quota da IA."});
   if(!claim.data.allowed){
+   logAiAttempt({...telemetry,stage:"quota",started_at:Date.now(),
+    http_status:429,outcome:"rate_limited"});
    const retry=Math.max(1,Math.min(60,Math.ceil(Number(claim.data.retry_after_seconds)||60)));
    return respond(origin,429,{error:"rate_limited",retry_after_seconds:retry,
     message:"Limite compartilhado da NVIDIA atingido. Retome a compactação após a liberação."},
     {"Retry-After":String(retry)});
   }
+  const started=Date.now();
+  let responseStatus=0,finishReason=null,usage=null,outcome="upstream_error";
   try{
    const response=await fetch(NVIDIA+"/chat/completions",{
     method:"POST",
     headers:{Authorization:"Bearer "+key,"Content-Type":"application/json",
      Accept:"application/json"},
-    body:JSON.stringify({model,messages:semanticMessages(goal,source,chunkId,text),
+    body:JSON.stringify({model,messages,
      temperature:0,max_tokens:3200,stream:false,
      response_format:{type:"json_object"},
      ...(model==="z-ai/glm-5.3-flash"?{reasoning_effort:"low"}:
@@ -86,7 +105,8 @@ Deno.serve(async(req:Request)=>{
       {chat_template_kwargs:{enable_thinking:false}}:{})}),
     signal:AbortSignal.timeout(30000)
    });
-   lastStatus=response.status;
+   lastStatus=response.status;responseStatus=response.status;
+   if(!response.ok)outcome=httpOutcome(response.status);
    if(response.status===401||response.status===403)
     return respond(origin,503,{message:"A chave NVIDIA deve ser revisada."});
    if(response.status===429)
@@ -94,14 +114,23 @@ Deno.serve(async(req:Request)=>{
      message:"A NVIDIA limitou as solicitações. Retome mais tarde."});
    if(!response.ok){console.warn("qa-context provider",{status:response.status,model});continue;}
    const payload=await response.json();
+   finishReason=payload?.choices?.[0]?.finish_reason??null;
+   usage=payload?.usage??null;
+   outcome=finishReason==="length"?"length":
+     payload?.choices?.[0]?.message?.content?"schema_invalid":"empty";
    const result=parseModelFacts(payload,text);
    if(!result.valid){hadUnstructured=true;continue;}
+   outcome="ok";
    return respond(origin,200,{chunkId,source,goal,
     facts:result.facts,unverified:result.unverified,model,provider:"NVIDIA Build"});
   }catch(reason){
+   outcome=exceptionOutcome(reason);
    if(reason instanceof DOMException&&reason.name==="TimeoutError")hadTimeout=true;
    console.warn("qa-context upstream",{model,
     reason:reason instanceof DOMException?reason.name:"request_failed"});
+  }finally{
+   logAiAttempt({...telemetry,started_at:started,http_status:responseStatus,
+    finish_reason:finishReason,usage,outcome});
   }
  }
  return respond(origin,503,{error:hadTimeout?"semantic_timeout":"semantic_unavailable",status:lastStatus,
