@@ -197,7 +197,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       controller.current?.abort();
       setStep(1);setCaseReview(false);setSourceText("");setTaskFiles([]);setRequirementFiles([]);
       setRequirementText("");setDraft(blank());setCases([]);
-      setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);
+      setConsentTask(false);setConsentCases(false);setAiUsed(false);
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
@@ -268,7 +268,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     caseCheckpoint.current=null;caseSourceKey.current=null;
     recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
-    setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
+    setConsentTask(false);setConsentCases(false);setAiUsed(false);setCases([]);
   }
   function alterSource(value:string){
     setSourceText(value);invalidateSource();setError("");
