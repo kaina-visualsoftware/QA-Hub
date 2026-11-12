@@ -23,7 +23,7 @@ test("task extraction has a single 83s global deadline below frontend 95s",()=>{
  const src=file("supabase/functions/qa-ai/index.ts");
  const frontend=file("frontend/src/features/tasks/task-ai-phased.ts");
  const deadline=Number(src.match(/deadlineAt=Date\.now\(\)\+(\d+)/)?.[1]);
- const client=Number(frontend.match(/signal:AbortSignal\.timeout\((\d+)\)/)?.[1]);
+ const client=Number(frontend.match(/AbortSignal\.timeout\((\d+)\)/)?.[1]);
  assert.ok(deadline>=60000&&deadline+7000<client);
  assert.match(src,/error:"ai_temporarily_unavailable"/);
  assert.match(src,/error:"rate_limited"/);
