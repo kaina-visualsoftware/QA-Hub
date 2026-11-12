@@ -114,7 +114,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [compactApprovedTask,setCompactApprovedTask] = useState(false);
   const [compactApprovedCases,setCompactApprovedCases] = useState(false);
   const [aiUsed,setAiUsed] = useState(false);
-  const [localFallback,setLocalFallback] = useState(false);
   const [reading,setReading] = useState(false);
   const [analyzing,setAnalyzing] = useState(false);
   const [generating,setGenerating] = useState(false);
@@ -333,14 +332,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
           setTaskPending(pipelinePendingCount(checkpoint));
           setFieldEvidence([...checkpoint.fieldReview]);
-          setScenarioEvidence(Object.values(checkpoint.scenarioReview).flat());},
+          setScenarioEvidence([...checkpoint.seedReview,...Object.values(checkpoint.scenarioReview).flat()]);},
         onProgress:progress=>setWork({kind:"task",
-          phase:progress.stage==="fields"?1:progress.stage==="scenarios"?2:3,
+          phase:progress.stage==="fields"?1:
+             progress.stage==="seeds"||progress.stage==="scenarios"?2:3,
           detail:progress.detail,
           current:progress.current,total:progress.total}),
         signal:abort.signal,onWait:setQuotaWait
       });
-      setTaskPending(response.pendingBatches+(response.fieldsPending?1:0));
+      setTaskPending(response.pendingBatches+(response.fieldsPending?1:0)+(response.seedsPending?1:0));
       setTaskPartial(response.partial);
       setFieldEvidence(response.fieldReview);setScenarioEvidence(response.scenarioReview);
       setWork({kind:"task",phase:3,detail:"Organizando o resultado para revisão humana."});
@@ -369,7 +369,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       // Cases are suggestions only. The QA must opt in per scenario to save.
       setCases(current=>addUnique(current,freshTaskAiScenarios(response,current,false)));
       setAiUsed(true);
-      setLocalFallback(response.extractionSource==="local");
+      
       setStep(2);
       const missing=([
         "titulo","descricao","sistema","versao","ambiente","base_teste",
@@ -383,9 +383,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           (response.pendingBatches||response.fieldsPending
             ?"Você pode retomar sem reenviar os lotes concluídos. ":"")+
           (response.extractionReason??"")
-        : response.extractionSource==="local"
-          ? "Extração local utilizada; confira os campos e cenários antes de salvar."
-          : sourcePreparation.prepared.needsReview
+        : sourcePreparation.prepared.needsReview
             ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
             : "Campos e cenários organizados pela NVIDIA. Revise antes de avançar.")+missingHint);
     }catch(reason){
@@ -403,7 +401,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     // The QA enters the fields intentionally; the source is archived as-is.
     automaticallyFilled.current={};
     setDraft(current=>({...current,descricao:current.descricao||sourceText}));
-    setAiUsed(false);setLocalFallback(false);setError("");setNotice(
+    setAiUsed(false);setError("");setNotice(
       "Preenchimento manual: nenhum campo ou cenário foi interpretado sem IA.");
     setStep(2);
   }
@@ -768,7 +766,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
         <span>{aiUsed?(taskPartial?"Análise parcial — confira as pendências":
-  localFallback?"Extração local de segurança":"Análise concluída com IA"):"Preenchimento manual"}</span>
+  "Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
       <TaskFieldEvidenceReview fields={fieldEvidence}
