@@ -17,7 +17,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [outcomes,setOutcomes]=useState<Record<string,ChunkOutcome>>({});
  const [working,setWorking]=useState(false);
  const [activeChunk,setActiveChunk]=useState<string|null>(null);
- const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|null>(null);
+ const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|"local"|null>(null);
  const [attempt,setAttempt]=useState(0);
  const [elapsed,setElapsed]=useState(0);
  const [startedAt,setStartedAt]=useState<number|null>(null);
@@ -88,7 +88,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   setApproved(false);
   const abort=new AbortController();controller.current=abort;
   const signature=sourceKey;
-  let next={...outcomes},done=0,localCount=0;
+  let next={...outcomes},done=0;
   let providerUnavailable=false;
   try{
    // One upstream failure switches remaining chunks to literal local
@@ -100,6 +100,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
     setActiveStage("preparing");
     let result:ChunkOutcome;
     if(providerUnavailable){
+     setActiveStage("local");
      result=extractLocalSemanticChunk(chunk,goal);
     }else{
      try{
@@ -118,11 +119,11 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
         "provider_rate_limited","quota_exhausted"].includes(reason.code));
       if(!providerFailure)throw reason;
       providerUnavailable=true;
+      setActiveStage("local");
       result=extractLocalSemanticChunk(chunk,goal);
      }
     }
     if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
-    if(result.method==="local")localCount++;
     next={...next,[chunk.id]:result};
     setOutcomes(next);done++;
     setMessage("Parte "+chunk.id+" preparada ("+
