@@ -2,7 +2,6 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {AiRequestError} from "../../lib/ai-retry";
 import type {AiWaitState} from "../../lib/ai-retry";
 import {analyzeSemanticChunk} from "./semantic-service";
-import {extractLocalSemanticChunk} from "./semantic-local";
 import {buildSemanticPlan,compileSemanticContext} from "./semantic-context";
 import type {ChunkOutcome,SemanticGoal} from "./semantic-context";
 import {detectSemanticConflicts,excludedFacts,conflictNotes} from "./semantic-conflicts";
@@ -17,7 +16,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [outcomes,setOutcomes]=useState<Record<string,ChunkOutcome>>({});
  const [working,setWorking]=useState(false);
  const [activeChunk,setActiveChunk]=useState<string|null>(null);
- const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|"local"|null>(null);
+ const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|null>(null);
  const [attempt,setAttempt]=useState(0);
  const [elapsed,setElapsed]=useState(0);
  const [startedAt,setStartedAt]=useState<number|null>(null);
@@ -89,58 +88,49 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   const abort=new AbortController();controller.current=abort;
   const signature=sourceKey;
   let next={...outcomes},done=0;
-  let providerUnavailable=false;
+  const failed:string[]=[];
   try{
-   // One upstream failure switches remaining chunks to literal local
-   // extraction. This prevents 504 storms and keeps previous model results.
-   // Each local quote is exact-source data, NEVER presented as AI analysis.
+   // Each successful parent is checkpointed; unsuccessful parts stay pending.
+   // A transient failure cannot silently mark the source as fully analyzed.
    for(const chunk of pending){
     if(abort.signal.aborted||signature!==latest.current)throw Error("Análise cancelada.");
     setActiveChunk(chunk.id);setAttempt(value=>value+1);
     setActiveStage("preparing");
-    let result:ChunkOutcome;
-    if(providerUnavailable){
-     setActiveStage("local");
-     result=extractLocalSemanticChunk(chunk,goal);
-    }else{
-     try{
-      result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
+    try{
+     const result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
        if(signature===latest.current&&!abort.signal.aborted)setActiveStage(stage);
-      },wait=>{
+     },wait=>{
        if(signature!==latest.current||abort.signal.aborted)return;
        setQuotaWait(wait);
-      });
-     }catch(reason){
-      if(abort.signal.aborted||signature!==latest.current)throw reason;
-      // Authentication, permissions and invalid input still stop the flow.
-      // Only a provider outage/time-out/quota error activates local recovery.
-      const providerFailure=reason instanceof AiRequestError&&(
-       reason.status===504||["provider_timeout","provider_unavailable",
-        "provider_rate_limited","quota_exhausted"].includes(reason.code));
-      if(!providerFailure)throw reason;
-      providerUnavailable=true;
-      setActiveStage("local");
-      result=extractLocalSemanticChunk(chunk,goal);
-     }
-    }
-    if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
-    next={...next,[chunk.id]:result};
-    setOutcomes(next);done++;
-    setMessage("Parte "+chunk.id+" preparada ("+
-     (result.method==="local"?"seleção literal local, sem IA":
-      result.facts.length+" citação(ões) verificadas pela IA")+
-     "). "+Object.keys(next).length+" de "+plan.chunks.length+".");
-    setQuotaWait(null);
+     });
+     if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
+     next={...next,[chunk.id]:result};
+     setOutcomes(next);done++;
+     setMessage("Bloco "+chunk.id+" concluído: "+result.facts.length+
+       " citação(ões) verificada(s). "+Object.keys(next).length+" de "+plan.chunks.length+".");
+    }catch(reason){
+     if(abort.signal.aborted||signature!==latest.current)throw reason;
+     // No local extraction. Stop immediately on provider outage to avoid
+     // repeated 504 storms, keep earlier NVIDIA results, and leave this chunk
+     // and all later chunks pending for a deliberate user-triggered resume.
+     const providerFailure=reason instanceof AiRequestError&&
+       (reason.status===504||reason.code==="provider_timeout"||
+        (reason.status===503&&reason.retryable));
+     if(!providerFailure)throw reason;
+     failed.push(chunk.id);
+     break;
+    }finally{setQuotaWait(null);}
    }
-   if(Object.keys(next).length===plan.chunks.length){
-    const totalLocal=Object.values(next).filter(x=>x.method==="local").length;
-    setMessage(totalLocal>0?
-     "Todas as "+plan.chunks.length+" partes foram percorridas. "+totalLocal+
-     " parte(s) usaram seleção literal local devido à indisponibilidade da NVIDIA. "+
-     "A seleção local não é interpretação da IA; confira as regras, as revisões e a matriz de cobertura antes de gerar.":
-     "Todos os blocos foram analisados pela NVIDIA. Revise a cobertura e autorize a geração.");
-   }else
-    setMessage("Preparação interrompida após "+done+" parte(s); o trabalho pode ser retomado.");
+   if(failed.length){
+    setError("A NVIDIA não concluiu "+failed.join(", ")+
+     ". Nenhum trecho foi extraído sem IA. Os blocos já verificados foram mantidos. "+
+     "Use Retomar análise do texto para tentar somente as partes pendentes.");
+    setMessage(done+" parte(s) concluída(s) nesta tentativa. "+failed.length+
+     " bloco(s) falharam; as demais partes continuam pendentes de análise pela NVIDIA.");
+   }else if(Object.keys(next).length===plan.chunks.length)
+    setMessage("Todos os blocos foram analisados. Revise a cobertura e autorize a geração.");
+   else
+    setMessage("Processamento interrompido após "+done+" parte(s); a análise poderá ser retomada.");
   }catch(reason){
    if(signature===latest.current){
     setError(abort.signal.aborted?"Análise interrompida. Os blocos concluídos foram mantidos.":

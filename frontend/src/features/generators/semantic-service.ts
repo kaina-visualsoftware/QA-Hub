@@ -46,33 +46,8 @@ async function analyzeSingleSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
 }
 
 
-/** Timeout fallback splits the *original* source without trimming a character.
- * Both requests retain the original public chunk ID, and the merged quotes
- * are rechecked against that same full chunk for their correct source lines.
- * A failed child never masquerades as a completed parent checkpoint.
- */
-export function splitSemanticChunk(chunk:SemanticChunk):[SemanticChunk,SemanticChunk]{
- const middle=Math.floor(chunk.text.length/2);
- const before=chunk.text.lastIndexOf("\n",middle);
- const after=chunk.text.indexOf("\n",middle);
- const near=(pos:number)=>pos>=chunk.text.length*.3&&pos<=chunk.text.length*.7;
- let cut=near(before)?before+1:near(after)?after+1:middle;
- if(cut>0&&cut<chunk.text.length&&
-    /[\uD800-\uDBFF]/.test(chunk.text.charAt(cut-1))&&
-    /[\uDC00-\uDFFF]/.test(chunk.text.charAt(cut)))cut--;
- const firstText=chunk.text.slice(0,cut),secondText=chunk.text.slice(cut);
- const secondLine=chunk.startLine+(firstText.match(/\n/g)?.length??0);
- return [
-  {...chunk,text:firstText,end:chunk.start+cut,
-   endLine:secondLine},
-  {...chunk,text:secondText,start:chunk.start+cut,
-   startLine:secondLine}
- ];
-}
-/** Avoid retry storms: one timed-out NVIDIA request per chunk.
- * The React workflow switches to literal offline extraction for the failed
- * chunk and every remaining chunk. No repeated HTTP 504s for subdivisions.
- */
+/** Every context chunk must be read by NVIDIA. A timeout is surfaced
+ * to the analyst instead of retrying subchunks or extracting locally. */
 export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
  signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{},
  onWait:AiWaitCallback=()=>{}):Promise<ChunkOutcome>{
