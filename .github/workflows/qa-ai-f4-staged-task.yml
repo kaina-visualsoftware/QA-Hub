@@ -1,0 +1,73 @@
+name: QA Hub AI F4 — criação faseada de TF
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f3-token-budget-20261111]
+    paths:
+      - 'supabase/functions/qa-ai/**'
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/_shared/ai-observability.mjs'
+      - 'frontend/src/features/tasks/**'
+      - 'frontend/tests/task-ai-phased.test.ts'
+      - 'tests/ai-f4-stages.test.mjs'
+      - '.github/workflows/qa-ai-f4-staged-task.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa-ai/**'
+      - 'frontend/src/features/tasks/task-ai-phased.ts'
+      - 'tests/ai-f4-stages.test.mjs'
+concurrency:
+  group: qa-ai-f4-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run F4 API stage contracts and F0-F3 regressions
+        run: node --test tests/ai-f4-stages.test.mjs tests/ai-f3-token-budget.test.mjs tests/ai-f3-integration.test.mjs tests/ai-f2-error-contract.test.mjs tests/ai-f1-provider.test.mjs tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs
+      - name: Check stage module syntax
+        run: node --check supabase/functions/qa-ai/stages.mjs
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck all four authenticated Edge Functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: F4 staged flow and non-destructive TF regressions
+        run: npx vitest run tests/task-ai-phased.test.ts tests/task-ai-input.test.ts tests/task-ai.test.ts
+      - name: Complete unit test suite
+        run: npm test
+      - name: Production build
+        run: npm run build
