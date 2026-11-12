@@ -460,7 +460,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setCaseReview(false);
       setWork({kind:"cases",phase:1,detail:resume?
         "Retomando as etapas pendentes sem reenviar as concluídas.":
-        "Solicitando cenários à NVIDIA em etapas."});
+        "Aguardando a NVIDIA elaborar novos cenários, variações e regressões por etapas."});
       const response=await generateBatchedWithNvidia("teste",sentTask,sentRequirements,{
         checkpoint:resume,signal:abort.signal,onWait:setQuotaWait,
         onCheckpoint:cp=>{caseCheckpoint.current=cp;setCasePending(unfinishedGeneratorStages(cp));},
@@ -470,12 +470,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             {...current,phase:2,detail:"Recebendo e preservando os cenários gerados."}:current);
         },
         onProgress:progress=>setWork({kind:"cases",phase:progress.continuation?2:1,
-          detail:(progress.continuation?"Continuando trecho da etapa ":"Gerando etapa ")+
+          detail:(progress.continuation?"Continuando trecho da etapa ":"Aguardando a NVIDIA elaborar novos cenários. Etapa ")+
             (progress.index+1)+" de "+progress.total+" — "+progress.stage+".",
           current:progress.completed,total:progress.total})
       });
       setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados e repetições."});
-      const full=freshTaskAiScenarios(normalizeDraft({cenarios:parseGeneratedCases(response.text)}),[],true);
+      const generated=normalizeDraft({cenarios:parseGeneratedCases(response.text)});
+      const full=freshTaskAiScenarios(generated,[],true);
+      const fresh=freshTaskAiScenarios(generated,cases,true);
       const recoverySnapshots=new Map(recoveredSnapshots.current);
       setCases(current=>{
         const byTitle=new Map(full.map(item=>[keyOf(item),item]));
@@ -490,8 +492,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       recoveredSnapshots.current.clear();
       caseCheckpoint.current=null;caseSourceKey.current=null;setCasePending(0);
       setCaseReview(Boolean(cases.length||full.length));
-      setNotice(full.length?
-        "Geração concluída. Revise e selecione os cenários que serão salvos.":
+      setNotice(fresh.length?
+        fresh.length+" caso(s) novo(s) identificados. Revise antes de finalizar.":
+        full.length?"Geração concluída. Revise os casos recuperados antes de salvar.":
         "Nenhum caso novo e válido foi encontrado. Revise os requisitos.");
     }catch(reason){
       const cp=caseSourceKey.current===caseInputKey?caseCheckpoint.current:null;
