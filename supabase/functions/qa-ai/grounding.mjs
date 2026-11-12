@@ -64,7 +64,7 @@ function sharedEvidenceTerms(value,quote){
  */
 export function executionContradiction(value,quote){
  const success=/\b(?:aprovad[oa]s?|passou|validado|executad[oa]s?\s+com\s+sucesso|teste[s]?\s+conclu[ií]d[oa]s?)\b/iu;
- const pending=/\b(?:n[aã]o\s+(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?)|pendente|a\s+confirmar|n[aã]o\s+foi\s+realizado)\b/iu;
+ const pending=/\b(?:n[aã]o\s+(?:(?:foi|foram|est[aá]|est[aã]o)\s+)?(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?|realizad[oa]s?)|pendente|a\s+confirmar)\b/iu;
  return success.test(value)&&pending.test(quote);
 }
 /** A verified citation proves the quote occurs in submitted source, NOT that
