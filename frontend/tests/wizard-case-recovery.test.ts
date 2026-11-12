@@ -49,7 +49,7 @@ describe("Criar TF — recuperar cenários de streaming interrompido",()=>{
   });
   expect(unfinishedGeneratorStages(checkpoint)).toBe(0);
   expect(recoverInterruptedWizardCases(checkpoint)).toHaveLength(9);
-  expect(answer.text).toContain("Regra 09");
+  expect(answer.text).toContain("Regra 9");
   expect(seen.filter(item=>item.index===0)).toHaveLength(1);
   expect(seen.filter(item=>item.index===1&&item.continuation===0)).toHaveLength(1);
  });
