@@ -115,7 +115,7 @@ function sharesTerms(value:string,quote:string):boolean{
 }
 export function executionContradiction(value:string,quote:string):boolean{
  const passed=/\b(?:aprovad[oa]s?|passou|validado|executad[oa]s?\s+com\s+sucesso|teste[s]?\s+conclu[ií]d[oa]s?)\b/iu;
- const pending=/\b(?:n[aã]o\s+(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?)|pendente|a\s+confirmar|n[aã]o\s+foi\s+realizado)\b/iu;
+ const pending=/\b(?:n[aã]o\s+(?:(?:foi|foram|est[aá]|est[aã]o)\s+)?(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?|realizad[oa]s?)|pendente|a\s+confirmar)\b/iu;
  return passed.test(value)&&pending.test(quote);
 }
 function verified(source:string,value:string,quote:string,line:number|null):boolean{
