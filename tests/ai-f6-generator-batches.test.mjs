@@ -37,6 +37,26 @@ test("F6 category-specific prompts preserve input and never invent scenario stat
  assert.match(negative[0].content,/cenários negativos/);
  assert.match(negative[0].content,/NÃO invente fatos/);
 });
+test("F6 test batches prioritize their own stage rather than a 30-case global prompt",()=>{
+ const task="TF 67866: o desconto negativo permanece na aba Pagamentos.";
+ const req="Remover descontos negativos.";
+ for(const index of [0,1,2,3,4]){
+  const batch=example("teste",index);
+  const messages=messagesForGeneratorBatch("teste",task,req,batch,
+   messagesForGenerator("teste",task,req));
+  assert.equal(messages.length,2);
+  assert.match(messages[0].content,/somente a SEÇÃO solicitada/);
+  assert.doesNotMatch(messages[0].content,/até 30 cenários ÚNICOS/);
+  assert.ok(messages[0].content.length<1900);
+ }
+ const setup=messagesForGeneratorBatch("teste",task,req,example("teste",0),
+  messagesForGenerator("teste",task,req));
+ assert.match(setup[0].content,/Não inclua NENHUM cenário/);
+ const positive=messagesForGeneratorBatch("teste",task,req,example("teste",1),
+  messagesForGenerator("teste",task,req));
+ assert.match(positive[0].content,/até 4 cenários positivos/);
+ assert.match(positive[1].content,/desconto negativo permanece/);
+});
 test("F6 continuation must have a nonempty bounded tail, and is not a new section",()=>{
  const task="TF 67866",req="";
  const b=example("post",1,1);

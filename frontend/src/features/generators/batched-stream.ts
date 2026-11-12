@@ -30,6 +30,16 @@ export function newGeneratorCheckpoint(mode:GeneratorMode,task:string,
  requirements:string):GeneratorCheckpoint{
  return {mode,task,requirements,sections:[],currentStage:0,partial:"",continuation:0};
 }
+/** Only the in-flight stage may be retried after exhausting continuations.
+ * Previously completed sections stay immutable; the partial is retained in
+ * the review UI before this explicit restart and never blindly combined with
+ * a fresh copy of the same stage.
+ */
+export function restartInterruptedGeneratorStage(checkpoint:GeneratorCheckpoint):GeneratorCheckpoint{
+ if(checkpoint.continuation<F6_MAX_CONTINUATIONS||!checkpoint.partial.trim())
+  return {...checkpoint,sections:[...checkpoint.sections]};
+ return {...checkpoint,sections:[...checkpoint.sections],partial:"",continuation:0};
+}
 export function matchesGeneratorCheckpoint(checkpoint:GeneratorCheckpoint|null,
  mode:GeneratorMode,task:string,requirements:string){
  return checkpoint!==null&&checkpoint.mode===mode&&
