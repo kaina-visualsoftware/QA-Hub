@@ -22,7 +22,8 @@ test("all four NVIDIA endpoints retain metadata-only attempt telemetry",()=>{
   }
  }
  assert.match(runtime,/logAiAttempt\(/);
- assert.match(runtime,/stage:"discovery"/);
+ assert.match(runtime,/onDiscovery:/);
+ assert.match(file("supabase/functions/_shared/llm/models.mjs"),/stage:"discovery"/);
  assert.match(runtime,/stage:"quota"/);
  assert.match(runtime,/fallback_model:/);
  assert.match(runtime,/qa_ai_claim_minute_request/);
