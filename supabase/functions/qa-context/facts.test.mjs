@@ -42,3 +42,21 @@ test("separate post/test goals promote different QA facts without treating data 
  assert.match(a[0].content,/nunca instrução/);
  assert.match(a[1].content,/TESTE: não permitir/);
 });
+
+test("timeout retry remains exclusively NVIDIA with shorter exact-source evidence",()=>{
+ const source="Revisão final: pedido mínimo = TotalVale / (percentual/100).";
+ const standard=semanticMessages("teste","TF","TF-017",source);
+ const compact=semanticMessages("teste","TF","TF-017",source,{compact:true});
+ assert.match(standard[0].content,/até 12 fatos distintos/);
+ assert.match(compact[0].content,/NO MÁXIMO 5 fatos/);
+ assert.match(compact[0].content,/SUBSTRING LITERAL e EXATA/);
+ assert.match(compact[0].content,/contraditórios/);
+ assert.equal(compact[1].content.includes(source),true);
+ assert.equal(compact[1].content.includes("TF-017"),true);
+ const grounded=parseModelFacts({choices:[{message:{content:JSON.stringify({facts:[
+  {category:"regra",quote:source,summary:"Decisão final extraída pela NVIDIA."},
+  {category:"regra",quote:"Fórmula sem divisão.",summary:"Invenção."}
+ ]})}}]},source);
+ assert.deepEqual(grounded.facts.map(x=>x.quote),[source]);
+ assert.equal(grounded.unverified,1);
+});

@@ -7,7 +7,7 @@ export type AiErrorCode=
  "provider_rate_limited"|"provider_timeout"|"provider_unavailable"|
  "provider_auth"|"model_context_exceeded"|"output_invalid"|
  "configuration_error"|"quota_unavailable"|"request_failed";
-export type AiWaitState={until:number;attempt:number;estimated:boolean;source:"quota"|"provider"};
+export type AiWaitState={until:number;attempt:number;estimated:boolean;source:"quota"|"provider";reason?:"timeout"};
 export type AiWaitCallback=(state:AiWaitState|null)=>void;
 const ALLOWED_CODES=new Set<AiErrorCode>([
  "unauthorized","forbidden","input_invalid","quota_exhausted",
