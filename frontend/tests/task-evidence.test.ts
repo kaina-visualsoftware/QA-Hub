@@ -135,5 +135,13 @@ describe("F8 — status de execução não pode contradizer a citação",()=>{
   const result=parseGroundedFieldReply(response,source);
   expect(result.values.conclusao).toBe("");
   expect(result.review[0].status).toBe("needs_review");
+  const plural="Os testes ainda não foram executados.";
+  const pluralResponse={
+   ...response,
+   field_evidence:{conclusao:{quote:plural,source_line:1,status:"verified",reason:null}}
+  };
+  const pluralResult=parseGroundedFieldReply(pluralResponse,plural);
+  expect(pluralResult.values.conclusao).toBe("");
+  expect(pluralResult.review[0].status).toBe("needs_review");
  });
 });
