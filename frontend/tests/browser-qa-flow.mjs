@@ -201,17 +201,32 @@ async function mock(route){
     return send(record);
   }
   if(p.endsWith("/functions/v1/qa-generators")){
-    aiCalls++;
     const payload=req.postDataJSON();
+    // One user action now consists of multiple sequential requests. Count
+    // generation starts, not transport chunks, for retry assertions.
+    if(!payload.batch||payload.batch.index===0)aiCalls++;
     aiPayloads.push(payload);
     assert.equal(payload.tarefa.includes("Validação de descontos"),true);
     if(failNextGenerator){
       failNextGenerator=false;
       return send({message:"IA indisponível na simulação"},503);
     }
+    const stage=payload.batch?.stage;
     const text=payload.mode==="teste"
-      ? "# ROTEIRO\n## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n## Cenário 02 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n"
-      : "# DESCONTO EM PAGAMENTOS\n\nFoi implementada correção do desconto.\n\nAnteriormente, descontos negativos eram ignorados. Agora, são processados.\n\n**Caminho de acesso:**\nFinanceiro >> Pagamentos >> Remover desconto\n\n[Imagem: captura-do-desconto.png]\n\n**Comportamento detalhado**\n1. **Desconto**\n   A operação remove o desconto corretamente.\n\n**TAREFA:** 78912\n**JUSTIFICATIVA:** Corrigir divergência relatada.";
+      ?stage==="setup"
+        ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar desconto.\n## Pré-requisitos\n- Pedido criado."
+        :stage==="positive"
+          // Two intentionally identical cases prove that deduplication still
+          // works inside the positive stage, without replaying them in all 5 stages.
+          ?"## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n## Cenário 02 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n"
+          :stage==="negative"?"[Sem cenários negativos adicionais documentados]"
+          :stage==="regression"?"[Sem cenários de regressão adicionais documentados]"
+          :"## Resultado dos testes\n- A confirmar."
+      :stage==="overview"
+        ?"# DESCONTO EM PAGAMENTOS\n\nFoi implementada correção do desconto.\n\nAnteriormente, descontos negativos eram ignorados. Agora, são processados.\n\n**Caminho de acesso:**\nFinanceiro >> Pagamentos >> Remover desconto\n\n[Imagem: captura-do-desconto.png]"
+        :stage==="details"
+          ?"**Comportamento detalhado**\n1. **Desconto**\n   A operação remove o desconto corretamente."
+          :"**TAREFA:** 78912\n**JUSTIFICATIVA:** Corrigir divergência relatada.";
     return route.fulfill({status:200,
       headers:{...cors,"Content-Type":"text/event-stream; charset=utf-8"},
       body:"event: chunk\ndata: "+JSON.stringify({text})+"\n\n"+
