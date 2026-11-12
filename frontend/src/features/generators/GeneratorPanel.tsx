@@ -419,13 +419,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const previousRaw=raw;
     const existing=matchesGeneratorCheckpoint(focusedCheckpoint.current,"teste",
       prepared.task,prepared.requirements)?focusedCheckpoint.current:null;
+    const usableFocusedCheckpoint=existing?restartInterruptedGeneratorStage(existing):null;
     onBusyChange?.(true);
     try{
       await recordCoveragePreparation(task.id,userId,context.taskContext.text,
         prepared.codes);
       const response=await generateBatchedWithNvidia("teste",
         prepared.task,prepared.requirements,{
-        checkpoint:existing,signal:abort.signal,onWait:setGeneratorWait,
+        checkpoint:usableFocusedCheckpoint,signal:abort.signal,onWait:setGeneratorWait,
         onCheckpoint:cp=>{focusedCheckpoint.current=cp;},
         onProgress:progress=>{setBatchProgress(progress);
           setActivityPhase(progress.continuation?"receiving":"connecting");},
@@ -451,11 +452,24 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           "A IA não retornou casos novos distintos para esta seleção.");
     }catch(reason){
       setRaw(previousRaw);
-      const pending=focusedCheckpoint.current?
-        unfinishedGeneratorStages(focusedCheckpoint.current):0;
+      const cp=focusedCheckpoint.current;
+      const pending=cp?unfinishedGeneratorStages(cp):0;
+      const salvage=cp&&matchesGeneratorCheckpoint(cp,"teste",prepared.task,
+        prepared.requirements)?recoverCompletedCases(cp):[];
+      const fresh=onlyNewScenarioCandidates(salvage,[...scenarios,...cases]);
+      if(cp)setInterruptedPreview([...cp.sections,cp.partial].filter(Boolean).join("\n\n"));
+      if(fresh.length){
+        setCases(previous=>[...previous,...editableCopy(
+          onlyNewScenarioCandidates(salvage,[...scenarios,...previous]))
+          .map(item=>({...item,selected:false}))]);
+        setGeneratedCount(previous=>previous+fresh.length);
+        setTruncated(true);
+        setMessage(fresh.length+" caso(s) completos recuperados para revisão manual, sem seleção automática.");
+      }
       const error=abort.signal.aborted?"Operação cancelada. Os casos anteriores foram preservados.":
         messageOf(reason)+" Nenhum caso existente foi modificado.";
-      setError(error+(pending?" "+pending+" grupo(s) pendentes podem ser retomados.":""));
+      setError(error+(pending?" "+pending+
+        " grupo(s) pendentes podem ser retomados; somente a etapa interrompida será reiniciada se necessário.":""));
       throw Error(error);
     }finally{
       setGenerating(false);controller.current=null;setGeneratorWait(null);
