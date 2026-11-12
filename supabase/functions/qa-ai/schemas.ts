@@ -11,7 +11,12 @@ const FIELDS=[
  "empresa","testador","descricao","explicacao","causa","correcao","conclusao","observacoes"
 ] as const;
 const allowed=new Set<string>(FIELDS);
-const fEntry=z.object({value:z.string().max(20000),evidence:z.string().max(550)}).strict();
+const fEntry=z.object({value:z.string().max(20000),evidence:z.string().max(550),
+ derivation:z.enum(["explicit","synthesized"]).optional()}).strict();
+const SYNTHESIS_FIELDS=new Set([
+ "titulo","sistema","descricao","explicacao","causa","correcao",
+ "conclusao","observacoes"
+]);
 const fieldsSchema=z.object({fields:z.record(z.string(),fEntry)
  .refine(o=>Object.keys(o).every(k=>allowed.has(k)),{message:"Campo não autorizado"})}).strict();
 const scenarioSchema=z.object({
@@ -24,7 +29,8 @@ const scenarioSchema=z.object({
 }).strict();
 const scenariosSchema=z.object({cenarios:z.array(scenarioSchema).min(1).max(4)}).strict();
 type SourceEvidence={
- quote:string;source_line:number|null;status:"verified"|"needs_review";reason:string|null
+ quote:string;source_line:number|null;status:"verified"|"needs_review";reason:string|null;
+ derivation?:"explicit"|"synthesized"
 };
 function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
  if(!response||typeof response!=="object")return null;
@@ -48,13 +54,17 @@ function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
   catch{return null;}
  }
 }
-function evidence(source:string,value:string,quote:string,repaired:boolean):SourceEvidence{
+function evidence(source:string,value:string,quote:string,repaired:boolean,
+ derivation:"explicit"|"synthesized"="explicit",field=""):SourceEvidence{
  const checked=verifyGrounding(source,value,quote);
- if(repaired&&checked.status==="verified")return {
-  quote:checked.quote,source_line:checked.source_line,
-  status:"needs_review",reason:"json_repaired"
+ // Metadata synthesized by a model is not a recorded fact.
+ if(derivation==="synthesized"&&!SYNTHESIS_FIELDS.has(field))return {
+  ...checked,status:"needs_review",reason:"metadata_not_explicit",derivation
  };
- return checked as SourceEvidence;
+ if(repaired&&checked.status==="verified")return {
+  ...checked,status:"needs_review",reason:"json_repaired",derivation
+ };
+ return {...checked,derivation};
 }
 export type ReviewCandidate={field:string;value:string;evidence:SourceEvidence};
 export function groundedTaskFields(response:unknown,source:string){
@@ -65,9 +75,9 @@ export function groundedTaskFields(response:unknown,source:string){
  const draft:Record<string,string>={},field_evidence:Record<string,SourceEvidence>={};
  const review_fields:ReviewCandidate[]=[];
  let anchored=0;
- for(const [name,{value, evidence:quote}] of Object.entries(parsed.data.fields)){
+ for(const [name,{value,evidence:quote,derivation}] of Object.entries(parsed.data.fields)){
   if(!value.trim())continue;
-  const record=evidence(source,value,quote,decoded.repaired);
+  const record=evidence(source,value,quote,decoded.repaired,derivation,name);
   if(record.source_line!==null)anchored++;
   if(record.status==="verified"){
    draft[name]=value.trim();field_evidence[name]=record;
