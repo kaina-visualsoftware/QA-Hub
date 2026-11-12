@@ -15,32 +15,23 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
  return <section className="qa-semantic-panel" aria-label="Preparação semântica do contexto">
   <div className="qa-semantic-heading">
    <FileSearch size={20} aria-hidden="true"/>
-   <div><strong>Como preparar o contexto extenso?</strong>
-    <p>Escolha a seleção rápida ou uma análise por blocos, com trechos de origem verificáveis.</p></div>
+   <div><strong>Análise automática do texto extenso</strong>
+    <p>O conteúdo ultrapassa o limite de uma chamada. A IA lê todas as partes em sequência
+     e identifica evidências verificáveis; você confere os resultados antes de gerar.
+     Não é necessário escolher um método de processamento.</p></div>
   </div>
-  <div className="qa-semantic-strategies" role="radiogroup" aria-label="Método de compactação">
-   <label><input type="radio" name="qa-semantic-mode" value="fast"
-    checked={!semantic.enabled} disabled={disabled||semantic.working}
-    onChange={()=>semantic.setEnabled(false)}/>
-    <span><strong>Rápido</strong><small>Leitura estrutural local: identifica problema, causas, correções, regras e testes, com origem verificável. Não interpreta tudo como uma IA.</small></span>
-   </label>
-   <label><input type="radio" name="qa-semantic-mode" value="semantic"
-    checked={semantic.enabled} disabled={disabled||semantic.working||!plan}
-    onChange={()=>semantic.setEnabled(true)}/>
-    <span><strong>Semântico por blocos</strong>
-     <small>{plan?plan.chunks.length+" chamadas previstas (podem ocorrer tentativas adicionais)":
-       "Fonte indisponível para divisão."} Preserva rastreabilidade.</small>
-    </span>
-   </label>
-  </div>
+  {plan&&<p className="qa-semantic-muted">{plan.chunks.length} parte(s) identificada(s).
+   Os trechos originais são preservados; a síntese final pode omitir informações
+   que devem ser conferidas na matriz de cobertura.</p>}
   {semantic.planError&&<p className="notice error" role="alert">{semantic.planError}</p>}
   {semantic.enabled&&plan&&<div className="qa-semantic-work">
    <div className="qa-semantic-progress">
     <span>Partes verificadas <strong>{semantic.count} / {plan.chunks.length}</strong></span>
     <progress value={semantic.count} max={plan.chunks.length}
      aria-label="Blocos analisados"/>
-    <small>Até 8 blocos por lote. Cada tentativa utiliza a cota compartilhada de 15 chamadas/min.
-     Se atingir a cota, o sistema aguarda e continua automaticamente. Os blocos concluídos permanecem disponíveis nesta sessão.</small>
+    <small>A análise percorre todas as partes em sequência e respeita a cota compartilhada
+     de 15 chamadas/min. Pode ser cancelada e retomada; as partes concluídas são preservadas
+     nesta sessão.</small>
    </div>
    {semantic.working&&<div className="qa-semantic-live" role="group" aria-label="Processamento da análise por blocos">
     <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
@@ -60,7 +51,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     {!semantic.complete&&<button type="button" disabled={disabled||semantic.working||!authorized}
      onClick={()=>void semantic.run(undefined,authorized)}>
      <BookOpenCheck size={17} aria-hidden="true"/>
-     {semantic.count?"Continuar análise por blocos":"Analisar blocos com IA"}
+     {semantic.count?"Retomar análise do texto":"Analisar todo o texto com IA"}
     </button>}
     {semantic.working&&<button type="button" onClick={semantic.cancel}>
      <PauseCircle size={16} aria-hidden="true"/> Interromper e manter progresso</button>}
