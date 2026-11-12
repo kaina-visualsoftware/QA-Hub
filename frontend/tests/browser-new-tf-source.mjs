@@ -23,6 +23,7 @@ const casesStarted=new Promise(resolve=>{notifyCasesStarted=resolve;});
 const initialReport=[
  "Análise: o rateio ignora descontos negativos.",
  "Versão: 12.09",
+ "Versão da correção atualizada: 12.10",
  "Sistema: Financeiro",
  "Tipo de teste: BUILD",
  "Ambiente: Homologação",
@@ -149,7 +150,8 @@ async function backend(route){
     const citations={
       titulo:"Pedido 88771. Descontos negativos não são removidos.",
       codigo:"Pedido 88771. Descontos negativos não são removidos.",
-      sistema:"Sistema: Financeiro",versao:"Versão: 12.09",
+      sistema:"Sistema: Financeiro",versao:aiRequests.length===1?
+        "Versão: 12.09":"Versão da correção atualizada: 12.10",
       tipo_teste:"Tipo de teste: BUILD",
       descricao:"Problema: O desconto não era removido corretamente em certos pedidos.",
       ambiente:"Ambiente: Homologação",base_teste:"Base de teste: 10861-3",
