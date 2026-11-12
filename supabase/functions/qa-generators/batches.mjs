@@ -67,11 +67,15 @@ export function messagesForGeneratorBatch(mode,tarefa,requisito,batch,baseMessag
  const continuation=batch.continuation===0?"":[
   "CONTINUAÇÃO "+batch.continuation+" da MESMA etapa (não reinicie a seção).",
   "A última resposta foi truncada ou a conexão caiu. Continue imediatamente após o trecho final abaixo.",
-  "NÃO repita títulos, linhas ou palavras já gerados. Não escreva novamente as seções anteriores.",
-  "<trecho_final_de_referencia>",
-  batch.previousTail,
-  "</trecho_final_de_referencia>"
+  "NÃO repita títulos, linhas ou palavras já gerados. Não escreva novamente as seções anteriores."
  ].join("\n");
+ // Model-generated text is always UNTRUSTED: it belongs in the user/data
+ // message, never inside our system instruction. Serialize to prevent it
+ // from creating new delimiters or masquerading as a system message.
+ const untrustedTail=batch.continuation?
+  "\n\n<TRECHO_ANTERIOR_COMO_DADOS_NAO_CONFIAVEIS>\n"+
+    JSON.stringify({previous_output_tail:batch.previousTail})+
+    "\n</TRECHO_ANTERIOR_COMO_DADOS_NAO_CONFIAVEIS>":"";
  return [{role:"system",content:baseMessages[0].content+"\n\n"+prefix+"\n"+continuation},
-  {role:"user",content:baseMessages[1].content}];
+  {role:"user",content:baseMessages[1].content+untrustedTail}];
 }

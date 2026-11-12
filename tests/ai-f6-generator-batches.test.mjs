@@ -42,6 +42,7 @@ test("F6 continuation must have a nonempty bounded tail, and is not a new sectio
  const b=example("post",1,1);
  const messages=messagesForGeneratorBatch("post",task,req,b,messagesForGenerator("post",task,req));
  assert.match(messages[0].content,/CONTINUAÇÃO 1 da MESMA etapa/);
- assert.match(messages[0].content,/Continuação do último parágrafo gerado/);
+ assert.match(messages[1].content,/Continuação do último parágrafo gerado/);
+ assert.doesNotMatch(messages[0].content,/Continuação do último parágrafo gerado/);
  assert.equal(messages.length,2);
 });
