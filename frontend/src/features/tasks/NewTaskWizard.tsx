@@ -8,7 +8,7 @@ import { createTask, addExtractedScenarios } from "../../lib/data";
 import { taskDraftSchema, scenarioDraftSchema } from "../../lib/contracts";
 import type { TaskDraft } from "../../lib/contracts";
 import { formatTaskVersionInput, normalizeTaskVersion } from "../../lib/task-version";
-import { extractLocalDraft, normalizeDraft } from "../../lib/legacy/qa-assistant.mjs";
+import { normalizeDraft } from "../../lib/legacy/qa-assistant.mjs";
 import { taskToGeneratorText, parseGeneratedCases } from "../../lib/legacy/qa-workspace.mjs";
 import { sanitizeAiContext } from "../../lib/legacy/qa-test-context.mjs";
 import {
@@ -399,22 +399,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   }
   function continueManual(){
     if(busy)return;
-    try{
-      const all=combine("",sourceText,taskFiles);
-      const extracted=all.trim()?extractLocalDraft(all):null;
-      if(extracted){
-        const merged=mergeTaskAiCreation({...draft,descricao:sourceText},extracted,{keepDescription:true});
-        automaticallyFilled.current={...taskAiFieldValues(extracted),descricao:sourceText};
-        setDraft(merged);
-        setCases(freshTaskAiScenarios(extracted,[],true));
-      }else{
-        automaticallyFilled.current={};
-        setDraft(current=>({...current,descricao:sourceText}));
-      }
-    }catch{
-      setDraft(current=>({...current,descricao:sourceText}));
-    }
-    setAiUsed(false);setLocalFallback(false);setError("");setNotice("");
+    // Manual entry must not trigger a hidden deterministic extraction.
+    // The QA enters the fields intentionally; the source is archived as-is.
+    automaticallyFilled.current={};
+    setDraft(current=>({...current,descricao:current.descricao||sourceText}));
+    setAiUsed(false);setLocalFallback(false);setError("");setNotice(
+      "Preenchimento manual: nenhum campo ou cenário foi interpretado sem IA.");
     setStep(2);
   }
   function nextStep(){
