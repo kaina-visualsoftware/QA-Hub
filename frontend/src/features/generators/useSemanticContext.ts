@@ -26,6 +26,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [approved,setApproved]=useState(false);
  const [conflictDecisions,setConflictDecisions]=useState<Record<string,ConflictDecision>>({});
  const controller=useRef<AbortController|null>(null);
+ const failedChunks=useRef<Record<string,number>>({});
  const workingRef=useRef(false);
  const sourceKey=goal+"|"+task+"|"+requirements;
  const latest=useRef(sourceKey);
@@ -59,6 +60,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  useEffect(()=>{
   controller.current?.abort();
   controller.current=null;workingRef.current=false;
+  failedChunks.current={};
   setOutcomes({});setEnabledState(autoEnable&&Boolean(plan));setWorking(false);
   setApproved(false);setConflictDecisions({});setMessage("");setError("");
   setActiveChunk(null);setActiveStage(null);setAttempt(0);setElapsed(0);setStartedAt(null);
@@ -102,9 +104,10 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
      },wait=>{
        if(signature!==latest.current||abort.signal.aborted)return;
        setQuotaWait(wait);
-     });
+     },{preferCompact:Boolean(failedChunks.current[chunk.id])});
      if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
      next={...next,[chunk.id]:result};
+     delete failedChunks.current[chunk.id];
      setOutcomes(next);done++;
      setMessage("Bloco "+chunk.id+" concluído: "+result.facts.length+
        " citação(ões) verificada(s). "+Object.keys(next).length+" de "+plan.chunks.length+".");
@@ -117,14 +120,16 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
        (reason.status===504||reason.code==="provider_timeout"||
         (reason.status===503&&reason.retryable));
      if(!providerFailure)throw reason;
+     failedChunks.current[chunk.id]=(failedChunks.current[chunk.id]??0)+1;
      failed.push(chunk.id);
      break;
     }finally{setQuotaWait(null);}
    }
    if(failed.length){
     setError("A NVIDIA não concluiu "+failed.join(", ")+
-     ". Nenhum trecho foi extraído sem IA. Os blocos já verificados foram mantidos. "+
-     "Use Retomar análise do texto para tentar somente as partes pendentes.");
+     " mesmo após a recuperação disponível. Nenhum trecho foi extraído sem IA. "+
+     "Os blocos concluídos foram mantidos. Use Retomar análise do texto "+
+     "para tentar somente as partes pendentes.");
     setMessage(done+" parte(s) concluída(s) nesta tentativa. "+failed.length+
      " bloco(s) falharam; as demais partes continuam pendentes de análise pela NVIDIA.");
    }else if(Object.keys(next).length===plan.chunks.length)
