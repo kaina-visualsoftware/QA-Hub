@@ -54,4 +54,7 @@ test("F8 golden guard rejects falsely approved test from pending source",()=>{
   "execution_not_proven");
  assert.equal(verifyGrounding(source,"Teste ainda não executado",evidence).status,
   "verified");
+ assert.equal(verifyGrounding("Os testes ainda não foram executados.",
+  "Os testes foram aprovados.","Os testes ainda não foram executados.").reason,
+  "execution_not_proven");
 });

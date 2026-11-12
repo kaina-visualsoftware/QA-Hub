@@ -68,6 +68,46 @@ Deno.test("truncation and tool calls are never accepted as structured data",()=>
   tool_calls:[{function:{name:"execute"}}]},finish_reason:"stop"}]};
  assertNull(groundedTaskFields(tools,source));
 });
+Deno.test("inferred explanations can be applied from literal evidence without named TF fields",()=>{
+ const source=[
+  "Ao excluir o desconto, o valor permanece na aba Pagamentos.",
+  "A rotina só remove percentuais maiores ou iguais a zero.",
+  "O desenvolvedor alterou a rotina para remover também percentuais negativos.",
+  "Os testes ainda não foram executados."
+ ].join("\n");
+ const result=groundedTaskFields(model({fields:{
+  titulo:{value:"Corrigir remoção de desconto em Pagamentos",
+   evidence:"Ao excluir o desconto, o valor permanece na aba Pagamentos.",
+   derivation:"synthesized"},
+  descricao:{value:"O desconto permanece na aba Pagamentos após a exclusão.",
+   evidence:"Ao excluir o desconto, o valor permanece na aba Pagamentos.",
+   derivation:"synthesized"},
+  causa:{value:"A rotina ignorava os percentuais negativos.",
+   evidence:"A rotina só remove percentuais maiores ou iguais a zero.",
+   derivation:"synthesized"},
+  correcao:{value:"A rotina passou a remover percentuais negativos.",
+   evidence:"O desenvolvedor alterou a rotina para remover também percentuais negativos.",
+   derivation:"synthesized"},
+  ambiente:{value:"Homologação",
+   evidence:"Ao excluir o desconto, o valor permanece na aba Pagamentos.",
+   derivation:"synthesized"},
+  conclusao:{value:"Os testes foram aprovados.",
+   evidence:"Os testes ainda não foram executados.",
+   derivation:"synthesized"}
+ }}),source);
+ assert(result);
+ assertEquals(result.draft.titulo,"Corrigir remoção de desconto em Pagamentos");
+ assertEquals(result.draft.descricao,"O desconto permanece na aba Pagamentos após a exclusão.");
+ assertEquals(result.draft.causa,"A rotina ignorava os percentuais negativos.");
+ assertEquals(result.draft.correcao,"A rotina passou a remover percentuais negativos.");
+ assertEquals(result.field_evidence.causa.derivation,"synthesized");
+ assertEquals(result.draft.ambiente,undefined);
+ assertEquals(result.draft.conclusao,undefined);
+ const metadata=result.review_fields.find(row=>row.field==="ambiente");
+ assertEquals(metadata?.evidence.reason,"metadata_not_explicit");
+ const claim=result.review_fields.find(row=>row.field==="conclusao");
+ assertEquals(claim?.evidence.reason,"execution_not_proven");
+});
 Deno.test("strict scenario schema rejects unseeded IDs and unverifiable claims",()=>{
  const source="CENÁRIO 1 — Remover desconto negativo.\nAbrir pedido 67866 e conferir o total.";
  const seeds=[{source_index:0,titulo:"Remover desconto negativo",

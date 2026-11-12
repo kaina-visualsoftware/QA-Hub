@@ -4,7 +4,8 @@ import {locateEvidence,hasUnsupportedIdentifiers,parseGroundedFieldReply,
 
 const source="Contexto.\nRF-101: O pedido 67866 mantém desconto negativo.\nO resultado deve ser exibido na tela.";
 type Proof={quote:string;source_line:number|null;
- status:"verified"|"needs_review";reason:string|null};
+ status:"verified"|"needs_review";reason:string|null;
+ derivation?:"explicit"|"synthesized"};
 type ReviewField={field:string;value:string;evidence:Proof};
 const proof:Proof={quote:"RF-101: O pedido 67866 mantém desconto negativo.",
  source_line:2,status:"verified",reason:null};
@@ -37,6 +38,19 @@ describe("F5 — evidência literal e revisão explícita",()=>{
   expect(parsed.values.descricao).toMatch(/67866/);
   expect(parsed.review[0].status).toBe("verified");
   expect(parsed.verifiedCount).toBe(1);
+ });
+ it("aplica síntese fundamentada e mantém metadados presumidos só para revisão",()=>{
+  const parsed=parseGroundedFieldReply(answer(
+   {titulo:"Investigar desconto negativo no pedido 67866"},
+   {titulo:{...proof,derivation:"synthesized"}},
+   [{field:"ambiente",value:"Homologação",evidence:{
+    ...proof,status:"needs_review",reason:"metadata_not_explicit",derivation:"synthesized"}}]
+  ),source);
+  expect(parsed.values.titulo).toContain("67866");
+  expect(parsed.review.find(row=>row.field==="titulo")?.derivation).toBe("synthesized");
+  expect(parsed.values).not.toHaveProperty("ambiente");
+  expect(parsed.review.find(row=>row.field==="ambiente")?.reason)
+   .toBe("metadata_not_explicit");
  });
  it("a API separa propostas sem comprovação e o cliente não as aplica",()=>{
   const parsed=parseGroundedFieldReply(answer(
@@ -121,5 +135,13 @@ describe("F8 — status de execução não pode contradizer a citação",()=>{
   const result=parseGroundedFieldReply(response,source);
   expect(result.values.conclusao).toBe("");
   expect(result.review[0].status).toBe("needs_review");
+  const plural="Os testes ainda não foram executados.";
+  const pluralResponse={
+   ...response,
+   field_evidence:{conclusao:{quote:plural,source_line:1,status:"verified",reason:null}}
+  };
+  const pluralResult=parseGroundedFieldReply(pluralResponse,plural);
+  expect(pluralResult.values.conclusao).toBe("");
+  expect(pluralResult.review[0].status).toBe("needs_review");
  });
 });

@@ -19,7 +19,7 @@ export function TaskFieldEvidenceReview({fields,confirmed,onConfirm,onApply,disa
    <div>
     <strong>Evidências da extração</strong>
     <p>{verified} campo(s) com trecho localizado · {fields.length-verified} proposta(s) para revisão.
-     A localização da citação não substitui a validação técnica do QA.</p>
+     A IA pode sintetizar informações implícitas na TF. Uma citação localizada não comprova sozinha a interpretação; confira os valores.</p>
    </div>
   </div>
   <details>
@@ -27,7 +27,8 @@ export function TaskFieldEvidenceReview({fields,confirmed,onConfirm,onApply,disa
    <div className="qa-task-evidence-list">
     {fields.map(row=><article key={row.field} className="qa-task-evidence-item">
      <strong>{row.field.replaceAll("_"," ")}</strong>
-     <span>{row.status==="verified"?"Trecho localizado":"Revisão necessária"}
+     <span>{row.derivation==="synthesized"?"Síntese da IA":"Informação literal"} ·
+      {row.status==="verified"?" trecho localizado":" revisão necessária"}
       {row.sourceLine!==null?" · Linha "+row.sourceLine+" do contexto enviado":""}</span>
      {row.status==="needs_review"&&<p>
       {EVIDENCE_REASONS[row.reason??""]??"Trecho ou afirmação sem comprovação suficiente."}
