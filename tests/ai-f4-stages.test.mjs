@@ -26,7 +26,10 @@ test("fields prompt is small and prohibits invented causes and execution",()=>{
  assert.match(messages[0].content,/só quando documentadas/);
  assert.match(messages[0].content,/sem gerar cenários/);
  assert.match(messages[1].content,/RF-301/);
- assert.ok(messages[0].content.length<1700);
+ assert.match(messages[0].content,/mesmo sem seções ou campos nomeados/);
+ assert.match(messages[0].content,/derivation/);
+ assert.match(messages[0].content,/Identificadores e metadados/);
+ assert.ok(messages[0].content.length<3000);
 });
 test("F4 parses fields but not invented scenarios",()=>{
  const extracted=parseTaskFields(reply({titulo:"Corrigir descontos",
