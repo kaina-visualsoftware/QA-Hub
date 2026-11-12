@@ -412,10 +412,16 @@ try{
   rateLimited=true;
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
-  await page.getByText("Limite por minuto; tente novamente.",{exact:false}).waitFor();
-  assert.equal(taskWrites,2,"429 must not save a partial TF");
+  // A 429 is retried automatically after a bounded, cancellable quota wait.
+  // Checking an immediate terminal error would deadlock on the former one-shot
+  // fixture; the correct UI now exposes an explicit countdown and cancellation.
+  await wizard.getByRole("status").getByText("Limite temporário de requisições atingido").waitFor();
+  assert.equal(taskWrites,2,"429 must never save an incomplete TF");
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),
     "Texto de uma TF com falha de quota");
+  await wizard.getByRole("button",{name:"Cancelar espera"}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll("button")]
+    .some(button=>button.textContent?.includes("Gerar tarefa com IA")&&!button.disabled));
   rateLimited=false;
 
   for(const width of [320,390,768,1366]){
