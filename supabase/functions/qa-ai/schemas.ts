@@ -56,7 +56,7 @@ function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
 }
 function evidence(source:string,value:string,quote:string,repaired:boolean,
  derivation:"explicit"|"synthesized"="explicit",field=""):SourceEvidence{
- const checked=verifyGrounding(source,value,quote);
+ const checked=verifyGrounding(source,value,quote) as SourceEvidence;
  // Metadata synthesized by a model is not a recorded fact.
  if(derivation==="synthesized"&&!SYNTHESIS_FIELDS.has(field))return {
   ...checked,status:"needs_review",reason:"metadata_not_explicit",derivation
