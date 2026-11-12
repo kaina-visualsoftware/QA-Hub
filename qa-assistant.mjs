@@ -1,6 +1,6 @@
 import { parseReport } from './qa-parser.mjs';
 
-// All extraction runs in the browser. Never send QA reports to an external API.
+// Legacy browser-only manual parser. NVIDIA AI extraction is an explicit external request with separate consent; this module must not silently replace it.
 export const ASSIST_FIELD_LIMITS = Object.freeze({
   codigo:120, titulo:240, tipo_teste:7, sistema:200, versao:120, ambiente:160,
   base_teste:160, empresa:200, testador:200, descricao:30000, explicacao:30000,
