@@ -235,8 +235,10 @@ try{
   await form.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await form.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   await form.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+  // The file explicitly says "TÍTULO: Revisar desconto"; the review must
+  // keep this source-grounded value instead of the fixture's expanded AI guess.
   assert.equal(await form.getByRole("textbox",{name:"Título da tarefa"}).inputValue(),
-    "Revisar desconto da venda");
+    "Revisar desconto");
   assert.equal(aiCalls,1);
   assert.equal(writes,0,"The AI may fill a preview but must not save before finalization");
   assert.deepEqual(errors,[]);
