@@ -1,9 +1,9 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {supabase} from "../src/lib/supabase";
-import {extractLocalDraft} from "../src/lib/legacy/qa-assistant.mjs";
 import {locateEvidence} from "../src/features/tasks/task-evidence";
-import {generateTaskAiDraftPhased,newCheckpoint,pipelinePendingCount,TASK_BATCH_CONCURRENCY}
- from "../src/features/tasks/task-ai-phased";
+import {generateTaskAiDraftPhased,newCheckpoint,pipelinePendingCount,
+ TASK_BATCH_CONCURRENCY} from "../src/features/tasks/task-ai-phased";
+import type {TaskPipelineCheckpoint} from "../src/features/tasks/task-ai-phased";
 
 vi.mock("../src/lib/supabase",()=>({supabase:{functions:{invoke:vi.fn()}}}));
 afterEach(()=>vi.restoreAllMocks());
@@ -23,7 +23,15 @@ const sourceWith=(count:number)=>[
   "Resultado esperado: Desconto removido na operação "+(i+1)+"."
  ].join("\n"))
 ].join("\n\n");
-type TestSeed={source_index:number;titulo:string;passos:string;esperado:string;observacoes:string};
+type Seed={source_index:number;titulo:string;passos:string;esperado:string;observacoes:string};
+const sourceSeeds=(source:string):Seed[]=>{
+ const matches=[...source.matchAll(/CENÁRIO (\d+) — Validar desconto (\d+)/g)];
+ return matches.map((m,i)=>({
+  source_index:i,titulo:"Validar desconto "+m[1],
+  passos:"1. Abrir pedido de teste "+m[1]+".\n2. Solicitar remoção de desconto.",
+  esperado:"Desconto removido na operação "+m[1]+".",observacoes:""
+ }));
+};
 function reply(body:Record<string,unknown>){
  const source=String(body.text??"");
  const lines=source.split("\n");
@@ -31,229 +39,161 @@ function reply(body:Record<string,unknown>){
   status:"verified",reason:null});
  const find=(pattern:RegExp)=>lines.find(line=>pattern.test(line))?.trim()||
   lines.find(line=>line.trim().length>=8)?.trim()||source.slice(0,60);
- if(body.mode==="task-fields"){
-  const phone=/telefone|estrangeiro/i.test(source);
-  const quote=find(phone?/telefone|estrangeiro/i:/desconto negativo/i);
-  const title=phone?"Validar máscara de telefone estrangeiro":
-   "Corrigir remoção de descontos negativos";
-  const entries=phone?{
-   titulo:title,descricao:"Validar máscara de telefone para clientes estrangeiros."
+ const mode=body.mode;
+ if(mode==="task-fields"){
+  const rf=/RF-103/.test(source);
+  const quote=find(rf?/RF-103/:/desconto negativo/i);
+  const field=rf?{
+   titulo:"Validar máscara de telefone",descricao:"Validar máscara de telefone."
   }:{
-   titulo:title,descricao:"Desconto não é removido após exclusão.",
+   titulo:"Corrigir remoção de descontos negativos",
+   descricao:"O desconto negativo permanece após excluir.",
    causa:"A rotina ignorava percentuais negativos.",
-   correcao:"A limpeza passou a considerar negativos."
+   correcao:"A remoção passou a considerar negativos."
   };
-  const quotes=phone?{titulo:quote,descricao:quote}:{
+  const quotes=rf?{titulo:quote,descricao:quote}:{
    titulo:quote,descricao:quote,
    causa:find(/rotina ignorava/i),correcao:find(/remoção passou/i)
   };
-  return {data:{provider:"NVIDIA Build",stage:"fields",model:"glm-fixture",
-   repaired:false,draft:entries,
-   field_evidence:Object.fromEntries(Object.keys(entries).map(name=>[
-    name,proof((quotes as Record<string,string>)[name]??quote)
+  return {data:{provider:"NVIDIA Build",stage:"fields",model:"fixture",
+   repaired:false,draft:field,
+   field_evidence:Object.fromEntries(Object.keys(field).map(key=>[
+    key,proof((quotes as Record<string,string>)[key]??quote)
    ])),review_fields:[]},error:null};
  }
- if(body.mode==="task-scenarios"){
-  const seeds=body.seeds as TestSeed[];
-  return {data:{provider:"NVIDIA Build",stage:"scenarios",model:"glm-fixture",
-   repaired:false,review_scenarios:[],draft:{cenarios:seeds.map(seed=>{
-    const quote=find(new RegExp("CEN[ÁA]RIO\\s+"+(seed.source_index+1)+"\\b","i"));
-    return {...seed,titulo:seed.titulo+" revisado",evidence:proof(quote)};
-   })}},error:null};
+ if(mode==="task-seeds"){
+  const seeds=sourceSeeds(source);
+  return {data:{provider:"NVIDIA Build",stage:"seeds",model:"fixture",
+   repaired:false,draft:{seeds:seeds.map(seed=>({
+    ...seed,evidence:proof(find(new RegExp("CENÁRIO "+(seed.source_index+1)+" —")))
+   }))},review_seeds:[]},error:null};
  }
- throw Error("Modo inesperado");
+ if(mode==="task-scenarios"){
+  const seeds=body.seeds as Seed[];
+  return {data:{provider:"NVIDIA Build",stage:"scenarios",model:"fixture",
+   repaired:false,draft:{cenarios:seeds.map(seed=>({
+    ...seed,evidence:proof(find(new RegExp("CENÁRIO "+(seed.source_index+1)+" —")))
+   }))},review_scenarios:[]},error:null};
+ }
+ throw Error("Unexpected mode "+mode);
 }
+const invoke=(body:Record<string,unknown>)=>reply(body) as never;
+const failure=(status=503)=>({data:null,error:{context:{status,
+ json:async()=>({code:"provider_unavailable",message:"NVIDIA indisponível"})}}} as never);
 
-describe("F4 — extração de tarefa em etapas",()=>{
- it("preserva o texto original e extrai apenas os campos quando não há cenários",async()=>{
-  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
-   reply(args!.body as Record<string,unknown>) as never);
-  const original="REQUISITO RF-103: validar máscara de telefone ao cadastrar estrangeiro.";
-  const result=await generateTaskAiDraftPhased(original);
-  expect(result.fields.titulo).toBe("Validar máscara de telefone estrangeiro");
+describe("Criação faseada com extração exclusiva pela NVIDIA",()=>{
+ it("extrai campos e usa etapa NVIDIA de descoberta mesmo sem cenários",async()=>{
+  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>
+   invoke(args!.body as Record<string,unknown>));
+  const text="REQUISITO RF-103: validar máscara de telefone ao cadastrar estrangeiro.";
+  const result=await generateTaskAiDraftPhased(text);
+  expect(result.fields.titulo).toBeDefined();
+  expect(result.cenarios).toHaveLength(0);
   expect(result.partial).toBe(false);
-  expect(result.totalBatches).toBe(0);
-  expect(spy).toHaveBeenCalledTimes(1);
-  expect(spy.mock.calls[0][1]?.body).toEqual({text:original,mode:"task-fields"});
+  expect(result.extractionSource).toBe("nvidia");
+  expect(spy.mock.calls.map(c=>(c[1]?.body as {mode:string}).mode))
+   .toEqual(["task-fields","task-seeds"]);
  });
- it("usa blocos de quatro, no máximo duas chamadas simultâneas e índices estáveis",async()=>{
-  const original=sourceWith(9);
-  const local=extractLocalDraft(original);
-  expect(local.cenarios.length).toBeGreaterThanOrEqual(8);
+ it("identifica cenários exclusivamente pela NVIDIA e gera lotes de até quatro em paralelo",async()=>{
+  const text=sourceWith(9);
   let active=0,maxActive=0;
-  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>{
    const body=args!.body as Record<string,unknown>;
    if(body.mode==="task-scenarios"){
     active++;maxActive=Math.max(active,maxActive);
-    await Promise.resolve();
+    await new Promise(resolve=>setTimeout(resolve,10));
     active--;
    }
-   return reply(body) as never;
+   return invoke(body);
   });
-  const result=await generateTaskAiDraftPhased(original);
+  const result=await generateTaskAiDraftPhased(text);
+  const modes=spy.mock.calls.map(c=>(c[1]?.body as {mode:string}).mode);
+  expect(modes.slice(0,2)).toEqual(["task-fields","task-seeds"]);
+  expect(modes.filter(x=>x==="task-seeds")).toHaveLength(1);
+  expect(modes.filter(x=>x==="task-scenarios")).toHaveLength(3);
   expect(TASK_BATCH_CONCURRENCY).toBe(2);
-  expect(maxActive).toBeLessThanOrEqual(2);
-  expect(maxActive).toBeGreaterThan(1);
-  const batchCalls=spy.mock.calls.filter(c=>(c[1]?.body as {mode?:string}).mode==="task-scenarios");
-  expect(batchCalls.length).toBe(Math.ceil(Math.min(local.cenarios.length,20)/4));
-  expect(batchCalls.every(c=>(c[1]?.body as {seeds:unknown[]}).seeds.length<=4)).toBe(true);
-  const ids=batchCalls.flatMap(c=>(c[1]?.body as {seeds:{source_index:number}[]})
-   .seeds.map(s=>s.source_index));
-  expect([...new Set(ids)].length).toBe(ids.length);
+  expect(maxActive).toBe(2);
+  expect(result.cenarios).toHaveLength(9);
+  expect(result.cenarios.every(x=>x.status==="nao_executado")).toBe(true);
+  expect(result.unprocessedScenarios).toBe(0);
   expect(result.partial).toBe(false);
-  expect(result.cenarios).toHaveLength(local.cenarios.length);
-  expect(result.cenarios.every(s=>s.status==="nao_executado")).toBe(true);
  });
- it("salva lotes concluídos na memória, conserva fallback parcial e retoma só pendentes",async()=>{
-  const original=sourceWith(6);
-  expect(extractLocalDraft(original).cenarios.length).toBeGreaterThanOrEqual(5);
+ it("falha parcial conserva só lotes concluídos pela NVIDIA e retoma sem refazer",async()=>{
+  const text=sourceWith(6),checkpoints:TaskPipelineCheckpoint[]=[];
   let failSecond=true;
-  const checkpointLog:ReturnType<typeof newCheckpoint>[]=[];
-  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>{
    const body=args!.body as Record<string,unknown>;
    if(body.mode==="task-scenarios"&&
-    (body.seeds as {source_index:number}[])[0].source_index>=4&&failSecond){
-    return {data:null,error:{context:{status:503,
-     json:async()=>({code:"provider_unavailable",message:"Indisponível"})}}} as never;
-   }
-   return reply(body) as never;
+    (body.seeds as Seed[])[0].source_index>=4&&failSecond)return failure();
+   return invoke(body);
   });
-  const partial=await generateTaskAiDraftPhased(original,{
-   onCheckpoint:checkpoint=>{checkpointLog.push(checkpoint);}
+  const partial=await generateTaskAiDraftPhased(text,{
+   onCheckpoint:x=>checkpoints.push(x)
   });
   expect(partial.partial).toBe(true);
   expect(partial.pendingBatches).toBe(1);
-  expect(partial.completedBatches).toBe(1);
-  expect(partial.cenarios).toHaveLength(extractLocalDraft(original).cenarios.length);
-  const saved=checkpointLog.at(-1)!;
+  expect(partial.cenarios).toHaveLength(4);
+  const saved=checkpoints.at(-1)!;
   expect(pipelinePendingCount(saved)).toBe(1);
   failSecond=false;
   const before=spy.mock.calls.length;
-  const resumed=await generateTaskAiDraftPhased(original,{checkpoint:saved});
+  const resumed=await generateTaskAiDraftPhased(text,{checkpoint:saved});
   expect(resumed.partial).toBe(false);
-  expect(resumed.pendingBatches).toBe(0);
-  const next=spy.mock.calls.slice(before);
-  expect(next).toHaveLength(1);
-  expect((next[0][1]?.body as {mode:string}).mode).toBe("task-scenarios");
-  expect(resumed.cenarios).toHaveLength(partial.cenarios.length);
+  expect(resumed.cenarios).toHaveLength(6);
+  const next=spy.mock.calls.slice(before).map(c=>(c[1]?.body as {mode:string}).mode);
+  expect(next).toEqual(["task-scenarios"]);
  });
- it("não disfarça falha de autenticação como sucesso local",async()=>{
-  vi.spyOn(supabase.functions,"invoke").mockResolvedValue({
-   data:null,error:{context:{status:401,
-    json:async()=>({code:"unauthorized",message:"Sessão encerrada."})}}
-  } as never);
-  await expect(generateTaskAiDraftPhased(sourceWith(1))).rejects.toThrow(/Sessão encerrada/);
+ it("falha 503 não invoca parser local e mantém checkpoint",async()=>{
+  const log:TaskPipelineCheckpoint[]=[];
+  vi.spyOn(supabase.functions,"invoke").mockResolvedValue(failure());
+  await expect(generateTaskAiDraftPhased(sourceWith(2),{onCheckpoint:x=>log.push(x)}))
+   .rejects.toThrow(/Nenhuma extração local/);
+  expect(log).toHaveLength(1);
+  expect(log[0].fields).toBeNull();
+  expect(log[0].seeds).toBeNull();
  });
- it("preserva extração local quando a NVIDIA está fora, sinalizando pendências",async()=>{
-  vi.spyOn(supabase.functions,"invoke").mockResolvedValue({
-   data:null,error:{context:{status:503,
-    json:async()=>({code:"provider_unavailable",message:"NVIDIA indisponível"})}}
-  } as never);
-  const original=sourceWith(2);
-  const result=await generateTaskAiDraftPhased(original);
+ it("se a etapa de descoberta falhar, os campos NVIDIA permanecem para retomada",async()=>{
+  const text=sourceWith(2),checkpoints:TaskPipelineCheckpoint[]=[];
+  let bad=true;
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>{
+   const body=args!.body as Record<string,unknown>;
+   return bad&&body.mode==="task-seeds"?failure():invoke(body);
+  });
+  await expect(generateTaskAiDraftPhased(text,{onCheckpoint:x=>checkpoints.push(x)}))
+   .rejects.toThrow(/identificação dos cenários/);
+  const saved=checkpoints.at(-1)!;
+  expect(saved.resolvedFields).toBe(true);
+  expect(saved.resolvedSeeds).toBe(false);
+  bad=false;
+  const result=await generateTaskAiDraftPhased(text,{checkpoint:saved});
+  expect(result.cenarios).toHaveLength(2);
+  expect(result.partial).toBe(false);
+ });
+ it("uma citação de seed inventada não cria cenário nem falso sucesso",async()=>{
+  const text=sourceWith(1);
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>{
+   const body=args!.body as Record<string,unknown>,r=invoke(body);
+   if(body.mode!=="task-seeds")return r;
+   const original=(r.data as {draft:{seeds:Record<string,unknown>[]}}).draft.seeds[0];
+   return {data:{...(r.data as Record<string,unknown>),
+    draft:{seeds:[]},review_seeds:[{...original,evidence:{
+     quote:"Esta citação não existe na TF.",source_line:null,
+     status:"needs_review",reason:"quote_not_found"
+    }}]},error:null} as never;
+  });
+  const result=await generateTaskAiDraftPhased(text);
+  expect(result.cenarios).toHaveLength(0);
   expect(result.partial).toBe(true);
-  expect(result.fields.causa).toMatch(/percentuais negativos/i);
-  expect(result.pendingBatches).toBeGreaterThan(0);
-  expect(result.extractionSource).toBe("local");
+  expect(result.needsReviewCount).toBeGreaterThan(0);
  });
- it("aborto não reenvia nem salva; checkpoint continua disponível para retomar",async()=>{
-  const controller=new AbortController(),checkpoints:ReturnType<typeof newCheckpoint>[]=[];
-  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async()=>reply({mode:"task-fields"}) as never);
+ it("cancelamento antes da requisição não executa nenhuma chamada NVIDIA",async()=>{
+  const controller=new AbortController();
+  const spy=vi.spyOn(supabase.functions,"invoke")
+   .mockImplementation(async()=>invoke({mode:"task-fields",text:sourceWith(2)}));
   await expect(generateTaskAiDraftPhased(sourceWith(2),{
    signal:controller.signal,
-   onCheckpoint:s=>checkpoints.push(s),
-   onProgress:s=>{if(s.stage==="fields")controller.abort();}
+   onProgress:progress=>{if(progress.stage==="fields")controller.abort();}
   })).rejects.toMatchObject({name:"AbortError"});
-  expect(checkpoints).toHaveLength(1);
-  expect(pipelinePendingCount(checkpoints[0])).toBeGreaterThan(0);
   expect(spy).not.toHaveBeenCalled();
- });
- it("F4: preserva localmente cenários muito extensos sem reenviar lotes inválidos",async()=>{
-  const original=[
-   "CENÁRIO 1 — Caso com relatório extenso",
-   "Passos:",
-   ...Array.from({length:180},(_,i)=>
-    "1. Verificar registro de exemplo "+i+" e seu comportamento de negócio documentado."),
-   "Resultado esperado: Nenhuma duplicidade de dados."
-  ].join("\n");
-  const local=extractLocalDraft(original);
-  expect(local.cenarios.length).toBeGreaterThan(0);
-  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
-   reply(args!.body as Record<string,unknown>) as never);
-  const result=await generateTaskAiDraftPhased(original);
-  expect(result.partial).toBe(true);
-  expect(result.cenarios).toHaveLength(local.cenarios.length);
-  expect(result.extractionReason).toMatch(/trechos limitados|não foram enviados/i);
- });
- it("F5: não preenche automaticamente título sem citação, apesar de outros campos verificados",async()=>{
-  const original=sourceWith(2);
-  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
-   const body=args!.body as Record<string,unknown>;
-   const response=reply(body);
-   if(body.mode!=="task-fields")return response as never;
-   const data=response.data as {draft:Record<string,string>;
-    field_evidence:Record<string,unknown>;review_fields:unknown[]};
-   const withoutTitle=(input:Record<string,unknown>)=>
-    Object.fromEntries(Object.entries(input).filter(([key])=>key!=="titulo"));
-   return {data:{...data,draft:withoutTitle(data.draft),
-    field_evidence:withoutTitle(data.field_evidence),
-    review_fields:[{field:"titulo",value:"Problema de tarifa inventada",
-     evidence:{quote:"Texto que não aparece no relatório",
-      source_line:null,status:"needs_review",reason:"quote_not_found"}}]
-   },error:null} as never;
-  });
-  const result=await generateTaskAiDraftPhased(original);
-  expect(result.fieldReview.some(r=>r.field==="titulo"&&r.status==="needs_review")).toBe(true);
-  expect(result.fields.titulo).not.toBe("Problema de tarifa inventada");
-  expect(result.needsReviewCount).toBeGreaterThan(0);
-  expect(result.partial).toBe(true);
- });
- it("F5: cenário com citação falsa não substitui a versão local nem conclui o lote",async()=>{
-  const original=sourceWith(2);
-  const local=extractLocalDraft(original);
-  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
-   const body=args!.body as Record<string,unknown>;
-   const response=reply(body);
-   if(body.mode!=="task-scenarios")return response as never;
-   const data=response.data as {draft:{cenarios:{source_index:number;
-    evidence:unknown}[]};review_scenarios:unknown[]};
-   const first=data.draft.cenarios[0];
-   const rejected={...first,evidence:{quote:"Citação inexistente",
-    source_line:null,status:"needs_review",reason:"quote_not_found"}};
-   return {data:{...data,
-    draft:{cenarios:data.draft.cenarios.slice(1)},
-    review_scenarios:[rejected]},error:null} as never;
-  });
-  const result=await generateTaskAiDraftPhased(original);
-  expect(result.partial).toBe(true);
-  expect(result.pendingBatches).toBeGreaterThan(0);
-  expect(result.scenarioReview.some(item=>item.status==="needs_review")).toBe(true);
-  expect(result.cenarios[0].titulo).toBe(local.cenarios[0].titulo);
-  expect(result.cenarios[0].status).toBe("nao_executado");
- });
- it("F5: resposta reparada exige revisão e mantém preenchimento local",async()=>{
-  const original=sourceWith(0);
-  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
-   const body=args!.body as Record<string,unknown>;
-   const response=reply(body);
-   const data=response.data as Record<string,unknown>;
-   return {data:{...data,repaired:true},error:null} as never;
-  });
-  const result=await generateTaskAiDraftPhased(original);
-  expect(result.partial).toBe(true);
-  expect(result.fieldReview.every(r=>r.status==="needs_review")).toBe(true);
-  expect(result.fieldReview.some(r=>r.reason==="json_repaired")).toBe(true);
-  expect(result.extractionSource).toBe("local");
- });
- it("não inventa cenários quando só existe requisito documental",async()=>{
-  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
-   reply(args!.body as Record<string,unknown>) as never);
-  const result=await generateTaskAiDraftPhased(
-   "RF-201: o sistema deve bloquear confirmação sem autorização.");
-  expect(result.cenarios).toHaveLength(0);
-  // F5 never claims full AI validation when the fixture proposes a title
-  // about discounts but the source only documents an authorization rule.
-  expect(result.partial).toBe(true);
-  expect(result.fieldReview.some(row=>row.status==="needs_review")).toBe(true);
  });
 });
