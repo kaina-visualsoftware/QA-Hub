@@ -87,10 +87,10 @@ Deno.serve(async(req:Request)=>{
  if(outcome.contextExceeded&&!outcome.unstructured)
   return reply(400,{error:"model_context_exceeded",
    message:"O contexto supera o orçamento estimado de tokens. Revise os trechos sem perder a fonte."});
- return reply(outcome.timedOut?504:503,{error:outcome.timedOut?"provider_timeout":"semantic_unavailable",
+ return reply(outcome.timedOut?504:503,{error:outcome.timedOut?"semantic_timeout":"semantic_unavailable",
   status:outcome.lastStatus,
   message:outcome.timedOut?
-   "Os modelos NVIDIA ultrapassaram o tempo disponível. Os blocos concluídos foram preservados.":
+   "Tempo de resposta excedido nesta parte. O QA Hub tentará partes menores; os blocos concluídos foram preservados.":
    outcome.unstructured?
    "A NVIDIA não retornou citações estruturadas. O texto original permanece disponível.":
    "Não foi possível analisar esta parte. Retome sem perder o progresso."});
