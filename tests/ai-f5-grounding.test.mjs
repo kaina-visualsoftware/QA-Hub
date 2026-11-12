@@ -28,6 +28,14 @@ test("F5 rejects quote invented by model and ungrounded numeric identifiers",()=
  assert.equal(verifyGrounding(source,"Pedido 67866",
   "O pedido 67866 está bloqueado.").status,"verified");
 });
+test("F5 does not accept a changed short version or percentage absent from evidence",()=>{
+ const source="Versão 12.09. Percentual máximo configurado 14,00%.";
+ assert.equal(verifyGrounding(source,"Versão 12.10",source).reason,
+  "identifier_not_in_source");
+ assert.equal(verifyGrounding(source,"Percentual máximo 15,20%",source).reason,
+  "identifier_not_in_source");
+ assert.equal(verifyGrounding(source,"Versão 12.09",source).status,"verified");
+});
 test("F5 unrelated quote cannot support an invented prose claim",()=>{
  const source="A máscara de telefone do estrangeiro usa código de área.";
  assert.equal(verifyGrounding(source,"Corrigir desconto indevido",

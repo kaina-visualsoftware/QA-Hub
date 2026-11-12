@@ -75,6 +75,17 @@ describe("F5 — evidência literal e revisão explícita",()=>{
   expect(parsed.review.every(r=>r.status==="needs_review")).toBe(true);
   expect(hasUnsupportedIdentifiers("Pedido 99999",source)).toBe(true);
  });
+ it("não aceita versão 12.10 ou percentual 15,20 inventado quando a fonte registra 12.09 e 14,00",()=>{
+  const src="Versão: 12.09. A taxa configurada é 14,00%.";
+  expect(hasUnsupportedIdentifiers("12.10",src)).toBe(true);
+  expect(hasUnsupportedIdentifiers("15,20%",src)).toBe(true);
+  expect(hasUnsupportedIdentifiers("12.09",src)).toBe(false);
+  const parsed=parseGroundedFieldReply(answer({versao:"12.10"},{
+   versao:{quote:src,source_line:1,status:"verified",reason:null}
+  }),src);
+  expect(parsed.values.versao).toBe("");
+  expect(parsed.review[0].status).toBe("needs_review");
+ });
  it("JSON reparado ou linha incorreta exige revisão",()=>{
   const repaired=parseGroundedFieldReply(answer({}, {},[
    {field:"titulo",value:"Pedido 67866",evidence:{

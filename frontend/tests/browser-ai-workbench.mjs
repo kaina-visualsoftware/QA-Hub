@@ -137,15 +137,34 @@ try {
       const encoder=new TextEncoder();
       const event=(kind,data)=>encoder.encode(
         "event: "+kind+"\ndata: "+JSON.stringify(data)+"\n\n");
-      const first="## Cenário 1 — Validar recálculo de desconto\n### Passos\n";
-      const second="Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\nO valor final é recalculado sem desconto.\n";
+      // The generator now uses five independent, bounded stages. Simulate
+      // the real stage contract instead of replaying a whole scenario five times
+      // (which used to make the 12s browser assertion time out).
+      const stage=request.batch?.stage;
+      const first=stage==="setup"
+        ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar recálculo do pedido.\n## Pré-requisitos\n- Pedido com desconto."
+        :stage==="positive"
+          ?"## Cenário 1 — Validar recálculo de desconto\n### Passos\n"
+          :stage==="negative"?"[Sem cenários negativos adicionais documentados]"
+          :stage==="regression"?"[Sem cenários de regressão adicionais documentados]"
+          :"## Resultado dos testes\nA confirmar.";
+      const second=stage==="positive"
+        ?"Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\nO valor final é recalculado sem desconto.\n":"";
       const stream=new ReadableStream({start(controller){
-        setTimeout(()=>controller.enqueue(event("chunk",{text:first})),250);
-        setTimeout(()=>controller.enqueue(event("chunk",{text:second})),1100);
-        setTimeout(()=>{
-          controller.enqueue(event("done",{truncated:false}));
-          controller.close();
-        },5000);
+        if(stage==="positive"){
+          setTimeout(()=>controller.enqueue(event("chunk",{text:first})),250);
+          setTimeout(()=>controller.enqueue(event("chunk",{text:second})),1100);
+          setTimeout(()=>{
+            controller.enqueue(event("done",{truncated:false}));
+            controller.close();
+          },5000);
+        }else{
+          setTimeout(()=>{
+            controller.enqueue(event("chunk",{text:first}));
+            controller.enqueue(event("done",{truncated:false}));
+            controller.close();
+          },stage==="setup"?400:60);
+        }
       }});
       return Promise.resolve(new Response(stream,{
         status:200,headers:{"Content-Type":"text/event-stream"}
@@ -300,8 +319,14 @@ try {
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true);
       await dialog.getByRole("button",{name:"Regerar apenas este caso"}).click();
       await dialog.getByRole("button",{name:"Aplicar somente neste trecho"}).click();
-      await dialog.getByText("Recalcular pedido sem desconto").waitFor();
-      assert.equal(await dialog.getByText("Validar recálculo de desconto").count(),0);
+      // Applying the accepted diff awaits the private audit write. Waiting
+      // for the preview text alone races the async state update; require the
+      // revised title to appear in the actual editable case card.
+      const revisedCase=dialog.locator(".qa-ai-case-review")
+        .filter({hasText:"Recalcular pedido sem desconto"});
+      await revisedCase.waitFor({timeout:12000});
+      assert.equal(await revisedCase.count(),1);
+      assert.equal(await revisedCase.getByText("Validar recálculo de desconto",{exact:true}).count(),0);
       assert.equal(scenarioWrites,0,"A revision is a draft until the QA explicitly saves cases.");
       assert.equal(auditRows.filter(row=>row.event_type==="test_revision_applied").length,1,
         "Approved individual rewrite must create a private, hash-only audit event.");

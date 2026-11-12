@@ -20,6 +20,24 @@ let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},release
 let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
 const taskStarted=new Promise(resolve=>{notifyTaskStarted=resolve;});
 const casesStarted=new Promise(resolve=>{notifyCasesStarted=resolve;});
+const initialReport=[
+ "Análise: o rateio ignora descontos negativos.",
+ "Versão: 12.09",
+ "Versão da correção atualizada: 12.10",
+ "Sistema: Financeiro",
+ "Tipo de teste: BUILD",
+ "Ambiente: Homologação",
+ "Base de teste: 10861-3",
+ "Empresa: Empresa de teste",
+ "Testador: Analista QA",
+ "Problema: O desconto não era removido corretamente em certos pedidos.",
+ "Como funciona: Os descontos são rateados entre os itens do pedido.",
+ "Causa: A rotina ignorava valores negativos.",
+ "Correção inicial: A rotina passou a considerar os valores negativos.",
+ "Correção mais recente: A rotina também passou a validar os kits desdobrados.",
+ "Conclusão: A correção está pronta para validação.",
+ "Observações: Conferir desconto e baixa financeira."
+].join("\n");
 const markdown=[
   "# ROTEIRO DE TESTES — DESCONTOS",
   "## Cenário 01 — Remover desconto",
@@ -92,7 +110,30 @@ async function backend(route){
       holdTaskRequest=false;
     }
     if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
-    return send({provider:"NVIDIA Build",draft:{
+    assert.equal(payload.mode,"task-fields","Task creation must use evidence-grounded phased extraction");
+    const input=payload.text;
+    const quote=(needle)=>{
+      const from=input.indexOf(needle);
+      assert.ok(from>=0,"Expected source excerpt was not sent: "+needle);
+      return {quote:needle,source_line:input.slice(0,from).split("\n").length,
+        status:"verified",reason:null};
+    };
+    const longForm=input.includes("EXTRATOS CONFERIDOS")||
+      input.includes("MARCADOR FINAL DO RELATÓRIO")||
+      input.includes("REQUISITO RF-12:");
+    if(longForm){
+      const snippet=input.includes("EXTRATOS CONFERIDOS")
+        ?(input.match(/\[(?:TF-L\d+;[^\]]+)\]\s+([^\n]{18,120})/)?.[1]??"")
+        :input.includes("MARCADOR FINAL DO RELATÓRIO")
+          ?"Pedido 88771. Condição de desconto e regra fiscal."
+          :"REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.";
+      assert.ok(snippet.length>=18&&input.includes(snippet));
+      return send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
+        draft:{titulo:"Validar descontos de pedidos"},
+        field_evidence:{titulo:{...quote(snippet),derivation:"synthesized"}},
+        review_fields:[]});
+    }
+    const fields={
       titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
       versao:aiRequests.length===1?"12.09":"12.10",tipo_teste:"BUILD",
       descricao:"O desconto não era removido corretamente em certos pedidos.",
@@ -104,12 +145,30 @@ async function backend(route){
         "A rotina passou a considerar os valores negativos.":
         "A rotina também passou a validar os kits desdobrados.",
       conclusao:"A correção está pronta para validação.",
-      observacoes:"Conferir desconto e baixa financeira.",
-      cenarios:[{
-        titulo:"Remover desconto",passos:"1. Abrir pedido\n2. Remover desconto",
-        esperado:"Total atualizado",objetivo:"Validar que o desconto é removido."
-      }]
-    }});
+      observacoes:"Conferir desconto e baixa financeira."
+    };
+    const citations={
+      titulo:"Pedido 88771. Descontos negativos não são removidos.",
+      codigo:"Pedido 88771. Descontos negativos não são removidos.",
+      sistema:"Sistema: Financeiro",versao:aiRequests.length===1?
+        "Versão: 12.09":"Versão da correção atualizada: 12.10",
+      tipo_teste:"Tipo de teste: BUILD",
+      descricao:"Problema: O desconto não era removido corretamente em certos pedidos.",
+      ambiente:"Ambiente: Homologação",base_teste:"Base de teste: 10861-3",
+      empresa:"Empresa: Empresa de teste",testador:"Testador: Analista QA",
+      explicacao:"Como funciona: Os descontos são rateados entre os itens do pedido.",
+      causa:"Causa: A rotina ignorava valores negativos.",
+      correcao:aiRequests.length===1?
+        "Correção inicial: A rotina passou a considerar os valores negativos.":
+        "Correção mais recente: A rotina também passou a validar os kits desdobrados.",
+      conclusao:"Conclusão: A correção está pronta para validação.",
+      observacoes:"Observações: Conferir desconto e baixa financeira."
+    };
+    return send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
+      draft:fields,field_evidence:Object.fromEntries(Object.keys(fields).map(key=>[
+       key,{...quote(citations[key]),derivation:["titulo","descricao","explicacao",
+        "causa","correcao","conclusao","observacoes"].includes(key)?"synthesized":"explicit"}
+      ])),review_fields:[]});
   }
   if(path.endsWith("/functions/v1/qa-generators")){
     const data=req.postDataJSON();
@@ -120,7 +179,14 @@ async function backend(route){
       await new Promise(resolve=>{releaseCasesRequest=resolve;});
       holdCasesRequest=false;
     }
-    const sse="event: chunk\ndata: "+JSON.stringify({text:markdown})+"\n\n"+
+    const stage=data.batch?.stage;
+    const section=stage==="setup"
+      ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar descontos.\n## Pré-requisitos\n- Pedido de teste."
+      :stage==="positive"?markdown
+      :stage==="negative"?"[Sem cenários negativos adicionais documentados]"
+      :stage==="regression"?"[Sem cenários de regressão adicionais documentados]"
+      :"## Resultado dos testes\n- A confirmar.";
+    const sse="event: chunk\ndata: "+JSON.stringify({text:section})+"\n\n"+
       "event: done\ndata: "+JSON.stringify({truncated:false})+"\n\n";
     return route.fulfill({status:200,headers:cors,contentType:"text/event-stream",body:sse});
   }
@@ -201,7 +267,7 @@ try{
   await source.fill("Pedido 88771. Descontos negativos não são removidos.");
   await wizard.getByLabel("Adicionar arquivos da tarefa").setInputFiles({
     name:"analise.txt",mimeType:"text/plain",
-    buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
+    buffer:Buffer.from(initialReport)
   });
   await wizard.getByText("analise.txt").waitFor();
   for(const width of [320,390]){
@@ -217,7 +283,7 @@ try{
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   const statusPanel=wizard.locator(".qa-wizard-work");
   await statusPanel.getByText("Interpretando a tarefa").waitFor();
-  await statusPanel.getByText(/Aguardando a NVIDIA analisar/).waitFor();
+  await statusPanel.getByText(/Extraindo título, descrição, causa e correção/).waitFor();
   assert.equal(await statusPanel.locator(".qa-wizard-work-steps li.is-active").count(),1,
     "Only the actual in-flight stage should be marked active");
   assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
@@ -271,8 +337,8 @@ try{
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
-  assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
-  await wizard.getByRole("button",{name:"Voltar à geração"}).click();
+  // No tests are fabricated by field extraction; the QA must explicitly
+  // generate them in the next step before reviewing proposed scenarios.
   assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Configurar/);
   await wizard.getByLabel(/Requisitos e critérios de aceite/).fill(
     "RN01: Valores negativos devem ser removidos e refletidos na baixa."
@@ -283,19 +349,19 @@ try{
   });
   await wizard.getByText("requisito.txt").waitFor();
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o contexto/}).check();
-  await wizard.getByRole("button",{name:"Ampliar cobertura com IA"}).click();
+  await wizard.getByRole("button",{name:"Gerar casos de teste com IA"}).click();
   await statusPanel.getByText("Gerando cobertura de testes").waitFor();
   await statusPanel.getByText(/Aguardando a NVIDIA elaborar/).waitFor();
   assert.equal(await statusPanel.getByRole("button",{name:"Cancelar"}).count(),1,
     "Streaming case generation must offer an explicit cancel action");
   await casesStarted;
   releaseCasesRequest();
-  await page.getByText("2 caso(s) novo(s) identificados.",{exact:false}).waitFor();
+  await page.getByText("3 caso(s) novo(s) identificados.",{exact:false}).waitFor();
   await statusPanel.waitFor({state:"detached"});
   assert.match(caseRequests[0].tarefa,/o rateio ignora descontos negativos/i);
   assert.match(caseRequests[0].requisito,/CA01: A baixa financeira/);
   assert.equal(await wizard.locator(".qa-wizard-case").count(),3,
-    "The original case and exactly two unique cases must be shown");
+    "Three unique AI-generated cases must be reviewed, without inventing one during field extraction");
   assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   for(const width of [320,390,768,1366]){
@@ -346,10 +412,18 @@ try{
   rateLimited=true;
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
-  await page.getByText("Limite por minuto; tente novamente.",{exact:false}).waitFor();
-  assert.equal(taskWrites,2,"429 must not save a partial TF");
+  // A 429 is retried automatically after a bounded, cancellable quota wait.
+  // Checking an immediate terminal error would deadlock on the former one-shot
+  // fixture; the correct UI now exposes an explicit countdown and cancellation.
+  await wizard.getByRole("status").getByText("Limite temporário de requisições atingido").waitFor();
+  assert.equal(taskWrites,2,"429 must never save an incomplete TF");
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),
     "Texto de uma TF com falha de quota");
+  await wizard.getByRole("button",{name:"Cancelar espera"}).click();
+  // Cancellation leaves a resumable field-stage checkpoint, so the CTA
+  // is renamed to "Retomar análise" rather than "Gerar tarefa com IA".
+  await wizard.locator(".qa-wizard-work").waitFor({state:"detached"});
+  assert.equal(await wizard.getByRole("button",{name:/Retomar análise|Gerar tarefa com IA/}).isEnabled(),true);
   rateLimited=false;
 
   for(const width of [320,390,768,1366]){
@@ -380,7 +454,8 @@ try{
   assert.ok(aiRequests.at(-1).text.length<=30000,"Verified citations fit the model budget");
   assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  await wizard.getByRole("button",{name:/Finalizar com/}).click();
+  // Grounded field extraction alone must not invent unexecuted test cases.
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
   assert.ok(sources.some(item=>item.nome_arquivo==="Fonte original da TF"&&item.texto_extraido===longSource),
     "The full pasted report must be archived without truncation");
@@ -405,7 +480,7 @@ try{
   assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
   assert.match(aiRequests.at(-1).text,/TF-L\d+/);
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  await wizard.getByRole("button",{name:/Finalizar com/}).click();
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log("F2/F3: chunks, citations, consent and TF stored.");

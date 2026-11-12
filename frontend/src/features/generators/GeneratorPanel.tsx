@@ -27,7 +27,7 @@ import {
 } from "../../lib/legacy/qa-phase2.mjs";
 import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
  unfinishedGeneratorStages,restartInterruptedGeneratorStage} from "./batched-stream";
-import {recoverCompletedCases} from "./recover-cases";
+import {recoverCompletedCases,onlyNewResumedCases} from "./recover-cases";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
@@ -355,8 +355,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setContent(renderPostFormat(formatted,postFormat));
       } else {
         const candidates = parseGeneratedCases(response.text);
-        const fresh = onlyNewScenarioCandidates(candidates,
-          resume?[...scenarios,...cases]:scenarios);
+        const fresh = resume
+          ? onlyNewResumedCases(candidates,scenarios,cases)
+          : onlyNewScenarioCandidates(candidates,scenarios);
         newCases = fresh.length;
         setGeneratedCount(previous=>resume?previous+candidates.length:candidates.length);
         setCases(previous=>resume?[...previous,...editableCopy(fresh)]:editableCopy(fresh));

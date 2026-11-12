@@ -2,7 +2,7 @@ import {describe,expect,it,vi} from "vitest";
 import {assembleGeneratorSections,generateBatchedWithNvidia,
  mergeContinuation,newGeneratorCheckpoint,matchesGeneratorCheckpoint,
  unfinishedGeneratorStages,restartInterruptedGeneratorStage} from "../src/features/generators/batched-stream";
-import {recoverCompletedCases} from "../src/features/generators/recover-cases";
+import {recoverCompletedCases,onlyNewResumedCases} from "../src/features/generators/recover-cases";
 import type {GeneratorBatchRequest,GeneratorMode} from "../src/features/generators/stream";
 const mock=(handler:(batch:GeneratorBatchRequest)=>{text:string;truncated:boolean}|Promise<{text:string;truncated:boolean}>)=>
  vi.fn(async(_mode:GeneratorMode,_task:string,_requirements:string,
@@ -12,6 +12,22 @@ const mock=(handler:(batch:GeneratorBatchRequest)=>{text:string;truncated:boolea
   return result;
  });
 describe("F6 — resumable batched SSE generation",()=>{
+ it("does not re-add an interrupted AI case after QA edits only its title",()=>{
+  const previous=[{titulo:"Versão revisada manualmente",
+   passos:"1. Abrir pedido e remover desconto",
+   esperado:"Desconto zerado"}];
+  const candidates=[{source_index:1,titulo:"Remover desconto",
+   passos:"1. Abrir pedido e remover desconto",esperado:"Desconto zerado",
+   observacoes:"",selected:true},
+   {source_index:2,titulo:"Validar estorno",
+   passos:"1. Executar estorno",esperado:"Movimento atualizado",
+   observacoes:"",selected:true}];
+  const fresh=onlyNewResumedCases(candidates,[],previous);
+  expect(fresh).toHaveLength(1);
+  expect(fresh[0].titulo).toBe("Validar estorno");
+  expect(previous[0].titulo).toBe("Versão revisada manualmente");
+  expect(onlyNewResumedCases(candidates,[],[])).toHaveLength(2);
+ });
  it("keeps ordered 3-section posts, never resends completed stages",async()=>{
   const requests:GeneratorBatchRequest[]=[];
   const request=mock(b=>{
