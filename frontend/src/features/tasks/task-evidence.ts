@@ -12,7 +12,8 @@ const proof=z.strictObject({
  quote:z.string().max(550),
  source_line:z.number().int().positive().nullable(),
  status:z.enum(["verified","needs_review"]),
- reason:z.string().max(80).nullable()
+ reason:z.string().max(80).nullable(),
+ derivation:z.enum(["explicit","synthesized"]).optional()
 });
 const reviewCandidate=z.strictObject({
  field:z.string().min(1).max(40),value:z.string().max(20000),
@@ -60,6 +61,7 @@ export type FieldReview={
  field:string;value:string;quote:string;sourceLine:number|null;
  status:"verified"|"needs_review";reason:string|null;
  origin:"NVIDIA"|"parser_local";
+ derivation?:"explicit"|"synthesized";
 };
 export type ScenarioReview={sourceIndex:number;title:string;quote:string;
  sourceLine:number|null;status:"verified"|"needs_review";reason:string|null};
@@ -131,7 +133,8 @@ export const EVIDENCE_REASONS:Record<string,string>={
  line_mismatch:"Linha de origem divergente",
  unverified_model:"Evidência ainda não verificada",
  claim_not_supported_by_quote:"A afirmação não compartilha termos relevantes com a citação",
- execution_not_proven:"A fonte diz que o teste ainda não foi executado ou registrado"
+ execution_not_proven:"A fonte diz que o teste ainda não foi executado ou registrado",
+ metadata_not_explicit:"Este dado administrativo não foi identificado explicitamente na TF"
 };
 export function parseGroundedFieldReply(data:unknown,source:string){
  const response=fieldsReply.safeParse(data);
@@ -148,14 +151,16 @@ export function parseGroundedFieldReply(data:unknown,source:string){
    field,value,quote:evidence.quote,sourceLine:line,
    status:safe?"verified":"needs_review",
    reason:safe?null:response.data.repaired?"json_repaired":
-    evidence.reason??"line_mismatch",origin:"NVIDIA"
+    evidence.reason??"line_mismatch",origin:"NVIDIA",
+   derivation:evidence.derivation??"explicit"
   });
  }
  for(const item of response.data.review_fields){
   const line=locateEvidence(source,item.evidence.quote);
   review.push({field:item.field,value:item.value,quote:item.evidence.quote,
    sourceLine:line,status:"needs_review",
-   reason:item.evidence.reason??"unverified_model",origin:"NVIDIA"});
+   reason:item.evidence.reason??"unverified_model",origin:"NVIDIA",
+   derivation:item.evidence.derivation??"explicit"});
  }
  return {values,review,repaired:response.data.repaired,
   verifiedCount:review.filter(x=>x.status==="verified").length};
