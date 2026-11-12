@@ -1,6 +1,5 @@
 import {describe,expect,it,vi,afterEach} from "vitest";
-import {buildSemanticPlan,compileSemanticContext} from "../src/features/generators/semantic-context";
-import {extractLocalSemanticChunk} from "../src/features/generators/semantic-local";
+import {buildSemanticPlan} from "../src/features/generators/semantic-context";
 import {analyzeSemanticChunk,splitSemanticChunk} from
  "../src/features/generators/semantic-service";
 
@@ -28,53 +27,21 @@ describe("Retomada semântica em documentos extensos",()=>{
   expect(a.text.endsWith("\uD83E")).toBe(false);
   expect(b.text.startsWith("\uDDEA")).toBe(false);
  });
- it("um único 504 não dispara novas requisições nem divide em subrequisições",async()=>{
+ it("não extrai informações ou cria novas chamadas após um 504",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
-  const mocked=vi.fn(async()=>new Response(JSON.stringify({
-   code:"provider_timeout",message:"Tempo de resposta excedido nesta parte."
-  }),{status:504,headers:{"Content-Type":"application/json"}}));
+  const requests:{text:string;chunkId:string}[]=[];
+  const mocked=vi.fn(async(_url:string,init:RequestInit)=>{
+   const data=JSON.parse(String(init.body)) as {text:string;chunkId:string};
+   requests.push(data);
+   return new Response(JSON.stringify({
+    code:"provider_timeout",message:"A NVIDIA ultrapassou o tempo de resposta."
+   }),{status:504,headers:{"Content-Type":"application/json"}});
+  });
   vi.stubGlobal("fetch",mocked);
   await expect(analyzeSemanticChunk(chunk,"teste",new AbortController().signal))
-   .rejects.toThrow("Tempo de resposta excedido");
-  expect(mocked).toHaveBeenCalledTimes(1);
-  const outcome=extractLocalSemanticChunk(chunk,"teste");
-  expect(outcome.method).toBe("local");
-  expect(outcome.facts.length).toBeGreaterThan(0);
-  expect(outcome.facts.every(f=>chunk.text.includes(f.quote))).toBe(true);
- });
- it("prepara as 20 partes de um relatório extenso com citações locais rastreáveis",()=>{
-  const source=[
-   "TF 196756 — Vale-compra e faturamento",
-   ...Array.from({length:950},(_,i)=>
-    "CENÁRIO "+i+" — Testar regra do pedido e lançamento do vale no faturamento do carregamento."),
-   "Revisão final: Parecer fiscal proíbe tratar vale como desconto na NF.",
-   "Decisão final: REQ-2026-799 substitui os requisitos anteriores.",
-   "Regra correta: pedido mínimo = TotalVale / (percentual/100)."
-  ].join("\n");
-  expect(source.length).toBeGreaterThan(65000);
-  const plan=buildSemanticPlan(source);
-  expect(plan.chunks.length).toBeGreaterThanOrEqual(20);
-  expect(plan.chunks.map(c=>c.text).join("")).toBe(source);
-  const outcomes=new Map(plan.chunks.map((chunk,index)=>{
-   const outcome=extractLocalSemanticChunk(chunk,"teste");
-   return [chunk.id,index<6?{...outcome,method:"nvidia" as const,model:"teste"}:outcome] as const;
-  }));
-  const compiled=compileSemanticContext(plan,outcomes,"teste");
-  expect(compiled.coverage.analyzedChunks).toBe(plan.chunks.length);
-  expect(compiled.coverage.localChunks).toBe(plan.chunks.length-6);
-  expect(compiled.coverage.failedChunks).toBe(0);
-  expect(compiled.task).toContain("REQ-2026-799");
-  expect(compiled.task).toContain("TotalVale / (percentual/100)");
-  expect(compiled.task).toContain("sem interpretação da IA");
- });
- it("não inclui credenciais encontradas nos trechos locais",()=>{
-  const text="Senha: exemplo-super-secreto\nToken: chave-interna\n"+
-   "Regra: o vale-compra deve ser tratado como pagamento e não como desconto na NF.";
-  const chunk=buildSemanticPlan(text).chunks[0];
-  const outcome=extractLocalSemanticChunk(chunk,"teste");
-  expect(outcome.facts.some(x=>x.quote.includes("exemplo-super-secreto"))).toBe(false);
-  expect(outcome.facts.some(x=>x.quote.includes("chave-interna"))).toBe(false);
-  expect(outcome.facts.map(x=>x.quote).join("\n")).toContain("vale-compra");
+   .rejects.toThrow("A NVIDIA ultrapassou o tempo de resposta.");
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toEqual({text:chunk.text,chunkId:chunk.id});
  });
  it("não fragmenta nem tenta novamente um bloco quando a sessão é inválida",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
