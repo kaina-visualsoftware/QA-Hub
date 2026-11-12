@@ -556,8 +556,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   }
 
   const postMode=mode==="post";
-  const hasOutput=Boolean(raw || content || cases.length);
-  const hasRecoverableCases=mode==="teste"&&cases.length>0&&Boolean(
+  const hasOutput=Boolean(raw || content || cases.length ||
+    (mode==="teste"&&interruptedPreview));
+  const hasRecoverableCases=mode==="teste"&&Boolean(interruptedPreview)&&Boolean(
     batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0);
   const stage: JourneyStage = generating ? "generate" :
     !showSetup && completed ? "complete" :
