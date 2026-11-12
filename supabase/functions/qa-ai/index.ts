@@ -1,4 +1,5 @@
 import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
+import {aiFeatureEnabled,disabledAiResponse} from "../_shared/ai-feature-flags.mjs";
 import {correlationId,promptChars,logAiAttempt} from "../_shared/ai-observability.mjs";
 import {discoverModels,MODEL_IDS} from "../_shared/llm/models.mjs";
 import {callModel} from "../_shared/llm/call-model.mjs";
@@ -104,6 +105,8 @@ Deno.serve(async req => {
     return reply(401,{error:"unauthorized",message:"Sua sessão expirou. Entre novamente."});
   }
 
+  if(!aiFeatureEnabled("general",userResult.data.user.id))
+    return reply(503,disabledAiResponse());
   let body: unknown;
   try {
     body=await req.json();
@@ -115,6 +118,9 @@ Deno.serve(async req => {
   const summaryMode=(body as {mode?:unknown})?.mode==="diagram-summary";
   const fieldsMode=(body as {mode?:unknown})?.mode==="task-fields";
   const scenariosMode=(body as {mode?:unknown})?.mode==="task-scenarios";
+  if((fieldsMode||scenariosMode)&&
+     !aiFeatureEnabled("task-phased",userResult.data.user.id))
+    return reply(503,disabledAiResponse());
   const stageSeeds=scenariosMode?parseScenarioSeeds((body as {seeds?:unknown})?.seeds):null;
   if(scenariosMode&&!stageSeeds)
     return reply(400,{error:"bad_request",message:"Envie até quatro cenários locais com índices de origem válidos."});

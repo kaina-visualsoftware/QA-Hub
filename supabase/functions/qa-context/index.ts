@@ -1,4 +1,5 @@
 import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
+import {aiFeatureEnabled,disabledAiResponse} from "../_shared/ai-feature-flags.mjs";
 import {correlationId} from "../_shared/ai-observability.mjs";
 import {edgeModels,edgeJsonModels,edgeErrorHttp} from "../_shared/llm/edge-runtime.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
@@ -38,6 +39,9 @@ Deno.serve(async(req:Request)=>{
  const {data:identity,error:authError}=await db.auth.getUser(auth.slice(7));
  if(authError||!identity.user||identity.user.is_anonymous)
   return reply(401,{message:"Sua sessão expirou. Entre novamente."});
+ if(!aiFeatureEnabled("general",identity.user.id)||
+    !aiFeatureEnabled("semantic",identity.user.id))
+   return reply(503,disabledAiResponse());
  let body:Record<string,unknown>;
  try{
   if(Number(req.headers.get("Content-Length")||0)>23000)
