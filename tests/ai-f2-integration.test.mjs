@@ -29,12 +29,17 @@ test("quota rejected streams are retried only before SSE starts",()=>{
  assert.match(source,/if\(!reply\.ok\)throw await readAiHttpError\(reply\)/);
  assert.equal(source.indexOf("withAiRateLimitRetry(",consume),-1);
 });
-test("context retry does not discard successful outcomes",()=>{
+test("parallel context retries checkpoint each NVIDIA outcome and keep per-part quota waits",()=>{
  const source=file("frontend/src/features/generators/useSemanticContext.ts");
+ const queue=file("frontend/src/features/generators/semantic-queue.ts");
  assert.match(source,/!outcomes\[c.id\]/);
  assert.match(source,/next=\{\.\.\.next,\[chunk\.id\]:result\}/);
- assert.match(source,/setQuotaWait\(wait\)/);
+ assert.match(source,/setOutcomes\(current=>\(\{\.\.\.current,\[chunk\.id\]:result\}\)\)/);
+ assert.match(source,/setQuotaWaits\(current=>/);
+ assert.match(source,/runSemanticQueue\(/);
  assert.match(source,/signal\.aborted/);
+ assert.match(queue,/SEMANTIC_CONCURRENCY=2/);
+ assert.match(queue,/stopDispatch=true/);
 });
 test("task generator does not retry auth or schema failures",()=>{
  const source=file("frontend/src/features/tasks/task-ai.ts");
