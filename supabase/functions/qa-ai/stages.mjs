@@ -65,13 +65,13 @@ export function taskSeedMessages(text){
   {role:"system",content:[
    "Identifique no DOCUMENTO cenários de teste escritos explicitamente, com título, passos e resultado esperado. Não invente testes que não estejam descritos.",
    dataNotice,
-   "Retorne somente JSON {\\\"seeds\\\":[{\\\"source_index\\\":0,\\\"titulo\\\":\\\"...\\\",\\\"passos\\\":\\\"...\\\",\\\"esperado\\\":\\\"...\\\",\\\"observacoes\\\":\\\"...\\\",\\\"evidence\\\":\\\"citação literal\\\"}]}".replace(/\\\\\\\"/g,'"'),
+   'Retorne somente JSON {"seeds":[{"source_index":0,"titulo":"","passos":"","esperado":"","observacoes":"","evidence":"citação literal"}]}',
    "No máximo 20 cenários por documento, numerados source_index a partir de 0, sem repetição.",
    "Cada cenário exige evidence com 12–550 caracteres copiados LITERALMENTE da fonte. Preserve códigos e valores sem inventá-los.",
-   "Se a TF apenas descreve requisitos, sem cenários completos, retorne {\\\"seeds\\\":[]}. Não deduza execução ou aprovação.".replace(/\\\\\\\"/g,'"'),
+   'Se a TF apenas descreve requisitos sem cenários completos, retorne {"seeds":[]}. Não deduza execução ou aprovação.',
    "Não inclua campos da TF nem ações externas; a geração ocorre somente após revisão do QA."
-  ].join("\\n")},
-  {role:"user",content:"Documento para localizar cenários existentes:\\n<relatorio>\\n"+text+"\\n</relatorio>"}
+  ].join("\n")},
+  {role:"user",content:"Documento para localizar cenários existentes:\n<relatorio>\n"+text+"\n</relatorio>"}
  ];
 }
 export function taskScenarioMessages(text,seeds){
