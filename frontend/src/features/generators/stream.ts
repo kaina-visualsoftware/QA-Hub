@@ -8,6 +8,9 @@ const doneSchema = z.object({ truncated: z.boolean().optional() });
 const errorSchema = z.object({ message: z.string().min(1).max(500) });
 
 export type GeneratorMode = "post" | "teste";
+export type GeneratorBatchRequest={
+ version:1;index:number;total:number;stage:string;continuation:number;previousTail:string
+};
 export type StreamResult = { text: string; truncated: boolean };
 
 export async function consumeGeneratorSse(
@@ -72,7 +75,8 @@ export async function generateWithNvidia(
   requisito: string,
   onChunk: (text: string) => void,
   signal?: AbortSignal,
-  onWait:AiWaitCallback=()=>{}
+  onWait:AiWaitCallback=()=>{},
+  batch?:GeneratorBatchRequest
 ): Promise<StreamResult> {
   if (!["post", "teste"].includes(mode) || !tarefa.trim() || tarefa.length > 30000 ||
       requisito.length > 20000) throw Error("Contexto inválido ou excedeu o limite.");
@@ -84,7 +88,7 @@ export async function generateWithNvidia(
      method:"POST",signal,
      headers:{Authorization:"Bearer "+data.session.access_token,
       apikey:publishableKey,"Content-Type":"application/json",Accept:"text/event-stream"},
-     body:JSON.stringify({mode,tarefa,requisito})
+     body:JSON.stringify({mode,tarefa,requisito,...(batch?{batch}:{})})
     });
     if(!reply.ok)throw await readAiHttpError(reply);
     return reply;

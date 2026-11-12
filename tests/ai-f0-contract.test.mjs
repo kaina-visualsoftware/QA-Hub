@@ -33,7 +33,8 @@ test("SSE and non-streaming requests instrument their completion and timeout pat
  assert.match(ai,/onQuotaDenied:\(info:\{kind:string;attempt:number\}\)=>logAiAttempt/);
  assert.match(ai,/rejectLength:false/);
  assert.match(g,/finish_reason:finishReason,usage,outcome/);
- assert.match(g,/outcome=finishReason==="length"\?"length":"ok"/);
+ assert.match(g,/outcome=finishReason==="length"\?"length":!sawDone&&!finishReason\?"incomplete":"ok"/);
+ assert.match(g,/truncated:finishReason==="length"\|\|\(!sawDone&&!finishReason\)/);
  assert.match(g,/if\(!handedOff\)logAiAttempt/);
  assert.match(c,/finishReason=payload\?\.choices\?\.\[0\]\?\.finish_reason/);
  assert.match(r,/finishReason=payload\?\.choices\?\.\[0\]\?\.finish_reason/);

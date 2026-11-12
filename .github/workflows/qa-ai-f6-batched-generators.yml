@@ -1,0 +1,73 @@
+name: QA Hub AI F6 — geração por lotes e continuidade SSE
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f5-grounded-evidence-20261111]
+    paths:
+      - 'supabase/functions/qa-generators/**'
+      - 'frontend/src/features/generators/**'
+      - 'frontend/tests/generators-batched.test.ts'
+      - 'frontend/tests/generators-stream.test.ts'
+      - 'tests/ai-f6-*.test.mjs'
+      - '.github/workflows/qa-ai-f6-batched-generators.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa-generators/**'
+      - 'frontend/src/features/generators/batched-stream.ts'
+      - 'tests/ai-f6-*.test.mjs'
+concurrency:
+  group: qa-ai-f6-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: F6 and F0-F5 contract suite
+        run: |
+          node --test tests/ai-f6-generator-batches.test.mjs tests/ai-f6-integration.test.mjs tests/ai-f5-grounding.test.mjs tests/ai-f4-stages.test.mjs tests/ai-f3-token-budget.test.mjs tests/ai-f3-integration.test.mjs tests/ai-f2-error-contract.test.mjs tests/ai-f1-provider.test.mjs tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs
+      - name: Verify F6 ESM syntax
+        run: node --check supabase/functions/qa-generators/batches.mjs
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck all four authenticated Edge Functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+      - name: F5 strict evidence regression
+        run: deno test supabase/functions/qa-ai/schemas.test.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: TypeScript and ESLint
+        run: npm run typecheck && npm run lint
+      - name: F6 batching and legacy SSE tests
+        run: npx vitest run tests/generators-batched.test.ts tests/generators-stream.test.ts tests/generators-parity.test.ts tests/post-format.test.ts
+      - name: Full frontend test suite
+        run: npm test
+      - name: Production build
+        run: npm run build
