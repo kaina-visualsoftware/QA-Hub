@@ -123,7 +123,14 @@ export async function generateBatchedWithNvidia(mode:GeneratorMode,task:string,
    truncated=result.truncated;
    completed=true;
   }catch(error){
-   if(signal?.aborted)throw abortError();
+   if(signal?.aborted){
+    // Cancellation must not lose chunks already delivered by the stream.
+    if(attempt.trim()){
+     cp.partial=mergeContinuation(cp.partial,attempt);
+     save();onPreview(assembledPreview(cp));
+    }
+    throw abortError();
+   }
    if(!attempt.trim())throw error;
    // Network dropped after delivering text. Capture the fragment but never
    // pretend it is a complete section or replay the old section from scratch.
