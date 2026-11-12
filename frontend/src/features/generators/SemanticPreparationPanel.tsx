@@ -102,12 +102,16 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     </div>
     {semantic.conflicts.length>0&&<section className="qa-semantic-conflicts"
       aria-label="Revisão de divergências entre fontes">
-      <strong>Possíveis divergências entre fontes ({semantic.conflicts.length})</strong>
-      <p>Comparações automáticas podem gerar falsos positivos: mudanças de versão ou
-        de momento não são necessariamente contradições. Revise os dois trechos antes de decidir.
-        A IA não decide qual fonte é verdadeira.</p>
+      <strong>Conflitos explícitos que precisam de decisão ({semantic.conflicts.length})</strong>
+      <p>São exibidas apenas afirmações opostas sobre a mesma regra, campo ou condição.
+        Descrições históricas, cenários condicionais diferentes e repetições não exigem
+        revisão individual. As citações vêm da NVIDIA e são conferidas contra a TF;
+        o QA continua responsável por resolver conflitos reais.</p>
       <ol>{semantic.conflicts.map((item,index)=><li key={item.id}>
         <strong>{index+1}. {item.reason}</strong>
+        {(item.pairs?.length??1)>1&&<small>
+         {item.pairs?.length} comparações equivalentes agrupadas nesta única decisão.
+        </small>}
         <div className="qa-semantic-compare">
           <blockquote><small>Fonte A · {item.left.source}-L{item.left.line}</small>
             {item.left.quote}</blockquote>
