@@ -1,10 +1,9 @@
 import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
-import {correlationId,promptChars,logAiAttempt,exceptionOutcome,httpOutcome} from "../_shared/ai-observability.mjs";
+import {correlationId} from "../_shared/ai-observability.mjs";
+import {edgeModels,edgeJsonModels,edgeErrorHttp} from "../_shared/llm/edge-runtime.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {revisionMessages,validateRevisionInput,normalizeRevision} from "./revision.mjs";
 
-const MODELS=["z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"];
-const NVIDIA="https://integrate.api.nvidia.com/v1";
 const ORIGINS=new Set(["https://kaina-visualsoftware.github.io",
  "http://127.0.0.1:8765","http://localhost:8765"]);
 function cors(origin:string|null){
@@ -21,25 +20,6 @@ function respond(origin:string|null,status:number,body:Record<string,unknown>,
   headers:{...cors(origin),"Content-Type":"application/json; charset=utf-8",
    "Access-Control-Expose-Headers":"Retry-After, X-Request-ID",
    ...errorHeaders(status>=400?body:{},extra,trace)}});
-}
-async function freeModels(key:string,trace:string){
- const started=Date.now();
- let status=0,outcome="upstream_error";
- try{
-  const response=await fetch(NVIDIA+"/models",{
-   headers:{Authorization:"Bearer "+key},signal:AbortSignal.timeout(6000)});
-  status=response.status;outcome=response.ok?"ok":httpOutcome(status);
-  if(!response.ok)return MODELS;
-  const json=await response.json();
-  if(!Array.isArray(json?.data))return MODELS;
-  const ids=new Set(json.data.map((item:{id?:string})=>item.id));
-  return MODELS.filter(id=>ids.has(id));
- }catch(error){outcome=exceptionOutcome(error);return MODELS;}
- finally{
-  logAiAttempt({correlation_id:trace,stage:"discovery",mode:"discovery",model:"catalog",
-   prompt_chars:0,max_tokens:0,started_at:started,http_status:status,
-   outcome,attempt:0,fallback_model:false});
- }
 }
 Deno.serve(async(req:Request)=>{
  const trace=correlationId(req.headers.get("x-correlation-id"));
@@ -69,73 +49,26 @@ Deno.serve(async(req:Request)=>{
  const input=validateRevisionInput(body);
  if(!input)return reply(400,{message:"Selecione um trecho válido do post ou um caso de teste."});
  if(!key)return reply(503,{message:"A chave NVIDIA não está configurada."});
- const models=await freeModels(key,trace);
+ const models=await edgeModels({apiKey:key,trace});
  if(!models.length)return reply(503,{message:"Nenhum modelo gratuito disponível."});
  const mode="revision:"+input.operation;
  const messages=revisionMessages(input);
- const chars=promptChars(messages);
- let lastStatus=0,hadUnstructured=false;
- for(const [modelIndex,model] of models.entries()){
-  const telemetry={correlation_id:trace,mode,model,prompt_chars:chars,max_tokens:3100,
-   attempt:modelIndex+1,fallback_model:modelIndex>0};
-  // Each upstream attempt consumes the same shared rolling quota (15/min).
-  const claim=await db.rpc("qa_ai_claim_minute_request");
-  if(claim.error||!claim.data||typeof claim.data!=="object")
-   return reply(503,{message:"Não foi possível consultar a quota da IA."});
-  if(!claim.data.allowed){
-   logAiAttempt({...telemetry,stage:"quota",started_at:Date.now(),
-    http_status:429,outcome:"rate_limited"});
-   const retry=Math.max(1,Math.min(60,Math.ceil(Number(claim.data.retry_after_seconds)||60)));
-   return reply(429,{error:"rate_limited",retry_after_seconds:retry,
-    message:"Limite compartilhado da NVIDIA atingido. O rascunho foi preservado."},
-    {"Retry-After":String(retry)});
-  }
-  const started=Date.now();
-  let responseStatus=0,finishReason=null,usage=null,outcome="upstream_error";
-  try{
-   const response=await fetch(NVIDIA+"/chat/completions",{
-    method:"POST",
-    headers:{Authorization:"Bearer "+key,"Content-Type":"application/json",
-     Accept:"application/json"},
-    body:JSON.stringify({model,messages,
-     temperature:0.12,max_tokens:3100,stream:false,
-     ...(model.startsWith("nvidia/nemotron-")?
-      {chat_template_kwargs:{enable_thinking:false}}:{})}),
-    signal:AbortSignal.timeout(52000)
-   });
-   lastStatus=response.status;responseStatus=response.status;
-   if(!response.ok)outcome=httpOutcome(response.status);
-   if(response.status===401||response.status===403)
-    return reply(503,{message:"A chave NVIDIA deve ser revisada."});
-   if(response.status===429){
-     const wait=response.headers.get("Retry-After");
-     return reply(429,{error:"provider_rate_limited",
-      ...(wait&&Number.isFinite(Number(wait))?{retry_after_seconds:Number(wait)}:{}),
-      message:"A NVIDIA limitou as solicitações. O conteúdo foi preservado."},
-      wait&&Number.isFinite(Number(wait))?{"Retry-After":wait}:{});
-    }
-   if(!response.ok){console.warn("qa-revisions provider",{status:response.status,model});continue;}
-   const payload=await response.json();
-   finishReason=payload?.choices?.[0]?.finish_reason??null;
-   usage=payload?.usage??null;
-   outcome=finishReason==="length"?"length":
-     payload?.choices?.[0]?.message?.content?"schema_invalid":"empty";
-   const proposal=normalizeRevision(payload,input.operation);
-   if(!proposal){hadUnstructured=true;continue;}
-   outcome="ok";
-   return reply(200,{operation:input.operation,
-    proposal,model,provider:"NVIDIA Build"});
-  }catch(reason){
-   outcome=exceptionOutcome(reason);
-   console.warn("qa-revisions upstream",{model,
-    reason:reason instanceof DOMException?reason.name:"request_failed"});
-  }finally{
-   logAiAttempt({...telemetry,started_at:started,http_status:responseStatus,
-    finish_reason:finishReason,usage,outcome});
-  }
- }
- return reply(503,{error:"revision_unavailable",status:lastStatus,
-  message:hadUnstructured?
+ const outcome=await edgeJsonModels({apiKey:key,db,trace,mode,modelMode:"revision",
+  messages,models,maxTokens:3100,timeoutMs:52000,deadlineMs:82000,
+  options:{temperature:0.12},
+  validate:payload=>normalizeRevision(payload,input.operation)});
+ if(outcome.ok)return reply(200,{operation:input.operation,
+  proposal:outcome.value,model:outcome.model,provider:"NVIDIA Build"});
+ const mapped=edgeErrorHttp(outcome.error,{
+  quotaMessage:"Limite compartilhado da NVIDIA atingido. O rascunho foi preservado.",
+  providerMessage:"A NVIDIA limitou as solicitações. O conteúdo foi preservado."
+ });
+ if(mapped)return reply(mapped.status,mapped.body,mapped.headers as Record<string,string>);
+ if(outcome.contextExceeded&&!outcome.unstructured)
+  return reply(400,{error:"model_context_exceeded",
+   message:"O trecho ultrapassa o orçamento estimado do modelo. Revise a seleção."});
+ return reply(503,{error:"revision_unavailable",status:outcome.lastStatus,
+  message:outcome.unstructured?
    "A NVIDIA não retornou o trecho no formato esperado. O rascunho permanece intacto.":
    "Não foi possível revisar este trecho. O conteúdo anterior foi preservado."});
 });

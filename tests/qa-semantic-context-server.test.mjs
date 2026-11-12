@@ -9,10 +9,13 @@ test("truncated semantic response cannot masquerade as verified source facts",()
   message:{content:JSON.stringify({facts:[{category:"regra",quote:snippet,summary:"Regra"}]})}}]},snippet);
  assert.equal(result.valid,false);
 });
-test("qa-context returns a distinct timeout code and uses bounded requests",()=>{
+test("qa-context retains timeout code, bounded shared provider and JSON-mode citations",()=>{
  const src=readFileSync(new URL("../supabase/functions/qa-context/index.ts",import.meta.url),"utf8");
+ const registry=readFileSync(new URL("../supabase/functions/_shared/llm/models.mjs",import.meta.url),"utf8");
  assert.match(src,/semantic_timeout/);
- assert.match(src,/AbortSignal\.timeout\(30000\)/);
- assert.match(src,/reasoning_effort:"low"/);
+ assert.match(src,/timeoutMs:30000/);
+ assert.match(src,/deadlineMs:70000/);
+ assert.match(src,/modelMode:"semantic"/);
  assert.match(src,/response_format:\{type:"json_object"\}/);
+ assert.match(registry,/reasoning_effort:"low"/);
 });

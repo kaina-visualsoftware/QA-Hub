@@ -6,49 +6,55 @@ const root=new URL("../",import.meta.url);
 const file=path=>readFileSync(new URL(path,root),"utf8");
 const functions=["qa-ai","qa-generators","qa-context","qa-revisions"];
 
-test("all four NVIDIA endpoints record catalog, quota and each provider attempt",()=>{
+const providerPath="supabase/functions/_shared/llm/edge-runtime.mjs";
+test("all four NVIDIA endpoints retain metadata-only attempt telemetry",()=>{
+ const runtime=file(providerPath);
  for(const name of functions){
-  const source=file("supabase/functions/"+name+"/index.ts");
-  assert.match(source,/from "\.\.\/_shared\/ai-observability\.mjs"/,name);
-  assert.match(source,/correlationId\(req\.headers\.get\("x-correlation-id"\)\)/,name);
-  assert.match(source,/logAiAttempt\(/,name);
-  assert.match(source,/stage:"discovery"/,name);
-  assert.match(source,/stage:"quota"/,name);
-  assert.match(source,/fallback_model:/,name);
-  assert.match(source,/qa_ai_claim_minute_request/,name);
+  const src=file("supabase/functions/"+name+"/index.ts");
+  assert.match(src,/from "\.\.\/_shared\/ai-observability\.mjs"/,name);
+  assert.match(src,/correlationId\(req\.headers\.get\("x-correlation-id"\)\)/,name);
   if(name==="qa-ai"){
-   assert.match(source,/callModel\(/,name);
-   assert.match(file("supabase/functions/_shared/llm/call-model.mjs"),/finally\s*\{/,name);
-  }else assert.match(source,/finally\s*\{/,name);
-  assert.match(source,/promptChars\(messages\)/,name);
+   assert.match(src,/callModel\(/);
+   assert.match(src,/logAiAttempt\(/);
+  }else{
+   assert.match(src,/edgeModels\(/,name);
+   assert.match(src,/from "\.\.\/_shared\/llm\/edge-runtime\.mjs"/,name);
+  }
  }
+ assert.match(runtime,/logAiAttempt\(/);
+ assert.match(runtime,/onDiscovery:/);
+ assert.match(file("supabase/functions/_shared/llm/models.mjs"),/stage:"discovery"/);
+ assert.match(runtime,/stage:"quota"/);
+ assert.match(runtime,/fallback_model:/);
+ assert.match(runtime,/qa_ai_claim_minute_request/);
+ assert.match(runtime,/promptChars\(messages\)/);
+ assert.match(file("supabase/functions/_shared/llm/call-model.mjs"),/finally\s*\{/);
 });
-test("SSE and non-streaming requests instrument their completion and timeout paths",()=>{
+test("SSE and JSON models share timeout, streaming outcomes and redacted telemetry",()=>{
  const ai=file("supabase/functions/qa-ai/index.ts");
- const g=file("supabase/functions/qa-generators/index.ts");
- const c=file("supabase/functions/qa-context/index.ts");
- const r=file("supabase/functions/qa-revisions/index.ts");
+ const runtime=file(providerPath);
+ const model=file("supabase/functions/_shared/llm/call-model.mjs");
  assert.match(ai,/callModel\(/);
- assert.match(ai,/onAttempt:\(event:Record<string,unknown>\)=>logAiAttempt/);
- assert.match(ai,/onQuotaDenied:\(info:\{kind:string;attempt:number\}\)=>logAiAttempt/);
- assert.match(ai,/rejectLength:false/);
- assert.match(g,/finish_reason:finishReason,usage,outcome/);
- assert.match(g,/outcome=finishReason==="length"\?"length":!sawDone&&!finishReason\?"incomplete":"ok"/);
- assert.match(g,/truncated:finishReason==="length"\|\|\(!sawDone&&!finishReason\)/);
- assert.match(g,/if\(!handedOff\)logAiAttempt/);
- assert.match(c,/finishReason=payload\?\.choices\?\.\[0\]\?\.finish_reason/);
- assert.match(r,/finishReason=payload\?\.choices\?\.\[0\]\?\.finish_reason/);
+ assert.match(runtime,/edgeStreamingModels\(/);
+ assert.match(runtime,/edgeJsonModels\(/);
+ assert.match(runtime,/send\("done"/);
+ assert.match(runtime,/send\("error"/);
+ assert.match(runtime,/truncated:result\.finishReason==="length"/);
+ assert.match(runtime,/onQuotaDenied:/);
+ assert.match(model,/timeoutMs=/);
+ assert.match(model,/finish_reason:result\?\.finishReason/);
 });
-test("security boundaries and the shared 15/minute quota remain in place",()=>{
+test("all four endpoints preserve their own auth and CORS; quota is centralized",()=>{
+ const runtime=file(providerPath);
  for(const name of functions){
-  const source=file("supabase/functions/"+name+"/index.ts");
-  assert.match(source,/\.auth\.getUser\(/,name);
-  assert.match(source,/is_anonymous/,name);
-  assert.match(source,/qa_ai_claim_minute_request/,name);
-  assert.match(source,/integrate\.api\.nvidia\.com\/v1/,name);
-  assert.match(source,/https:\/\/kaina-visualsoftware\.github\.io/,name);
-  assert.doesNotMatch(source,/console\.(?:log|info|warn)\([^)]*(?:sourceText|reportText|Authorization|NVIDIA_API_KEY)/,name);
+  const src=file("supabase/functions/"+name+"/index.ts");
+  assert.match(src,/\.auth\.getUser\(/,name);
+  assert.match(src,/is_anonymous/,name);
+  assert.match(src,/https:\/\/kaina-visualsoftware\.github\.io/,name);
+  assert.doesNotMatch(src,/console\.(?:log|info|warn)\([^)]*(?:sourceText|reportText|Authorization|NVIDIA_API_KEY)/,name);
  }
+ assert.match(runtime,/qa_ai_claim_minute_request/);
+ assert.match(file("supabase/functions/_shared/llm/models.mjs"),/integrate\.api\.nvidia\.com\/v1/);
 });
 const names=["curta","media","longa-80k","apenas-requisito","apenas-roteiro",
  "rotulos-interface","instrucao-maliciosa","tabelas-sql"];
