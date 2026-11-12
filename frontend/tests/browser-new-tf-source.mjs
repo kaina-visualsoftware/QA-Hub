@@ -420,8 +420,10 @@ try{
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),
     "Texto de uma TF com falha de quota");
   await wizard.getByRole("button",{name:"Cancelar espera"}).click();
-  await page.waitForFunction(()=>[...document.querySelectorAll("button")]
-    .some(button=>button.textContent?.includes("Gerar tarefa com IA")&&!button.disabled));
+  // Cancellation leaves a resumable field-stage checkpoint, so the CTA
+  // is renamed to "Retomar análise" rather than "Gerar tarefa com IA".
+  await wizard.locator(".qa-wizard-work").waitFor({state:"detached"});
+  assert.equal(await wizard.getByRole("button",{name:/Retomar análise|Gerar tarefa com IA/}).isEnabled(),true);
   rateLimited=false;
 
   for(const width of [320,390,768,1366]){
