@@ -1,0 +1,69 @@
+name: QA Hub AI F2 — erros e retomada de cota
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f1-provider-20261111]
+    paths:
+      - 'supabase/functions/**'
+      - 'frontend/src/lib/ai-retry.ts'
+      - 'frontend/src/components/ui/AiQuotaWait.tsx'
+      - 'frontend/src/features/generators/**'
+      - 'frontend/src/features/tasks/**'
+      - 'frontend/tests/ai-rate-limit.test.ts'
+      - 'tests/ai-f2-*.test.mjs'
+      - '.github/workflows/qa-ai-f2-errors.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/ai-error-response.mjs'
+      - 'frontend/src/lib/ai-retry.ts'
+      - 'tests/ai-f2-*.test.mjs'
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: F2 error contract and integration guards
+        run: node --test tests/ai-f2-error-contract.test.mjs tests/ai-f2-integration.test.mjs
+      - name: Preserve F0/F1 contracts
+        run: node --test tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs tests/ai-f1-provider.test.mjs tests/nvidia-completion-options.test.mjs tests/qa-semantic-context-server.test.mjs
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck all four NVIDIA functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck and lint
+        run: npm run typecheck && npm run lint
+      - name: F2 retry behavior and existing workflow tests
+        run: npx vitest run tests/ai-rate-limit.test.ts tests/semantic-context.test.ts tests/targeted-revision.test.ts tests/task-ai.test.ts
+      - name: All frontend unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build

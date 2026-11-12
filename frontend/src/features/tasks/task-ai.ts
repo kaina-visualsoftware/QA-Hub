@@ -4,6 +4,8 @@ import type {Scenario,TaskDraft} from "../../lib/contracts";
 import {extractLocalDraft,normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
+import {readAiInvokeError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import type {AiWaitCallback} from "../../lib/ai-retry";
 import {cleanQaSourceText,formatQaSentenceCase} from "../../lib/legacy/qa-text-cleaner.mjs";
 
 export type SuggestedScenario={
@@ -192,7 +194,7 @@ function completeSourceDraft(fromAi:LocalDraft,local:LocalDraft|null):LocalDraft
   };
 }
 
-export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}={}):Promise<GeneratedTaskDraft>{
+export async function generateTaskAiDraft(text:string,{aiText,signal,onWait}:{aiText?:string;signal?:AbortSignal;onWait?:AiWaitCallback}={}):Promise<GeneratedTaskDraft>{
   const source=text.trim();
   if(!source)throw Error("Informe a descrição da tarefa para gerar com IA.");
   // Preserve the original report separately; do not send copied UI controls to NVIDIA.
@@ -204,9 +206,15 @@ export async function generateTaskAiDraft(text:string,{aiText}:{aiText?:string}=
   // local parser and is archived unchanged once the TF is created.
   const prepared=aiText?cleanQaSourceText(aiText):relevant;
   if(!prepared.trim())throw Error("O contexto preparado da TF está vazio.");
-  const {data,error}=await supabase.functions.invoke("qa-ai",{
-    body:{text:prepared},signal:AbortSignal.timeout(95000)
-  });
+  const requestSignal=signal??AbortSignal.timeout(95000);
+  const {data,error}=await withAiRateLimitRetry(async()=>{
+    const response=await supabase.functions.invoke("qa-ai",{
+      body:{text:prepared},signal:requestSignal
+    });
+    if(response.error&&response.error.context?.status===429)
+      throw await readAiInvokeError(response.error);
+    return response;
+  },{signal:requestSignal,onWait});
   if(error){
     let detail:{message?:string;error?:string}={};
     try{detail=await error.context?.json?.()??{};}catch{}

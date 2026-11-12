@@ -125,7 +125,6 @@ describe('indisponibilidade temporária da NVIDIA não bloqueia a abertura de TF
  it('continua mostrando erros de quota, autenticação, chave e controle de limite',async()=>{
   const spy=vi.spyOn(supabase.functions,'invoke');
   for(const detail of [
-   {status:429,error:'rate_limited',message:'Cota atingida'},
    {status:401,error:'unauthorized',message:'Faça login'},
    {status:503,error:'nvidia_key_invalid',message:'Chave inválida'},
    {status:503,error:'rate_limit_not_ready',message:'Controle de limite indisponível'}
@@ -135,6 +134,23 @@ describe('indisponibilidade temporária da NVIDIA não bloqueia a abertura de TF
    }}} as never);
    await expect(generateTaskAiDraft(source)).rejects.toThrow(detail.message);
   }
+ });
+ it('retoma automaticamente quando um HTTP 429 é liberado, sem perder a TF',async()=>{
+  const spy=vi.spyOn(supabase.functions,'invoke')
+   .mockResolvedValueOnce({data:null,error:{context:{
+    status:429,json:async()=>({code:'quota_exhausted',error:'rate_limited',
+      retry_after_seconds:1,message:'Aguarde a cota'})
+   }}} as never)
+   .mockResolvedValue({data:{provider:'NVIDIA Build',fallback:true,draft:{}},error:null});
+  vi.useFakeTimers();
+  try{
+   const pending=generateTaskAiDraft(source);
+   await vi.advanceTimersByTimeAsync(1500);
+   const draft=await pending;
+   expect(spy).toHaveBeenCalledTimes(2);
+   expect(draft.extractionSource).toBe('local');
+   expect(draft.fields.descricao).toMatch(/valor permanece inalterado/i);
+  }finally{vi.useRealTimers();}
  });
  it('não dá falso sucesso para texto sem extração local possível',async()=>{
   vi.spyOn(supabase.functions,'invoke').mockResolvedValue({

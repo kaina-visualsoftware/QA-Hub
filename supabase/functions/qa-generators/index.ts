@@ -1,3 +1,4 @@
+import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
 import {correlationId,promptChars,logAiAttempt,exceptionOutcome,httpOutcome} from "../_shared/ai-observability.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {messagesForGenerator} from "./prompts.mjs";
@@ -6,15 +7,19 @@ import {messagesForGenerator} from "./prompts.mjs";
 const MODELS=["z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"];
 const BASE="https://integrate.api.nvidia.com/v1";
 const ORIGINS=new Set(["https://kaina-visualsoftware.github.io","http://127.0.0.1:8765","http://localhost:8765"]);
-function headers(origin){
+function headers(origin:string|null){
   return {"Access-Control-Allow-Origin":origin&&ORIGINS.has(origin)?origin:"https://kaina-visualsoftware.github.io",
     "Access-Control-Allow-Headers":"authorization, apikey, x-client-info, content-type",
     "Access-Control-Allow-Methods":"POST, OPTIONS","Cache-Control":"no-store","Vary":"Origin"};
 }
-function json(origin,status,body,extraHeaders={}){
-  return new Response(JSON.stringify(body),{status,headers:{...headers(origin),"Content-Type":"application/json; charset=utf-8",...extraHeaders}});
+function json(origin:string|null,status:number,body:Record<string,unknown>,extraHeaders:Record<string,string>={},trace:string=""){
+  const payload=status>=400?errorBody(status,body,trace):body;
+  return new Response(JSON.stringify(payload),{status,headers:{...headers(origin),
+    "Content-Type":"application/json; charset=utf-8",
+    "Access-Control-Expose-Headers":"Retry-After, X-Request-ID",
+    ...errorHeaders(status>=400?body:{},extraHeaders,trace)}});
 }
-async function allowedModels(key,trace){
+async function allowedModels(key:string,trace:string){
   const started=Date.now();
   let status=0,outcome="upstream_error";
   try{
@@ -23,7 +28,7 @@ async function allowedModels(key,trace){
     if(!r.ok)return MODELS;
     const d=await r.json();
     if(!Array.isArray(d.data))return MODELS;
-    const found=new Set(d.data.map(x=>x.id));
+    const found=new Set(d.data.map((x:{id?:string})=>x.id));
     return MODELS.filter(m=>found.has(m));
   }catch(error){outcome=exceptionOutcome(error);return MODELS;}
   finally{
@@ -32,22 +37,22 @@ async function allowedModels(key,trace){
       outcome,attempt:0,fallback_model:false});
   }
 }
-function readDelta(part){
+function readDelta(part:any){
   const msg=part?.choices?.[0]?.delta;
   if(typeof msg?.content==="string")return msg.content;
-  if(Array.isArray(msg?.content))return msg.content.map(p=>p.text||"").join("");
+  if(Array.isArray(msg?.content))return msg.content.map((p:{text?:string})=>p.text||"").join("");
   return "";
 }
-const sse=(event,body)=>"event: "+event+"\ndata: "+JSON.stringify(body)+"\n\n";
-function sendStream(upstream,origin,model,telemetry){
+const sse=(event:string,body:unknown)=>"event: "+event+"\ndata: "+JSON.stringify(body)+"\n\n";
+function sendStream(upstream:Response,origin:string|null,model:string,telemetry:Record<string,unknown>,trace:string){
   const decoder=new TextDecoder();
   const encoder=new TextEncoder();
   return new Response(new ReadableStream({
     async start(controller){
-      const send=(e,d)=>controller.enqueue(encoder.encode(sse(e,d)));
-      let content="",raw="",finishReason=null,stopped=false,usage=null,outcome="empty";
-      const reader=upstream.body.getReader();
-      function processEvent(eventText){
+      const send=(e:string,d:unknown)=>controller.enqueue(encoder.encode(sse(e,d)));
+      let content="",raw="",finishReason:string|null=null,stopped=false,usage:unknown=null,outcome="empty";
+      const reader=upstream.body!.getReader();
+      function processEvent(eventText:string){
         const data=eventText.split(/\r?\n/).filter(l=>l.startsWith("data:")).map(l=>l.slice(5).trimStart()).join("\n");
         if(!data)return;
         if(data==="[DONE]"){stopped=true;return;}
@@ -73,7 +78,7 @@ function sendStream(upstream,origin,model,telemetry){
           let pos;
           while((pos=raw.search(/\r?\n\r?\n/))>=0){
             const event=raw.slice(0,pos);
-            const separator=raw.slice(pos).match(/^\r?\n\r?\n/)[0];
+            const separator=raw.slice(pos).match(/^\r?\n\r?\n/)?.[0]??"\n\n";
             raw=raw.slice(pos+separator.length);
             processEvent(event);
             if(stopped)break;
@@ -87,7 +92,7 @@ function sendStream(upstream,origin,model,telemetry){
           send("done",{model,truncated:finishReason==="length",characters:content.length});
         }
       }catch(error){
-        outcome=error?.message==="stream_overflow"?"stream_overflow":exceptionOutcome(error);
+        outcome=error instanceof Error&&error.message==="stream_overflow"?"stream_overflow":exceptionOutcome(error);
         console.warn("qa-generators stream failure",{model,reason:error instanceof DOMException?error.name:"read_failed"});
         send("error",{message:"A conexão com a NVIDIA foi interrompida. O texto parcial pode ser recuperado."});
       }finally{
@@ -98,37 +103,39 @@ function sendStream(upstream,origin,model,telemetry){
       }
     }
   }),{status:200,headers:{...headers(origin),"Content-Type":"text/event-stream; charset=utf-8",
-    "X-Accel-Buffering":"no","Connection":"keep-alive"}});
+    "X-Accel-Buffering":"no","Connection":"keep-alive",
+    "Access-Control-Expose-Headers":"Retry-After, X-Request-ID","X-Request-ID":trace}});
 }
 Deno.serve(async req=>{
   const trace=correlationId(req.headers.get("x-correlation-id"));
   const origin=req.headers.get("Origin");
+  const reply=(status:number,body:Record<string,unknown>,extra:Record<string,string>={})=>json(origin,status,body,extra,trace);
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:headers(origin)});
-  if(req.method!=="POST")return json(origin,405,{error:"method_not_allowed",message:"Método não permitido."});
-  if(origin&&!ORIGINS.has(origin))return json(origin,403,{error:"forbidden",message:"Origem não autorizada."});
+  if(req.method!=="POST")return reply(405,{error:"method_not_allowed",message:"Método não permitido."});
+  if(origin&&!ORIGINS.has(origin))return reply(403,{error:"forbidden",message:"Origem não autorizada."});
   const auth=req.headers.get("Authorization")||"";
-  if(!auth.startsWith("Bearer "))return json(origin,401,{error:"unauthorized",message:"Entre no QA Hub para gerar com IA."});
+  if(!auth.startsWith("Bearer "))return reply(401,{error:"unauthorized",message:"Entre no QA Hub para gerar com IA."});
   const url=Deno.env.get("SUPABASE_URL")||"",anon=Deno.env.get("SUPABASE_ANON_KEY")||"";
-  if(!url||!anon)return json(origin,503,{error:"auth_not_configured",message:"Autenticação não configurada."});
+  if(!url||!anon)return reply(503,{error:"auth_not_configured",message:"Autenticação não configurada."});
   const db=createClient(url,anon,{global:{headers:{Authorization:auth}}});
   const {data:identity,error:authError}=await db.auth.getUser(auth.slice(7));
   if(authError||!identity.user||identity.user.is_anonymous)
-    return json(origin,401,{error:"unauthorized",message:"Faça login novamente para gerar com IA."});
-  let data;
+    return reply(401,{error:"unauthorized",message:"Faça login novamente para gerar com IA."});
+  let data:{mode?:string;tarefa?:string;requisito?:string}|null;
   try{
     if(Number(req.headers.get("Content-Length")||0)>120000)throw Error("large");
     data=await req.json();
-  }catch{return json(origin,400,{error:"bad_request",message:"Entrada inválida ou muito extensa."});}
+  }catch{return reply(400,{error:"bad_request",message:"Entrada inválida ou muito extensa."});}
   const mode=data?.mode;
   const tarefa=typeof data?.tarefa==="string"?data.tarefa.trim():"";
   const requisito=typeof data?.requisito==="string"?data.requisito.trim():"";
-  if(!["post","teste"].includes(mode)||!tarefa||tarefa.length>30000||requisito.length>20000)
-    return json(origin,400,{error:"bad_input",message:"Informe uma tarefa válida e, se necessário, um requisito."});
+  if(!mode||!["post","teste"].includes(mode)||!tarefa||tarefa.length>30000||requisito.length>20000)
+    return reply(400,{error:"bad_input",message:"Informe uma tarefa válida e, se necessário, um requisito."});
   const key=Deno.env.get("NVIDIA_API_KEY");
-  if(!key)return json(origin,503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
+  if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
   const models=await allowedModels(key,trace);
-  if(!models.length)return json(origin,503,{error:"models_unavailable",message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
-  const messages=messagesForGenerator(mode,tarefa,requisito);
+  if(!models.length)return reply(503,{error:"models_unavailable",message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
+  const messages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
   const chars=promptChars(messages);
   const maxTokens=mode==="teste"?11000:3500;
   for(const [modelIndex,model] of models.entries()){
@@ -138,12 +145,12 @@ Deno.serve(async req=>{
     // same 15/minute rolling window as qa-ai. No daily limit applies.
     const claim=await db.rpc("qa_ai_claim_minute_request");
     if(claim.error||!claim.data||typeof claim.data!=="object")
-      return json(origin,503,{error:"quota_unavailable",message:"Não foi possível verificar o limite por minuto."});
+      return reply(503,{error:"quota_unavailable",message:"Não foi possível verificar o limite por minuto."});
     if(!claim.data.allowed){
       logAiAttempt({...telemetry,stage:"quota",started_at:Date.now(),
         http_status:429,outcome:"rate_limited"});
       const retry=Math.max(1,Math.min(60,Math.ceil(Number(claim.data.retry_after_seconds)||60)));
-      return json(origin,429,{
+      return reply(429,{
         error:"rate_limited",retry_after_seconds:retry,
         message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+" segundo(s)."
       },{"Retry-After":String(retry)});
@@ -160,14 +167,20 @@ Deno.serve(async req=>{
       });
       responseStatus=r.status;
       if(!r.ok)outcome=httpOutcome(r.status);
-      if(r.status===401||r.status===403)return json(origin,503,{error:"invalid_key",message:"A chave NVIDIA precisa ser revisada no Supabase."});
-      if(r.status===429)return json(origin,429,{error:"rate_limit",message:"A NVIDIA limitou as requisições. Tente novamente mais tarde."});
+      if(r.status===401||r.status===403)return reply(503,{error:"invalid_key",message:"A chave NVIDIA precisa ser revisada no Supabase."});
+      if(r.status===429){
+        const wait=r.headers.get("Retry-After");
+        return reply(429,{error:"rate_limit",
+          ...(wait&&Number.isFinite(Number(wait))?{retry_after_seconds:Number(wait)}:{}),
+          message:"A NVIDIA limitou as requisições; o contexto foi preservado."},
+          wait&&Number.isFinite(Number(wait))?{"Retry-After":wait}:{});
+      }
       if(!r.ok||!r.body){
         if(r.ok)outcome="empty";
         console.warn("qa-generators provider",{model,status:r.status});continue;
       }
       handedOff=true;
-      return sendStream(r,origin,model,{...telemetry,started_at:started});
+      return sendStream(r,origin,model,{...telemetry,started_at:started},trace);
     }catch(e){
       outcome=exceptionOutcome(e);
       console.warn("qa-generators request",{model,type:e instanceof DOMException?e.name:"upstream_unavailable"});
@@ -176,5 +189,5 @@ Deno.serve(async req=>{
         http_status:responseStatus,outcome});
     }
   }
-  return json(origin,503,{error:"provider_unavailable",message:"Nenhum modelo gratuito respondeu. Tente mais tarde."});
+  return reply(503,{error:"provider_unavailable",message:"Nenhum modelo gratuito respondeu. Tente mais tarde."});
 });

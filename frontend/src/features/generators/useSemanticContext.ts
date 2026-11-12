@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from "react";
+import type {AiWaitState} from "../../lib/ai-retry";
 import {analyzeSemanticChunk} from "./semantic-service";
 import {buildSemanticPlan,compileSemanticContext,SEMANTIC_REQUEST_BATCH} from "./semantic-context";
 import type {ChunkOutcome,SemanticGoal} from "./semantic-context";
@@ -16,6 +17,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [startedAt,setStartedAt]=useState<number|null>(null);
  const [message,setMessage]=useState("");
  const [error,setError]=useState("");
+ const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
  const [approved,setApproved]=useState(false);
  const [conflictDecisions,setConflictDecisions]=useState<Record<string,ConflictDecision>>({});
  const controller=useRef<AbortController|null>(null);
@@ -55,6 +57,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   setOutcomes({});setEnabledState(false);setWorking(false);
   setApproved(false);setConflictDecisions({});setMessage("");setError("");
   setActiveChunk(null);setActiveStage(null);setAttempt(0);setElapsed(0);setStartedAt(null);
+  setQuotaWait(null);
  },[sourceKey]);
  useEffect(()=>()=>controller.current?.abort(),[]);
  function setEnabled(value:boolean){
@@ -75,7 +78,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   workingRef.current=true;setWorking(true);
   setError("");setMessage("");
   setElapsed(0);setStartedAt(Date.now());setActiveStage("preparing");
-  setAttempt(0);
+  setAttempt(0);setQuotaWait(null);
   setApproved(false);
   const abort=new AbortController();controller.current=abort;
   const signature=sourceKey;
@@ -87,6 +90,9 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
     setActiveStage("preparing");
     const result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
       if(signature===latest.current&&!abort.signal.aborted)setActiveStage(stage);
+    },wait=>{
+      if(signature!==latest.current||abort.signal.aborted)return;
+      setQuotaWait(wait);
     });
     if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
     next={...next,[chunk.id]:result};
@@ -105,11 +111,11 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
    }
   }finally{
    workingRef.current=false;controller.current=null;setWorking(false);
-   setActiveChunk(null);setActiveStage(null);setStartedAt(null);
+   setActiveChunk(null);setActiveStage(null);setStartedAt(null);setQuotaWait(null);
   }
  }
  return {enabled,setEnabled,working,message,error,approved,setApproved,ready,plan,
   planError:planState.error,outcomes,count,complete,digest,run,cancel,
   conflicts,conflictsReviewed,conflictDecisions,setConflictDecision,
-  activeChunk,activeStage,attempt,elapsed};
+  activeChunk,activeStage,attempt,elapsed,quotaWait};
 }
