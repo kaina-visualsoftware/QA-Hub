@@ -296,7 +296,7 @@ try{
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   const statusPanel=wizard.locator(".qa-wizard-work");
   await statusPanel.getByText("Interpretando a tarefa").waitFor();
-  await statusPanel.getByText(/Extraindo título, descrição, causa e correção/).waitFor();
+  await statusPanel.getByText(/A NVIDIA está identificando título, problema, causa e correção/).waitFor();
   assert.equal(await statusPanel.locator(".qa-wizard-work-steps li.is-active").count(),1,
     "Only the actual in-flight stage should be marked active");
   assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
