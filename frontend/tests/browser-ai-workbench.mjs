@@ -322,8 +322,10 @@ try {
       await dialog.getByText("Recalcular pedido sem desconto").waitFor();
       // The immutable model transcript may retain the original title;
       // only the editable QA case must be rewritten.
-      assert.equal(await dialog.locator(".qa-ai-case-review")
-        .getByText("Validar recálculo de desconto",{exact:true}).count(),0);
+      const revisedCase=dialog.locator(".qa-ai-case-review")
+        .filter({hasText:"Recalcular pedido sem desconto"});
+      assert.equal(await revisedCase.count(),1);
+      assert.equal(await revisedCase.getByText("Validar recálculo de desconto",{exact:true}).count(),0);
       assert.equal(scenarioWrites,0,"A revision is a draft until the QA explicitly saves cases.");
       assert.equal(auditRows.filter(row=>row.event_type==="test_revision_applied").length,1,
         "Approved individual rewrite must create a private, hash-only audit event.");
