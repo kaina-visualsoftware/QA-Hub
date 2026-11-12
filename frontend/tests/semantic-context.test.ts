@@ -29,6 +29,22 @@ describe("F2/F3 — análise semântica auditável do QA Hub",()=>{
   expect(plan.chunks.filter(x=>x.source==="REQ").map(x=>x.text).join("")).toBe(req);
   expect(plan.chunks[0].id).toBe("TF-001");
  });
+ it("a TF extensa com revisões preserva todas as partes inclusive a decisão final",()=>{
+  const base=Array.from({length:955},(_,index)=>
+   "CENÁRIO "+index+": Conferir vale-compra no carregamento sem duplicar baixa, seguindo os critérios da TF.");
+  const source=[
+   "Requisito original: abater o vale como desconto na nota.",
+   ...base,
+   "Revisão final: o vale é forma de pagamento, sem desconto na nota.",
+   "Cálculo vigente: pedido mínimo igual ao total dos vales dividido pelo percentual."
+  ].join("\n");
+  expect(source.length).toBeGreaterThan(65000);
+  const plan=buildSemanticPlan(source);
+  expect(plan.chunks.length).toBeGreaterThan(7);
+  expect(plan.chunks.filter(x=>x.source==="TF").map(x=>x.text).join("")).toBe(source);
+  expect(plan.chunks.at(-1)?.text).toContain("Cálculo vigente: pedido mínimo");
+  expect(plan.chunks.every(x=>x.text.length<=SEMANTIC_CHUNK_SIZE)).toBe(true);
+ });
  it("recusa citações não presentes, preservando apenas evidência textual exata",()=>{
   const plan=buildSemanticPlan("RF-91: Não permitir cancelar uma NF com pagamento conciliado.");
   const chunk=plan.chunks[0];
