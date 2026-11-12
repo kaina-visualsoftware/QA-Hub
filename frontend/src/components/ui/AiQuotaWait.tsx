@@ -15,10 +15,15 @@ export function AiQuotaWait({state,onCancel}:{
  if(!state)return null;
  const remaining=Math.max(0,Math.ceil((state.until-Date.now())/1000));
  return <div className="qa-ai-quota-wait" role="status">
-  <strong>Limite temporário de requisições atingido</strong>
-  <p>A próxima tentativa será feita automaticamente{state.estimated?" após um intervalo preventivo":""}.
-   Seu trabalho e as partes concluídas permanecem disponíveis.</p>
-  <span aria-live="off">Nova tentativa em <strong>{remaining} s</strong> · espera {state.attempt} de 2</span>
+  <strong>{state.reason==="timeout"?
+   "A NVIDIA excedeu o tempo de resposta":"Limite temporário de requisições atingido"}</strong>
+  <p>{state.reason==="timeout"?
+   "Uma nova tentativa pela NVIDIA será feita com resposta mais curta. Nenhum trecho será extraído sem IA.":
+   "A próxima tentativa será feita automaticamente"+(state.estimated?
+    " após um intervalo preventivo":"")+
+    ". Seu trabalho e as partes concluídas permanecem disponíveis."}</p>
+  <span aria-live="off">Nova tentativa em <strong>{remaining} s</strong> ·
+   espera {state.attempt} de {state.reason==="timeout"?"1":"2"}</span>
   {onCancel&&<button type="button" onClick={onCancel}>Cancelar espera</button>}
  </div>;
 }
