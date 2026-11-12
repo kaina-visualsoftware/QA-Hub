@@ -38,7 +38,7 @@ export function findEvidence(source,quote){
  for(let i=0;i<position;i++)if(source[i]==="\n")line++;
  return {line,index:position,quote:quote.trim()};
 }
-const technicalToken=/\b(?:[a-z]{1,12}[-_/ ]?\d{2,}|(?:\d+[.,/-]){2,}\d+|\d{3,})\b/giu;
+const technicalToken=/\b(?:[a-z]{1,12}[-_/ ]?\d{2,}|(?:\d+[.,/-]){1,}\d+|\d{3,})\b/giu;
 const money=/\bR\$\s*\d[\d.,]*/giu;
 const links=/https?:\/\/[^\s"'<>]+/giu;
 export function unsupportedIdentifiers(value,source){
