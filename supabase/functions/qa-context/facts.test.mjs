@@ -60,3 +60,13 @@ test("timeout retry remains exclusively NVIDIA with shorter exact-source evidenc
  assert.deepEqual(grounded.facts.map(x=>x.quote),[source]);
  assert.equal(grounded.unverified,1);
 });
+
+test("standard profile preserves 12 NVIDIA evidence slots and exact quotes while limiting redundant summary text",()=>{
+ const source="RF-12: O pedido não pode ser faturado sem aprovação do gerente.";
+ const messages=semanticMessages("teste","TF","TF-001",source);
+ assert.match(messages[0].content,/até 12 fatos distintos/);
+ assert.match(messages[0].content,/entre 10 e 450 caracteres/);
+ assert.match(messages[0].content,/até 100 caracteres/);
+ assert.match(messages[0].content,/sem repetir quote/);
+ assert.match(messages[1].content,/O pedido não pode ser faturado/);
+});

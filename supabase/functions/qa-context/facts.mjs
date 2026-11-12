@@ -58,7 +58,7 @@ export function semanticMessages(goal,source,chunkId,text,{compact=false}={}){
     "quote OBRIGATORIAMENTE deve ser uma substring LITERAL E EXATA do texto recebido (copie entre 10 e 450 caracteres da fonte), incluindo negações, IDs e números originais.",
    compact?
     "summary curto, no máximo uma frase, sustentado integralmente por quote. Não copie dados pessoais nem credenciais.":
-    "summary é uma descrição breve do que a citação confirma, sem inventar informações. Não copie credenciais nem dados pessoais.",
+    "summary deve ser uma frase curta de até 100 caracteres, sem repetir quote, sem inventar informações e sem dados pessoais ou credenciais.",
    compact?
     "Modo de recuperação por IA após timeout. Extraia NO MÁXIMO 5 fatos distintos. Priorize revisões finais, regras vigentes, números, exceções e resultados reais; caso sejam contraditórios, cite ambos sem decidir por conta própria. Nunca invente contexto. Responda {\"facts\":[]} se não houver evidência.":
     "Extraia até 12 fatos distintos, priorizando decisões finais, números, regras, exceções e testes executados; evite repetições. Ao não encontrar informações confiáveis, retorne {\"facts\":[]}. Nunca crie citações ou invente regras, passos, códigos, resultados ou aprovação."

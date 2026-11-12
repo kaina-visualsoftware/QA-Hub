@@ -75,3 +75,9 @@
 .qa-semantic-current{display:flex;align-items:center;gap:6px;color:#185b64;font-weight:700}
 @keyframes qa-semantic-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.qa-semantic-spinner{animation:none}}
+
+.qa-semantic-active-parts{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.qa-semantic-active-parts>span{display:inline-flex;align-items:center;gap:4px;
+ padding:5px 8px;border-radius:7px;background:#eef7f7;border:1px solid #b8d9d6;
+ color:#325b65;font-size:.75rem;max-width:100%;overflow-wrap:anywhere}
+.qa-semantic-active-parts strong{font-size:inherit}
