@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2, Eye, Filter, ShieldCheck } from "lucide-react
 import { getAdminRole, listTasks } from "../lib/data";
 import { taskStatusLabels } from "../lib/contracts";
 import { useAuth } from "../features/auth/AuthProvider";
+import AiMonitoringPanel from "../features/ai-monitoring/AiMonitoringPanel";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -118,5 +119,6 @@ export default function AdminPage() {
         <CheckCircle2 size={18}/>
       </div>
     </>}
+    <AiMonitoringPanel />
   </div>;
 }
