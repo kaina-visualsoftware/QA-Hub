@@ -1,4 +1,7 @@
-import {correlationId,promptChars,logAiAttempt,exceptionOutcome,httpOutcome} from "../_shared/ai-observability.mjs";
+import {correlationId,promptChars,logAiAttempt} from "../_shared/ai-observability.mjs";
+import {discoverModels,MODEL_IDS} from "../_shared/llm/models.mjs";
+import {callModel} from "../_shared/llm/call-model.mjs";
+import {ProviderError} from "../_shared/llm/errors.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import {aiInputError} from "./input.mjs";
 import { parseNvidiaDraft } from "./response.mjs";
@@ -6,12 +9,8 @@ import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, 
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
 
-// Only models verified in NVIDIA Build's Free Endpoint catalog.
-// The runtime also attempts GET /v1/models and skips unavailable IDs.
-const FREE_MODEL_IDS = [
-  "z-ai/glm-5.3-flash",
-  "nvidia/nemotron-3.5-lightning-30b-a3b"
-];
+// The explicit free-endpoint allowlist lives only in _shared/llm/models.mjs.
+// A runtime GET /v1/models filters it without accepting arbitrary model IDs.
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const ALLOWED_ORIGINS = new Set([
   "https://kaina-visualsoftware.github.io",
@@ -71,25 +70,10 @@ function promptForReport(text: string) {
   ];
 }
 async function listAllowedModels(key: string,trace: string) {
-  const started=Date.now();
-  let status=0,outcome="upstream_error";
-  try {
-    const response = await fetch(NVIDIA_BASE + "/models", {
-      headers: { Authorization: "Bearer " + key },
-      signal: AbortSignal.timeout(MODEL_DISCOVERY_TIMEOUT_MS)
-    });
-    status=response.status;outcome=response.ok?"ok":httpOutcome(status);
-    if (!response.ok) return FREE_MODEL_IDS;
-    const data = await response.json();
-    if (!Array.isArray(data?.data)) return FREE_MODEL_IDS;
-    const ids = new Set(data.data.map((item: {id?: string})=>item.id));
-    return FREE_MODEL_IDS.filter(id=>ids.has(id));
-  } catch(error) {outcome=exceptionOutcome(error);return FREE_MODEL_IDS;}
-  finally {
-    logAiAttempt({correlation_id:trace,stage:"discovery",mode:"discovery",
-      model:"catalog",prompt_chars:0,max_tokens:0,started_at:started,
-      http_status:status,outcome,attempt:0,fallback_model:false});
-  }
+  return discoverModels({apiKey:key,modelIds:MODEL_IDS,
+    timeoutMs:MODEL_DISCOVERY_TIMEOUT_MS,
+    onDiscovery:(event:Record<string,unknown>)=>logAiAttempt({...event,correlation_id:trace,stage:"discovery"})
+  });
 }
 
 Deno.serve(async req => {
@@ -140,6 +124,9 @@ Deno.serve(async req => {
     });
   }
 
+  // The client waits up to 95s. Discovery + two model attempts use a
+  // single deadline, so no fallback starts with insufficient time.
+  const deadlineAt=Date.now()+83000;
   const available=await listAllowedModels(key,trace);
   if(!available.length) {
     return respond(origin,503,{
@@ -159,96 +146,88 @@ Deno.serve(async req => {
     const telemetry={correlation_id:trace,mode:telemetryMode,model,
       prompt_chars:chars,max_tokens:options.max_tokens,
       attempt:modelIndex+1,fallback_model:modelIndex>0};
-    // Count every attempted NVIDIA completion (including fallback models)
-    // against the same rolling 15/min window for our shared provider key.
-    // Requests rejected here do not reserve a slot or consume a daily quota.
-    const claim=await db.rpc("qa_ai_claim_minute_request");
-    if(claim.error || !claim.data || typeof claim.data!=="object") {
-      return respond(origin,503,{
-        error:"rate_limit_not_ready",
-        message:"Não foi possível verificar o limite por minuto da IA."
-      });
-    }
-    const quota=claim.data as {
-      allowed?:boolean; error?:string; remaining?:number; retry_after_seconds?:number;
-    };
-    if(!quota.allowed){
-      logAiAttempt({...telemetry,stage:"quota",started_at:Date.now(),
-        http_status:429,outcome:"rate_limited"});
-      if(quota.error==="unauthorized")
-        return respond(origin,401,{error:"unauthorized",message:"Faça login para usar a IA."});
-      const retry=Math.max(1,Math.min(60,Math.ceil(Number(quota.retry_after_seconds)||60)));
-      return respond(origin,429,{
-        error:"rate_limited",
-        message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+" segundo(s). Não há limite diário no QA Hub.",
-        retry_after_seconds:retry,limit:15,window_seconds:60
-      },{"Retry-After":String(retry)});
-    }
-    const started=Date.now();
-    let responseStatus=0,finishReason=null,usage=null,outcome="upstream_error";
     try {
-      const result=await fetch(NVIDIA_BASE+"/chat/completions",{
-        method:"POST",
-        headers:{
-          Authorization:"Bearer "+key,
-          "Content-Type":"application/json",
-          Accept:"application/json"
+      const result=await callModel({
+        apiKey:key,model,messages,
+        mode:diagramMode?"diagram":summaryMode?"summary":"task",
+        stream:false,options,maxRetries:0,rejectLength:false,
+        timeoutMs:PROVIDER_TIMEOUT_MS,firstTokenTimeoutMs:PROVIDER_TIMEOUT_MS,
+        deadlineAt,fallbackModel:modelIndex>0,
+        // Claim one of the existing 15/min RPC slots BEFORE any network attempt.
+        // Breaker-skipped models never reach this callback.
+        reserveAttempt:async()=>{
+          const claim=await db.rpc("qa_ai_claim_minute_request");
+          if(claim.error||!claim.data||typeof claim.data!=="object")
+            return {allowed:false,kind:"quota_unavailable"};
+          const quota=claim.data as {allowed?:boolean;error?:string;retry_after_seconds?:number};
+          if(quota.allowed)return {allowed:true};
+          return {allowed:false,kind:quota.error==="unauthorized"?"auth":"rate_limited",
+            retryAfterSeconds:Math.max(1,Math.min(60,Math.ceil(Number(quota.retry_after_seconds)||60)))};
         },
-        body:JSON.stringify({
-          model,
-          messages,
-          ...options
-        }),
-        signal:AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
+        onQuotaDenied:(info:{kind:string;attempt:number})=>logAiAttempt({...telemetry,stage:"quota",
+          started_at:Date.now(),http_status:info.kind==="rate_limited"?429:
+            info.kind==="auth"?401:503,
+          outcome:info.kind==="rate_limited"?"rate_limited":"upstream_error",
+          attempt:info.attempt}),
+        onBreakerSkip:(info:{attempt:number})=>logAiAttempt({...telemetry,started_at:Date.now(),
+          outcome:"breaker_open",attempt:info.attempt}),
+        onAttempt:(event:Record<string,unknown>)=>logAiAttempt({...telemetry,...event,
+          correlation_id:trace,prompt_chars:chars,
+          attempt:modelIndex+1,fallback_model:modelIndex>0})
       });
-      lastStatus=result.status;responseStatus=result.status;
-      if(!result.ok)outcome=httpOutcome(result.status);
-      if(result.status===401 || result.status===403) {
-        return respond(origin,503,{error:"nvidia_key_invalid",message:"Atualize a chave NVIDIA no Supabase."});
-      }
-      if(result.status===429) {
-        return respond(origin,429,{error:"nvidia_rate_limited",message:"Limite gratuito da NVIDIA atingido. Tente mais tarde."});
-      }
-      if(result.status===400 || result.status===413){
-        let upstreamMessage="";
-        try{const failure=await result.json();upstreamMessage=String(failure?.error?.message??failure?.message??"");}catch{}
-        if(/context.{0,40}(length|window|limit)|too many tokens|maximum.{0,30}tokens|token.{0,30}limit/i.test(upstreamMessage)){
-          contextExceeded=true;outcome="context_exceeded";
-          continue;
-        }
-      }
-      if(!result.ok) {
-        // Diagnostic metadata only — never log report text, credentials or model output.
-        console.warn("qa-ai upstream failure",{model,status:result.status});
-        continue;
-      }
+      lastStatus=200;
       hadReply=true;
-      const response=await result.json();
-      finishReason=response?.choices?.[0]?.finish_reason??null;
-      usage=response?.usage??null;
-      outcome=finishReason==="length"?"length":
-        response?.choices?.[0]?.message?.content?"schema_invalid":"empty";
+      const response=result.payload;
       if(diagramMode){
         const mermaid=extractDiagramFromNvidia(response);
-        if(mermaid){outcome="ok";return respond(origin,200,{mermaid,model,provider:"NVIDIA Build"});}
+        if(mermaid)return respond(origin,200,{mermaid,model,provider:"NVIDIA Build"});
       }else if(summaryMode){
         const summary=extractDiagramSummary(response);
-        if(summary){outcome="ok";return respond(origin,200,{summary,model,provider:"NVIDIA Build"});}
+        if(summary)return respond(origin,200,{summary,model,provider:"NVIDIA Build"});
       }else{
         const extracted=parseNvidiaDraft(response);
-        if(hasMeaningfulTaskData(extracted)){outcome="ok";return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});}
+        if(hasMeaningfulTaskData(extracted))
+          return respond(origin,200,{draft:extracted,model,provider:"NVIDIA Build"});
       }
-      // A truncated JSON reply or metadata-only response must not masquerade as a completed TF.
+      // Non-empty, truncated and unstructured replies are not success.
       console.warn("qa-ai unstructured response",{
-        model,finish_reason:response?.choices?.[0]?.finish_reason||"unknown",
-        content_present:Boolean(response?.choices?.[0]?.message?.content)
+        model,finish_reason:result.finishReason??"unknown",
+        content_present:Boolean(result.text)
       });
     } catch(error) {
-      outcome=exceptionOutcome(error);
-      console.warn("qa-ai upstream exception",{model,reason:error instanceof DOMException?error.name:"request_failed"});
-    } finally {
-      logAiAttempt({...telemetry,started_at:started,http_status:responseStatus,
-        finish_reason:finishReason,usage,outcome});
+      if(!(error instanceof ProviderError)){
+        console.warn("qa-ai upstream exception",{model,reason:"request_failed"});
+        continue;
+      }
+      lastStatus=error.status||lastStatus;
+      if(error.stage==="quota"){
+        if(error.kind==="auth")
+          return respond(origin,401,{error:"unauthorized",message:"Faça login para usar a IA."});
+        if(error.kind==="rate_limited"){
+          const retry=Math.max(1,Math.min(60,Math.ceil(error.retryAfterSeconds||60)));
+          return respond(origin,429,{
+            error:"rate_limited",
+            message:"Limite de 15 solicitações por minuto atingido. Tente novamente em "+retry+
+              " segundo(s). Não há limite diário no QA Hub.",
+            retry_after_seconds:retry,limit:15,window_seconds:60
+          },{"Retry-After":String(retry)});
+        }
+        return respond(origin,503,{
+          error:"rate_limit_not_ready",message:"Não foi possível verificar o limite por minuto da IA."
+        });
+      }
+      if(error.kind==="auth")
+        return respond(origin,503,{error:"nvidia_key_invalid",message:"Atualize a chave NVIDIA no Supabase."});
+      if(error.kind==="rate_limited")
+        return respond(origin,429,{error:"nvidia_rate_limited",
+          message:"Limite gratuito da NVIDIA atingido. Tente mais tarde."});
+      if(error.kind==="context_exceeded"){contextExceeded=true;continue;}
+      if(["length","empty","schema_invalid"].includes(error.kind)&&error.status===200)
+        hadReply=true;
+      // Errors remain classified in the metadata-only F0 event.
+      console.warn("qa-ai upstream exception",{
+        model,reason:error.kind,status:error.status||0
+      });
     }
   }
   if(contextExceeded&&!hadReply)return respond(origin,400,{

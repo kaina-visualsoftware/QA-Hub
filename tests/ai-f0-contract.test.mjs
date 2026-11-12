@@ -16,7 +16,10 @@ test("all four NVIDIA endpoints record catalog, quota and each provider attempt"
   assert.match(source,/stage:"quota"/,name);
   assert.match(source,/fallback_model:/,name);
   assert.match(source,/qa_ai_claim_minute_request/,name);
-  assert.match(source,/finally\s*\{/,name);
+  if(name==="qa-ai"){
+   assert.match(source,/callModel\(/,name);
+   assert.match(file("supabase/functions/_shared/llm/call-model.mjs"),/finally\s*\{/,name);
+  }else assert.match(source,/finally\s*\{/,name);
   assert.match(source,/promptChars\(messages\)/,name);
  }
 });
@@ -25,9 +28,10 @@ test("SSE and non-streaming requests instrument their completion and timeout pat
  const g=file("supabase/functions/qa-generators/index.ts");
  const c=file("supabase/functions/qa-context/index.ts");
  const r=file("supabase/functions/qa-revisions/index.ts");
- assert.match(ai,/finishReason=response\?\.choices\?\.\[0\]\?\.finish_reason/);
- assert.match(ai,/usage=response\?\.usage/);
- assert.match(ai,/outcome=exceptionOutcome\(error\)/);
+ assert.match(ai,/callModel\(/);
+ assert.match(ai,/onAttempt:\(event:Record<string,unknown>\)=>logAiAttempt/);
+ assert.match(ai,/onQuotaDenied:\(info:\{kind:string;attempt:number\}\)=>logAiAttempt/);
+ assert.match(ai,/rejectLength:false/);
  assert.match(g,/finish_reason:finishReason,usage,outcome/);
  assert.match(g,/outcome=finishReason==="length"\?"length":"ok"/);
  assert.match(g,/if\(!handedOff\)logAiAttempt/);

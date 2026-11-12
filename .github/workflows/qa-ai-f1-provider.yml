@@ -1,0 +1,71 @@
+name: QA Hub AI F1 — provider compartilhado
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f0-observability-20261111]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/_shared/ai-observability.mjs'
+      - 'supabase/functions/qa-ai/**'
+      - 'tests/ai-f0-*.test.mjs'
+      - 'tests/ai-f1-*.test.mjs'
+      - 'tests/nvidia-*.test.mjs'
+      - '.github/workflows/qa-ai-f1-provider.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/qa-ai/**'
+      - 'tests/ai-f1-*.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  llm-provider:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Provider unit tests (mocked NVIDIA, including SSE)
+        run: node --test tests/ai-f1-provider.test.mjs
+      - name: F0 and existing NVIDIA contract regressions
+        run: node --test tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs tests/nvidia-completion-options.test.mjs tests/nvidia-provider-model-ids.test.mjs tests/nvidia-response.test.mjs
+      - name: Check import and JS syntax
+        run: |
+          node --check supabase/functions/_shared/llm/models.mjs
+          node --check supabase/functions/_shared/llm/errors.mjs
+          node --check supabase/functions/_shared/llm/call-model.mjs
+
+  edge-typecheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck deployed Edge Function entrypoint and shared imports
+        run: deno check supabase/functions/qa-ai/index.ts
+  frontend-regressions:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
