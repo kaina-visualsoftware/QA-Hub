@@ -96,12 +96,13 @@ export function locateEvidence(source:string,quote:string):number|null{
  for(let k=0;k<offsets[pos];k++)if(source[k]==="\n")line++;
  return line;
 }
-const idPattern=/\b(?:[a-z]{1,12}[-_/ ]?\d{2,}|(?:\d+[.,/-]){1,}\d+|\d{3,})\b/giu;
+const idPattern=/\b(?:[a-z]{1,12}[-_/ ]?\d{2,}|\d{3,})\b/giu;
+const structuredNumber=/\b\d+(?:[.,/-]\d+)+\b/giu;
 const moneyPattern=/\bR\$\s*\d[\d.,]*/giu;
 const urlPattern=/https?:\/\/[^\s"'<>]+/giu;
 export function hasUnsupportedIdentifiers(value:string,source:string):boolean{
  const v=norm(value),s=norm(source);
- return [...new Set([...(v.match(idPattern)??[]),
+ return [...new Set([...(v.match(idPattern)??[]),...(v.match(structuredNumber)??[]),
   ...(v.match(moneyPattern)??[]),...(v.match(urlPattern)??[])])]
   .some(token=>!s.includes(token));
 }
