@@ -2,6 +2,7 @@ import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
 import {correlationId,promptChars,logAiAttempt,exceptionOutcome,httpOutcome} from "../_shared/ai-observability.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {messagesForGenerator} from "./prompts.mjs";
+import {parseGeneratorBatch,messagesForGeneratorBatch} from "./batches.mjs";
 
 // Only explicit free-endpoint NVIDIA Build models, not paid endpoints.
 const MODELS=["z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"];
@@ -50,15 +51,15 @@ function sendStream(upstream:Response,origin:string|null,model:string,telemetry:
   return new Response(new ReadableStream({
     async start(controller){
       const send=(e:string,d:unknown)=>controller.enqueue(encoder.encode(sse(e,d)));
-      let content="",raw="",finishReason:string|null=null,stopped=false,usage:unknown=null,outcome="empty";
+      let content="",raw="",finishReason:string|null=null,stopped=false,sawDone=false,failed=false,usage:unknown=null,outcome="empty";
       const reader=upstream.body!.getReader();
       function processEvent(eventText:string){
         const data=eventText.split(/\r?\n/).filter(l=>l.startsWith("data:")).map(l=>l.slice(5).trimStart()).join("\n");
         if(!data)return;
-        if(data==="[DONE]"){stopped=true;return;}
+        if(data==="[DONE]"){stopped=true;sawDone=true;return;}
         try{
           const parsed=JSON.parse(data);
-          if(parsed.error){outcome="upstream_error";send("error",{message:"O modelo interrompeu a geração."});return;}
+          if(parsed.error){outcome="upstream_error";failed=true;stopped=true;send("error",{message:"O modelo interrompeu a geração."});return;}
           usage=parsed?.usage??usage;
           const delta=readDelta(parsed);
           if(delta){
@@ -85,11 +86,12 @@ function sendStream(upstream:Response,origin:string|null,model:string,telemetry:
           }
         }
         if(raw.trim()&&!stopped)processEvent(raw);
-        if(!content.trim())send("error",{message:"O modelo não retornou texto utilizável. Tente novamente."});
+        if(failed){/* Upstream error already sent; never signal completed. */}
+        else if(!content.trim())send("error",{message:"O modelo não retornou texto utilizável. Tente novamente."});
         else {
           if(outcome!=="stream_overflow"&&outcome!=="upstream_error")
-            outcome=finishReason==="length"?"length":"ok";
-          send("done",{model,truncated:finishReason==="length",characters:content.length});
+            outcome=finishReason==="length"?"length":!sawDone&&!finishReason?"incomplete":"ok";
+          send("done",{model,truncated:finishReason==="length"||(!sawDone&&!finishReason),characters:content.length});
         }
       }catch(error){
         outcome=error instanceof Error&&error.message==="stream_overflow"?"stream_overflow":exceptionOutcome(error);
@@ -121,7 +123,7 @@ Deno.serve(async req=>{
   const {data:identity,error:authError}=await db.auth.getUser(auth.slice(7));
   if(authError||!identity.user||identity.user.is_anonymous)
     return reply(401,{error:"unauthorized",message:"Faça login novamente para gerar com IA."});
-  let data:{mode?:string;tarefa?:string;requisito?:string}|null;
+  let data:{mode?:string;tarefa?:string;requisito?:string;batch?:unknown}|null;
   try{
     if(Number(req.headers.get("Content-Length")||0)>120000)throw Error("large");
     data=await req.json();
@@ -131,13 +133,19 @@ Deno.serve(async req=>{
   const requisito=typeof data?.requisito==="string"?data.requisito.trim():"";
   if(!mode||!["post","teste"].includes(mode)||!tarefa||tarefa.length>30000||requisito.length>20000)
     return reply(400,{error:"bad_input",message:"Informe uma tarefa válida e, se necessário, um requisito."});
+  const batch=data?.batch===undefined?null:parseGeneratorBatch(data.batch,mode);
+  if(data?.batch!==undefined&&!batch)
+    return reply(400,{error:"bad_input",message:"Lote de geração inválido: etapa, versão ou continuidade incorreta."});
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
   const models=await allowedModels(key,trace);
   if(!models.length)return reply(503,{error:"models_unavailable",message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
-  const messages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
+  const baseMessages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
+  const messages=batch?messagesForGeneratorBatch(mode as "post"|"teste",
+    tarefa,requisito,batch,baseMessages):baseMessages;
   const chars=promptChars(messages);
-  const maxTokens=mode==="teste"?11000:3500;
+  const maxTokens=batch?(mode==="teste"?3200:batch.stage==="details"?3500:2300):
+    mode==="teste"?11000:3500;
   for(const [modelIndex,model] of models.entries()){
     const telemetry={correlation_id:trace,mode,model,prompt_chars:chars,
       max_tokens:maxTokens,attempt:modelIndex+1,fallback_model:modelIndex>0};
