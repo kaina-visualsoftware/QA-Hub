@@ -1,5 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {createPublicAttachmentHandler} from "../supabase/functions/qa-public-evidence/handler.mjs";
 const owner="11111111-1111-4111-8111-111111111111";
 const task="22222222-2222-4222-8222-222222222222";
@@ -48,4 +49,16 @@ test("identificadores e tipos inválidos não consultam dados",async()=>{
   assert.equal((await handler(new Request("https://example.invalid/?"+query))).status,400);
  }
  assert.equal(calls,0);
+});
+
+test("public projection includes linked images when task is public, without old per-file opt-in",()=>{
+ const sql=readFileSync(new URL("../supabase/qa_public_task_visibility.sql",import.meta.url),"utf8");
+ const definition=sql.slice(sql.indexOf("create or replace function public.qa_public_task_v1"));
+ const imageProjection=definition.split("'evidencias', coalesce((")[1]?.split("'documents', coalesce((")[0]??"";
+ assert.match(imageProjection,/from public\.qa_evidencia_arquivos/);
+ assert.match(imageProjection,/where tarefa_id = p_task_id/);
+ assert.match(imageProjection,/and user_id = t\.user_id/);
+ assert.doesNotMatch(imageProjection,/\band publica\s+is\s+true\b/);
+ assert.match(definition,/where t\.id = p_task_id and t\.publica is true/);
+ assert.match(sql,/revoke update\(publica\) on public\.qa_evidencia_arquivos/);
 });
