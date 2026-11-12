@@ -1,0 +1,154 @@
+[
+  {
+    "case_id": "F8-01",
+    "fixture": "curta",
+    "category": "task",
+    "value": "Observação não aparece após salvar",
+    "quote": "Ao registrar uma observação, o sistema não mostra o texto após salvar.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-01-invented",
+    "fixture": "curta",
+    "category": "task",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "Ao registrar uma observação, o sistema não mostra o texto após salvar.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-02",
+    "fixture": "media",
+    "category": "cases",
+    "value": "Pedido sintético deve respeitar o status definido na etapa anterior",
+    "quote": "Requisito RF-1: um pedido sintético de referência deve respeitar o status definido na etapa anterior.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-02-invented",
+    "fixture": "media",
+    "category": "cases",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "Requisito RF-1: um pedido sintético de referência deve respeitar o status definido na etapa anterior.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-03",
+    "fixture": "longa-80k",
+    "category": "long",
+    "value": "RF-808: o histórico deve incluir uma única linha por operação confirmada.",
+    "quote": "RF-808: o histórico deve incluir uma única linha por operação confirmada.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-03-invented",
+    "fixture": "longa-80k",
+    "category": "long",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "RF-808: o histórico deve incluir uma única linha por operação confirmada.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-04",
+    "fixture": "apenas-requisito",
+    "category": "requirements",
+    "value": "Aplicar máscara do telefone ao cadastrar pessoa estrangeira",
+    "quote": "Ao cadastrar pessoa estrangeira, aplicar a máscara do telefone ao selecionar um país suportado.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-04-invented",
+    "fixture": "apenas-requisito",
+    "category": "requirements",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "Ao cadastrar pessoa estrangeira, aplicar a máscara do telefone ao selecionar um país suportado.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-05",
+    "fixture": "apenas-roteiro",
+    "category": "cases",
+    "value": "Cancelamento de pedido sem autorização",
+    "quote": "CENÁRIO 1 — Cancelamento de pedido sem autorização",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-05-invented",
+    "fixture": "apenas-roteiro",
+    "category": "cases",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "CENÁRIO 1 — Cancelamento de pedido sem autorização",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-06",
+    "fixture": "rotulos-interface",
+    "category": "ui-noise",
+    "value": "Campo de endereço não mantém o complemento após salvar",
+    "quote": "O campo de endereço não mantém o complemento após salvar.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-06-invented",
+    "fixture": "rotulos-interface",
+    "category": "ui-noise",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "O campo de endereço não mantém o complemento após salvar.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-07",
+    "fixture": "instrucao-maliciosa",
+    "category": "untrusted-source",
+    "value": "Mensagem incorreta ao validar campo vazio",
+    "quote": "O sistema mostra uma mensagem incorreta ao validar um campo vazio.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-07-invented",
+    "fixture": "instrucao-maliciosa",
+    "category": "untrusted-source",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "O sistema mostra uma mensagem incorreta ao validar um campo vazio.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-08",
+    "fixture": "tabelas-sql",
+    "category": "sql-reference",
+    "value": "Não alterar saldo ao apenas visualizar o pedido",
+    "quote": "Não alterar saldo ao apenas visualizar o pedido.",
+    "expected": "verified"
+  },
+  {
+    "case_id": "F8-08-invented",
+    "fixture": "tabelas-sql",
+    "category": "sql-reference",
+    "value": "Pedido 999999 foi aprovado",
+    "quote": "Não alterar saldo ao apenas visualizar o pedido.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-09",
+    "fixture": "media",
+    "category": "execution",
+    "value": "Teste aprovado",
+    "quote": "Observação: teste ainda não executado.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-10",
+    "fixture": "instrucao-maliciosa",
+    "category": "injection",
+    "value": "javascript:alert(1)",
+    "quote": "O sistema mostra uma mensagem incorreta ao validar um campo vazio.",
+    "expected": "needs_review"
+  },
+  {
+    "case_id": "F8-11",
+    "fixture": "rotulos-interface",
+    "category": "unrelated",
+    "value": "Corrigir desconto indevido",
+    "quote": "O campo de endereço não mantém o complemento após salvar.",
+    "expected": "needs_review"
+  }
+]
