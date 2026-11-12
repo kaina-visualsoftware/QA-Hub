@@ -1,7 +1,7 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {supabase} from "../src/lib/supabase";
 import {locateEvidence} from "../src/features/tasks/task-evidence";
-import {generateTaskAiDraftPhased,newCheckpoint,pipelinePendingCount,
+import {generateTaskAiDraftPhased,pipelinePendingCount,
  TASK_BATCH_CONCURRENCY} from "../src/features/tasks/task-ai-phased";
 import type {TaskPipelineCheckpoint} from "../src/features/tasks/task-ai-phased";
 
@@ -77,7 +77,7 @@ function reply(body:Record<string,unknown>){
  }
  throw Error("Unexpected mode "+mode);
 }
-const invoke=(body:Record<string,unknown>)=>reply(body) as never;
+const invoke=(body:Record<string,unknown>)=>reply(body);
 const failure=(status=503)=>({data:null,error:{context:{status,
  json:async()=>({code:"provider_unavailable",message:"NVIDIA indisponível"})}}} as never);
 
@@ -104,7 +104,7 @@ describe("Criação faseada com extração exclusiva pela NVIDIA",()=>{
     await new Promise(resolve=>setTimeout(resolve,10));
     active--;
    }
-   return invoke(body);
+   return invoke(body) as never;
   });
   const result=await generateTaskAiDraftPhased(text);
   const modes=spy.mock.calls.map(c=>(c[1]?.body as {mode:string}).mode);
@@ -173,7 +173,7 @@ describe("Criação faseada com extração exclusiva pela NVIDIA",()=>{
   const text=sourceWith(1);
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>{
    const body=args!.body as Record<string,unknown>,r=invoke(body);
-   if(body.mode!=="task-seeds")return r;
+   if(body.mode!=="task-seeds")return r as never;
    const original=(r.data as {draft:{seeds:Record<string,unknown>[]}}).draft.seeds[0];
    return {data:{...(r.data as Record<string,unknown>),
     draft:{seeds:[]},review_seeds:[{...original,evidence:{
