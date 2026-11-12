@@ -179,7 +179,14 @@ async function backend(route){
       await new Promise(resolve=>{releaseCasesRequest=resolve;});
       holdCasesRequest=false;
     }
-    const sse="event: chunk\ndata: "+JSON.stringify({text:markdown})+"\n\n"+
+    const stage=data.batch?.stage;
+    const section=stage==="setup"
+      ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar descontos.\n## Pré-requisitos\n- Pedido de teste."
+      :stage==="positive"?markdown
+      :stage==="negative"?"[Sem cenários negativos adicionais documentados]"
+      :stage==="regression"?"[Sem cenários de regressão adicionais documentados]"
+      :"## Resultado dos testes\n- A confirmar.";
+    const sse="event: chunk\ndata: "+JSON.stringify({text:section})+"\n\n"+
       "event: done\ndata: "+JSON.stringify({truncated:false})+"\n\n";
     return route.fulfill({status:200,headers:cors,contentType:"text/event-stream",body:sse});
   }
