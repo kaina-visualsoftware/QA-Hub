@@ -330,8 +330,8 @@ try{
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
-  assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
-  await wizard.getByRole("button",{name:"Voltar à geração"}).click();
+  // No tests are fabricated by field extraction; the QA must explicitly
+  // generate them in the next step before reviewing proposed scenarios.
   assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Configurar/);
   await wizard.getByLabel(/Requisitos e critérios de aceite/).fill(
     "RN01: Valores negativos devem ser removidos e refletidos na baixa."
@@ -342,19 +342,19 @@ try{
   });
   await wizard.getByText("requisito.txt").waitFor();
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o contexto/}).check();
-  await wizard.getByRole("button",{name:"Ampliar cobertura com IA"}).click();
+  await wizard.getByRole("button",{name:"Gerar casos de teste com IA"}).click();
   await statusPanel.getByText("Gerando cobertura de testes").waitFor();
   await statusPanel.getByText(/Aguardando a NVIDIA elaborar/).waitFor();
   assert.equal(await statusPanel.getByRole("button",{name:"Cancelar"}).count(),1,
     "Streaming case generation must offer an explicit cancel action");
   await casesStarted;
   releaseCasesRequest();
-  await page.getByText("2 caso(s) novo(s) identificados.",{exact:false}).waitFor();
+  await page.getByText("3 caso(s) novo(s) identificados.",{exact:false}).waitFor();
   await statusPanel.waitFor({state:"detached"});
   assert.match(caseRequests[0].tarefa,/o rateio ignora descontos negativos/i);
   assert.match(caseRequests[0].requisito,/CA01: A baixa financeira/);
   assert.equal(await wizard.locator(".qa-wizard-case").count(),3,
-    "The original case and exactly two unique cases must be shown");
+    "Three unique AI-generated cases must be reviewed, without inventing one during field extraction");
   assert.match(await wizard.locator(".qa-ai-step-flow li.is-current").innerText(),/Revisar/);
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
   for(const width of [320,390,768,1366]){
