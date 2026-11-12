@@ -24,6 +24,11 @@ export async function extractWithNvidia(text, db, onStatus=()=>{}) {
     throw Error('A NVIDIA não devolveu campos válidos. Nenhuma extração local foi executada.');
   try {
     const draft=parseOpenModelJson(JSON.stringify(data.draft));
+    // Literal consistency checks are allowed; they never infer missing values.
+    for(const key of ['codigo','versao']){
+      if(draft.fields?.[key] && !text.includes(draft.fields[key]))
+        delete draft.fields[key];
+    }
     if(!Object.keys(draft.fields??{}).length&&!draft.cenarios?.length)
       throw Error('Sem dados estruturados.');
     onStatus('Campos organizados com '+String(data.model||'NVIDIA Build')+'.');
