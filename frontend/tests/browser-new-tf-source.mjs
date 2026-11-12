@@ -454,7 +454,8 @@ try{
   assert.ok(aiRequests.at(-1).text.length<=30000,"Verified citations fit the model budget");
   assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  await wizard.getByRole("button",{name:/Finalizar com/}).click();
+  // Grounded field extraction alone must not invent unexecuted test cases.
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
   assert.ok(sources.some(item=>item.nome_arquivo==="Fonte original da TF"&&item.texto_extraido===longSource),
     "The full pasted report must be archived without truncation");
@@ -479,7 +480,7 @@ try{
   assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
   assert.match(aiRequests.at(-1).text,/TF-L\d+/);
   await wizard.getByRole("button",{name:"Avançar"}).click();
-  await wizard.getByRole("button",{name:/Finalizar com/}).click();
+  await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log("F2/F3: chunks, citations, consent and TF stored.");
