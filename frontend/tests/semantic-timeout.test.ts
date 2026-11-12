@@ -29,7 +29,7 @@ describe("Retomada semântica em documentos extensos",()=>{
   await expect(analyzeSemanticChunk(chunk,"teste",new AbortController().signal))
    .rejects.toThrow("A NVIDIA ultrapassou o tempo de resposta.");
   expect(requests).toHaveLength(1);
-  expect(requests[0]).toEqual({text:chunk.text,chunkId:chunk.id});
+  expect(requests[0]).toMatchObject({text:chunk.text,chunkId:chunk.id,goal:"teste",source:"TF"});
  });
  it("não fragmenta nem tenta novamente um bloco quando a sessão é inválida",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
