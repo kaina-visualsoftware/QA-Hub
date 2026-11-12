@@ -16,7 +16,7 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
  const [outcomes,setOutcomes]=useState<Record<string,ChunkOutcome>>({});
  const [working,setWorking]=useState(false);
  const [activeChunk,setActiveChunk]=useState<string|null>(null);
- const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|null>(null);
+ const [activeStage,setActiveStage]=useState<"preparing"|"sending"|"waiting"|"verifying"|"cooldown"|null>(null);
  const [attempt,setAttempt]=useState(0);
  const [elapsed,setElapsed]=useState(0);
  const [startedAt,setStartedAt]=useState<number|null>(null);
