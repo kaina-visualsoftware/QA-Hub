@@ -118,6 +118,11 @@ async function backend(route){
       holdTaskRequest=false;
     }
     if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
+    // This fixture contains TF fields and requirements, but no explicitly
+    // documented test-case steps. Only NVIDIA may identify scenario seeds.
+    if(payload.mode==="task-seeds")return send({stage:"seeds",
+      provider:"NVIDIA Build",model:"fixture",repaired:false,
+      draft:{seeds:[]},review_seeds:[]});
     assert.equal(payload.mode,"task-fields","Task creation must use evidence-grounded phased extraction");
     const input=payload.text;
     const quote=(needle)=>{
@@ -341,7 +346,8 @@ try{
     .locator("textarea").inputValue(),
     "A rotina também passou a validar os kits desdobrados.",
     "A newer AI result may refresh an unchanged earlier AI field");
-  assert.equal(aiRequests.length,2,"Reanalysis must reuse the same NVIDIA extraction service");
+  assert.equal(aiRequests.filter(x=>x.mode==="task-fields").length,2,"Reanalysis must reuse the NVIDIA field stage");
+   assert.ok(aiRequests.some(x=>x.mode==="task-seeds"),"Scenario discovery must run by NVIDIA, not a browser parser");
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
