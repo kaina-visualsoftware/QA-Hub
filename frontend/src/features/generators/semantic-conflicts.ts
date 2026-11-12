@@ -106,7 +106,7 @@ export function detectSemanticConflicts(outcomes:Map<string,ChunkOutcome>,
   // simultaneous operational requirements.
   if(/\b(?:antes da correcao|anteriormente|rejeitava|era rejeitad[oa])\b/.test(
    norm(a.quote+" "+b.quote)))continue;
-  const match=parsed[i].flatMap(x=>parsed[j].filter(y=>opposed(x,y)).map(y=>x))[0];
+  const match=parsed[i].find(x=>parsed[j].some(y=>opposed(x,y)));
   if(!match)continue;
   // Purely matched statements preserve all their qualifiers. A positive-tax
   // example cannot conflict with a zero-tax scenario by keyword alone.
