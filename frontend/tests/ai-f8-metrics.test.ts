@@ -9,7 +9,7 @@ describe("F8 — importação local de telemetria minimizada",()=>{
  it("importa JSONL e ignora dados estranhos, sem manter payloads do modelo",()=>{
   const source=[{...base,source:"TF confidencial",headers:{authorization:"SECRET"}},
    {...base,outcome:"timeout",elapsed_ms:12000,fallback_model:true},
-   {...base,event:"other"},{}].map(JSON.stringify).join("\n");
+   {...base,event:"other"},{}].map(item=>JSON.stringify(item)).join("\n");
   const parsed=parseAiLogExport(source);
   expect(parsed.attempts).toHaveLength(2);
   expect(parsed.ignored).toBe(2);
