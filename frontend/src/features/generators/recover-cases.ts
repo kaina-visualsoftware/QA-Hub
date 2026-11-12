@@ -26,3 +26,20 @@ export function recoverCompletedCases(checkpoint:GeneratorCheckpoint):GeneratedC
    item.passos.trim().length>0&&item.esperado.trim().length>0);
  return onlyNewScenarioCandidates(cases,[]).map(item=>({...item,selected:false}));
 }
+
+/** A case title is editable before an interrupted request is resumed. The
+ * untouched steps and expectation still identify that existing proposal.
+ * Replaying the same incomplete stage must not add the original AI title as
+ * a second case next to the human-renamed one.
+ */
+export function onlyNewResumedCases(candidates:GeneratedCase[],
+ saved:Pick<GeneratedCase,"titulo"|"passos"|"esperado">[],
+ pending:Pick<GeneratedCase,"titulo"|"passos"|"esperado">[]):GeneratedCase[]{
+ const normalize=(value:string)=>String(value??"").normalize("NFKC")
+  .replace(/\s+/g," ").trim().toLocaleLowerCase("pt-BR");
+ const fingerprint=(item:Pick<GeneratedCase,"passos"|"esperado">)=>
+  normalize(item.passos)+"\u241f"+normalize(item.esperado);
+ const reviewed=new Set(pending.map(fingerprint));
+ return onlyNewScenarioCandidates(candidates,[...saved,...pending])
+  .filter(item=>!reviewed.has(fingerprint(item)));
+}
