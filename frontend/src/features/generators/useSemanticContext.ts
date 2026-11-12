@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from "react";
+import {AiRequestError} from "../../lib/ai-retry";
 import type {AiWaitState} from "../../lib/ai-retry";
 import {analyzeSemanticChunk} from "./semantic-service";
 import {buildSemanticPlan,compileSemanticContext} from "./semantic-context";
@@ -87,27 +88,45 @@ export function useSemanticContext(task:string,requirements:string,goal:Semantic
   const abort=new AbortController();controller.current=abort;
   const signature=sourceKey;
   let next={...outcomes},done=0;
+  const failed:string[]=[];
+  let consecutiveFailures=0;
   try{
-   // Analyze the whole approved source in a single user-triggered workflow.
-   // Each completed part is checkpointed; quota retries remain bounded in
-   // analyzeSemanticChunk, and cancel preserves completed work.
+   // Each successful parent is checkpointed; unsuccessful parts stay pending.
+   // A transient failure cannot silently mark the source as fully analyzed.
    for(const chunk of pending){
     if(abort.signal.aborted||signature!==latest.current)throw Error("Análise cancelada.");
     setActiveChunk(chunk.id);setAttempt(value=>value+1);
     setActiveStage("preparing");
-    const result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
-      if(signature===latest.current&&!abort.signal.aborted)setActiveStage(stage);
-    },wait=>{
-      if(signature!==latest.current||abort.signal.aborted)return;
-      setQuotaWait(wait);
-    });
-    if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
-    next={...next,[chunk.id]:result};
-    setOutcomes(next);done++;
-    setMessage("Bloco "+chunk.id+" concluído: "+result.facts.length+
-      " citação(ões) verificada(s). "+Object.keys(next).length+" de "+plan.chunks.length+".");
+    try{
+     const result=await analyzeSemanticChunk(chunk,goal,abort.signal,stage=>{
+       if(signature===latest.current&&!abort.signal.aborted)setActiveStage(stage);
+     },wait=>{
+       if(signature!==latest.current||abort.signal.aborted)return;
+       setQuotaWait(wait);
+     });
+     if(abort.signal.aborted||signature!==latest.current)throw Error("A fonte mudou durante a análise.");
+     next={...next,[chunk.id]:result};
+     setOutcomes(next);done++;consecutiveFailures=0;
+     setMessage("Bloco "+chunk.id+" concluído: "+result.facts.length+
+       " citação(ões) verificada(s). "+Object.keys(next).length+" de "+plan.chunks.length+".");
+    }catch(reason){
+     if(abort.signal.aborted||signature!==latest.current)throw reason;
+     // Do not loop over the entire report on quota/auth/validation failure.
+     const retryable=reason instanceof AiRequestError&&
+       [503,504].includes(reason.status);
+     if(!retryable)throw reason;
+     failed.push(chunk.id);consecutiveFailures++;
+     // Continue with another source part where possible, but stop repeated
+     // upstream outages to avoid quota waste and lengthy unproductive waits.
+     if(consecutiveFailures>=2)break;
+    }finally{setQuotaWait(null);}
    }
-   if(Object.keys(next).length===plan.chunks.length)
+   if(failed.length){
+    setError("Não foi possível verificar "+failed.join(", ")+
+     ". Os trechos foram preservados. Use Retomar análise do texto para tentar as partes pendentes.");
+    setMessage(done+" parte(s) concluída(s) nesta tentativa. "+failed.length+
+     " parte(s) ainda precisam ser analisadas.");
+   }else if(Object.keys(next).length===plan.chunks.length)
     setMessage("Todos os blocos foram analisados. Revise a cobertura e autorize a geração.");
    else
     setMessage("Processamento interrompido após "+done+" parte(s); a análise poderá ser retomada.");
