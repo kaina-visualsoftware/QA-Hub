@@ -63,7 +63,7 @@ Deno.serve(async(req:Request)=>{
   quotaMessage:"Limite compartilhado da NVIDIA atingido. O rascunho foi preservado.",
   providerMessage:"A NVIDIA limitou as solicitações. O conteúdo foi preservado."
  });
- if(mapped)return reply(mapped.status,mapped.body,mapped.headers);
+ if(mapped)return reply(mapped.status,mapped.body,mapped.headers as Record<string,string>);
  if(outcome.contextExceeded&&!outcome.unstructured)
   return reply(400,{error:"model_context_exceeded",
    message:"O trecho ultrapassa o orçamento estimado do modelo. Revise a seleção."});

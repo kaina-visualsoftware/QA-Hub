@@ -71,7 +71,7 @@ Deno.serve(async req=>{
       providerMessage:"A NVIDIA limitou as requisições; o contexto foi preservado.",
       authMessage:"A chave NVIDIA precisa ser revisada no Supabase."
     });
-    if(mapped)return reply(mapped.status,mapped.body,mapped.headers);
+    if(mapped)return reply(mapped.status,mapped.body,mapped.headers as Record<string,string>);
     if(result.error?.kind==="context_exceeded")
       return reply(400,{error:"model_context_exceeded",
         message:"O contexto supera o orçamento de tokens do modelo. Revise a seleção."});
