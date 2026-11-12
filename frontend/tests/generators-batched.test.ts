@@ -4,7 +4,7 @@ import {assembleGeneratorSections,generateBatchedWithNvidia,
  unfinishedGeneratorStages} from "../src/features/generators/batched-stream";
 import type {GeneratorBatchRequest,GeneratorMode} from "../src/features/generators/stream";
 const mock=(handler:(batch:GeneratorBatchRequest)=>{text:string;truncated:boolean}|Promise<{text:string;truncated:boolean}>)=>
- vi.fn(async(mode:GeneratorMode,task:string,requirements:string,
+ vi.fn(async(_mode:GeneratorMode,_task:string,_requirements:string,
   onChunk:(text:string)=>void,_signal?:AbortSignal,_wait?:unknown,batch?:GeneratorBatchRequest)=>{
   const result=await handler(batch!);
   onChunk(result.text);
