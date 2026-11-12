@@ -3368,3 +3368,9 @@
  .qa-skeleton-line,.qa-task-skeleton-row .qa-skeleton-avatar,
  .qa-task-skeleton-row .qa-skeleton-text span,.qa-task-skeleton-row .qa-skeleton-badge{animation:none}
 }
+
+/* Dashboard metrics: never present pending requests as measured zeroes. */
+.qa-dashboard-skeleton-value{display:block;width:42px;height:24px;border-radius:7px;
+ background:linear-gradient(90deg,#e9f1f2 25%,#f5f9f9 48%,#e9f1f2 75%);
+ background-size:200% 100%;animation:qa-workspace-skeleton 1.5s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.qa-dashboard-skeleton-value{animation:none}}
