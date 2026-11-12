@@ -3,17 +3,18 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {GENERATOR_STAGE_IDS,parseGeneratorBatch} from "../supabase/functions/qa-generators/batches.mjs";
 const file=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
-test("batch validation happens before quota and provider discovery",()=>{
- const s=file("supabase/functions/qa-generators/index.ts");
- const validated=s.indexOf("const batch=data?.batch===undefined?");
- const discovery=s.indexOf("await allowedModels(");
- const quota=s.indexOf('db.rpc("qa_ai_claim_minute_request")');
- assert.ok(validated>0&&validated<discovery&&discovery<quota);
- assert.match(s,/if\(data\?\.batch!==undefined&&!batch\)/);
- assert.match(s,/if\(!claim\.data\.allowed\)/);
- assert.match(s,/retry_after_seconds/);
- assert.match(s,/!identity\.user\|\|identity\.user\.is_anonymous/);
- assert.match(s,/!ORIGINS\.has\(origin\)/);
+test("batch validation precedes model discovery, which precedes shared quota",()=>{
+ const source=file("supabase/functions/qa-generators/index.ts");
+ const runtime=file("supabase/functions/_shared/llm/edge-runtime.mjs");
+ const checked=source.indexOf("const batch=data?.batch===undefined?");
+ const discovery=source.indexOf("await edgeModels(");
+ const streaming=source.indexOf("await edgeStreamingModels(");
+ assert.ok(checked>0&&checked<discovery&&discovery<streaming);
+ assert.match(source,/if\(data\?\.batch!==undefined&&!batch\)/);
+ assert.match(runtime,/db\.rpc\("qa_ai_claim_minute_request"\)/);
+ assert.match(runtime,/retryAfterSeconds/);
+ assert.match(source,/!identity\.user\|\|identity\.user\.is_anonymous/);
+ assert.match(source,/!ORIGINS\.has\(origin\)/);
 });
 test("legacy calls without batch retain existing full prompts and output limits",()=>{
  const s=file("supabase/functions/qa-generators/index.ts");
@@ -21,13 +22,15 @@ test("legacy calls without batch retain existing full prompts and output limits"
  assert.match(s,/:baseMessages/);
  assert.match(s,/mode==="teste"\?11000:3500/);
 });
-test("SSE distinguishes length and dropped transport from actual completion",()=>{
- const s=file("supabase/functions/qa-generators/index.ts");
- assert.match(s,/finishReason==="length"/);
- assert.match(s,/!sawDone&&!finishReason/);
- assert.match(s,/if\(failed\)/);
- assert.match(s,/send\("error"/);
- assert.match(s,/send\("done"/);
+test("SSE length, transport failure and complete response are distinguished by shared provider",()=>{
+ const shared=file("supabase/functions/_shared/llm/edge-runtime.mjs");
+ const model=file("supabase/functions/_shared/llm/call-model.mjs");
+ assert.match(shared,/truncated:result\.finishReason==="length"/);
+ assert.match(shared,/if\(hasStarted\)/);
+ assert.match(shared,/send\("error"/);
+ assert.match(shared,/send\("done"/);
+ assert.match(model,/!state\.done&&!state\.finishReason/);
+ assert.match(model,/state\.finishReason==="length"/);
 });
 test("frontend assembles before formatting or attaching and keeps old results on failure",()=>{
  const s=file("frontend/src/features/generators/GeneratorPanel.tsx");

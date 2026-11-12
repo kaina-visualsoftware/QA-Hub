@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 const file=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 const paths=["qa-ai","qa-generators","qa-context","qa-revisions"];
-test("all four Edge Functions retain auth and quota while sending F2 errors",()=>{
+test("all four Edge Functions keep F2 errors and quota via shared provider",()=>{
+ const runtime=file("supabase/functions/_shared/llm/edge-runtime.mjs");
+ assert.match(runtime,/qa_ai_claim_minute_request/);
+ assert.match(runtime,/retry_after_seconds/);
+ assert.match(runtime,/Retry-After/);
  for(const name of paths){
   const source=file("supabase/functions/"+name+"/index.ts");
   assert.match(source,/ai-error-response\.mjs/,name);
@@ -11,11 +15,10 @@ test("all four Edge Functions retain auth and quota while sending F2 errors",()=
   assert.match(source,/errorHeaders\(/,name);
   assert.match(source,/X-Request-ID/,name);
   assert.match(source,/Access-Control-Expose-Headers/,name);
-  assert.match(source,/qa_ai_claim_minute_request/,name);
   assert.match(source,/\.auth\.getUser\(/,name);
   assert.match(source,/is_anonymous/,name);
-  assert.match(source,/retry_after_seconds/,name);
-  assert.match(source,/Retry-After/,name);
+  if(name==="qa-ai")assert.match(source,/qa_ai_claim_minute_request/);
+  else assert.match(source,/edgeErrorHttp\(/);
  }
 });
 test("quota rejected streams are retried only before SSE starts",()=>{
