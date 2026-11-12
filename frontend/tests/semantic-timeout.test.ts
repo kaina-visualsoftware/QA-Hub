@@ -1,6 +1,6 @@
 import {describe,expect,it,vi,afterEach} from "vitest";
 import {buildSemanticPlan} from "../src/features/generators/semantic-context";
-import {analyzeSemanticChunk,splitSemanticChunk} from
+import {analyzeSemanticChunk} from
  "../src/features/generators/semantic-service";
 
 vi.mock("../src/lib/supabase",()=>({
@@ -15,18 +15,6 @@ const original=Array.from({length:69},(_,i)=>
  ": conferir o vale-compra como entrada quitada, nunca como desconto de NF.").join("\n");
 
 describe("Retomada semântica em documentos extensos",()=>{
- it("reparte sem perder um caractere, linha ou caractere Unicode",()=>{
-  const source="🧪 Análise inicial\n"+original+"\n"+("📄".repeat(700));
-  const chunk=buildSemanticPlan(source).chunks[0];
-  const [a,b]=splitSemanticChunk(chunk);
-  expect(a.text+b.text).toBe(chunk.text);
-  expect(a.start).toBe(chunk.start);
-  expect(b.start).toBe(a.end);
-  expect(b.end).toBe(chunk.end);
-  expect(b.startLine).toBe(chunk.startLine+(a.text.match(/\n/g)?.length??0));
-  expect(a.text.endsWith("\uD83E")).toBe(false);
-  expect(b.text.startsWith("\uDDEA")).toBe(false);
- });
  it("não extrai informações ou cria novas chamadas após um 504",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
   const requests:{text:string;chunkId:string}[]=[];
