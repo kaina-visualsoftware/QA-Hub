@@ -24,5 +24,5 @@ export function recoverCompletedCases(checkpoint:GeneratorCheckpoint):GeneratedC
  const cases=parseGeneratedCases(markdown)
   .filter(item=>item.titulo.trim().length>=3&&
    item.passos.trim().length>0&&item.esperado.trim().length>0);
- return onlyNewScenarioCandidates(cases).map(item=>({...item,selected:false}));
+ return onlyNewScenarioCandidates(cases,[]).map(item=>({...item,selected:false}));
 }
