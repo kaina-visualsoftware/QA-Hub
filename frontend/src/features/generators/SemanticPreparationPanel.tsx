@@ -41,6 +41,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
      <span>{semantic.activeStage==="preparing"?"Validando sessão":
        semantic.activeStage==="sending"?"Preparando solicitação segura":
        semantic.activeStage==="waiting"?"Aguardando resposta da NVIDIA":
+       semantic.activeStage==="cooldown"?"Recuperação automática: próxima tentativa pela NVIDIA com resposta menor":
        semantic.activeStage==="verifying"?"Conferindo as citações com a fonte original":
        "Preparando próxima parte"}</span>
      <small aria-live="off">Tempo decorrido neste lote: {String(Math.floor(semantic.elapsed/60)).padStart(2,"0")}:{String(semantic.elapsed%60).padStart(2,"0")} ·
