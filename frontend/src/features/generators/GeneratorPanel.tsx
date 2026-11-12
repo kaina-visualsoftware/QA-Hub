@@ -26,6 +26,9 @@ import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import { generateWithNvidia } from "./stream";
+import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
+ unfinishedGeneratorStages} from "./batched-stream";
+import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
@@ -80,6 +83,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [compactApproved, setCompactApproved] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activityPhase, setActivityPhase] = useState<ActivityPhase>("connecting");
+  const [batchProgress,setBatchProgress]=useState<GeneratorBatchProgress|null>(null);
+  const batchCheckpoint=useRef<GeneratorCheckpoint|null>(null);
   const [showSetup, setShowSetup] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
@@ -137,6 +142,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
     setChangedCodes([]);
     lastGenerationInput.current=null;
+    batchCheckpoint.current=null;setBatchProgress(null);
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
@@ -295,9 +301,18 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   async function generate() {
     if (!canSend || !context) return;
-    // Never discard human-edited drafts just because the user requests another answer.
-    if (dirtyOutput && (content.trim() || cases.length) &&
-      !window.confirm("Substituir a versão editada? As alterações manuais serão perdidas se a nova geração for concluída.")) return;
+    // Check whether a checkpoint has precisely the same approved source.
+    const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
+      ?semantic.digest.task:context.prepared.task.text;
+    const sentRequirements=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
+      ?semantic.digest.requirements:context.prepared.requirements?.text??"";
+    const existing=matchesGeneratorCheckpoint(batchCheckpoint.current,mode,
+      sentTask,sentRequirements)?batchCheckpoint.current:null;
+    const resume=Boolean(existing&&unfinishedGeneratorStages(existing)>0);
+    // Continuing an interrupted generation must not discard manual edits.
+    if(!resume&&dirtyOutput&&(content.trim()||cases.length)&&
+      !window.confirm("Substituir a versão editada? As alterações manuais serão perdidas se a nova geração for concluída."))
+      return;
     const nextId = crypto.randomUUID();
     const previousRaw = raw;
     const previousTruncated=truncated;
@@ -308,22 +323,21 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const abort = new AbortController();
     controller.current = abort;
     try {
-      // All identity, support and approved requirements are scoped to this TF.
-      // The full redacted payload is inspectable on screen before consent.
-      const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
-        ?semantic.digest.task:context.prepared.task.text;
-      const sentRequirements=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
-        ?semantic.digest.requirements:context.prepared.requirements?.text??"";
-      const response = await generateWithNvidia(
-        mode, sentTask, sentRequirements,
-        (chunk) => {
-          setActivityPhase("receiving");
-          setRaw((previous) => previous + chunk);
-        }, abort.signal,setGeneratorWait
-      );
+      // Same authorized source is reused in every stage; each attempt
+      // still reserves its own 15/min quota slot on the server.
+      if(!resume)batchCheckpoint.current=null;
+      const response = await generateBatchedWithNvidia(
+        mode,sentTask,sentRequirements,{
+        checkpoint:existing,signal:abort.signal,onWait:setGeneratorWait,
+        onCheckpoint:cp=>{batchCheckpoint.current=cp;},
+        onPreview:preview=>{setActivityPhase("receiving");setRaw(preview);},
+        onProgress:progress=>{setBatchProgress(progress);
+          setActivityPhase(progress.continuation?"receiving":"connecting");}
+      });
       setActivityPhase("organizing");
       lastGenerationInput.current={task:sentTask,requirements:sentRequirements};
       setGenerationId(nextId);
+      batchCheckpoint.current=null;setBatchProgress(null);
       setTruncated(response.truncated);
       setDirtyOutput(false);
       let newCases = 0;
@@ -351,11 +365,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
       setShowSetup(true);
+      const pending=batchCheckpoint.current?
+        unfinishedGeneratorStages(batchCheckpoint.current):0;
       setError(abort.signal.aborted
-        ? "Geração cancelada. A versão anterior foi preservada."
-        : messageOf(cause) + " A versão anterior foi preservada; tente novamente.");
+        ? "Geração cancelada. A versão anterior foi preservada."+
+          (pending?" As "+pending+" etapa(s) restantes podem ser retomadas.":"")
+        : messageOf(cause)+" A versão anterior foi preservada."+
+          (pending?" Retome as "+pending+" etapa(s) restantes sem repetir as concluídas.":""));
     } finally {
       setGenerating(false); controller.current = null;setGeneratorWait(null);
+      setBatchProgress(null);
       onBusyChange?.(false);
     }
   }
@@ -646,8 +665,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           <Button isDisabled={!canSend} onPress={() => void generate()}>
             {generating?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
               raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
-            {generating ? "Gerando…" : raw||content||cases.length ? "Gerar novamente"
-              : mode === "post" ? "Gerar post" : "Gerar casos"}
+            {generating ? "Gerando…" :
+              batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0
+               ? "Retomar "+unfinishedGeneratorStages(batchCheckpoint.current)+" etapa(s)"
+               : raw||content||cases.length?"Gerar novamente":
+                 mode==="post"?"Gerar post":"Gerar casos"}
           </Button>
           {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
             Cancelar geração
@@ -660,6 +682,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </p>
     </div>}
     {generating&&<AiQuotaWait state={generatorWait} onCancel={()=>controller.current?.abort()}/>}
+    {generating&&batchProgress&&
+      <div className="qa-generation-batch-status" role="status" aria-live="polite">
+        <strong>{mode==="post"?"Post por seções":"Roteiro por grupos"} ·
+          {" "+(batchProgress.index+1)+" de "+batchProgress.total}</strong>
+        <span>{batchProgress.continuation
+          ?"Continuando trecho interrompido ("+batchProgress.continuation+" de 2)":
+            "Etapa "+batchProgress.stage+" em processamento"}</span>
+        <progress value={batchProgress.completed} max={batchProgress.total}
+          aria-label="Seções concluídas"/>
+        <small>{batchProgress.completed} seção(ões) concluída(s). Os trechos anteriores não são reenviados.</small>
+      </div>}
      {generating && <GeneratorActivity
       phase={generatorWait?"cooldown":activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
