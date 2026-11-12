@@ -34,7 +34,9 @@ test("model catalogue preserves priority, declarative reasoning and JSON modes",
  assert.equal(modelRequestOptions(model,"diagram").response_format,undefined);
  assert.equal(modelRequestOptions(model,"summary").response_format,undefined);
  assert.equal(modelRequestOptions(model,"task").max_tokens,8192);
- assert.equal(MODEL_REGISTRY[model].contextTokens,null); // F3, not guessed
+ assert.equal(MODEL_REGISTRY[model].contextTokens,1048576);
+ assert.equal(MODEL_REGISTRY[model].maxOutputTokens,null);
+ assert.equal(MODEL_REGISTRY[model].contextSource,"published_model_spec_not_hosted_guarantee");
 });
 test("discovery uses one GET for cached and concurrent requests",async()=>{
  clearModelDiscoveryCache();let calls=0;

@@ -1,3 +1,5 @@
+import {estimateContextTokens,localContextBudget,fitsContextBudget} from "../../lib/token-budget";
+
 /** Local, auditable context preparation before calling NVIDIA.
  * No extra API requests, no browser persistence, no invisible truncation.
  * This is an extractive selection, NOT a semantic summary of missing facts.
@@ -6,6 +8,9 @@ export type ContextPreparation = {
   text:string;
   originalChars:number;
   sentChars:number;
+  originalEstimatedTokens:number;
+  sentEstimatedTokens:number;
+  tokenBudget:number;
   originalLines:number;
   selectedLines:number;
   omittedLines:number;
@@ -75,8 +80,8 @@ function score(value:string,index:number):number{
 const key=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .replace(/\s+/g," ").trim().toLocaleLowerCase("pt-BR");
 const lineTag=(u:Unit)=>"[L"+u.line+"] "+u.value;
-export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
-  limit:number;description?:string
+export function prepareQaContext(source:string,{limit,description="conteúdo",tokenLimit=localContextBudget(limit)}:{
+  limit:number;description?:string;tokenLimit?:number
 }):ContextPreparation{
   if(!Number.isInteger(limit)||limit<1000||limit>250000)
     throw Error("Limite de preparação inválido.");
@@ -85,14 +90,19 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   if(original.length>2000000)throw Error(
     "Contexto acima de 2 milhões de caracteres. Divida em fontes antes de analisar."
   );
+  if(!Number.isInteger(tokenLimit)||tokenLimit<300||tokenLimit>500000)
+    throw Error("Orçamento de tokens inválido.");
   const rawLines=original.split("\n");
-  const basic={originalChars:original.length,originalLines:rawLines.length};
-  if(original.length<=limit)return {text:original,...basic,
-    sentChars:original.length,selectedLines:rawLines.length,omittedLines:0,
+  const basic={originalChars:original.length,originalLines:rawLines.length,
+    originalEstimatedTokens:estimateContextTokens(original),tokenBudget:tokenLimit};
+  if(fitsContextBudget(original,limit,tokenLimit))return {text:original,...basic,
+    sentChars:original.length,sentEstimatedTokens:basic.originalEstimatedTokens,
+    selectedLines:rawLines.length,omittedLines:0,
     duplicatedLines:0,criticalOmissions:0,mode:"integral",needsReview:false};
   const normalized=original.replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n");
-  if(normalized.length<=limit)return {text:normalized,...basic,
-    sentChars:normalized.length,selectedLines:rawLines.length,omittedLines:0,
+  if(fitsContextBudget(normalized,limit,tokenLimit))return {text:normalized,...basic,
+    sentChars:normalized.length,sentEstimatedTokens:estimateContextTokens(normalized),
+    selectedLines:rawLines.length,omittedLines:0,
     duplicatedLines:0,criticalOmissions:0,mode:"normalizado",needsReview:false};
   const seen=new Set<string>();
   const units:Unit[]=[];
@@ -119,13 +129,15 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
   }
   const selected=new Set<number>();
   const cost=(unit:Unit)=>lineTag(unit).length+1;
+  const tokenCost=(unit:Unit)=>estimateContextTokens(lineTag(unit)+"\n");
   const budget=Math.max(100,limit-480);
-  let used=0;
+  const tokenBudgetForLines=Math.max(0,tokenLimit-Math.min(420,Math.ceil(tokenLimit*.55)));
+  let used=0,usedTokens=0;
   function include(index:number){
     if(selected.has(index))return;
-    const delta=cost(units[index]);
-    if(used+delta>budget)return;
-    selected.add(index);used+=delta;
+    const delta=cost(units[index]),tokenDelta=tokenCost(units[index]);
+    if(used+delta>budget||usedTokens+tokenDelta>tokenBudgetForLines)return;
+    selected.add(index);used+=delta;usedTokens+=tokenDelta;
   }
   // Read the WHOLE source by functional section. Preserve representative
   // facts per topic before spending any remaining budget on less relevant text.
@@ -176,6 +188,8 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
     return [{label:TOPIC_LABELS[topic],line:units[picked].line,
       excerpt:units[picked].value.slice(0,260)}];
   });
+  if(!picked.length||!picked.some(index=>/[\p{L}\p{N}]{3}/u.test(units[index].value)))
+    throw Error("Nenhum trecho coube no orçamento estimado. Divida a fonte em partes menores ou utilize a análise semântica por blocos, sem descartar os dados originais.");
   const omitted=units.filter((_,index)=>!selected.has(index));
   const critical=omitted.filter(unit=>unit.critical).length;
   const header=[
@@ -187,8 +201,10 @@ export function prepareQaContext(source:string,{limit,description="conteúdo"}:{
     ""
   ].join("\n");
   const text=header+picked.map(index=>lineTag(units[index])).join("\n");
-  if(text.length>limit)throw Error("Não foi possível preparar o contexto dentro do limite.");
-  return {...basic,text,sentChars:text.length,selectedLines:picked.length,
+  if(!fitsContextBudget(text,limit,tokenLimit))
+    throw Error("Não foi possível preparar o contexto dentro do orçamento de caracteres e tokens estimados.");
+  return {...basic,text,sentChars:text.length,sentEstimatedTokens:estimateContextTokens(text),
+    selectedLines:picked.length,
     omittedLines:omitted.length,duplicatedLines:duplicate,
     criticalOmissions:critical,mode:"extrativo",needsReview:true,topics:topicCoverage,findings};
 }

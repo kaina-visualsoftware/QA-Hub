@@ -2,8 +2,17 @@ import {describe,expect,it} from "vitest";
 import {buildSemanticPlan,compileSemanticContext,validateSemanticFacts,SEMANTIC_CHUNK_SIZE} from
  "../src/features/generators/semantic-context";
 import type {ChunkOutcome} from "../src/features/generators/semantic-context";
+import {estimateContextTokens} from "../src/lib/token-budget";
 
 describe("F2/F3 — análise semântica auditável do QA Hub",()=>{
+ it("F3 reparte texto com caracteres multibyte sem perder emoji, linhas ou caracteres",()=>{
+  const text="RF-932: "+("🧪".repeat(6000))+"\nResultado esperado: válido.";
+  const plan=buildSemanticPlan(text);
+  expect(plan.chunks.length).toBeGreaterThan(1);
+  expect(plan.chunks.map(c=>c.text).join("")).toBe(text);
+  expect(plan.chunks.every(c=>estimateContextTokens(c.text)<=6000)).toBe(true);
+  expect(plan.chunks.every(c=>!c.text.endsWith("\uD83E"))).toBe(true);
+ });
  it("preserva integralmente o texto de cada fonte ao dividir, inclusive SQL e linhas longas",()=>{
   const tf=[
    "TF-67866 — Desconto negativo", "## Problema",
