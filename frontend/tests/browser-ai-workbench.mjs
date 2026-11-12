@@ -319,11 +319,12 @@ try {
       assert.equal(await dialog.getByText("Validar recálculo de desconto").count()>0,true);
       await dialog.getByRole("button",{name:"Regerar apenas este caso"}).click();
       await dialog.getByRole("button",{name:"Aplicar somente neste trecho"}).click();
-      await dialog.getByText("Recalcular pedido sem desconto").waitFor();
-      // The immutable model transcript may retain the original title;
-      // only the editable QA case must be rewritten.
+      // Applying the accepted diff awaits the private audit write. Waiting
+      // for the preview text alone races the async state update; require the
+      // revised title to appear in the actual editable case card.
       const revisedCase=dialog.locator(".qa-ai-case-review")
         .filter({hasText:"Recalcular pedido sem desconto"});
+      await revisedCase.waitFor({timeout:12000});
       assert.equal(await revisedCase.count(),1);
       assert.equal(await revisedCase.getByText("Validar recálculo de desconto",{exact:true}).count(),0);
       assert.equal(scenarioWrites,0,"A revision is a draft until the QA explicitly saves cases.");
