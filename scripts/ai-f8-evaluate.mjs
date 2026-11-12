@@ -33,7 +33,7 @@ const report={
  },
  results
 };
-const output=process.argv[2]||"";
+const output=process.argv.slice(2).find(arg=>arg!=="--json")??"";
 if(output){
  const path=resolve(output);
  mkdirSync(dirname(path),{recursive:true});
