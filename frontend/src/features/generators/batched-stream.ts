@@ -42,7 +42,7 @@ export function mergeContinuation(before:string,after:string):string{
  if(!before)return after;
  if(!after)return before;
  const max=Math.min(before.length,after.length,MAX_TAIL);
- for(let count=max;count>=16;count--)
+ for(let count=max;count>=10;count--)
   if(before.endsWith(after.slice(0,count)))return before+after.slice(count);
  return before+after;
 }
@@ -59,7 +59,8 @@ export function assembleGeneratorSections(mode:GeneratorMode,sections:string[]):
   content=content.replace(/\*\*Cenários executados:\*\*\s*___\s*\/\s*(?:\d+|<[^>]+>)/gi,
    "**Cenários executados:** ___ / "+index);
  }
- if(content.length>TOTAL_LIMIT)throw Error("O conteúdo montado excede o limite de segurança.");
+ if(content.length>(mode==="post"?80000:TOTAL_LIMIT))
+  throw Error("O conteúdo montado excede o limite de segurança.");
  return content;
 }
 function assembledPreview(checkpoint:GeneratorCheckpoint,more=""){

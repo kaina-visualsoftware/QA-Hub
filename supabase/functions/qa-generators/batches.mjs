@@ -22,6 +22,7 @@ const descriptions=Object.freeze({
 /** Strict request parser; rejects arbitrary stages, unknown keys, huge
  * continuation context, unexpected ordering, and unbounded retries.
  */
+/** @param {unknown} value @param {string} mode */
 export function parseGeneratorBatch(value,mode){
  const allowed=GENERATOR_STAGE_IDS[mode];
  if(!allowed||!value||typeof value!=="object"||Array.isArray(value))return null;
@@ -40,6 +41,12 @@ export function parseGeneratorBatch(value,mode){
 }
 /** @param {"post"|"teste"} mode
  * @param {ReturnType<typeof parseGeneratorBatch>} batch
+ */
+/** @param {"post"|"teste"} mode
+ * @param {string} tarefa
+ * @param {string} requisito
+ * @param {ReturnType<typeof parseGeneratorBatch>} batch
+ * @param {{role:string,content:string}[]} baseMessages
  */
 export function messagesForGeneratorBatch(mode,tarefa,requisito,batch,baseMessages){
  if(!batch||!GENERATOR_STAGE_IDS[mode])throw TypeError("Lote não autorizado.");

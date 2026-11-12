@@ -295,3 +295,14 @@
  .qa-revision-preview-actions button{flex:1 1 auto}
  .qa-targeted-revision>button{width:100%;justify-self:stretch}
 }
+
+/* F6 — concrete per-section progress, no fake time-to-finish estimate. */
+.qa-generation-batch-status{min-width:0;display:grid;gap:7px;padding:11px 13px;
+ border:1px solid #c9e0df;border-radius:10px;background:#f5faf9;color:#27535b;
+ font-size:.79rem;line-height:1.45}
+.qa-generation-batch-status strong{font-size:.84rem;font-weight:750}
+.qa-generation-batch-status span{color:#456973}
+.qa-generation-batch-status progress{width:100%;height:9px;accent-color:#257a74;
+ border-radius:6px;overflow:hidden}
+.qa-generation-batch-status small{color:#536f79;font-size:.73rem}
+@media(max-width:640px){.qa-generation-batch-status{padding:10px}}
