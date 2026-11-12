@@ -444,7 +444,7 @@ try{
     "Unreviewed long sources cannot silently use a partial extract.");
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   const beforeChunks=semanticRequests.length;
-  await wizard.getByRole("button",{name:"Preparar todo o texto"}).click();
+  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:60000});
   assert.ok(semanticRequests.length-beforeChunks>=10,
     "The original report must be read in successive chunks, not one shortened prompt.");
@@ -471,7 +471,7 @@ try{
   assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0);
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
-  await wizard.getByRole("button",{name:"Preparar todo o texto"}).click();
+  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:30000});
   assert.ok(semanticRequests.length>=3,"Long source must be processed in multiple chunks");
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
