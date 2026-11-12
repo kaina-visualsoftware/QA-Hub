@@ -46,3 +46,12 @@ test("F5 multi-line evidence with whitespace and emoji remains anchored",()=>{
  const found=findEvidence(source,"RF-10: Registrar o pedido. 🧪 Validar retorno esperado.");
  assert.equal(found?.line,1);
 });
+
+test("F8 golden guard rejects falsely approved test from pending source",()=>{
+ const source="Observação: teste ainda não executado.";
+ const evidence="Observação: teste ainda não executado.";
+ assert.equal(verifyGrounding(source,"Teste aprovado",evidence).reason,
+  "execution_not_proven");
+ assert.equal(verifyGrounding(source,"Teste ainda não executado",evidence).status,
+  "verified");
+});

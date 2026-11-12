@@ -58,6 +58,15 @@ function sharedEvidenceTerms(value,quote){
  const a=terms(value),b=terms(quote);
  return a.size===0||[...a].some(term=>b.has(term));
 }
+/** Refuse explicit claims of passed/executed tests when a cited source
+ * actually says that execution is pending or unrecorded. A shared word such
+ * as "teste" alone must not reverse the factual status of a test.
+ */
+export function executionContradiction(value,quote){
+ const success=/\b(?:aprovad[oa]s?|passou|validado|executad[oa]s?\s+com\s+sucesso|teste[s]?\s+conclu[ií]d[oa]s?)\b/iu;
+ const pending=/\b(?:n[aã]o\s+(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?)|pendente|a\s+confirmar|n[aã]o\s+foi\s+realizado)\b/iu;
+ return success.test(value)&&pending.test(quote);
+}
 /** A verified citation proves the quote occurs in submitted source, NOT that
  * every paraphrase is logically entailed. Unverifiable content stays in review.
  */
@@ -69,6 +78,10 @@ export function verifyGrounding(source,value,quote){
   reason:"identifier_not_in_source",quote:found.quote};
  if(suspicious.test(value))return {status:"needs_review",source_line:found.line,
   reason:"untrusted_instruction",quote:found.quote};
+ if(executionContradiction(value,found.quote))return {
+  status:"needs_review",source_line:found.line,
+  reason:"execution_not_proven",quote:found.quote
+ };
  if(!sharedEvidenceTerms(value,found.quote))return {
   status:"needs_review",source_line:found.line,
   reason:"claim_not_supported_by_quote",quote:found.quote

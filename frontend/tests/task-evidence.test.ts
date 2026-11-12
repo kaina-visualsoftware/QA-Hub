@@ -107,3 +107,19 @@ describe("F5 — evidência literal e revisão explícita",()=>{
   expect(parsed.accepted[0]).not.toHaveProperty("status");
  });
 });
+
+describe("F8 — status de execução não pode contradizer a citação",()=>{
+ it("não considera um teste pendente como aprovado",()=>{
+  const quote="Observação: teste ainda não executado.";
+  const source=quote;
+  const response={
+   provider:"NVIDIA Build",stage:"fields",model:"glm-fixture",repaired:false,
+   draft:{conclusao:"Teste aprovado"},
+   field_evidence:{conclusao:{quote,source_line:1,status:"verified",reason:null}},
+   review_fields:[]
+  };
+  const result=parseGroundedFieldReply(response,source);
+  expect(result.values.conclusao).toBe("");
+  expect(result.review[0].status).toBe("needs_review");
+ });
+});
