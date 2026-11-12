@@ -295,7 +295,9 @@ try{
     "Falha da IA deve manter o rascunho editado.");
   await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
   page.once("dialog",dialog=>void dialog.accept());
-  await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  // After an interrupted stage, the pipeline correctly offers to resume
+  // pending batches instead of starting an unrelated fresh run.
+  await page.getByRole("button",{name:/^(?:Retomar \d+ etapa\(s\)|Gerar novamente)$/}).click();
   await page.getByRole("button",{name:/Anexar 1 caso/}).waitFor();
   assert.equal(aiCalls,3);
   assert.equal(attachCalls,0);
