@@ -26,7 +26,8 @@ import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
 import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
- unfinishedGeneratorStages} from "./batched-stream";
+ unfinishedGeneratorStages,restartInterruptedGeneratorStage} from "./batched-stream";
+import {recoverCompletedCases} from "./recover-cases";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
@@ -88,6 +89,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [showSetup, setShowSetup] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
+  const [interruptedPreview,setInterruptedPreview] = useState("");
   const [content, setContent] = useState("");
   const [cases, setCases] = useState<GeneratedCase[]>([]);
   const [generatedCount, setGeneratedCount] = useState(0);
@@ -133,7 +135,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   }, []);
 
   useEffect(() => {
-    setRaw(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
+    setRaw(""); setInterruptedPreview(""); setContent(""); setCases([]); setGeneratedCount(0); setConsent(false);
     setPreset("essencial");setExtra("");setPostFormat("markdown");setCanonicalPost("");
     setMessage(""); setError(""); setDirtyOutput(false);
     setShowSetup(true); setCompleted(false);
@@ -309,6 +311,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     const existing=matchesGeneratorCheckpoint(batchCheckpoint.current,mode,
       sentTask,sentRequirements)?batchCheckpoint.current:null;
     const resume=Boolean(existing&&unfinishedGeneratorStages(existing)>0);
+    // Retry only the exhausted stage; completed stages remain immutable.
+    // Previously recovered cases stay in the review list.
+    const usableCheckpoint=resume&&existing&&mode==="teste"?
+      restartInterruptedGeneratorStage(existing):existing;
     // Continuing an interrupted generation must not discard manual edits.
     if(!resume&&dirtyOutput&&(content.trim()||cases.length)&&
       !window.confirm("Substituir a versão editada? As alterações manuais serão perdidas se a nova geração for concluída."))
@@ -325,10 +331,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     try {
       // Same authorized source is reused in every stage; each attempt
       // still reserves its own 15/min quota slot on the server.
-      if(!resume)batchCheckpoint.current=null;
+      if(!resume){batchCheckpoint.current=null;setInterruptedPreview("");}
       const response = await generateBatchedWithNvidia(
         mode,sentTask,sentRequirements,{
-        checkpoint:existing,signal:abort.signal,onWait:setGeneratorWait,
+        checkpoint:usableCheckpoint,signal:abort.signal,onWait:setGeneratorWait,
         onCheckpoint:cp=>{batchCheckpoint.current=cp;},
         onPreview:preview=>{setActivityPhase("receiving");setRaw(preview);},
         onProgress:progress=>{setBatchProgress(progress);
@@ -336,7 +342,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       });
       setActivityPhase("organizing");
       lastGenerationInput.current={task:sentTask,requirements:sentRequirements};
-      setGenerationId(nextId);
+      if(!resume)setGenerationId(nextId);
       batchCheckpoint.current=null;setBatchProgress(null);
       setTruncated(response.truncated);
       setDirtyOutput(false);
@@ -349,11 +355,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setContent(renderPostFormat(formatted,postFormat));
       } else {
         const candidates = parseGeneratedCases(response.text);
-        const fresh = onlyNewScenarioCandidates(candidates, scenarios);
+        const fresh = onlyNewScenarioCandidates(candidates,
+          resume?[...scenarios,...cases]:scenarios);
         newCases = fresh.length;
-        setGeneratedCount(candidates.length);
-        setCases(editableCopy(fresh));
-        setContent(response.text);
+        setGeneratedCount(previous=>resume?previous+candidates.length:candidates.length);
+        setCases(previous=>resume?[...previous,...editableCopy(fresh)]:editableCopy(fresh));
+        setContent(previous=>resume?[previous,response.text].filter(Boolean).join("\n\n---\n\n"):response.text);
       }
       setShowSetup(false);
       setMessage(response.truncated
@@ -365,13 +372,30 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
       setShowSetup(true);
-      const pending=batchCheckpoint.current?
-        unfinishedGeneratorStages(batchCheckpoint.current):0;
+      const cp=batchCheckpoint.current;
+      const pending=cp?unfinishedGeneratorStages(cp):0;
+      const salvage=mode==="teste"&&cp&&
+        matchesGeneratorCheckpoint(cp,mode,sentTask,sentRequirements)?
+        recoverCompletedCases(cp):[];
+      const unique=onlyNewScenarioCandidates(salvage,[...scenarios,...cases]);
+      if(cp&&mode==="teste"){
+        setInterruptedPreview([...cp.sections,cp.partial].filter(Boolean).join("\n\n"));
+      }
+      if(unique.length){
+        setCases(previous=>[...previous,...editableCopy(
+          onlyNewScenarioCandidates(salvage,[...scenarios,...previous]))
+          .map(item=>({...item,selected:false}))]);
+        setGeneratedCount(previous=>previous+unique.length);
+        setTruncated(true);
+        setGenerationId(nextId);
+        lastGenerationInput.current={task:sentTask,requirements:sentRequirements};
+        setMessage(unique.length+" caso(s) completos recuperados. Revise e selecione manualmente os que deseja anexar.");
+      }
+      const retryInfo=pending?" Retome "+pending+" etapa(s) pendente(s). "+
+        "Se o limite de continuidades foi atingido, somente a etapa atual será reiniciada; as concluídas serão preservadas.":"";
       setError(abort.signal.aborted
-        ? "Geração cancelada. A versão anterior foi preservada."+
-          (pending?" As "+pending+" etapa(s) restantes podem ser retomadas.":"")
-        : messageOf(cause)+" A versão anterior foi preservada."+
-          (pending?" Retome as "+pending+" etapa(s) restantes sem repetir as concluídas.":""));
+        ? "Geração cancelada. A versão anterior foi preservada."+retryInfo
+        : messageOf(cause)+" A versão anterior foi preservada."+retryInfo);
     } finally {
       setGenerating(false); controller.current = null;setGeneratorWait(null);
       setBatchProgress(null);
@@ -519,9 +543,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length);
+  const hasRecoverableCases=mode==="teste"&&cases.length>0&&Boolean(
+    batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0);
   const stage: JourneyStage = generating ? "generate" :
     !showSetup && completed ? "complete" :
-    hasOutput && !showSetup ? "review" : "configure";
+    hasOutput && (!showSetup||hasRecoverableCases) ? "review" : "configure";
   const showConfiguration = !generating && (!hasOutput || showSetup);
   return <section className={postMode ? "qa-post-composer panel mt-5" :
     "qa-case-composer panel mt-5"}
@@ -713,7 +739,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       onCancel={()=>controller.current?.abort()}
     />}
     </div>}
-    {!generating && hasOutput && !showSetup && <section className="qa-generator-result" aria-label="Resultado da IA">
+    {!generating && hasOutput && (!showSetup||hasRecoverableCases) && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
         <div><p className="eyebrow">REVISÃO</p>
           <h3>{postMode?"Rascunho do post":"Conteúdo produzido"}</h3>
@@ -724,6 +750,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         </span>}
       </div>
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
+      {mode==="teste"&&interruptedPreview&&<details className="generator-context mt-3">
+        <summary>Conferir texto da geração interrompida (não salvo automaticamente)</summary>
+        <label className="field mt-3">Trecho recebido antes da interrupção
+          <textarea readOnly rows={10} value={interruptedPreview} />
+        </label>
+      </details>}
       {mode === "post" ? <div className="qa-post-output stack mt-3">
         <label className="field">Post em {postFormat==="bbcode"?"BBCode":"Markdown"} (edite antes de salvar)
           <textarea rows={15} maxLength={80000} value={content} disabled={busySave||revisionBusy||auditBusy}
