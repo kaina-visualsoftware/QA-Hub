@@ -140,7 +140,7 @@ Deno.serve(async req => {
   if(!key) {
     return reply(503,{
       error:"nvidia_not_configured",
-      message:"A IA online ainda não foi ativada no Supabase. Utilize a extração sem IA ou a IA local."
+      message:"A NVIDIA não está configurada no Supabase. A fonte original foi preservada; tente novamente após a configuração."
     });
   }
 
@@ -175,7 +175,7 @@ Deno.serve(async req => {
         apiKey:key,model,messages,
         mode:diagramMode?"diagram":summaryMode?"summary":
           fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task",
-        stream:false,options,maxRetries:0,rejectLength:false,
+        stream:false,options,maxRetries:0,rejectLength:true,
         timeoutMs:PROVIDER_TIMEOUT_MS,firstTokenTimeoutMs:PROVIDER_TIMEOUT_MS,
         deadlineAt,fallbackModel:modelIndex>0,
         // Claim one of the existing 15/min RPC slots BEFORE any network attempt.
@@ -231,8 +231,8 @@ Deno.serve(async req => {
       });
     } catch(error) {
       if(!(error instanceof ProviderError)){
-        console.warn("qa-ai upstream exception",{model,reason:"request_failed"});
-        continue;
+        console.error("qa-ai unexpected provider exception",{model,reason:"request_failed",trace});
+        return reply(503,{error:"provider_unavailable",message:"Falha inesperada na comunicação com a NVIDIA. A fonte foi preservada; tente novamente."});
       }
       lastStatus=error.status||lastStatus;
       if(error.stage==="quota"){
@@ -280,17 +280,12 @@ Deno.serve(async req => {
       error:"summary_incomplete",
       message:"A NVIDIA não concluiu um resumo confiável. Tente novamente sem perder os dados da TF."
     });
-    // A provider replied but did not produce recognizable fields; the client
-    // will transparently use the local original-report parser.
-    return reply(200,diagramMode ? {
-      mermaid:null,fallback:true,model:"Diagrama local",provider:"NVIDIA Build"
-    } : {
-      draft:{},fallback:true,model:"Extração local",provider:"NVIDIA Build"
-    });
+    return reply(502,{error:"output_invalid",
+      message:"A NVIDIA respondeu sem uma estrutura completa e válida. Nenhum resultado vazio foi aceito; a fonte permanece disponível para nova tentativa."});
   }
   return reply(503,{
     error:"ai_temporarily_unavailable",
-    message:"A NVIDIA está temporariamente indisponível. O texto pode ser organizado localmente.",
+    message:"A NVIDIA está temporariamente indisponível. O texto original foi preservado; retome a solicitação após a recuperação do provedor.",
     status:lastStatus
   });
 });
