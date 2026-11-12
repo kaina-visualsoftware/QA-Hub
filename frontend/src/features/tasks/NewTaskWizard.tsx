@@ -170,10 +170,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
   },[step,draft,sourceText,taskFiles,cases,requirementText,requirementFiles]);
   const semanticTask=useSemanticContext(sourcePreparation&&"prepared" in sourcePreparation?
-    sanitizeAiContext(sourcePreparation.original):"","","task");
+    sanitizeAiContext(sourcePreparation.original):"","","task",
+    Boolean(sourcePreparation&&"prepared" in sourcePreparation&&sourcePreparation.prepared.needsReview));
   const semanticCases=useSemanticContext(casePreparation&&"prepared" in casePreparation?
     casePreparation.originalTask:"",casePreparation&&"prepared" in casePreparation?
-    casePreparation.originalRequirements:"","teste");
+    casePreparation.originalRequirements:"","teste",
+    Boolean(casePreparation&&"prepared" in casePreparation&&
+      (casePreparation.prepared.task.needsReview||casePreparation.prepared.requirements?.needsReview)));
   const busy=reading||analyzing||generating||finishing||
     semanticTask.working||semanticCases.working;
   useEffect(()=>setCompactApprovedTask(false),[sourceText,taskFiles]);
