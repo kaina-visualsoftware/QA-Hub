@@ -1,0 +1,83 @@
+name: QA Hub AI F7 — provedor compartilhado
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f6-batched-generators-20261112]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/qa-generators/**'
+      - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
+      - 'tests/ai-f7-*'
+      - 'tests/ai-f0-contract.test.mjs'
+      - 'tests/ai-f2-integration.test.mjs'
+      - 'tests/ai-f6-integration.test.mjs'
+      - 'tests/nvidia-provider-model-ids.test.mjs'
+      - 'tests/qa-semantic-context-server.test.mjs'
+      - '.github/workflows/qa-ai-f7-unified-provider.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/llm/**'
+      - 'supabase/functions/qa-generators/**'
+      - 'supabase/functions/qa-context/**'
+      - 'supabase/functions/qa-revisions/**'
+concurrency:
+  group: qa-ai-f7-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: F7 model, quota, JSON and SSE regression contracts
+        run: |
+          node --test tests/ai-f7-unified-provider.test.mjs tests/ai-f7-integration.test.mjs tests/ai-f6-generator-batches.test.mjs tests/ai-f6-integration.test.mjs tests/ai-f5-grounding.test.mjs tests/ai-f4-stages.test.mjs tests/ai-f3-token-budget.test.mjs tests/ai-f3-integration.test.mjs tests/ai-f2-error-contract.test.mjs tests/ai-f2-integration.test.mjs tests/ai-f1-provider.test.mjs tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs tests/nvidia-provider-model-ids.test.mjs tests/qa-semantic-context-server.test.mjs
+      - name: Shared runtime syntax
+        run: |
+          node --check supabase/functions/_shared/llm/edge-runtime.mjs
+          node --check supabase/functions/_shared/llm/call-model.mjs
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck all four Edge Functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+      - name: F5 evidence test regression
+        run: deno test supabase/functions/qa-ai/schemas.test.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: F7 cross-client SSE and context tests
+        run: npx vitest run tests/generators-batched.test.ts tests/generators-stream.test.ts tests/task-evidence.test.ts tests/semantic-context.test.ts tests/targeted-revision.test.ts
+      - name: Full frontend suite
+        run: npm test
+      - name: Production bundle
+        run: npm run build
