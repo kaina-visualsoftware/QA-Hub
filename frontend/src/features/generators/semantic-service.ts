@@ -88,9 +88,17 @@ export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal
    const [left,right]=splitSemanticChunk(part);
    const first=await attempt(left,depth+1);
    const second=await attempt(right,depth+1);
-   const merged=validateSemanticFacts(part,[...first.facts,...second.facts]);
-   return {id:part.id,facts:merged.facts,
-    unverified:first.unverified+second.unverified+merged.unverified,
+   // The children were independently checked against their own exact
+   // substrings. Preserve their source line offsets: looking up repeated
+   // quotes in the parent would attribute both to the first occurrence.
+   const seen=new Set<string>();
+   const facts=[...first.facts,...second.facts].filter(fact=>{
+    const key=[fact.source,fact.line,fact.category,fact.quote].join("|");
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+   });
+   return {id:part.id,facts,
+    unverified:first.unverified+second.unverified,
     model:[...new Set([first.model,second.model])].join(", ")};
   }
  }
