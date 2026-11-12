@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {SCENARIO_BATCH_SIZE,parseScenarioSeeds,taskFieldMessages,
- taskScenarioMessages,parseTaskFields,parseTaskScenarioBatch}
+ taskSeedMessages,taskScenarioMessages,parseTaskFields,parseTaskScenarioBatch}
  from "../supabase/functions/qa-ai/stages.mjs";
 
 const seeds=[
@@ -73,4 +73,15 @@ test("unknown response properties cannot set execution status",()=>{
  ]}),seeds);
  assert.deepEqual(Object.keys(parsed[1]).sort(),
   ["source_index","titulo","passos","esperado","observacoes"].sort());
+});
+
+test("task-seeds stage asks NVIDIA to identify only cited, documented scenarios",()=>{
+ const source="CENÁRIO 1 — Conferir desconto\\nPassos: Abrir pedido\\nResultado esperado: Sem duplicação.";
+ const prompt=taskSeedMessages(source);
+ assert.equal(prompt.length,2);
+ assert.match(prompt[0].content,/No máximo 20 cenários/);
+ assert.match(prompt[0].content,/LITERALMENTE/);
+ assert.match(prompt[0].content,/Não invente testes/);
+ assert.match(prompt[1].content,/Conferir desconto/);
+ assert.match(prompt[0].content,/seeds/);
 });
