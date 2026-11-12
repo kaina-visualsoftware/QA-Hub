@@ -476,12 +476,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       });
       setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados e repetições."});
       const full=freshTaskAiScenarios(normalizeDraft({cenarios:parseGeneratedCases(response.text)}),[],true);
+      const recoverySnapshots=new Map(recoveredSnapshots.current);
       setCases(current=>{
         const byTitle=new Map(full.map(item=>[keyOf(item),item]));
         const upgraded=current.map(item=>{
           const key=keyOf(item),complete=byTitle.get(key);
           // Never overwrite a recovered proposal edited by the QA.
-          return complete&&recoveredSnapshots.current.get(key)===JSON.stringify(item)?
+          return complete&&recoverySnapshots.get(key)===JSON.stringify(item)?
             {...complete,selected:item.selected}:item;
         });
         return addUnique(upgraded,full);
@@ -496,12 +497,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       const cp=caseSourceKey.current===caseInputKey?caseCheckpoint.current:null;
       const recovered=cp?recoverInterruptedWizardCases(cp,cases):[];
       if(recovered.length){
-        setCases(current=>{
-          const merged=addUnique(current,recovered);
-          for(const item of merged.slice(current.length))
+        const alreadyKnown=new Set(cases.map(keyOf));
+        for(const item of recovered)
+          if(!alreadyKnown.has(keyOf(item)))
             recoveredSnapshots.current.set(keyOf(item),JSON.stringify(item));
-          return merged;
-        });
+        setCases(current=>addUnique(current,recovered));
         setCaseReview(true);
         setNotice(recovered.length+" caso(s) recuperado(s) da resposta interrompida, "+
           "desmarcados para revisão. Nada será salvo automaticamente.");
