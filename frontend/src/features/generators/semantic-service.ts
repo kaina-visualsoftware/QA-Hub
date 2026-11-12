@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import {AiRequestError,readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
 import type {AiWaitCallback} from "../../lib/ai-retry";
 import {supabase,publishableKey,supabaseUrl} from "../../lib/supabase";
 import {validateSemanticFacts} from "./semantic-context";
@@ -16,7 +16,7 @@ const responseSchema=z.object({
 });
 
 export type SemanticRequestStage="preparing"|"sending"|"waiting"|"verifying";
-export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
+async function analyzeSingleSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
  signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{},
  onWait:AiWaitCallback=()=>{}):Promise<ChunkOutcome>{
  onStage("preparing");
@@ -43,4 +43,64 @@ export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal
  const verified=validateSemanticFacts(chunk,result.facts);
  return {id:chunk.id,facts:verified.facts,unverified:result.unverified+verified.unverified,
   model:result.model};
+}
+
+
+/** Timeout fallback splits the *original* source without trimming a character.
+ * Both requests retain the original public chunk ID, and the merged quotes
+ * are rechecked against that same full chunk for their correct source lines.
+ * A failed child never masquerades as a completed parent checkpoint.
+ */
+export function splitSemanticChunk(chunk:SemanticChunk):[SemanticChunk,SemanticChunk]{
+ const middle=Math.floor(chunk.text.length/2);
+ const before=chunk.text.lastIndexOf("\n",middle);
+ const after=chunk.text.indexOf("\n",middle);
+ const near=(pos:number)=>pos>=chunk.text.length*.3&&pos<=chunk.text.length*.7;
+ let cut=near(before)?before+1:near(after)?after+1:middle;
+ if(cut>0&&cut<chunk.text.length&&
+    /[\uD800-\uDBFF]/.test(chunk.text.charAt(cut-1))&&
+    /[\uDC00-\uDFFF]/.test(chunk.text.charAt(cut)))cut--;
+ const firstText=chunk.text.slice(0,cut),secondText=chunk.text.slice(cut);
+ const secondLine=chunk.startLine+(firstText.match(/\n/g)?.length??0);
+ return [
+  {...chunk,text:firstText,end:chunk.start+cut,
+   endLine:secondLine},
+  {...chunk,text:secondText,start:chunk.start+cut,
+   startLine:secondLine}
+ ];
+}
+function isSemanticTimeout(reason:unknown):boolean{
+ return reason instanceof AiRequestError&&(
+  reason.status===504||reason.code==="provider_timeout"||
+  (reason.status===503&&/ultrapassaram o tempo|tempo de resposta excedido/i.test(reason.message)));
+}
+/** Bounded recovery: a timeout automatically retries smaller parts, never
+ * repeats successful siblings, and only checks off the parent once both
+ * children have been verified. No bypass of quota/auth failures. */
+export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
+ signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{},
+ onWait:AiWaitCallback=()=>{}):Promise<ChunkOutcome>{
+ async function attempt(part:SemanticChunk,depth:number):Promise<ChunkOutcome>{
+  try{return await analyzeSingleSemanticChunk(part,goal,signal,onStage,onWait);}
+  catch(reason){
+   if(signal.aborted||!isSemanticTimeout(reason)||depth>=2||part.text.length<1250)
+    throw reason;
+   const [left,right]=splitSemanticChunk(part);
+   const first=await attempt(left,depth+1);
+   const second=await attempt(right,depth+1);
+   // The children were independently checked against their own exact
+   // substrings. Preserve their source line offsets: looking up repeated
+   // quotes in the parent would attribute both to the first occurrence.
+   const seen=new Set<string>();
+   const facts=[...first.facts,...second.facts].filter(fact=>{
+    const key=[fact.source,fact.line,fact.category,fact.quote].join("|");
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+   });
+   return {id:part.id,facts,
+    unverified:first.unverified+second.unverified,
+    model:[...new Set([first.model,second.model])].join(", ")};
+  }
+ }
+ return attempt(chunk,0);
 }
