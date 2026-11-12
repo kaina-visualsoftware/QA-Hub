@@ -162,13 +162,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const generationError = assembly?.kind === "error" ? assembly.error : "";
   const context = assembly?.kind === "ready" ? assembly : null;
   const missingSources = context?.taskContext.failedSources ?? [];
+  const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
+    context.prepared.requirements?.needsReview));
   const semantic=useSemanticContext(context?.taskContext.text??"",
-    context?.approved.text??"",mode);
+    context?.approved.text??"",mode,needsCompactReview);
   useEffect(() => {
     onBusyChange?.(generating || busySave || semantic.working || revisionBusy || auditBusy);
   }, [generating, busySave, semantic.working, revisionBusy, auditBusy, onBusyChange]);
-  const needsCompactReview=Boolean(context&&(context.prepared.task.needsReview||
-    context.prepared.requirements?.needsReview));
   useEffect(()=>{
     setConsent(false);
     setPartialConsent(false);
