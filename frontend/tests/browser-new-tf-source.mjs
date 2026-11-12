@@ -16,6 +16,7 @@ const cors={
 };
 const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[],semanticRequests=[];
 let taskWrites=0,caseWrites=0,rateLimited=false;
+let activeSemanticRequests=0,peakSemanticRequests=0;
 let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},releaseCasesRequest=()=>{};
 let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
 const taskStarted=new Promise(resolve=>{notifyTaskStarted=resolve;});
@@ -97,9 +98,16 @@ async function backend(route){
     assert.equal(input.source,"TF");
     assert.ok(input.text.length<=9000);
     const quote=input.text.slice(0,Math.min(125,input.text.length)).trim();
-    return send({chunkId:input.chunkId,source:input.source,goal:input.goal,
-      provider:"NVIDIA Build",model:"test-fixture",unverified:0,
-      facts:[{category:"regra",quote,summary:"Regra confirmada no documento original."}]});
+    activeSemanticRequests++;
+    peakSemanticRequests=Math.max(peakSemanticRequests,activeSemanticRequests);
+    try{
+      // Exercise actual overlapping browser fetches, not merely mocked queue workers.
+      await new Promise(resolve=>setTimeout(resolve,35));
+      return await send({chunkId:input.chunkId,source:input.source,goal:input.goal,
+        provider:"NVIDIA Build",model:"test-fixture",unverified:0,
+        facts:[{category:"regra",quote,summary:"Regra confirmada no documento original."}]});
+    }finally{activeSemanticRequests--;}
+
   }
   if(path.endsWith("/functions/v1/qa-ai")){
     const payload=req.postDataJSON();
@@ -444,10 +452,19 @@ try{
     "Unreviewed long sources cannot silently use a partial extract.");
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   const beforeChunks=semanticRequests.length;
+  peakSemanticRequests=0;
   await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:60000});
   assert.ok(semanticRequests.length-beforeChunks>=10,
     "The original report must be read in successive chunks, not one shortened prompt.");
+  assert.equal(peakSemanticRequests,2,
+    "Long TF analysis must overlap two NVIDIA HTTP requests, not more than two.");
+  const analyzed=semanticRequests.slice(beforeChunks);
+  assert.equal(new Set(analyzed.map(item=>item.chunkId)).size,analyzed.length,
+    "Each source chunk must be sent once when there is no timeout or 429.");
+  assert.ok(analyzed.every(item=>item.text.length>0),
+    "No chunk can be replaced by a local semantic fallback.");
+
   await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
