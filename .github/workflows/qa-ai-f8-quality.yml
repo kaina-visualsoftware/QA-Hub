@@ -1,0 +1,87 @@
+name: QA Hub AI F8 — goldens, métricas e rollout
+on:
+  pull_request:
+    branches: [main, feat/ai-pipeline-f7-unified-provider-20261112]
+    paths:
+      - 'supabase/functions/**'
+      - 'frontend/src/features/ai-monitoring/**'
+      - 'frontend/src/features/tasks/task-evidence.ts'
+      - 'frontend/src/pages/AdminPage.tsx'
+      - 'frontend/tests/ai-f8-*.test.ts'
+      - 'tests/ai-f8-*'
+      - 'tests/fixtures/ai-f8-goldens.json'
+      - 'scripts/ai-f8-evaluate.mjs'
+      - '.github/workflows/qa-ai-f8-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/_shared/ai-feature-flags.mjs'
+      - 'supabase/functions/qa-ai/grounding.mjs'
+      - 'scripts/ai-f8-evaluate.mjs'
+concurrency:
+  group: qa-ai-f8-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  golden-quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Evaluate synthetic golden set
+        run: |
+          mkdir -p reports
+          node scripts/ai-f8-evaluate.mjs reports/qa-ai-f8-synthetic-quality.json
+          node --test tests/ai-f8-golden.test.mjs tests/ai-f8-flags.test.mjs tests/ai-f8-integration.test.mjs
+      - name: Regression contracts F0 through F7
+        run: |
+          node --test tests/ai-f7-unified-provider.test.mjs tests/ai-f7-integration.test.mjs tests/ai-f6-generator-batches.test.mjs tests/ai-f6-integration.test.mjs tests/ai-f5-grounding.test.mjs tests/ai-f4-stages.test.mjs tests/ai-f3-token-budget.test.mjs tests/ai-f3-integration.test.mjs tests/ai-f2-error-contract.test.mjs tests/ai-f2-integration.test.mjs tests/ai-f1-provider.test.mjs tests/ai-f0-telemetry.test.mjs tests/ai-f0-contract.test.mjs tests/nvidia-provider-model-ids.test.mjs tests/qa-semantic-context-server.test.mjs
+      - name: Attach offline golden report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f8-offline-quality-report
+          path: reports/qa-ai-f8-synthetic-quality.json
+          if-no-files-found: warn
+          retention-days: 14
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check all four Edge Functions
+        run: |
+          deno check supabase/functions/qa-ai/index.ts
+          deno check supabase/functions/qa-generators/index.ts
+          deno check supabase/functions/qa-context/index.ts
+          deno check supabase/functions/qa-revisions/index.ts
+      - name: Test strict evidence contracts
+        run: deno test supabase/functions/qa-ai/schemas.test.ts
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked packages
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
+      - name: TypeScript and lint
+        run: npm run typecheck && npm run lint
+      - name: Test F8 metrics and evidence
+        run: npx vitest run tests/ai-f8-metrics.test.ts tests/task-evidence.test.ts tests/task-ai-phased.test.ts tests/generators-batched.test.ts
+      - name: Full frontend suite
+        run: npm test
+      - name: Production bundle
+        run: npm run build

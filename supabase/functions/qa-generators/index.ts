@@ -1,4 +1,5 @@
 import {errorBody,errorHeaders} from "../_shared/ai-error-response.mjs";
+import {aiFeatureEnabled,disabledAiResponse} from "../_shared/ai-feature-flags.mjs";
 import {correlationId} from "../_shared/ai-observability.mjs";
 import {edgeModels,edgeStreamingModels,edgeErrorHttp} from "../_shared/llm/edge-runtime.mjs";
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
@@ -34,6 +35,8 @@ Deno.serve(async req=>{
   const {data:identity,error:authError}=await db.auth.getUser(auth.slice(7));
   if(authError||!identity.user||identity.user.is_anonymous)
     return reply(401,{error:"unauthorized",message:"Faça login novamente para gerar com IA."});
+  if(!aiFeatureEnabled("general",identity.user.id))
+    return reply(503,disabledAiResponse());
   let data:{mode?:string;tarefa?:string;requisito?:string;batch?:unknown}|null;
   try{
     if(Number(req.headers.get("Content-Length")||0)>120000)throw Error("large");
@@ -47,6 +50,8 @@ Deno.serve(async req=>{
   const batch=data?.batch===undefined?null:parseGeneratorBatch(data.batch,mode);
   if(data?.batch!==undefined&&!batch)
     return reply(400,{error:"bad_input",message:"Lote de geração inválido: etapa, versão ou continuidade incorreta."});
+  if(batch&&!aiFeatureEnabled("generator-batch",identity.user.id))
+    return reply(503,disabledAiResponse());
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
   const models=await edgeModels({apiKey:key,trace});

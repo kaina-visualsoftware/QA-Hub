@@ -111,10 +111,16 @@ function sharesTerms(value:string,quote:string):boolean{
  const words=terms(value),citation=terms(quote);
  return words.size===0||[...words].some(word=>citation.has(word));
 }
+export function executionContradiction(value:string,quote:string):boolean{
+ const passed=/\b(?:aprovad[oa]s?|passou|validado|executad[oa]s?\s+com\s+sucesso|teste[s]?\s+conclu[ií]d[oa]s?)\b/iu;
+ const pending=/\b(?:n[aã]o\s+(?:executad[oa]s?|registrad[oa]s?|testad[oa]s?)|pendente|a\s+confirmar|n[aã]o\s+foi\s+realizado)\b/iu;
+ return passed.test(value)&&pending.test(quote);
+}
 function verified(source:string,value:string,quote:string,line:number|null):boolean{
  const found=locateEvidence(source,quote);
  return found!==null&&found===line&&
-  !hasUnsupportedIdentifiers(value,source)&&!suspicious.test(value)&&sharesTerms(value,quote);
+  !hasUnsupportedIdentifiers(value,source)&&!suspicious.test(value)&&
+   !executionContradiction(value,quote)&&sharesTerms(value,quote);
 }
 export const EVIDENCE_REASONS:Record<string,string>={
  quote_not_found:"Citação não localizada no texto enviado",
@@ -124,7 +130,8 @@ export const EVIDENCE_REASONS:Record<string,string>={
  citation_unrelated_to_seed:"Citação não corresponde ao cenário indicado",
  line_mismatch:"Linha de origem divergente",
  unverified_model:"Evidência ainda não verificada",
- claim_not_supported_by_quote:"A afirmação não compartilha termos relevantes com a citação"
+ claim_not_supported_by_quote:"A afirmação não compartilha termos relevantes com a citação",
+ execution_not_proven:"A fonte diz que o teste ainda não foi executado ou registrado"
 };
 export function parseGroundedFieldReply(data:unknown,source:string){
  const response=fieldsReply.safeParse(data);

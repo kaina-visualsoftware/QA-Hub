@@ -3,14 +3,14 @@
  * canonical client-facing classification. Never pass raw NVIDIA bodies here.
  */
 export const AI_ERROR_CODES=Object.freeze([
- "unauthorized","forbidden","input_invalid","quota_exhausted",
+ "unauthorized","forbidden","input_invalid","feature_disabled","quota_exhausted",
  "provider_rate_limited","provider_timeout","provider_unavailable",
  "provider_auth","model_context_exceeded","output_invalid",
  "configuration_error","quota_unavailable","request_failed"
 ]);
 const CODES=new Set(AI_ERROR_CODES);
 const LEGACY=Object.freeze({
- unauthorized:"unauthorized",forbidden:"forbidden",method_not_allowed:"input_invalid",
+ unauthorized:"unauthorized",forbidden:"forbidden",feature_disabled:"feature_disabled",method_not_allowed:"input_invalid",
  bad_request:"input_invalid",invalid_repair:"input_invalid",bad_input:"input_invalid",
  rate_limited:"quota_exhausted",nvidia_rate_limited:"provider_rate_limited",
  rate_limit:"provider_rate_limited",provider_rate_limited:"provider_rate_limited",
