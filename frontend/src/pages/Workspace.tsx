@@ -146,7 +146,7 @@ export function Workspace() {
         <label className="search-box qa-filter-field">
           <span className="qa-filter-field-label">Buscar TF</span>
           <span className="qa-filter-input-row"><Search size={18} aria-hidden="true"/>
-            <input type="search" value={search} onChange={e=>setSearch(e.target.value)}
+            <input type="search" aria-label="Pesquisar por título, código, módulo ou versão" value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="Ex.: 67866, desconto, v12.08"/>
           </span>
         </label>
@@ -155,7 +155,7 @@ export function Workspace() {
           <span className="qa-filter-input-row"><Filter size={17} aria-hidden="true"/>
             <select value={status} onChange={e=>setStatus(e.target.value)}>
               <option value="">Todas as situações</option>
-              {Object.entries(taskStatusLabels).map(([value,label)=>
+              {Object.entries(taskStatusLabels).map(([value,label])=>
                 <option key={value} value={value}>{label}</option>)}
             </select>
           </span>
