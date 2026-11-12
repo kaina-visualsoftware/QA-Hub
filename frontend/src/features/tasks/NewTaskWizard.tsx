@@ -20,7 +20,9 @@ import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
 import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
-import { generateWithNvidia } from "../generators/stream";
+import {generateBatchedWithNvidia,unfinishedGeneratorStages} from "../generators/batched-stream";
+import type {GeneratorCheckpoint} from "../generators/batched-stream";
+import {recoverInterruptedWizardCases} from "./wizard-case-recovery";
 import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
 import type {ContextPreparation} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
@@ -123,6 +125,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [remember,setRemember] = useState(false);
   const [recoverable,setRecoverable] = useState<ReturnType<typeof loadNewTaskDraft>>(null);
   const [streamText,setStreamText] = useState("");
+  const [casePending,setCasePending] = useState(0);
   const [work,setWork]=useState<WorkStatus|null>(null);
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const [taskPending,setTaskPending]=useState(0);
@@ -131,6 +134,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [scenarioEvidence,setScenarioEvidence]=useState<ScenarioReview[]>([]);
   const [fieldEvidenceApproved,setFieldEvidenceApproved]=useState<Record<string,boolean>>({});
   const taskCheckpoint=useRef<TaskPipelineCheckpoint|null>(null);
+  const caseCheckpoint=useRef<GeneratorCheckpoint|null>(null);
+  const caseSourceKey=useRef<string|null>(null);
+  const recoveredSnapshots=useRef<Map<string,string>>(new Map());
+  // Recovered proposals do not change the fingerprint of the approved input.
+  const caseInputKey=JSON.stringify([draft,sourceText,taskFiles.map(f=>f.hash),
+    requirementText,requirementFiles.map(f=>f.hash)]);
   const controller=useRef<AbortController|null>(null);
   const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
@@ -190,6 +199,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+      caseCheckpoint.current=null;caseSourceKey.current=null;
+      recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
     }
     wasOpen.current=open;
@@ -252,6 +263,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }else setNotice("");
     automaticallyFilled.current={};
     taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+    caseCheckpoint.current=null;caseSourceKey.current=null;
+    recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
     setConsentTask(false);setConsentCases(false);setAiUsed(false);setLocalFallback(false);setCases([]);
   }
@@ -422,49 +435,83 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   async function generateCases(){
     if(busy||!consentCases)return;
     setGenerating(true);setError("");setNotice("");setStreamText("");setQuotaWait(null);
-    setWork({kind:"cases",phase:0,detail:"Preparando regras, requisitos e casos já identificados."});
-    const abort=new AbortController();
-    controller.current=abort;
-    let firstChunk=true;
+    const abort=new AbortController();controller.current=abort;
+    setWork({kind:"cases",phase:0,detail:"Preparando TF e requisitos."});
     try{
       assertReadable(taskFiles);assertReadable(requirementFiles);
-      if(!casePreparation||!("prepared" in casePreparation))
-        throw Error(casePreparation&&"error" in casePreparation?casePreparation.error:
-          "Não foi possível preparar os casos.");
-      const taskPacked=casePreparation.prepared.task;
-      const reqPacked=casePreparation.prepared.requirements;
-      if((taskPacked.needsReview||reqPacked?.needsReview)&&
-        (semanticCases.enabled?!semanticCases.ready:!compactApprovedCases))
-        throw Error("Revise e autorize os contextos preparados antes de enviar.");
-      setWork({kind:"cases",phase:1,detail:"Aguardando a NVIDIA elaborar novos cenários, variações e regressões."});
-      const response=await generateWithNvidia(
-        "teste",semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
-          semanticCases.digest.task:taskPacked.text,
-          semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
-          semanticCases.digest.requirements:reqPacked?.text??"",chunk=>{
-          if(firstChunk){
-            firstChunk=false;
-            setWork({kind:"cases",phase:2,detail:"Recebendo o roteiro de testes gerado."});
-          }
-          setStreamText(previous=>previous+chunk);
+      const previous=caseSourceKey.current===caseInputKey?caseCheckpoint.current:null;
+      const resume=previous?.mode==="teste"&&unfinishedGeneratorStages(previous)>0?previous:null;
+      if(!resume){
+        if(!casePreparation||!("prepared" in casePreparation))
+          throw Error(casePreparation&&"error" in casePreparation?casePreparation.error:
+            "Não foi possível preparar os casos.");
+        const packed=casePreparation.prepared;
+        if((packed.task.needsReview||packed.requirements?.needsReview)&&
+          (semanticCases.enabled?!semanticCases.ready:!compactApprovedCases))
+          throw Error("Revise e autorize os contextos preparados antes de enviar.");
+      }
+      const packed=casePreparation&&"prepared" in casePreparation?
+        casePreparation.prepared:null;
+      const sentTask=resume?.task??(semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
+        semanticCases.digest.task:packed?.task.text??"");
+      const sentRequirements=resume?.requirements??(semanticCases.enabled&&semanticCases.ready&&semanticCases.digest?
+        semanticCases.digest.requirements:packed?.requirements?.text??"");
+      if(!resume){caseSourceKey.current=caseInputKey;caseCheckpoint.current=null;setCasePending(0);}
+      setCaseReview(false);
+      setWork({kind:"cases",phase:1,detail:resume?
+        "Retomando as etapas pendentes sem reenviar as concluídas.":
+        "Solicitando cenários à NVIDIA em etapas."});
+      const response=await generateBatchedWithNvidia("teste",sentTask,sentRequirements,{
+        checkpoint:resume,signal:abort.signal,onWait:setQuotaWait,
+        onCheckpoint:cp=>{caseCheckpoint.current=cp;setCasePending(unfinishedGeneratorStages(cp));},
+        onPreview:preview=>{
+          setStreamText(preview);
+          if(preview.trim())setWork(current=>current?.kind==="cases"?
+            {...current,phase:2,detail:"Recebendo e preservando os cenários gerados."}:current);
         },
-        abort.signal,setQuotaWait
-      );
-      setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados esperados e casos repetidos."});
-      const parsed=parseGeneratedCases(response.text);
-      const normalized=normalizeDraft({cenarios:parsed});
-      const fresh=freshTaskAiScenarios(normalized,cases,true);
-      const combined=addUnique(cases,fresh);
-      setCases(combined);
-      if(combined.length)setCaseReview(true);
-      setNotice(response.truncated
-        ? "A resposta da NVIDIA foi interrompida pelo limite do modelo. Confira a lista antes de finalizar."
-        : fresh.length
-          ? fresh.length+" caso(s) novo(s) identificados. Revise antes de finalizar."
-          : "Nenhum caso novo e válido foi encontrado. Revise os requisitos ou tente novamente.");
-    }catch(reason){setError(abort.signal.aborted?"Geração cancelada. Os casos anteriores foram preservados.":
-      reason instanceof Error?reason.message:"Não foi possível gerar os casos de teste.");}
-    finally{setGenerating(false);controller.current=null;setWork(null);setQuotaWait(null);}
+        onProgress:progress=>setWork({kind:"cases",phase:progress.continuation?2:1,
+          detail:(progress.continuation?"Continuando trecho da etapa ":"Gerando etapa ")+
+            (progress.index+1)+" de "+progress.total+" — "+progress.stage+".",
+          current:progress.completed,total:progress.total})
+      });
+      setWork({kind:"cases",phase:3,detail:"Validando títulos, passos, resultados e repetições."});
+      const full=freshTaskAiScenarios(normalizeDraft({cenarios:parseGeneratedCases(response.text)}),[],true);
+      setCases(current=>{
+        const byTitle=new Map(full.map(item=>[keyOf(item),item]));
+        const upgraded=current.map(item=>{
+          const key=keyOf(item),complete=byTitle.get(key);
+          // Never overwrite a recovered proposal edited by the QA.
+          return complete&&recoveredSnapshots.current.get(key)===JSON.stringify(item)?
+            {...complete,selected:item.selected}:item;
+        });
+        return addUnique(upgraded,full);
+      });
+      recoveredSnapshots.current.clear();
+      caseCheckpoint.current=null;caseSourceKey.current=null;setCasePending(0);
+      setCaseReview(Boolean(cases.length||full.length));
+      setNotice(full.length?
+        "Geração concluída. Revise e selecione os cenários que serão salvos.":
+        "Nenhum caso novo e válido foi encontrado. Revise os requisitos.");
+    }catch(reason){
+      const cp=caseSourceKey.current===caseInputKey?caseCheckpoint.current:null;
+      const recovered=cp?recoverInterruptedWizardCases(cp,cases):[];
+      if(recovered.length){
+        setCases(current=>{
+          const merged=addUnique(current,recovered);
+          for(const item of merged.slice(current.length))
+            recoveredSnapshots.current.set(keyOf(item),JSON.stringify(item));
+          return merged;
+        });
+        setCaseReview(true);
+        setNotice(recovered.length+" caso(s) recuperado(s) da resposta interrompida, "+
+          "desmarcados para revisão. Nada será salvo automaticamente.");
+      }
+      const pending=cp?unfinishedGeneratorStages(cp):0;setCasePending(pending);
+      setError((abort.signal.aborted?"Geração cancelada.":
+        reason instanceof Error?reason.message:"Não foi possível gerar os casos.")+
+        (pending?" O texto recebido foi preservado nesta sessão. "+
+          "Retome as "+pending+" etapa(s) pendentes sem repetir as concluídas.":""));
+    }finally{setGenerating(false);controller.current=null;setWork(null);setQuotaWait(null);}
   }
   function editCase(index:number,patch:Partial<SuggestedScenario>){
     setCases(current=>current.map((item,i)=>i===index?{...item,...patch}:item));
@@ -526,6 +573,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
 
   const totalSelected=cases.filter(item=>item.selected).length;
   const caseHeadingsReceived=(streamText.match(/^##\s+Cen[áa]rio\b/gim)||[]).length;
+  const canResumeCases=step===3&&casePending>0&&caseSourceKey.current===caseInputKey;
   // BUILD is a default choice, not a field identified by the AI.
   const filledFields=Object.entries(draft)
     .filter(([name,value])=>name!=="tipo_teste"&&typeof value==="string"&&value.trim()).length;
@@ -626,6 +674,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
           {work.kind==="task"?(work.phase===1?"Extração de campos":"Lotes de cenários"):
+            work.kind==="cases"?"Etapas da geração":
             (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
           {" "+Math.min(work.current??0,work.total)+" de "+work.total}
         </p>}
@@ -811,6 +860,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             :"Gere casos fundamentados na TF e nos requisitos, sem repetir cenários."}</p>
         </div>
       </div>
+      {canResumeCases&&!generating&&<div className="qa-wizard-existing" role="status">
+        <FileText size={16} aria-hidden="true"/>
+        <span>{caseHeadingsReceived} cenário(s) identificados no texto recebido.
+          {casePending} etapa(s) pendentes. Os casos recuperados exigem revisão.</span>
+        <Button variant="secondary" isDisabled={busy||!consentCases}
+          onPress={()=>void generateCases()}>Retomar geração</Button>
+      </div>}
       <AiStepFlow step={finishing?"finalize":generating?"processing":caseReview?"review":"prepare"}
         label="Etapas da geração de casos para uma nova TF"
         labels={["Configurar e gerar","Revisar casos","Finalizar TF"]}/>
