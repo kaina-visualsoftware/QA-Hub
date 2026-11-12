@@ -20,6 +20,23 @@ let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},release
 let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
 const taskStarted=new Promise(resolve=>{notifyTaskStarted=resolve;});
 const casesStarted=new Promise(resolve=>{notifyCasesStarted=resolve;});
+const initialReport=[
+ "Análise: o rateio ignora descontos negativos.",
+ "Versão: 12.09",
+ "Sistema: Financeiro",
+ "Tipo de teste: BUILD",
+ "Ambiente: Homologação",
+ "Base de teste: 10861-3",
+ "Empresa: Empresa de teste",
+ "Testador: Analista QA",
+ "Problema: O desconto não era removido corretamente em certos pedidos.",
+ "Como funciona: Os descontos são rateados entre os itens do pedido.",
+ "Causa: A rotina ignorava valores negativos.",
+ "Correção inicial: A rotina passou a considerar os valores negativos.",
+ "Correção mais recente: A rotina também passou a validar os kits desdobrados.",
+ "Conclusão: A correção está pronta para validação.",
+ "Observações: Conferir desconto e baixa financeira."
+].join("\n");
 const markdown=[
   "# ROTEIRO DE TESTES — DESCONTOS",
   "## Cenário 01 — Remover desconto",
@@ -92,7 +109,30 @@ async function backend(route){
       holdTaskRequest=false;
     }
     if(rateLimited)return send({error:"rate_limited",message:"Limite por minuto; tente novamente."},429);
-    return send({provider:"NVIDIA Build",draft:{
+    assert.equal(payload.mode,"task-fields","Task creation must use evidence-grounded phased extraction");
+    const input=payload.text;
+    const quote=(needle)=>{
+      const from=input.indexOf(needle);
+      assert.ok(from>=0,"Expected source excerpt was not sent: "+needle);
+      return {quote:needle,source_line:input.slice(0,from).split("\n").length,
+        status:"verified",reason:null};
+    };
+    const longForm=input.includes("EXTRATOS CONFERIDOS")||
+      input.includes("MARCADOR FINAL DO RELATÓRIO")||
+      input.includes("REQUISITO RF-12:");
+    if(longForm){
+      const snippet=input.includes("EXTRATOS CONFERIDOS")
+        ?(input.match(/\[(?:TF-L\d+;[^\]]+)\]\s+([^\n]{18,120})/)?.[1]??"")
+        :input.includes("MARCADOR FINAL DO RELATÓRIO")
+          ?"Pedido 88771. Condição de desconto e regra fiscal."
+          :"REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.";
+      assert.ok(snippet.length>=18&&input.includes(snippet));
+      return send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
+        draft:{titulo:"Validar descontos de pedidos"},
+        field_evidence:{titulo:{...quote(snippet),derivation:"synthesized"}},
+        review_fields:[]});
+    }
+    const fields={
       titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
       versao:aiRequests.length===1?"12.09":"12.10",tipo_teste:"BUILD",
       descricao:"O desconto não era removido corretamente em certos pedidos.",
@@ -104,12 +144,29 @@ async function backend(route){
         "A rotina passou a considerar os valores negativos.":
         "A rotina também passou a validar os kits desdobrados.",
       conclusao:"A correção está pronta para validação.",
-      observacoes:"Conferir desconto e baixa financeira.",
-      cenarios:[{
-        titulo:"Remover desconto",passos:"1. Abrir pedido\n2. Remover desconto",
-        esperado:"Total atualizado",objetivo:"Validar que o desconto é removido."
-      }]
-    }});
+      observacoes:"Conferir desconto e baixa financeira."
+    };
+    const citations={
+      titulo:"Pedido 88771. Descontos negativos não são removidos.",
+      codigo:"Pedido 88771. Descontos negativos não são removidos.",
+      sistema:"Sistema: Financeiro",versao:"Versão: 12.09",
+      tipo_teste:"Tipo de teste: BUILD",
+      descricao:"Problema: O desconto não era removido corretamente em certos pedidos.",
+      ambiente:"Ambiente: Homologação",base_teste:"Base de teste: 10861-3",
+      empresa:"Empresa: Empresa de teste",testador:"Testador: Analista QA",
+      explicacao:"Como funciona: Os descontos são rateados entre os itens do pedido.",
+      causa:"Causa: A rotina ignorava valores negativos.",
+      correcao:aiRequests.length===1?
+        "Correção inicial: A rotina passou a considerar os valores negativos.":
+        "Correção mais recente: A rotina também passou a validar os kits desdobrados.",
+      conclusao:"Conclusão: A correção está pronta para validação.",
+      observacoes:"Observações: Conferir desconto e baixa financeira."
+    };
+    return send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
+      draft:fields,field_evidence:Object.fromEntries(Object.keys(fields).map(key=>[
+       key,{...quote(citations[key]),derivation:["titulo","descricao","explicacao",
+        "causa","correcao","conclusao","observacoes"].includes(key)?"synthesized":"explicit"}
+      ])),review_fields:[]});
   }
   if(path.endsWith("/functions/v1/qa-generators")){
     const data=req.postDataJSON();
@@ -201,7 +258,7 @@ try{
   await source.fill("Pedido 88771. Descontos negativos não são removidos.");
   await wizard.getByLabel("Adicionar arquivos da tarefa").setInputFiles({
     name:"analise.txt",mimeType:"text/plain",
-    buffer:Buffer.from("Análise: o rateio ignora descontos negativos.")
+    buffer:Buffer.from(initialReport)
   });
   await wizard.getByText("analise.txt").waitFor();
   for(const width of [320,390]){
