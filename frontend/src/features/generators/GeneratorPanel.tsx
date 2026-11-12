@@ -25,7 +25,6 @@ import {
 import {
   saveTfDocument
 } from "../../lib/legacy/qa-phase2.mjs";
-import { generateWithNvidia } from "./stream";
 import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
  unfinishedGeneratorStages} from "./batched-stream";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
@@ -85,6 +84,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [activityPhase, setActivityPhase] = useState<ActivityPhase>("connecting");
   const [batchProgress,setBatchProgress]=useState<GeneratorBatchProgress|null>(null);
   const batchCheckpoint=useRef<GeneratorCheckpoint|null>(null);
+  const focusedCheckpoint=useRef<GeneratorCheckpoint|null>(null);
   const [showSetup, setShowSetup] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
@@ -142,7 +142,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setRevisionConsent(false);setRevisionInstructions("");setRevisionHistory([]);
     setChangedCodes([]);
     lastGenerationInput.current=null;
-    batchCheckpoint.current=null;setBatchProgress(null);
+    batchCheckpoint.current=null;focusedCheckpoint.current=null;setBatchProgress(null);
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
@@ -392,12 +392,23 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     controller.current=abort;
     setGenerating(true);setActivityPhase("connecting");
     setError("");setMessage("");setCompleted(false);setGeneratorWait(null);
+    const previousRaw=raw;
+    const existing=matchesGeneratorCheckpoint(focusedCheckpoint.current,"teste",
+      prepared.task,prepared.requirements)?focusedCheckpoint.current:null;
     onBusyChange?.(true);
     try{
       await recordCoveragePreparation(task.id,userId,context.taskContext.text,
         prepared.codes);
-      const response=await generateWithNvidia("teste",prepared.task,prepared.requirements,
-        (chunk)=>{setActivityPhase("receiving");setRaw(prev=>prev+chunk);},abort.signal,setGeneratorWait);
+      const response=await generateBatchedWithNvidia("teste",
+        prepared.task,prepared.requirements,{
+        checkpoint:existing,signal:abort.signal,onWait:setGeneratorWait,
+        onCheckpoint:cp=>{focusedCheckpoint.current=cp;},
+        onProgress:progress=>{setBatchProgress(progress);
+          setActivityPhase(progress.continuation?"receiving":"connecting");},
+        onPreview:preview=>{setActivityPhase("receiving");
+          setRaw([previousRaw,preview].filter(Boolean).join("\n\n---\n\n"));}
+      });
+      focusedCheckpoint.current=null;
       if(abort.signal.aborted)throw Error("Geração incremental cancelada.");
       setActivityPhase("organizing");
       const candidates=parseGeneratedCases(response.text);
@@ -415,12 +426,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           fresh.length+" caso(s) candidato(s) adicionados à revisão, sem alterar os anteriores. Vincule-os aos requisitos depois de salvar.":
           "A IA não retornou casos novos distintos para esta seleção.");
     }catch(reason){
+      setRaw(previousRaw);
+      const pending=focusedCheckpoint.current?
+        unfinishedGeneratorStages(focusedCheckpoint.current):0;
       const error=abort.signal.aborted?"Operação cancelada. Os casos anteriores foram preservados.":
         messageOf(reason)+" Nenhum caso existente foi modificado.";
-      setError(error);throw Error(error);
+      setError(error+(pending?" "+pending+" grupo(s) pendentes podem ser retomados.":""));
+      throw Error(error);
     }finally{
       setGenerating(false);controller.current=null;setGeneratorWait(null);
-      onBusyChange?.(false);
+      setBatchProgress(null);onBusyChange?.(false);
     }
   }
 
