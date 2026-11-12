@@ -55,7 +55,7 @@ export function semanticMessages(goal,source,chunkId,text){
    "category deve ser um destes: "+CATEGORIES.join(", ")+".",
    "quote OBRIGATORIAMENTE deve ser uma substring LITERAL E EXATA do texto recebido (copie entre 10 e 450 caracteres da fonte), incluindo negações, IDs e números originais.",
    "summary é uma descrição breve do que a citação confirma, sem inventar informações. Não copie credenciais nem dados pessoais.",
-   "Extraia até 28 fatos distintos. Ao não encontrar informações confiáveis, retorne {\"facts\":[]}. Nunca crie citações ou invente regras, passos, códigos, resultados ou aprovação."
+   "Extraia até 12 fatos distintos, priorizando decisões finais, números, regras, exceções e testes executados; evite repetições. Ao não encontrar informações confiáveis, retorne {\"facts\":[]}. Nunca crie citações ou invente regras, passos, códigos, resultados ou aprovação."
   ].join("\n")},
   {role:"user",content:"Fonte "+source+"; parte "+chunkId+". Extraia evidências somente da fonte delimitada:\n<FONTE>\n"+text+"\n</FONTE>"}
  ];
