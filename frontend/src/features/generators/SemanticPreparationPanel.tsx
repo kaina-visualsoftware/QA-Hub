@@ -1,10 +1,22 @@
 import {BookOpenCheck,CheckCircle2,FileSearch,LoaderCircle,PauseCircle,RefreshCcw,ShieldAlert} from "lucide-react";
 import {useSemanticContext} from "./useSemanticContext";
 import type {ConflictDecision,SemanticConflict} from "./semantic-conflicts";
+import type {SemanticRequestStage} from "./semantic-service";
+import {SEMANTIC_CONCURRENCY} from "./semantic-queue";
 import {useState} from "react";
 import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
 import "./semantic-preparation.css";
 
+function stageLabel(stage:SemanticRequestStage|undefined){
+ switch(stage){
+  case "preparing":return "Validando sessão";
+  case "sending":return "Preparando envio seguro";
+  case "waiting":return "Aguardando a NVIDIA";
+  case "cooldown":return "Recuperação NVIDIA após timeout";
+  case "verifying":return "Conferindo citações na fonte";
+  default:return "Preparando análise";
+ }
+}
 type SemanticState=ReturnType<typeof useSemanticContext>;
 export function SemanticPreparationPanel({semantic,authorized,disabled=false,onConflictDecision}:{
  semantic:SemanticState;authorized:boolean;disabled?:boolean;
@@ -30,20 +42,22 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
     <span>Partes verificadas <strong>{semantic.count} / {plan.chunks.length}</strong></span>
     <progress value={semantic.count} max={plan.chunks.length}
      aria-label="Blocos analisados"/>
-    <small>A análise percorre todas as partes em sequência e respeita a cota compartilhada
-     de 15 chamadas/min. Pode ser cancelada e retomada; as partes concluídas são preservadas
-     nesta sessão.</small>
+    <small>Até {SEMANTIC_CONCURRENCY} partes analisadas simultaneamente pela NVIDIA, respeitando
+     a cota compartilhada de 15 chamadas/min no Supabase e o tempo de espera informado
+     em respostas 429. Cada parte concluída é preservada nesta sessão e a análise pode ser
+     interrompida ou retomada.</small>
    </div>
    {semantic.working&&<div className="qa-semantic-live" role="group" aria-label="Processamento da análise por blocos">
     <LoaderCircle className="qa-semantic-spinner" size={19} aria-hidden="true"/>
     <div>
-     <strong role="status" aria-live="polite">Processando {semantic.activeChunk??"contexto"} · envio {semantic.attempt} neste lote</strong>
-     <span>{semantic.activeStage==="preparing"?"Validando sessão":
-       semantic.activeStage==="sending"?"Preparando solicitação segura":
-       semantic.activeStage==="waiting"?"Aguardando resposta da NVIDIA":
-       semantic.activeStage==="cooldown"?"Recuperação automática: próxima tentativa pela NVIDIA com resposta menor":
-       semantic.activeStage==="verifying"?"Conferindo as citações com a fonte original":
-       "Preparando próxima parte"}</span>
+     <strong role="status" aria-live="polite">
+      Analisando até {SEMANTIC_CONCURRENCY} partes em paralelo · {semantic.attempt} partes iniciadas neste lote
+     </strong>
+     <div className="qa-semantic-active-parts" aria-label="Estado individual das partes em processamento">
+      {semantic.activeChunks.map(chunkId=><span key={chunkId}>
+       <strong>{chunkId}</strong> · {stageLabel(semantic.activeStages[chunkId])}
+      </span>)}
+     </div>
      <small aria-live="off">Tempo decorrido neste lote: {String(Math.floor(semantic.elapsed/60)).padStart(2,"0")}:{String(semantic.elapsed%60).padStart(2,"0")} ·
       {semantic.count} de {plan.chunks.length} partes concluídas</small>
     </div>
@@ -68,7 +82,7 @@ export function SemanticPreparationPanel({semantic,authorized,disabled=false,onC
      return <li key={chunk.id}>
       <span><strong>{chunk.id}</strong> · Linhas {chunk.startLine}–{chunk.endLine}</span>
       {outcome?<span>{outcome.facts.length} citações verificadas · {outcome.unverified} rejeitadas</span>:
-       semantic.activeChunk===chunk.id?<span className="qa-semantic-current"><LoaderCircle size={13} className="qa-semantic-spinner" aria-hidden="true"/> Em análise</span>:
+       semantic.activeStages[chunk.id]?<span className="qa-semantic-current"><LoaderCircle size={13} className="qa-semantic-spinner" aria-hidden="true"/> {stageLabel(semantic.activeStages[chunk.id])}</span>:
        <span>Aguardando análise</span>}
       {outcome&&<button type="button" disabled={disabled||semantic.working||!authorized}
        aria-label={"Reanalisar "+chunk.id} onClick={()=>void semantic.run(chunk.id,authorized)}>
