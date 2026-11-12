@@ -18,9 +18,9 @@ const CATEGORY_SET=new Set<SemanticCategory>([
  "regra","aceite","antes","depois","excecao","permissao","dado","resultado","contexto"
 ]);
 const limits={TF:30000,REQ:20000} as const;
-export const SEMANTIC_CHUNK_SIZE=9000;
-export const SEMANTIC_CHUNK_TOKEN_BUDGET=6000; // estimated, not tokenizer-exact
-export const SEMANTIC_REQUEST_BATCH=8;
+export const SEMANTIC_CHUNK_SIZE=3600; // bounded NVIDIA latency per request
+export const SEMANTIC_CHUNK_TOKEN_BUDGET=2800; // estimated, not tokenizer-exact
+export const SEMANTIC_REQUEST_BATCH=8; // retained for compatibility
 export const SEMANTIC_MAX_CHUNKS=75;
 const identifiers=(text:string)=>new Set((text.match(/\b(?:RF|RNF|REQ|CR|CT)[-_ ]?\d{1,6}\b/gi)??[])
  .map(s=>s.toUpperCase().replace(/[-_ ]/g,"")));
