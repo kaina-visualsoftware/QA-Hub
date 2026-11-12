@@ -145,7 +145,7 @@ try {
    await page.getByRole("button",{name:"Excluir filtro salvo: Descontos especiais"}).click();
    const confirmFilter=page.getByRole("dialog",{name:"Excluir filtro salvo?"});
    await confirmFilter.waitFor();
-   assert.equal(await confirmFilter.getByRole("button",{name:"Cancelar"}).isFocused(),true);
+   assert.equal(await confirmFilter.getByRole("button",{name:"Cancelar"}).evaluate(el=>el===document.activeElement),true);
    await confirmFilter.getByRole("button",{name:"Cancelar"}).click();
    await confirmFilter.waitFor({state:"hidden"});
   assert.equal(await search.inputValue(),"QA-9999");
