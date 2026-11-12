@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {AiRequestError,readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
+import {readAiHttpError,withAiRateLimitRetry} from "../../lib/ai-retry";
 import type {AiWaitCallback} from "../../lib/ai-retry";
 import {supabase,publishableKey,supabaseUrl} from "../../lib/supabase";
 import {validateSemanticFacts} from "./semantic-context";
@@ -69,38 +69,12 @@ export function splitSemanticChunk(chunk:SemanticChunk):[SemanticChunk,SemanticC
    startLine:secondLine}
  ];
 }
-function isSemanticTimeout(reason:unknown):boolean{
- return reason instanceof AiRequestError&&(
-  reason.status===504||reason.code==="provider_timeout"||
-  (reason.status===503&&/ultrapassaram o tempo|tempo de resposta excedido/i.test(reason.message)));
-}
-/** Bounded recovery: a timeout automatically retries smaller parts, never
- * repeats successful siblings, and only checks off the parent once both
- * children have been verified. No bypass of quota/auth failures. */
+/** Avoid retry storms: one timed-out NVIDIA request per chunk.
+ * The React workflow switches to literal offline extraction for the failed
+ * chunk and every remaining chunk. No repeated HTTP 504s for subdivisions.
+ */
 export async function analyzeSemanticChunk(chunk:SemanticChunk,goal:SemanticGoal,
  signal:AbortSignal,onStage:(stage:SemanticRequestStage)=>void=()=>{},
  onWait:AiWaitCallback=()=>{}):Promise<ChunkOutcome>{
- async function attempt(part:SemanticChunk,depth:number):Promise<ChunkOutcome>{
-  try{return await analyzeSingleSemanticChunk(part,goal,signal,onStage,onWait);}
-  catch(reason){
-   if(signal.aborted||!isSemanticTimeout(reason)||depth>=2||part.text.length<1250)
-    throw reason;
-   const [left,right]=splitSemanticChunk(part);
-   const first=await attempt(left,depth+1);
-   const second=await attempt(right,depth+1);
-   // The children were independently checked against their own exact
-   // substrings. Preserve their source line offsets: looking up repeated
-   // quotes in the parent would attribute both to the first occurrence.
-   const seen=new Set<string>();
-   const facts=[...first.facts,...second.facts].filter(fact=>{
-    const key=[fact.source,fact.line,fact.category,fact.quote].join("|");
-    if(seen.has(key))return false;
-    seen.add(key);return true;
-   });
-   return {id:part.id,facts,
-    unverified:first.unverified+second.unverified,
-    model:[...new Set([first.model,second.model])].join(", ")};
-  }
- }
- return attempt(chunk,0);
+ return analyzeSingleSemanticChunk(chunk,goal,signal,onStage,onWait);
 }

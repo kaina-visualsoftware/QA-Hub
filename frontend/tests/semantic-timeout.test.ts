@@ -1,5 +1,6 @@
 import {describe,expect,it,vi,afterEach} from "vitest";
-import {buildSemanticPlan} from "../src/features/generators/semantic-context";
+import {buildSemanticPlan,compileSemanticContext} from "../src/features/generators/semantic-context";
+import {extractLocalSemanticChunk} from "../src/features/generators/semantic-local";
 import {analyzeSemanticChunk,splitSemanticChunk} from
  "../src/features/generators/semantic-service";
 
@@ -27,32 +28,53 @@ describe("Retomada semântica em documentos extensos",()=>{
   expect(a.text.endsWith("\uD83E")).toBe(false);
   expect(b.text.startsWith("\uDDEA")).toBe(false);
  });
- it("quando o primeiro bloco expira, fragmenta duas vezes e verifica todas as citações",async()=>{
+ it("um único 504 não dispara novas requisições nem divide em subrequisições",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
-  const requests:{text:string;chunkId:string}[]=[];
-  const mocked=vi.fn(async(_url:string,init:RequestInit)=>{
-   const data=JSON.parse(String(init.body)) as {text:string;chunkId:string};
-   requests.push(data);
-   if(data.text.length>1200)return new Response(JSON.stringify({
-    code:"provider_timeout",message:"Tempo de resposta excedido nesta parte."
-   }),{status:504,headers:{"Content-Type":"application/json"}});
-   const quote=data.text.match(/Regra \d+: [^\n]{25,}/)?.[0]??"";
-   return new Response(JSON.stringify({
-    chunkId:data.chunkId,source:"TF",goal:"teste",provider:"NVIDIA Build",
-    model:"fixture",unverified:0,
-    facts:quote?[{category:"regra",quote,summary:"Regra preservada."}]:[]
-   }),{status:200,headers:{"Content-Type":"application/json"}});
-  });
+  const mocked=vi.fn(async()=>new Response(JSON.stringify({
+   code:"provider_timeout",message:"Tempo de resposta excedido nesta parte."
+  }),{status:504,headers:{"Content-Type":"application/json"}}));
   vi.stubGlobal("fetch",mocked);
-  const result=await analyzeSemanticChunk(chunk,"teste",new AbortController().signal);
-  expect(requests[0].text).toBe(chunk.text);
-  expect(requests.length).toBeGreaterThan(3);
-  expect(requests.filter(r=>r.text.length<=1200)
-   .map(r=>r.text).join("")).toBe(chunk.text);
-  expect(requests.every(r=>r.chunkId===chunk.id)).toBe(true);
-  expect(result.facts.length).toBeGreaterThan(2);
-  expect(result.facts.every(f=>chunk.text.includes(f.quote))).toBe(true);
-  expect(result.facts.map(f=>f.line)).toEqual([...result.facts.map(f=>f.line)].sort((a,b)=>a-b));
+  await expect(analyzeSemanticChunk(chunk,"teste",new AbortController().signal))
+   .rejects.toThrow("Tempo de resposta excedido");
+  expect(mocked).toHaveBeenCalledTimes(1);
+  const outcome=extractLocalSemanticChunk(chunk,"teste");
+  expect(outcome.method).toBe("local");
+  expect(outcome.facts.length).toBeGreaterThan(0);
+  expect(outcome.facts.every(f=>chunk.text.includes(f.quote))).toBe(true);
+ });
+ it("prepara as 20 partes de um relatório extenso com citações locais rastreáveis",()=>{
+  const source=[
+   "TF 196756 — Vale-compra e faturamento",
+   ...Array.from({length:950},(_,i)=>
+    "CENÁRIO "+i+" — Testar regra do pedido e lançamento do vale no faturamento do carregamento."),
+   "Revisão final: Parecer fiscal proíbe tratar vale como desconto na NF.",
+   "Decisão final: REQ-2026-799 substitui os requisitos anteriores.",
+   "Regra correta: pedido mínimo = TotalVale / (percentual/100)."
+  ].join("\n");
+  expect(source.length).toBeGreaterThan(65000);
+  const plan=buildSemanticPlan(source);
+  expect(plan.chunks.length).toBeGreaterThanOrEqual(20);
+  expect(plan.chunks.map(c=>c.text).join("")).toBe(source);
+  const outcomes=new Map(plan.chunks.map((chunk,index)=>{
+   const outcome=extractLocalSemanticChunk(chunk,"teste");
+   return [chunk.id,index<6?{...outcome,method:"nvidia" as const,model:"teste"}:outcome] as const;
+  }));
+  const compiled=compileSemanticContext(plan,outcomes,"teste");
+  expect(compiled.coverage.analyzedChunks).toBe(plan.chunks.length);
+  expect(compiled.coverage.localChunks).toBe(plan.chunks.length-6);
+  expect(compiled.coverage.failedChunks).toBe(0);
+  expect(compiled.task).toContain("REQ-2026-799");
+  expect(compiled.task).toContain("TotalVale / (percentual/100)");
+  expect(compiled.task).toContain("sem interpretação da IA");
+ });
+ it("não inclui credenciais encontradas nos trechos locais",()=>{
+  const text="Senha: exemplo-super-secreto\nToken: chave-interna\n"+
+   "Regra: o vale-compra deve ser tratado como pagamento e não como desconto na NF.";
+  const chunk=buildSemanticPlan(text).chunks[0];
+  const outcome=extractLocalSemanticChunk(chunk,"teste");
+  expect(outcome.facts.some(x=>x.quote.includes("exemplo-super-secreto"))).toBe(false);
+  expect(outcome.facts.some(x=>x.quote.includes("chave-interna"))).toBe(false);
+  expect(outcome.facts.map(x=>x.quote).join("\n")).toContain("vale-compra");
  });
  it("não fragmenta nem tenta novamente um bloco quando a sessão é inválida",async()=>{
   const chunk=buildSemanticPlan(original).chunks[0];
