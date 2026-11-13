@@ -13,3 +13,5 @@ Leia `README.md`, `docs/PLANO_EVOLUCAO_QA.md` e o código existente antes de alt
 Fluxo: diagnóstico → requisito/aceite → mudança isolada → testes → revisão de segurança → PR.
 
 - Para inspeção visual, aplicar `.agents/skills/agent-desktop/SKILL.md`. Para consistência de telas e visibilidade herdada da TF, seguir `docs/PADRAO_INTERFACE.md`.
+
+- Em tarefas de engenharia, consultar `docs/FERRAMENTAS_AGENTES.md` para avaliar RTK, Context Mode, Headroom e Graphify. Usar somente quando compatíveis e relevantes; não considerar a documentação como instalação automática.
