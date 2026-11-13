@@ -70,10 +70,8 @@ export default function ReleaseListsPicker({value,onChange}:{
    const names=activeItems.data.filter(x=>x.ativo&&!excluded.includes(x.id))
      .map(x=>x.nome).join("\n");
    onChange(names);
- // Depend only on fetched data and checked identifiers; changing a manual
- // override must not trigger a reapply of the saved preset.
- // eslint-disable-next-line react-hooks/exhaustive-deps
- },[selected,activeItems.data,activeItems.isSuccess,excluded]);
+ // The parent callback is stable. Manual changes do not refetch the preset.
+ },[selected,activeItems.data,activeItems.isSuccess,excluded,onChange]);
  const choose=(id:string)=>{
    setSelected(id);setExcluded([]);
    if(!id)onChange("");
