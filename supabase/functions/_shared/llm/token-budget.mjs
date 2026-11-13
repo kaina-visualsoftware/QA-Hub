@@ -8,7 +8,8 @@ export const TOKEN_ESTIMATE_WARNING="Estimativa local, não é a contagem oficia
 /** @type {Readonly<Record<string,number>>} */
 export const MODEL_CONTEXT_PUBLISHED=Object.freeze({
  "z-ai/glm-5.3-flash":1048576,
- "nvidia/nemotron-3.5-lightning-30b-a3b":1000000
+ "nvidia/nemotron-3.5-lightning-30b-a3b":1000000,
+ "openai/gpt-oss-20b":131072
 });
 /** Product limits intentionally smaller than the model card's maximum. Their
  * purpose is to reduce slow/expensive long context requests on free endpoints.
