@@ -347,7 +347,9 @@ try{
     "A rotina também passou a validar os kits desdobrados.",
     "A newer AI result may refresh an unchanged earlier AI field");
   assert.equal(aiRequests.filter(x=>x.mode==="task-fields").length,2,"Reanalysis must reuse the NVIDIA field stage");
-   assert.ok(aiRequests.some(x=>x.mode==="task-seeds"),"Scenario discovery must run by NVIDIA, not a browser parser");
+  assert.equal(aiRequests.filter(x=>x.mode==="task-seeds"||x.mode==="task-scenarios").length,0,
+    "Nenhum cenário deve ser gerado na etapa 1: apenas campos; casos ficam na etapa 3.");
+  assert.equal(caseRequests.length,0,"Nenhuma chamada de geração de testes antes da etapa 3.");
   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 3 de 3"}).waitFor();
   assert.equal(taskWrites,0);
