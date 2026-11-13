@@ -312,7 +312,7 @@ try{
   assert.equal(scenarios.length,1);
   assert.equal(scenarios[0].status,"nao_executado");
   assert.equal(tasks[0].status,"rascunho");
-  await page.getByText("Nenhum caso novo para adicionar").waitFor({timeout:20000});
+  await page.getByText("Nenhum caso novo e completo para adicionar").waitFor({timeout:20000});
   assert.equal(await page.locator(".qa-ai-case-review").count(),0,
     "Newly saved cases must disappear from the review");
   // One focused tool at a time: close the generator before opening posts.

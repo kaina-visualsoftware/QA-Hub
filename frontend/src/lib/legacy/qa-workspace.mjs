@@ -19,6 +19,46 @@ export function taskToGeneratorText(task) {
   return parts.filter(([,value])=>text(value)).map(([label,value])=>label+': '+text(value)).join('\n\n');
 }
 
+/** Display and store sequential numbered steps on separate lines.
+ * Numbers inside versions (12.08.07), IPs and unnumbered prose are preserved.
+ * Never infer or renumber test actions; this only adds missing separators.
+ */
+export function formatNumberedCaseSteps(value) {
+  return String(value??'').replace(/\r\n?/g,'\n').split('\n').map(line=>{
+    const markers=[...line.matchAll(/(^|[ \t]+)(\d{1,3})[.)][ \t]+(?=\S)/g)];
+    if(markers.length<2)return line;
+    const prefix=line.slice(0,markers[0].index).trim();
+    if(prefix&&!/^passos(?:\s+de\s+teste)?\s*:\s*$/i.test(prefix))return line;
+    let previous=Number(markers[0][2]);
+    const separators=[];
+    for(const marker of markers.slice(1)){
+      const number=Number(marker[2]);
+      if(number!==previous+1)continue;
+      separators.push(marker.index);
+      previous=number;
+    }
+    let formatted=line;
+    for(const index of separators.reverse())
+      formatted=formatted.slice(0,index)+'\n'+formatted.slice(index).trimStart();
+    return formatted;
+  }).join('\n');
+}
+
+const missingCaseValue=/^(?:a confirmar|a definir|a preencher|não informado|nao informado|não especificado|nao especificado|não documentado|nao documentado|sem informação|sem informacao|sem dados|sem passos|não disponível|nao disponivel|pendente|tbd|todo|n\/?a|n\/?d|\.{2,}|[-–—_*]+|passos?\s*:|resultado esperado\s*:)$/iu;
+function hasMeaningfulCaseValue(value){
+  return formatNumberedCaseSteps(String(value??'').replace(/[\u200b-\u200d\ufeff]/g,''))
+    .split(/\r?\n/).map(line=>line.trim()
+      .replace(/^(?:\d{1,3}[.)]|[-*•])\s*/u,'')
+      .replace(/^\[([\s\S]*?)\]$/u,'$1').trim())
+    .some(line=>line.length>0&&!missingCaseValue.test(line));
+}
+/** Reject suggestions with no usable steps or expected result, including AI
+ * placeholders. Leave the raw AI document untouched for traceability. */
+export function hasCompleteGeneratedCase(item){
+  return Boolean(item&&String(item.titulo??'').trim().length>=3&&
+    hasMeaningfulCaseValue(item.passos)&&hasMeaningfulCaseValue(item.esperado));
+}
+
 export function parseGeneratedCases(markdown) {
   const raw = String(markdown ?? '').replace(/\r\n?/g, '\n');
   const headers = [...raw.matchAll(/^##[ \t]+Cen[aá]rio\b([^\n]*)$/gim)];
@@ -32,11 +72,18 @@ export function parseGeneratedCases(markdown) {
     const title = clean(rawTitle).replace(/\*\*/g,'').slice(0,240) || 'Cenário '+(index+1);
     const blocks = [...segment.matchAll(/^###[ \t]+([^\n]+)\n([\s\S]*?)(?=^###[ \t]+|$(?![\s\S]))/gm)];
     const fields = new Map(blocks.map(match=>[
-      normalized(match[1]).normalize('NFD').replace(/[\u0300-\u036f]/g,''),
+      normalized(match[1]).replace(/\*/g,'').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'').replace(/[：:]+$/u,'').trim(),
       clean(match[2].replace(/\n---\s*$/,''))
     ]));
-    const steps = fields.get('passos') || fields.get('passo a passo') || '';
-    const expected = fields.get('resultado esperado') || fields.get('resultados esperados') || '';
+    const steps = formatNumberedCaseSteps(
+      fields.get('passos') || fields.get('passo a passo') ||
+      fields.get('passos para reproduzir') || fields.get('passos para reproducao') ||
+      fields.get('passos de teste') || fields.get('passos para execucao') || ''
+    );
+    const expected = fields.get('resultado esperado') ||
+      fields.get('resultados esperados') || fields.get('resultado esperado do teste') ||
+      fields.get('comportamento esperado') || '';
     const objective = fields.get('cenario') || fields.get('objetivo') || '';
     const prerequisites = fields.get('pre-requisitos') || fields.get('precondicoes') || '';
     const additional=[
@@ -71,7 +118,8 @@ export function markScenarioDuplicates(candidates,existing=[]) {
 
 /** Keep only new cases, including removing repeats inside the same AI response. */
 export function onlyNewScenarioCandidates(candidates,existing=[]) {
-  return markScenarioDuplicates(candidates,existing).filter(item=>!item.duplicate);
+  return markScenarioDuplicates(candidates.filter(hasCompleteGeneratedCase),existing)
+    .filter(item=>!item.duplicate);
 }
 
 export function validateReviewedCases(items) {

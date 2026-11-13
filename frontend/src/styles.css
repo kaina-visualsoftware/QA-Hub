@@ -3374,3 +3374,12 @@
  background:linear-gradient(90deg,#e9f1f2 25%,#f5f9f9 48%,#e9f1f2 75%);
  background-size:200% 100%;animation:qa-workspace-skeleton 1.5s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.qa-dashboard-skeleton-value{animation:none}}
+
+/* Numbered QA instructions keep their individual lines in the review card.
+   Preserve compact previews without changing other paragraph layouts. */
+.qa-ai-review-list .qa-ai-case-preview p.qa-ai-steps-preview{
+ display:block;-webkit-line-clamp:unset;white-space:normal;overflow:hidden
+}
+.qa-ai-review-list .qa-ai-case-preview .qa-ai-steps-preview span{
+ display:block;white-space:pre-line;overflow-wrap:anywhere;line-height:1.55
+}

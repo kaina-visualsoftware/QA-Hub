@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {taskToGeneratorText,parseGeneratedCases,markScenarioDuplicates,validateReviewedCases,attachReviewedCases} from '../qa-workspace.mjs';
+import {taskToGeneratorText,parseGeneratedCases,markScenarioDuplicates,validateReviewedCases,attachReviewedCases,formatNumberedCaseSteps,hasCompleteGeneratedCase} from '../qa-workspace.mjs';
 
 const markdown = `# ROTEIRO
 ## Objetivo
@@ -63,4 +63,41 @@ test('validate reviewed fields before touching storage',async()=>{
  assert.equal(call.method,'qa_attach_generated_cases');
  assert.equal(call.payload.p_tarefa_id,id);
  assert.deepEqual(call.payload.p_itens,valid);
+});
+
+test('numbered steps gain line breaks without modifying dates or technical version identifiers',()=>{
+ const input='1. Abrir o MyExportNFe. 2. Verificar o campo Mês/Ano 12.08.07.0000. 3. Enviar ao contador.';
+ assert.equal(formatNumberedCaseSteps(input),
+  '1. Abrir o MyExportNFe.\n2. Verificar o campo Mês/Ano 12.08.07.0000.\n3. Enviar ao contador.');
+ assert.equal(formatNumberedCaseSteps('1. Abrir.\n2. Conferir.'),'1. Abrir.\n2. Conferir.');
+ assert.equal(formatNumberedCaseSteps('Versão 12.08.07.0000. Acessar pedido.'),
+  'Versão 12.08.07.0000. Acessar pedido.');
+ assert.equal(formatNumberedCaseSteps('Verificar status 2. Em build.'),'Verificar status 2. Em build.');
+});
+test('case completeness excludes missing and placeholder-only steps or expected results',()=>{
+ const base={titulo:'Envio ao contador',passos:'1. Abrir a tela.',
+  esperado:'Envio efetuado.',observacoes:'',selected:true};
+ assert.equal(hasCompleteGeneratedCase(base),true);
+ for(const item of [
+  {...base,passos:''},
+  {...base,esperado:' '},
+  {...base,passos:'1. [A confirmar]\n2. A confirmar'},
+  {...base,esperado:'[A confirmar]'},
+  {...base,esperado:'—'},
+  {...base,titulo:'  '}
+ ])assert.equal(hasCompleteGeneratedCase(item),false,JSON.stringify(item));
+ assert.equal(hasCompleteGeneratedCase({...base,esperado:'Não permite o envio sem contador.'}),true);
+});
+test('parser accepts minor heading variations and formats inline numbered steps',()=>{
+ const parsed=parseGeneratedCases([
+  '## Cenário 6 — Impedir envio sem contabilista',
+  '### **Passos:**',
+  '1. Abrir o MyExportNFe. 2. Verificar o bloqueio.',
+  '### Resultado esperado:',
+  'O envio deve ser bloqueado.'
+ ].join('\n'));
+ assert.equal(parsed.length,1);
+ assert.equal(parsed[0].passos,'1. Abrir o MyExportNFe.\n2. Verificar o bloqueio.');
+ assert.equal(parsed[0].esperado,'O envio deve ser bloqueado.');
+ assert.equal(hasCompleteGeneratedCase(parsed[0]),true);
 });

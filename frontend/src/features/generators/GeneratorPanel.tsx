@@ -16,7 +16,8 @@ import {
   composeRequirementContext, loadApprovedRequirements, recordRequirementUsage
 } from "../../lib/legacy/qa-requirements-context.mjs";
 import {
-  attachReviewedCases, markScenarioDuplicates, onlyNewScenarioCandidates, parseGeneratedCases
+  attachReviewedCases, markScenarioDuplicates, onlyNewScenarioCandidates, parseGeneratedCases,
+  hasCompleteGeneratedCase, formatNumberedCaseSteps
 } from "../../lib/legacy/qa-workspace.mjs";
 import type { GeneratedCase } from "../../lib/legacy/qa-workspace.mjs";
 import {
@@ -347,6 +348,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setTruncated(response.truncated);
       setDirtyOutput(false);
       let newCases = 0;
+      let discardedCases = 0;
       if (mode === "post") {
         const formatted = formatGeneratedPost(response.text, {
           taskText: sentTask
@@ -355,6 +357,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setContent(renderPostFormat(formatted,postFormat));
       } else {
         const candidates = parseGeneratedCases(response.text);
+        discardedCases = candidates.filter(item=>!hasCompleteGeneratedCase(item)).length;
+
         const fresh = resume
           ? onlyNewResumedCases(candidates,scenarios,cases)
           : onlyNewScenarioCandidates(candidates,scenarios);
@@ -364,12 +368,15 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setContent(previous=>resume?[previous,response.text].filter(Boolean).join("\n\n---\n\n"):response.text);
       }
       setShowSetup(false);
-      setMessage(response.truncated
+      setMessage((response.truncated
         ? "Resposta interrompida pelo limite do modelo. Revise antes de usar."
         : mode === "teste"
           ? newCases ? "Casos novos preparados. Revise a seleção antes de adicionar."
             : "Nenhum caso novo encontrado nesta geração."
-          : "Post gerado e formatado. Revise os campos antes de salvar.");
+          : "Post gerado e formatado. Revise os campos antes de salvar.")+
+        (mode==="teste"&&discardedCases>0
+          ? " "+discardedCases+" caso(s) sem passos ou resultado esperado foram descartados automaticamente."
+          : ""));
     } catch (cause) {
       setRaw(previousRaw);setTruncated(previousTruncated);
       setShowSetup(true);
@@ -438,6 +445,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       if(abort.signal.aborted)throw Error("Geração incremental cancelada.");
       setActivityPhase("organizing");
       const candidates=parseGeneratedCases(response.text);
+      const discarded=candidates.filter(item=>!hasCompleteGeneratedCase(item)).length;
       const fresh=onlyNewScenarioCandidates(candidates,[...scenarios,...cases]);
       if(fresh.length){
         setCases(prev=>[...prev,...editableCopy(fresh)]);
@@ -446,11 +454,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setDirtyOutput(true);
       }
       setTruncated(response.truncated);
-      setMessage(response.truncated?
+      setMessage((response.truncated?
         "Parte da geração foi interrompida. Verifique os cenários antes de usar.":
         fresh.length?
           fresh.length+" caso(s) candidato(s) adicionados à revisão, sem alterar os anteriores. Vincule-os aos requisitos depois de salvar.":
-          "A IA não retornou casos novos distintos para esta seleção.");
+          "A IA não retornou casos novos distintos para esta seleção.")+
+        (discarded?" "+discarded+" caso(s) incompleto(s) descartado(s) automaticamente.":""));
     }catch(reason){
       setRaw(previousRaw);
       const cp=focusedCheckpoint.current;
@@ -877,7 +886,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                 {revisionBusy?"Revisando…":"Regerar apenas este caso"}
               </button>
               <div className="qa-ai-case-preview">
-                <p><b>Passos</b> {item.passos.slice(0,230)}{item.passos.length>230?"…":""}</p>
+                <p className="qa-ai-steps-preview"><b>Passos</b>
+                  <span>{formatNumberedCaseSteps(item.passos).slice(0,360)}{item.passos.length>360?"…":""}</span>
+                </p>
                 <p><b>Esperado</b> {item.esperado.slice(0,230)}{item.esperado.length>230?"…":""}</p>
               </div>
               <details className="qa-ai-case-edit">
@@ -886,7 +897,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
                   <label className="field">Título<input value={item.titulo} maxLength={240}
                     onChange={e=>replaceCase(item.caseIndex,{titulo:e.target.value})}/></label>
                   <label className="field">Passos<textarea rows={3} value={item.passos} maxLength={20000}
-                    onChange={e=>replaceCase(item.caseIndex,{passos:e.target.value})}/></label>
+                    onChange={e=>replaceCase(item.caseIndex,{passos:e.target.value})}
+                    onBlur={e=>{
+                      const formatted=formatNumberedCaseSteps(e.target.value);
+                      if(formatted!==e.target.value)replaceCase(item.caseIndex,{passos:formatted});
+                    }}/></label>
                   <label className="field">Resultado esperado<textarea rows={3} value={item.esperado} maxLength={20000}
                     onChange={e=>replaceCase(item.caseIndex,{esperado:e.target.value})}/></label>
                   <label className="field">Observações<textarea rows={2} value={item.observacoes} maxLength={20000}
@@ -910,8 +925,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         </> : !generating && (generatedCount > 0
           ? <div className="qa-ai-review-empty" role="status">
               <FileCheck2 size={22} aria-hidden="true"/>
-              <strong>Nenhum caso novo para adicionar</strong>
-              <p>Os cenários encontrados já estão contemplados nesta TF. Experimente outro modelo de geração para explorar novas situações.</p>
+              <strong>Nenhum caso novo e completo para adicionar</strong>
+              <p>Casos repetidos ou sem passos e resultado esperado foram excluídos automaticamente da seleção. Revise a resposta original ou tente outra geração.</p>
             </div>
           : <div className="qa-ai-review-empty" role="status">
               <strong>Nenhum caso de teste identificável</strong>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sanitizeAiContext, composeFullTaskContext } from "../src/lib/legacy/qa-test-context.mjs";
 import { formatGeneratedPost, validatePostStructure } from "../src/lib/legacy/qa-post-format.mjs";
-import { markScenarioDuplicates, onlyNewScenarioCandidates, validateReviewedCases } from "../src/lib/legacy/qa-workspace.mjs";
+import { markScenarioDuplicates, onlyNewScenarioCandidates, validateReviewedCases, parseGeneratedCases, hasCompleteGeneratedCase, formatNumberedCaseSteps } from "../src/lib/legacy/qa-workspace.mjs";
 
 const task = {
   id: "75e95c7e-bc4a-43dc-90de-9ffddf249b11",
@@ -71,4 +71,54 @@ describe("post e revisão de casos", () => {
     expect(rows[0].selected).toBe(false);
     expect(() => validateReviewedCases([{ ...first, esperado: "" }])).toThrow(/resultado esperado/i);
   });
+});
+
+describe("geração NVIDIA — limpeza segura dos casos",()=>{
+ const markdown=[
+  "## Cenário 01 — Caso completo",
+  "### Passos",
+  "1. Abrir a tela. 2. Selecionar a empresa. 3. Confirmar o envio.",
+  "### Resultado esperado",
+  "O envio é realizado.",
+  "## Cenário 02 — Sem passos",
+  "### Passos",
+  " ",
+  "### Resultado esperado",
+  "O sistema impede o envio.",
+  "## Cenário 03 — Sem resultado",
+  "### Passos",
+  "1. Abrir a tela.",
+  "### Resultado esperado",
+  "[A confirmar]",
+  "## Cenário 04 — Caso completo seguinte",
+  "### Passos:",
+  "1. Escolher um período. 2. Gerar arquivos.",
+  "### Resultado esperado:",
+  "Arquivos gerados no diretório indicado."
+ ].join("\n");
+ it("descarta automaticamente os casos que não trazem passos ou esperado verificáveis",()=>{
+  const parsed=parseGeneratedCases(markdown);
+  expect(parsed).toHaveLength(4);
+  const remaining=onlyNewScenarioCandidates(parsed);
+  expect(remaining).toHaveLength(2);
+  expect(remaining.map(x=>x.source_index)).toEqual([1,4]);
+  expect(remaining.every(hasCompleteGeneratedCase)).toBe(true);
+  expect(remaining.every(item=>item.selected)).toBe(true);
+ });
+ it("mantém um passo por linha, sem modificar identificadores técnicos",()=>{
+  const parsed=parseGeneratedCases(markdown);
+  expect(parsed[0].passos).toBe(
+   "1. Abrir a tela.\n2. Selecionar a empresa.\n3. Confirmar o envio.");
+  expect(parsed[3].passos).toBe(
+   "1. Escolher um período.\n2. Gerar arquivos.");
+  expect(formatNumberedCaseSteps(
+   "1. Configurar a versão 12.08.07.0000. 2. Conferir a tela."
+  )).toBe("1. Configurar a versão 12.08.07.0000.\n2. Conferir a tela.");
+ });
+ it("não confunde cenário bloqueado com campo ausente",()=>{
+  expect(hasCompleteGeneratedCase({
+   titulo:"Bloqueio de envio",passos:"1. Abrir exportação.",
+   esperado:"Sistema bloqueia o envio."
+  })).toBe(true);
+ });
 });

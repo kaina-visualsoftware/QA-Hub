@@ -39,6 +39,7 @@ import { AiStepFlow } from "../components/ui/AiStepFlow";
 import { AiBusyStatus } from "../components/ui/AiBusyStatus";
 import "../features/tasks/ai-proposal.css";
 import {splitScenarioNotes} from "../lib/legacy/qa-assistant.mjs";
+import {formatNumberedCaseSteps} from "../lib/legacy/qa-workspace.mjs";
 import {DeleteTaskDialog} from "../features/tasks/DeleteTaskDialog";
 import {getTaskById} from "../features/tasks/task-search-data";
 import {getTaskRights} from "../features/collaboration/team-data";
@@ -465,10 +466,13 @@ export default function TaskPage() {
   },[editing,taskAiStage]);
 
   const createScenario = useMutation({
-    mutationFn: ({ draft }: { draft: ScenarioDraft; another: boolean }) => editingScenario
-      ? editScenario(taskId, editingScenario.id, draft)
-      : addScenario(taskId, userId, draft,
-          Math.max(0, ...(scenarios.data ?? []).map((item) => item.ordem)) + 1),
+    mutationFn: ({ draft }: { draft: ScenarioDraft; another: boolean }) => {
+      const formatted={...draft,passos:formatNumberedCaseSteps(draft.passos)};
+      return editingScenario
+        ? editScenario(taskId, editingScenario.id, formatted)
+        : addScenario(taskId, userId, formatted,
+            Math.max(0, ...(scenarios.data ?? []).map((item) => item.ordem)) + 1);
+    },
     onSuccess: async (_result, { another }) => {
       const keepEditing = another && !editingScenario;
       scenarioForm.reset();
@@ -1001,7 +1005,7 @@ export default function TaskPage() {
           {scenario.obtido && <p className="result-note"><strong>Observado:</strong> {scenario.obtido}</p>}
           {own&&<ScenarioEvidenceToggle task={task} userId={userId} scenario={scenario}/>}
           <details className="scenario-details"><summary><CircleHelp size={16} /> Passos e resultado esperado</summary>
-            <div><strong>Passos</strong><p style={{whiteSpace:"pre-wrap"}}>{scenario.passos || "Não informado"}</p></div>
+            <div><strong>Passos</strong><p style={{whiteSpace:"pre-wrap"}}>{scenario.passos ? formatNumberedCaseSteps(scenario.passos) : "Não informado"}</p></div>
             <div><strong>Esperado</strong><p style={{whiteSpace:"pre-wrap"}}>
               {scenario.esperado ? scenario.esperado.split("\n").map(line=>
                 /^[-•*]\s/.test(line)?line:"- "+line).join("\n") : "Não informado"}
