@@ -7,6 +7,7 @@ import {supabase} from "../../lib/supabase";
 import {readAiInvokeError,withAiRateLimitRetry} from "../../lib/ai-retry";
 import type {AiWaitCallback} from "../../lib/ai-retry";
 import {cleanQaSourceText,formatQaSentenceCase} from "../../lib/legacy/qa-text-cleaner.mjs";
+import {hasCompleteGeneratedCase,formatNumberedCaseSteps} from "../../lib/legacy/qa-workspace.mjs";
 
 export type SuggestedScenario={
   titulo:string;passos:string;esperado:string;observacoes:string;selected:boolean;
@@ -97,12 +98,12 @@ export function freshTaskAiScenarios(
   for(const item of draft.cenarios){
     const scenario={
       titulo:formatQaSentenceCase(item.titulo).trim().slice(0,240),
-      passos:formatQaSentenceCase(item.passos).trim().slice(0,20000),
+      passos:formatNumberedCaseSteps(formatQaSentenceCase(item.passos).trim()).slice(0,20000),
       esperado:formatQaSentenceCase(item.esperado).trim().slice(0,20000),
       observacoes:formatQaSentenceCase(item.observacoes).trim().slice(0,20000),
       selected
     };
-    if(scenario.titulo.length<3||!scenario.passos||!scenario.esperado)continue;
+    if(!hasCompleteGeneratedCase(scenario))continue;
     const key=identity(scenario);
     if(seen.has(key))continue;
     seen.add(key);
