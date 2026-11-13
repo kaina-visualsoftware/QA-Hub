@@ -134,14 +134,15 @@ export function newCheckpoint(source:string,prepared:string):TaskPipelineCheckpo
 /** Fields and scenario candidates are both NVIDIA-generated and independently
  * grounded; subsequent batches only enrich those AI candidates.
  * A provider failure never triggers local semantic extraction.
+ * fieldsOnly leaves scenario generation to the wizard's third step.
  */
 export async function generateTaskAiDraftPhased(text:string,{
- aiText,signal,onWait=()=>{},onProgress=()=>{},onCheckpoint=()=>{},checkpoint
+ aiText,signal,onWait=()=>{},onProgress=()=>{},onCheckpoint=()=>{},checkpoint,fieldsOnly=false
 }:{
  aiText?:string;signal?:AbortSignal;onWait?:AiWaitCallback;
  onProgress?:(state:TaskPipelineProgress)=>void;
  onCheckpoint?:(value:TaskPipelineCheckpoint)=>void;
- checkpoint?:TaskPipelineCheckpoint|null
+ checkpoint?:TaskPipelineCheckpoint|null;fieldsOnly?:boolean
 }={}):Promise<PhasedTaskDraft>{
  const source=text.trim(),cleaned=cleanQaSourceText(source);
  if(!source||cleaned.length<10)throw Error("Informe o problema ou requisito da TF.");
@@ -150,6 +151,15 @@ export async function generateTaskAiDraftPhased(text:string,{
   throw Error("O contexto precisa ser preparado com até 30 mil caracteres e revisado antes do envio.");
  const state=checkpointMatches(checkpoint??null,source,prepared)?
   checkpoint!:newCheckpoint(source,prepared);
+ // Step 1 extracts verified TF fields; scenarios are generated only after
+ // step 2 review and any supplementary requirements supplied in step 3.
+ if(fieldsOnly){
+  state.seeds=[];
+  state.resolvedSeeds=true;
+  state.completedBatches={};
+  state.seedReview=[];
+  state.scenarioReview={};
+ }
  onCheckpoint(state);
  if(signal?.aborted)throw abortError();
  if(!state.resolvedFields){
