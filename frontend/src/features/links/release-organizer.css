@@ -1,0 +1,233 @@
+/* Uniform field hierarchy also applies to the release version above the organizer. */
+.qa-tools-redesign .qa-tools-version-block{
+ grid-template-columns:minmax(0,1fr) minmax(220px,290px);
+ gap:22px;align-items:center;margin-bottom:18px;
+ padding:18px 20px;border:1px solid #dce8ea;border-radius:13px;background:#f7fafb}
+.qa-tools-redesign .qa-tools-version-block h3{font-size:1.04rem;font-weight:730;letter-spacing:-.015em}
+.qa-tools-redesign .qa-tools-version-block .field{font-size:.875rem;gap:8px}
+.qa-tools-redesign .qa-tools-version-block .field input{min-height:46px;
+ padding:10px 13px;font-size:.91rem;border-radius:10px;border-color:#b7ccd1}
+.qa-tools-redesign .qa-tools-version-block small{font-size:.78rem}
+@media(max-width:760px){
+ .qa-tools-redesign .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr);gap:14px;padding:16px}
+}
+
+/* Release organizer · Operate mode: compact, legible, keyboard first. */
+.qa-release-shell{min-width:0}
+.qa-release-shell.qa-release-expanded{margin:0!important}
+.qa-release-content{display:flex;flex-direction:column;gap:20px;min-width:0}
+.qa-release-privacy{margin:0;display:flex;align-items:center;gap:8px;
+ color:#43616a;background:#eff6f7;border:1px solid #dce9ed;
+ padding:10px 14px;border-radius:10px;font-size:.85rem;line-height:1.55}
+.qa-release-step{padding:18px 20px 20px!important;gap:17px!important;
+ border:1px solid #dce7e9!important;border-radius:14px;background:#fff;
+ margin:0!important;min-width:0}
+.qa-release-step+.qa-release-step{border-top:1px solid #dce7e9!important}
+.qa-release-step legend{display:flex;align-items:center;gap:10px;
+ font-size:1.04rem!important;color:#173a46!important;font-weight:720!important;
+ letter-spacing:-.018em;padding:0 6px!important;margin:0!important}
+.qa-release-step legend span{font-variant-numeric:tabular-nums;
+ border:1px solid #cee0e4;background:#edf5f6;color:#27636d;
+ font-size:.72rem;font-weight:750;letter-spacing:.04em;border-radius:8px;
+ padding:4px 7px}
+.qa-release-step .field{font-size:.875rem;gap:8px;min-width:0;color:#294956}
+.qa-release-step .field :is(input,textarea,select),.qa-release-lists>select{
+ color:#193b47;border:1px solid #bacdd1;border-radius:10px;
+ background:#fff;min-height:44px;font-size:.89rem;
+ padding:10px 13px;line-height:1.5;width:100%;max-width:100%}
+.qa-release-step .field textarea{min-height:116px;line-height:1.6;
+ font-size:.875rem;resize:vertical}
+.qa-release-full textarea{min-height:118px}
+.qa-release-step .field :is(input,textarea,select):focus-visible,
+.qa-release-lists>select:focus-visible{outline:3px solid #cee9ed;outline-offset:1px;border-color:#187d8a}
+.qa-release-step .field textarea::placeholder,
+.qa-release-step .field input::placeholder{color:#637d85;opacity:1}
+/* Sequential stages, each with an input area and a compact settings column. */
+.qa-release-primary-grid,.qa-release-review-grid{
+ display:grid;grid-template-columns:minmax(0,1.24fr) minmax(270px,.88fr);
+ align-items:start;gap:16px;min-width:0;width:100%
+}
+.qa-release-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.qa-release-primary-grid .qa-release-main-input textarea{
+ height:162px;min-height:138px;max-height:420px
+}
+.qa-release-review-grid .qa-release-main-input textarea{
+ height:154px;min-height:130px;max-height:420px
+}
+.qa-release-review-grid .qa-release-side textarea{
+ height:78px;min-height:72px;max-height:210px
+}
+.qa-release-action-row{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.qa-release-action-row>button{min-height:42px}
+.qa-release-lists{min-width:0;display:flex;flex-direction:column;gap:8px}
+.qa-release-list-heading{display:flex;align-items:center;justify-content:space-between;
+ gap:10px;flex-wrap:wrap}
+.qa-release-list-heading label{color:#294956;font-size:.875rem;font-weight:650}
+.qa-release-list-heading button{min-height:32px;white-space:nowrap}
+.qa-release-helper{font-size:.79rem;line-height:1.55;color:#58727a;margin:0}
+.qa-release-error{font-size:.8rem;color:#aa303e;overflow-wrap:anywhere;margin:0}
+.qa-release-preset{margin:5px 0 0;padding:13px;background:#f5f9fa;
+ border:1px solid #dce8ea;border-radius:11px;min-width:0}
+.qa-release-preset-head{display:flex;gap:10px;align-items:center;
+ justify-content:space-between;margin-bottom:10px}
+.qa-release-preset-head strong{font-size:.87rem;color:#24444f}
+.qa-release-preset-head>span{font-size:.77rem;color:#5e7880}
+.qa-release-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));
+ gap:8px;max-height:155px;overflow:auto}
+.qa-release-option{display:flex;align-items:center;gap:10px;padding:9px 11px;
+ border-radius:8px;border:1px solid #dbe8eb;background:white;
+ color:#234652;font-size:.86rem;min-width:0;cursor:pointer;overflow-wrap:anywhere}
+.qa-release-option:has(input:checked){border-color:#9fcdd0;background:#edf7f5}
+.qa-release-option input{accent-color:#157680;width:16px;height:16px;flex:none}
+.qa-release-manual{border-top:1px dashed #d1e0e4;padding-top:9px;margin-top:2px}
+.qa-release-manual summary{cursor:pointer;font-weight:620;color:#246677;font-size:.83rem;
+ display:list-item;margin-left:17px}
+.qa-release-manual .field{margin-top:12px}
+.qa-release-manual .field textarea{min-height:80px}
+.qa-release-manual .qa-release-helper{margin-top:6px}
+.qa-release-manager{display:grid;gap:16px;min-width:0;padding:4px 0 2px}
+.qa-release-manager-panel{border:1px solid #dfe9ec;border-radius:12px;
+ padding:16px;background:#fbfdfd;display:grid;gap:14px;min-width:0}
+.qa-release-manager-panel>h3{display:flex;align-items:center;gap:9px;
+ font-size:1rem;color:#1d414c;font-weight:750;margin:0}
+.qa-release-manager-panel form{display:grid;gap:12px;min-width:0}
+.qa-release-manager-panel .field{font-size:.85rem}
+.qa-release-manager-panel .field :is(input,select){min-height:42px;
+ border:1px solid #bed0d4;border-radius:9px;background:white;padding:8px 11px}
+.qa-release-manager-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.qa-release-manager-actions{display:flex;justify-content:flex-start}
+.qa-release-manage-details{display:grid;gap:14px}
+.qa-release-manage-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+ font-size:.78rem;color:#526e77}
+.qa-release-manage-status span{display:inline-flex;align-items:center;gap:6px;
+ padding:5px 9px;background:#eaf5f4;color:#255f64;border-radius:8px;font-weight:700}
+.qa-release-manager-panel form.qa-release-rename,
+.qa-release-manager-panel form.qa-release-add-name{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px}
+.qa-release-manager-panel form.qa-release-rename button,
+.qa-release-manager-panel form.qa-release-add-name button{min-height:42px;white-space:nowrap}
+.qa-release-manage-caption{font-weight:730;font-size:.86rem;margin:0}
+.qa-release-manage-items{display:flex;flex-direction:column;gap:6px;padding:0;margin:0;
+ list-style:none;max-height:240px;overflow:auto}
+.qa-release-manage-items li{display:flex;align-items:center;justify-content:space-between;
+ gap:10px;padding:9px 10px;background:white;border:1px solid #e0e9eb;border-radius:9px}
+.qa-release-manage-items li>span{display:flex;align-items:center;gap:9px;
+ min-width:0;overflow-wrap:anywhere;font-size:.87rem}
+.qa-release-manage-items li button{flex:none}
+.qa-release-danger{display:flex;justify-content:flex-end;border-top:1px solid #e3ebed;
+ padding-top:12px}
+@media(max-width:760px){
+ .qa-release-step{padding:14px 14px 17px!important}
+ .qa-release-primary-grid,.qa-release-review-grid,.qa-release-manager-columns{
+  grid-template-columns:minmax(0,1fr)}
+ .qa-release-manager-panel form.qa-release-rename,
+ .qa-release-manager-panel form.qa-release-add-name{grid-template-columns:minmax(0,1fr)}
+ .qa-release-manager-panel form.qa-release-rename button,
+ .qa-release-manager-panel form.qa-release-add-name button{justify-self:start}
+ .qa-release-list-heading button{min-height:38px}
+}
+@media(max-width:420px){
+ .qa-release-step legend{font-size:.95rem!important}
+ .qa-release-options{grid-template-columns:minmax(0,1fr)}
+ .qa-release-preset-head{flex-wrap:wrap}
+ .qa-release-step .field{font-size:.83rem}
+}
+
+.qa-release-manage-item-actions{display:flex;align-items:center;gap:6px;flex:none}
+.qa-release-item-inactive{opacity:.68}
+.qa-release-manage-items li>span small{display:inline-block;font-size:.7rem;color:#637b83;
+ border-radius:6px;background:#ecf2f3;padding:2px 6px;margin-left:6px}
+.qa-release-manager-panel form.qa-release-item-edit{display:flex;align-items:center;gap:8px;
+ width:100%;min-width:0;flex-wrap:wrap}
+.qa-release-item-edit input{flex:1 1 180px;min-width:0;height:38px;border:1px solid #a5c1c8;
+ border-radius:8px;padding:7px 9px}
+.qa-release-item-edit button{flex:none}
+@media(max-width:420px){
+ .qa-release-manage-items li{align-items:flex-start;flex-direction:column}
+ .qa-release-manage-item-actions{align-self:flex-end}
+}
+
+/* Compact release form only; leave the comparison tool and the global theme intact. */
+#qa-tool-panel-release>header{padding:16px 20px 14px}
+#qa-tool-panel-release>header h2{font-size:1.14rem;margin-bottom:4px}
+#qa-tool-panel-release>header p{line-height:1.45}
+#qa-tool-panel-release .qa-tools-form-body{padding:14px 20px 20px}
+#qa-tool-panel-release .qa-tools-version-block{
+ margin:0 0 12px;padding:10px 14px;gap:16px;
+ grid-template-columns:minmax(0,1fr) minmax(220px,290px)
+}
+#qa-tool-panel-release .qa-tools-version-block h3{margin:0 0 3px}
+#qa-tool-panel-release .qa-tools-version-block p{line-height:1.4;margin:0}
+#qa-tool-panel-release .qa-tools-version-block .field input{min-height:40px}
+#qa-tool-panel-release .qa-tools-version-block small{line-height:1.3}
+.qa-release-shell .qa-release-content{gap:12px}
+.qa-release-shell .qa-release-privacy{
+ padding:6px 10px;line-height:1.35;font-size:.8rem
+}
+.qa-release-shell .qa-release-step{
+ padding:11px 14px 13px!important;gap:12px!important
+}
+.qa-release-shell .qa-release-step legend{
+ margin-bottom:4px!important;font-size:.97rem!important
+}
+.qa-release-shell .qa-release-step legend span{padding:3px 6px}
+.qa-release-shell .qa-release-step .field{gap:5px}
+.qa-release-shell .qa-release-step .field :is(input,select){
+ min-height:40px;padding:8px 11px
+}
+.qa-release-shell .qa-release-step .field textarea{
+ padding:9px 11px;line-height:1.48;resize:vertical
+}
+.qa-release-shell .qa-release-step .qa-release-main-input textarea{
+ min-height:130px
+}
+.qa-release-shell .qa-release-step .qa-release-review-grid .qa-release-side textarea{
+ min-height:72px
+}
+.qa-release-shell .qa-release-list-heading{gap:6px}
+.qa-release-shell .qa-release-list-heading button{min-height:32px}
+.qa-release-shell .qa-release-lists{gap:6px}
+.qa-release-shell .qa-release-manual{margin-top:0;padding-top:6px}
+.qa-release-shell .qa-release-action-row{justify-content:flex-end}
+.qa-release-shell .qa-release-step>div:last-of-type>button{min-height:40px}
+.qa-release-shell .qa-release-options{max-height:120px}
+.qa-release-shell .qa-release-preset{padding:10px;margin-top:2px}
+.qa-release-shell .qa-release-main-input{min-width:0}
+@media(max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr);gap:10px
+ }
+ .qa-release-primary-grid,.qa-release-review-grid{
+  grid-template-columns:minmax(0,1fr);gap:12px
+ }
+ .qa-release-shell .qa-release-primary-grid .qa-release-main-input textarea,
+ .qa-release-shell .qa-release-review-grid .qa-release-main-input textarea{
+  height:136px;min-height:112px
+ }
+ .qa-release-shell .qa-release-action-row{justify-content:flex-start}
+}
+@media(max-width:440px){
+ #qa-tool-panel-release>header{padding:14px 14px 12px}
+ #qa-tool-panel-release .qa-tools-form-body{padding:12px}
+ .qa-release-shell .qa-release-step{padding:11px 11px 12px!important}
+ .qa-release-shell .qa-release-list-heading{align-items:center}
+ .qa-release-shell .qa-release-list-heading button{font-size:.77rem}
+}
+
+/* On phones, the version does not need a full-height standalone row. */
+@media(max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block>div>p{display:none}
+ #qa-tool-panel-release .qa-tools-version-block{padding:8px 10px;gap:8px}
+ #qa-tool-panel-release .qa-tools-version-block h3{margin:0;font-size:.9rem}
+ #qa-tool-panel-release .qa-tools-version-block .field{gap:3px}
+ #qa-tool-panel-release .qa-tools-version-block .field input{min-height:38px}
+ #qa-tool-panel-release .qa-tools-version-block .field small{
+  font-size:.72rem;line-height:1.25
+ }
+}
+@media(min-width:360px) and (max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr) minmax(140px,180px)
+ }
+}

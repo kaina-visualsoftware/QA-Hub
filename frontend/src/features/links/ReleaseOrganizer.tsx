@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { ClipboardCopy, ListChecks, PackageCheck } from "lucide-react";
@@ -6,6 +6,8 @@ import {
   organizeRelease, reviewRelease
 } from "../../lib/legacy/qa-release-core.mjs";
 import type { Task } from "../../lib/contracts";
+import ReleaseListsPicker from "./ReleaseListsPicker";
+import "./release-organizer.css";
 
 const INPUT_LIMIT = 100000;
 type Organized = ReturnType<typeof organizeRelease>;
@@ -14,6 +16,7 @@ type Reviewed = ReturnType<typeof reviewRelease>;
 export default function ReleaseOrganizer({ task, version, expanded = false }:
   { task?: Task; version: string; expanded?: boolean }) {
   const [raw, setRaw] = useState("");
+  const [opened,setOpened]=useState(expanded);
   const [team, setTeam] = useState("");
   const [defaultStatus, setDefaultStatus] = useState<"11"|"12">("12");
   const [announcement, setAnnouncement] = useState("");
@@ -31,6 +34,9 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
     setOrganized(null);setReviewed(null);setError("");setMessage("");
   },[version]);
 
+  const updateSavedTeam=useCallback((names:string)=>{
+    setTeam(names);setOrganized(null);setReviewed(null);setError("");setMessage("");
+  },[]);
   function clearResults() {
     setOrganized(null); setReviewed(null); setError(""); setMessage("");
   }
@@ -59,36 +65,35 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
       setError("A cópia não está disponível. Selecione o texto manualmente.");
     }
   }
-  return <details className={expanded?"generator-context qa-release-expanded":"generator-context"} open={expanded ? true : undefined}
+  return <details className={expanded?"generator-context qa-release-shell qa-release-expanded":"generator-context qa-release-shell"} open={expanded ? true : undefined}
+    onToggle={event=>setOpened(event.currentTarget.open)}
     aria-label="Organizador local de releases">
     <summary>Organizar lista e revisar comunicado de release (local)</summary>
-    <div className="stack mt-4">
-      <p className="text-muted text-sm">
+    <div className="qa-release-content">
+      <p className="qa-release-privacy" role="note">
         O processamento ocorre somente neste navegador, sem IA.
         {task ? " O vínculo com a TF exige confirmação separada." : " Nenhuma TF será vinculada."}
       </p>
-      <fieldset className="qa-tool-form-section"><legend>1. Preparar a lista</legend>
-      <label className="field">Lista autorizada de tarefas
-        <textarea rows={7} maxLength={INPUT_LIMIT} spellCheck={false}
-          placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
-          value={raw} onChange={(event) => { setRaw(event.target.value); clearResults(); }} />
-      </label>
-      <div className="form-grid">
-        <label className="field">Status padrão
-          <select value={defaultStatus} onChange={(event) => {
-            setDefaultStatus(event.target.value as "11"|"12"); clearResults();
-          }}>
-            <option value="12">12 — em build</option>
-            <option value="11">11 — aguardando versão</option>
-          </select>
+      <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">01</span> Preparar a lista</legend>
+      <div className="qa-release-primary-grid">
+        <label className="field qa-release-main-input">Lista autorizada de tarefas
+          <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
+            placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
+            value={raw} onChange={(event) => { setRaw(event.target.value); clearResults(); }} />
         </label>
-        <label className="field grow-2">Equipe / sprints (opcional, um nome por linha)
-          <textarea rows={3} maxLength={10000} value={team} onChange={(event) => {
-            setTeam(event.target.value); clearResults();
-          }} />
-        </label>
+        <div className="qa-release-side">
+          <label className="field">Status padrão
+            <select value={defaultStatus} onChange={(event) => {
+              setDefaultStatus(event.target.value as "11"|"12"); clearResults();
+            }}>
+              <option value="12">12 — em build</option>
+              <option value="11">11 — aguardando versão</option>
+            </select>
+          </label>
+          {(expanded||opened)&&<ReleaseListsPicker value={team} onChange={updateSavedTeam}/>}
+        </div>
       </div>
-      <div className="flex gap-2 flex-wrap">
+      <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
           onPress={organize}><ListChecks size={16}/> Organizar lista</Button>
       </div>
@@ -103,7 +108,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
             : "A TF em foco não foi encontrada na lista pelo número exato. Não há associação automática."}
         </p>}
         <label className="field">Lista organizada (somente leitura)
-          <textarea rows={10} readOnly value={organized.text} />
+          <textarea rows={6} readOnly value={organized.text} />
         </label>
         {organized.warnings.length > 0 && <details className="generator-context">
           <summary>Conferir {organized.warnings.length} alerta(s)</summary>
@@ -119,35 +124,39 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
         </Button></div>
       </section>}
       </fieldset>
-      <fieldset className="qa-tool-form-section"><legend>2. Revisar o comunicado</legend>
-      <label className="field">Comunicado de release (opcional, para revisão)
-        <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
-          placeholder="Cole o comunicado e compare com a lista autorizada."
-          value={announcement} onChange={(event) => {
-            setAnnouncement(event.target.value); setReviewed(null);
-          }} />
-      </label>
-      <div className="form-grid">
-        <label className="field">Compatibilidades (opcional)
-          <textarea rows={2} maxLength={4000} value={compat}
-            onChange={(event) => { setCompat(event.target.value); setReviewed(null); }} />
+      <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">02</span> Revisar o comunicado</legend>
+      <div className="qa-release-review-grid">
+        <label className="field qa-release-main-input">Comunicado de release (opcional, para revisão)
+          <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
+            placeholder="Cole o comunicado e compare com a lista autorizada."
+            value={announcement} onChange={(event) => {
+              setAnnouncement(event.target.value); setReviewed(null);
+            }} />
         </label>
-        <label className="field">Assinatura (opcional)
-          <input maxLength={240} value={signature}
-            onChange={(event) => { setSignature(event.target.value); setReviewed(null); }} />
-        </label>
+        <div className="qa-release-side">
+          <label className="field">Compatibilidades (opcional)
+            <textarea rows={3} maxLength={4000} value={compat}
+              onChange={(event) => { setCompat(event.target.value); setReviewed(null); }} />
+          </label>
+          <label className="field">Assinatura (opcional)
+            <input maxLength={240} value={signature}
+              onChange={(event) => { setSignature(event.target.value); setReviewed(null); }} />
+          </label>
+        </div>
       </div>
-      <div><Button variant="secondary" isDisabled={!raw.trim() || !announcement.trim()}
-        onPress={review}><PackageCheck size={16}/> Conferir comunicado</Button></div>
+      <div className="qa-release-action-row">
+        <Button variant="secondary" isDisabled={!raw.trim() || !announcement.trim()}
+          onPress={review}><PackageCheck size={16}/> Conferir comunicado</Button>
+      </div>
       {reviewed && <div className="stack">
         <label className="field">Relatório de divergências (uso interno)
-          <textarea rows={7} readOnly value={reviewed.report} />
+          <textarea rows={5} readOnly value={reviewed.report} />
         </label>
         <label className="field">Comunicado revisado
-          <textarea rows={7} readOnly value={reviewed.cleaned} />
+          <textarea rows={5} readOnly value={reviewed.cleaned} />
         </label>
         <label className="field">BBCode preparado
-          <textarea rows={7} readOnly value={reviewed.bbcode} />
+          <textarea rows={5} readOnly value={reviewed.bbcode} />
         </label>
         <div className="flex gap-2 flex-wrap">
           <Button variant="secondary" onPress={() => void copy(reviewed.cleaned)}>
