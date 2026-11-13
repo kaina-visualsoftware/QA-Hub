@@ -454,7 +454,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         setDirtyOutput(true);
       }
       setTruncated(response.truncated);
-      setMessage(response.truncated?
+      setMessage((response.truncated?
         "Parte da geração foi interrompida. Verifique os cenários antes de usar.":
         fresh.length?
           fresh.length+" caso(s) candidato(s) adicionados à revisão, sem alterar os anteriores. Vincule-os aos requisitos depois de salvar.":
