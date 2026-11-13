@@ -155,9 +155,9 @@ try{
  await page.getByRole("region",{name:"Lista organizada"}).waitFor();
  const output=await page.getByRole("textbox",{name:"Lista organizada (somente leitura)"}).inputValue();
  assert.match(output,/Sprint Fiscal/);
- assert.match(output,/- #201632 — BUG \\(INTERNA\\) — SEM SPRINT/);
- assert.match(output,/- #201633 — MELHORIA \\(EXTERNA\\) —/);
- assert.match(output,/- #67866 — BUG \\(EXTERNA\\) — Sprint Fiscal/);
+ assert.match(output,/- #201632 — BUG \(INTERNA\) — SEM SPRINT/);
+ assert.match(output,/- #201633 — MELHORIA \(EXTERNA\) —/);
+ assert.match(output,/- #67866 — BUG \(EXTERNA\) — Sprint Fiscal/);
  assert.deepEqual(errors,[],"Não houve exceções nem chamadas Supabase desconhecidas.");
  console.log("Release lists: cadastro pessoal, seleção, checkbox, extração local e layout em 390/768/1366.");
 }finally{await browser.close();}
