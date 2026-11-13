@@ -46,7 +46,7 @@ export function formatNumberedCaseSteps(value) {
 
 const missingCaseValue=/^(?:a confirmar|a definir|a preencher|não informado|nao informado|não especificado|nao especificado|não documentado|nao documentado|sem informação|sem informacao|sem dados|sem passos|não disponível|nao disponivel|pendente|tbd|todo|n\/?a|n\/?d|\.{2,}|[-–—_*]+|passos?\s*:|resultado esperado\s*:)$/iu;
 function hasMeaningfulCaseValue(value){
-  return String(value??'').replace(/[\u200b-\u200d\ufeff]/g,'')
+  return formatNumberedCaseSteps(String(value??'').replace(/[\u200b-\u200d\ufeff]/g,''))
     .split(/\r?\n/).map(line=>line.trim()
       .replace(/^(?:\d{1,3}[.)]|[-*•])\s*/u,'')
       .replace(/^\[([\s\S]*?)\]$/u,'$1').trim())
