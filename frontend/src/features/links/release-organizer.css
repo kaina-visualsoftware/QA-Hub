@@ -1,3 +1,18 @@
+/* Uniform field hierarchy also applies to the release version above the organizer. */
+.qa-tools-redesign .qa-tools-version-block{
+ grid-template-columns:minmax(0,1fr) minmax(220px,290px);
+ gap:22px;align-items:center;margin-bottom:18px;
+ padding:18px 20px;border:1px solid #dce8ea;border-radius:13px;background:#f7fafb}
+.qa-tools-redesign .qa-tools-version-block h3{font-size:1.04rem;font-weight:730;letter-spacing:-.015em}
+.qa-tools-redesign .qa-tools-version-block .field{font-size:.875rem;gap:8px}
+.qa-tools-redesign .qa-tools-version-block .field input{min-height:46px;
+ padding:10px 13px;font-size:.91rem;border-radius:10px;border-color:#b7ccd1}
+.qa-tools-redesign .qa-tools-version-block small{font-size:.78rem}
+@media(max-width:760px){
+ .qa-tools-redesign .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr);gap:14px;padding:16px}
+}
+
 /* Release organizer · Operate mode: compact, legible, keyboard first. */
 .qa-release-shell{min-width:0}
 .qa-release-shell.qa-release-expanded{margin:0!important}
