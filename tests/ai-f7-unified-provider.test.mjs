@@ -4,6 +4,8 @@ import {edgeJsonModels,edgeStreamingModels,edgeErrorHttp,edgeHooks}
  from "../supabase/functions/_shared/llm/edge-runtime.mjs";
 import {MODEL_IDS} from "../supabase/functions/_shared/llm/models.mjs";
 import {resetModelBreakers} from "../supabase/functions/_shared/llm/call-model.mjs";
+import {generatorModelOrder,CASE_STREAM_PREFERRED_MODEL}
+ from "../supabase/functions/qa-generators/model-order.mjs";
 const messages=[{role:"system",content:"Resumo técnico em português."},
  {role:"user",content:"RF-12: não duplicar descontos."}];
 const db=(items=[{allowed:true}])=>{
@@ -153,4 +155,41 @@ test("F7 headers and quota callbacks never include raw prompt data",async()=>{
  const claim=await hooks.reserveAttempt();
  assert.deepEqual(claim,{allowed:true});
  assert.equal(x.count(),1);
+});
+
+test("F7 case generation prefers a non-reasoning low-latency model without modifying other modes",()=>{
+ const regular=[...MODEL_IDS];
+ assert.deepEqual(generatorModelOrder("post",regular),regular);
+ assert.deepEqual(generatorModelOrder("teste",regular),
+  [CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
+ assert.deepEqual(generatorModelOrder("teste",[MODEL_IDS[0]]),[MODEL_IDS[0]]);
+ assert.deepEqual(generatorModelOrder("teste",[]),[]);
+ assert.deepEqual(generatorModelOrder("teste",[MODEL_IDS[0],MODEL_IDS[0],MODEL_IDS[1]]),
+  [CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
+ assert.deepEqual(regular,[...MODEL_IDS],"O catálogo não deve ser alterado");
+});
+test("F7 case generation recovers HTTP 502 before streaming by trying another free NVIDIA model",async()=>{
+ resetModelBreakers();
+ const quota=db([{allowed:true},{allowed:true}]);
+ const order=generatorModelOrder("teste",[...MODEL_IDS]);
+ const seen=[];
+ const result=await edgeStreamingModels(base(quota,{
+  mode:"teste",modelMode:"teste",models:order,maxTokens:600,timeoutMs:5000,
+  fetchImpl:async(_url,request)=>{
+   const {model,stream}=JSON.parse(request.body);
+   assert.equal(stream,true);
+   seen.push(model);
+   return seen.length===1?
+    new Response(JSON.stringify({error:"Bad gateway"}),{status:502}):
+    sse(["## Cenário 01 — Validar desconto\\n",
+     "### Passos\\n1. Abrir pedido\\n### Resultado esperado\\nDesconto corrigido."]);
+  }
+ }));
+ assert.equal(result.ok,true);
+ const text=await new Response(result.body).text();
+ assert.deepEqual(seen,[CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
+ assert.equal(quota.count(),2,"Cada tentativa precisa consumir uma vaga de cota");
+ assert.match(text,/event: chunk/);
+ assert.match(text,/event: done/);
+ assert.doesNotMatch(text,/event: error/);
 });
