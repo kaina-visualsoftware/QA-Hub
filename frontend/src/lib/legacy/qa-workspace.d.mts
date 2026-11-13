@@ -11,6 +11,6 @@ export function parseGeneratedCases(markdown: string): GeneratedCase[];
 export function formatNumberedCaseSteps(value: string): string;
 export function hasCompleteGeneratedCase(item: Pick<GeneratedCase,"titulo"|"passos"|"esperado">): boolean;
 export function markScenarioDuplicates(items: GeneratedCase[], existing?: Pick<GeneratedCase,"titulo"|"passos"|"esperado">[]): GeneratedCase[];
-export function onlyNewScenarioCandidates(items: GeneratedCase[], existing: Pick<GeneratedCase,"titulo"|"passos"|"esperado">[]): GeneratedCase[];
+export function onlyNewScenarioCandidates(items: GeneratedCase[], existing?: Pick<GeneratedCase,"titulo"|"passos"|"esperado">[]): GeneratedCase[];
 export function validateReviewedCases(items: GeneratedCase[]): Array<Omit<GeneratedCase,"selected"|"duplicate">>;
 export function attachReviewedCases(client: SupabaseClient, params: {taskId:string;generationId:string;items:GeneratedCase[]}): Promise<{inserted:number;skipped:number;tarefa_id:string}>;
