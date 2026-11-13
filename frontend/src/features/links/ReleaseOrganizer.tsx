@@ -144,8 +144,10 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
           </label>
         </div>
       </div>
-      <div><Button variant="secondary" isDisabled={!raw.trim() || !announcement.trim()}
-        onPress={review}><PackageCheck size={16}/> Conferir comunicado</Button></div>
+      <div className="qa-release-action-row">
+        <Button variant="secondary" isDisabled={!raw.trim() || !announcement.trim()}
+          onPress={review}><PackageCheck size={16}/> Conferir comunicado</Button>
+      </div>
       {reviewed && <div className="stack">
         <label className="field">Relatório de divergências (uso interno)
           <textarea rows={5} readOnly value={reviewed.report} />
