@@ -105,7 +105,7 @@ try{
  assert.equal(items[0].ativo,true);
  await modal.getByRole("button",{name:"Fechar Gerenciar listas de equipe e sprints"}).click();
  await select.selectOption(listId);
- await page.locator("#release-free-names").waitFor();
+ await page.locator("#release-free-names").waitFor({state:"attached"});
  await page.waitForFunction(()=>document.querySelector("#release-free-names")?.value==="Sprint Fiscal");
  assert.equal(await page.locator("#release-free-names").inputValue(),"Sprint Fiscal");
  await page.getByRole("checkbox",{name:"Sprint Fiscal"}).uncheck();
