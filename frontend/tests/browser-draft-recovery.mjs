@@ -48,7 +48,7 @@ try{
   await page.getByRole("button",{name:"Entrar",exact:true}).click();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
 
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   let wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   await wizard.getByLabel("Informações da tarefa").fill("Linha 1\nLinha 2: dados de fixture");
   const optIn=wizard.getByRole("checkbox",{name:/Guardar rascunho nesta aba/});
@@ -61,7 +61,7 @@ try{
   await wizard.getByLabel("Título da tarefa").fill("Rascunho que deve sobreviver ao refresh");
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),"",
     "A saved draft must not be restored without consent");
@@ -77,7 +77,7 @@ try{
   await wizard.getByLabel("Título da tarefa").fill("Rascunho atualizado");
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   await wizard.getByRole("button",{name:"Recuperar rascunho"}).click();
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
@@ -88,7 +88,7 @@ try{
   await wizard.getByRole("checkbox",{name:/Guardar rascunho nesta aba/}).uncheck();
   await page.reload();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   assert.equal(await wizard.getByRole("button",{name:"Recuperar rascunho"}).count(),0,
     "Opt-out must remove the locally stored copy");
