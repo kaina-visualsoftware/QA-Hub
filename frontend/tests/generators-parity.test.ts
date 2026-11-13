@@ -118,7 +118,7 @@ describe("geração NVIDIA — limpeza segura dos casos",()=>{
  it("não confunde cenário bloqueado com campo ausente",()=>{
   expect(hasCompleteGeneratedCase({
    titulo:"Bloqueio de envio",passos:"1. Abrir exportação.",
-   esperado:"Sistema bloqueia o envio.",observacoes:"",selected:true
+   esperado:"Sistema bloqueia o envio."
   })).toBe(true);
  });
 });
