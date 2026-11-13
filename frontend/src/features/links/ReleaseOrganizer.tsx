@@ -16,6 +16,7 @@ type Reviewed = ReturnType<typeof reviewRelease>;
 export default function ReleaseOrganizer({ task, version, expanded = false }:
   { task?: Task; version: string; expanded?: boolean }) {
   const [raw, setRaw] = useState("");
+  const [opened,setOpened]=useState(expanded);
   const [team, setTeam] = useState("");
   const [defaultStatus, setDefaultStatus] = useState<"11"|"12">("12");
   const [announcement, setAnnouncement] = useState("");
@@ -65,6 +66,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
     }
   }
   return <details className={expanded?"generator-context qa-release-shell qa-release-expanded":"generator-context qa-release-shell"} open={expanded ? true : undefined}
+    onToggle={event=>setOpened(event.currentTarget.open)}
     aria-label="Organizador local de releases">
     <summary>Organizar lista e revisar comunicado de release (local)</summary>
     <div className="qa-release-content">
@@ -87,7 +89,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
             <option value="11">11 — aguardando versão</option>
           </select>
         </label>
-        <ReleaseListsPicker value={team} onChange={updateSavedTeam}/>
+        {(expanded||opened)&&<ReleaseListsPicker value={team} onChange={updateSavedTeam}/>}
       </div>
       <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
