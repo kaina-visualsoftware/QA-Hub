@@ -11,7 +11,7 @@ import {
  releaseLists,releaseItems,createReleaseList,renameReleaseList,removeReleaseList,
  addReleaseItem,removeReleaseItem
 } from "./release-lists-data";
-import type {ReleaseList,ReleaseListScope,ReleaseListItem} from "./release-lists-data";
+import type {ReleaseList,ReleaseListScope} from "./release-lists-data";
 
 const titleFor=(scope:ReleaseListScope)=>scope==="pessoal"?"Pessoal":scope==="equipe"?"Equipe":"Global";
 const listKey=(userId:string)=>["release-lists",userId] as const;
@@ -79,12 +79,7 @@ export default function ReleaseListsPicker({value,onChange}:{
    if(!id)onChange("");
  };
  const changeChecked=(id:string,checked:boolean)=>{
-   setExcluded(current=>{
-     const next=checked?current.filter(x=>x!==id):[...new Set([...current,id])];
-     onChange(active.filter(item=>item.id!==id? !next.includes(item.id):checked)
-       .map(item=>item.nome).join("\n"));
-     return next;
-   });
+   setExcluded(current=>checked?current.filter(x=>x!==id):[...new Set([...current,id])]);
  };
  function openManage(){
    setManageOpen(true);setError("");setNotice("");
