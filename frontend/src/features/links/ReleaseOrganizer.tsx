@@ -75,21 +75,23 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
         {task ? " O vínculo com a TF exige confirmação separada." : " Nenhuma TF será vinculada."}
       </p>
       <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">01</span> Preparar a lista</legend>
-      <label className="field qa-release-full">Lista autorizada de tarefas
-        <textarea rows={5} maxLength={INPUT_LIMIT} spellCheck={false}
-          placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
-          value={raw} onChange={(event) => { setRaw(event.target.value); clearResults(); }} />
-      </label>
-      <div className="qa-release-controls-grid">
-        <label className="field">Status padrão
-          <select value={defaultStatus} onChange={(event) => {
-            setDefaultStatus(event.target.value as "11"|"12"); clearResults();
-          }}>
-            <option value="12">12 — em build</option>
-            <option value="11">11 — aguardando versão</option>
-          </select>
+      <div className="qa-release-primary-grid">
+        <label className="field qa-release-main-input">Lista autorizada de tarefas
+          <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
+            placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
+            value={raw} onChange={(event) => { setRaw(event.target.value); clearResults(); }} />
         </label>
-        {(expanded||opened)&&<ReleaseListsPicker value={team} onChange={updateSavedTeam}/>}
+        <div className="qa-release-side">
+          <label className="field">Status padrão
+            <select value={defaultStatus} onChange={(event) => {
+              setDefaultStatus(event.target.value as "11"|"12"); clearResults();
+            }}>
+              <option value="12">12 — em build</option>
+              <option value="11">11 — aguardando versão</option>
+            </select>
+          </label>
+          {(expanded||opened)&&<ReleaseListsPicker value={team} onChange={updateSavedTeam}/>}
+        </div>
       </div>
       <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
@@ -106,7 +108,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
             : "A TF em foco não foi encontrada na lista pelo número exato. Não há associação automática."}
         </p>}
         <label className="field">Lista organizada (somente leitura)
-          <textarea rows={10} readOnly value={organized.text} />
+          <textarea rows={6} readOnly value={organized.text} />
         </label>
         {organized.warnings.length > 0 && <details className="generator-context">
           <summary>Conferir {organized.warnings.length} alerta(s)</summary>
@@ -123,34 +125,36 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
       </section>}
       </fieldset>
       <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">02</span> Revisar o comunicado</legend>
-      <label className="field qa-release-full">Comunicado de release (opcional, para revisão)
-        <textarea rows={5} maxLength={INPUT_LIMIT} spellCheck={false}
-          placeholder="Cole o comunicado e compare com a lista autorizada."
-          value={announcement} onChange={(event) => {
-            setAnnouncement(event.target.value); setReviewed(null);
-          }} />
-      </label>
-      <div className="qa-release-bottom-grid">
-        <label className="field">Compatibilidades (opcional)
-          <textarea rows={3} maxLength={4000} value={compat}
-            onChange={(event) => { setCompat(event.target.value); setReviewed(null); }} />
+      <div className="qa-release-review-grid">
+        <label className="field qa-release-main-input">Comunicado de release (opcional, para revisão)
+          <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
+            placeholder="Cole o comunicado e compare com a lista autorizada."
+            value={announcement} onChange={(event) => {
+              setAnnouncement(event.target.value); setReviewed(null);
+            }} />
         </label>
-        <label className="field">Assinatura (opcional)
-          <input maxLength={240} value={signature}
-            onChange={(event) => { setSignature(event.target.value); setReviewed(null); }} />
-        </label>
+        <div className="qa-release-side">
+          <label className="field">Compatibilidades (opcional)
+            <textarea rows={3} maxLength={4000} value={compat}
+              onChange={(event) => { setCompat(event.target.value); setReviewed(null); }} />
+          </label>
+          <label className="field">Assinatura (opcional)
+            <input maxLength={240} value={signature}
+              onChange={(event) => { setSignature(event.target.value); setReviewed(null); }} />
+          </label>
+        </div>
       </div>
       <div><Button variant="secondary" isDisabled={!raw.trim() || !announcement.trim()}
         onPress={review}><PackageCheck size={16}/> Conferir comunicado</Button></div>
       {reviewed && <div className="stack">
         <label className="field">Relatório de divergências (uso interno)
-          <textarea rows={7} readOnly value={reviewed.report} />
+          <textarea rows={5} readOnly value={reviewed.report} />
         </label>
         <label className="field">Comunicado revisado
-          <textarea rows={7} readOnly value={reviewed.cleaned} />
+          <textarea rows={5} readOnly value={reviewed.cleaned} />
         </label>
         <label className="field">BBCode preparado
-          <textarea rows={7} readOnly value={reviewed.bbcode} />
+          <textarea rows={5} readOnly value={reviewed.bbcode} />
         </label>
         <div className="flex gap-2 flex-wrap">
           <Button variant="secondary" onPress={() => void copy(reviewed.cleaned)}>
