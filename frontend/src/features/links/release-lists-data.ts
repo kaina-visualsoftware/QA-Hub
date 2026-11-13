@@ -73,6 +73,20 @@ export async function addReleaseItem(listId:string,nome:string,ordem:number){
  fail(error);
  return uuid.parse(data?.id);
 }
+export async function renameReleaseItem(id:string,name:string){
+ uuid.parse(id);
+ const {data,error}=await supabase.from("qa_release_lista_itens")
+  .update({nome:normalizeReleaseItem(name)}).eq("id",id).select("id").maybeSingle();
+ fail(error);
+ if(data?.id!==id)throw Error("Nome não encontrado ou sem permissão.");
+}
+export async function setReleaseItemActive(id:string,ativo:boolean){
+ uuid.parse(id);
+ const {data,error}=await supabase.from("qa_release_lista_itens")
+  .update({ativo}).eq("id",id).select("id").maybeSingle();
+ fail(error);
+ if(data?.id!==id)throw Error("Não foi possível alterar a situação.");
+}
 export async function removeReleaseItem(id:string){
  uuid.parse(id);
  const {data,error}=await supabase.from("qa_release_lista_itens")
