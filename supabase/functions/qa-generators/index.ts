@@ -60,7 +60,7 @@ Deno.serve(async req=>{
   // arbitrary /v1/models IDs are used (the API has no free-tier flag).
   const catalog=await edgeModels({apiKey:key,trace,
     ...(mode==="teste"?{modelIds:VERIFIED_FREE_CHAT_MODELS}:{})});
-  const models=generatorModelOrder(mode,catalog);
+  const models=generatorModelOrder(mode as "post"|"teste",catalog);
   if(!models.length)return reply(503,{error:"models_unavailable",
     message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
   const baseMessages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
