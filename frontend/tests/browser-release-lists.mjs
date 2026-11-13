@@ -26,6 +26,7 @@ async function mock(route){
  });
  if(path.endsWith("/auth/v1/user"))return send(user);
  if(path.endsWith("/rest/v1/qa_admins"))return send(null);
+ if(path.endsWith("/rest/v1/qa_filtros_salvos"))return send([]);
  if(path.endsWith("/rest/v1/qa_equipes"))return send([]);
  if(path.endsWith("/rest/v1/qa_tarefas"))return send([]);
  if(path.endsWith("/rest/v1/qa_cenarios"))return send([]);
