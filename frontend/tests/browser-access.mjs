@@ -166,13 +166,20 @@ try{
   assert.equal(await normal.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true,
     "NVIDIA generation must require explicit consent to the current text");
   await normal.getByRole("button",{name:"Continuar manualmente"}).click();
-  assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),
-    "Atualização de descontos negativos");
-  assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
+  // O fluxo manual não pode inferir campos a partir da fonte sem a NVIDIA.
+  assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),"");
+  assert.equal(await normal.getByLabel("Código da TF").inputValue(),"");
+  assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"");
+  assert.match(await normal.getByLabel("Descrição do problema").inputValue(),
+    /Atualização de descontos negativos/,
+    "O texto original deve permanecer disponível para preenchimento manual.");
   assert.equal(await normal.getByRole("button",{name:"Analisar com IA local"}).count(),0,
-    "New TF must not offer a generative local model");
+    "A criação de TF não pode oferecer um modelo generativo local");
   assert.equal(await normal.getByText("Assistente local avançado (opcional)").count(),0);
-  assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"12.08.08.0000");
+  await normal.getByLabel("Título da tarefa").fill("Atualização de descontos negativos");
+  await normal.getByLabel("Código da TF").fill("67866");
+  await normal.getByRole("textbox",{name:"Versão",exact:true}).fill("12.08.08.0000");
+  assert.equal(await normal.getByLabel("Código da TF").inputValue(),"67866");
   await normal.getByRole("button",{name:"Avançar"}).click();
   assert.equal(await normal.getByRole("button",{name:"Finalizar sem casos"}).count(),1,
     "Manual extraction must not persist a TF until final confirmation");
