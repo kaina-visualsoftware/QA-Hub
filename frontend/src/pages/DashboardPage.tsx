@@ -7,6 +7,7 @@ import {getAdminRole} from "../lib/data";
 import {taskStatistics} from "../features/tasks/task-search-data";
 import { taskStatusLabels } from "../lib/contracts";
 import type { Task } from "../lib/contracts";
+import { taskListTitle, taskOriginLabel } from "../features/tasks/task-origin";
 import {QAModal} from "../components/ui/QAModal";
 const InsightsPanel=lazy(()=>import("../features/insights/InsightsPanel"));
 
@@ -108,8 +109,8 @@ export default function DashboardPage(){
       {tasks.isSuccess&&recent.length===0&&<p className="empty-state">Nenhuma TF cadastrada.</p>}
       {recent.map(task=><Link key={task.id} to="/tarefa/$taskId" params={{taskId:task.id}}
         className="qa-dashboard-recent">
-        <span><strong>{task.titulo}</strong>
-          <small>{task.codigo||"Sem código"} · {task.tipo_teste}</small></span>
+        <span><strong>{taskListTitle(task)}</strong>
+          <small>{task.codigo||"Sem código"} · {task.tipo_teste} · {taskOriginLabel(task.empresa)}</small></span>
         <span className={"status-chip "+task.status}>{taskStatusLabels[task.status]}</span>
       </Link>)}
     </section>
