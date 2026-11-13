@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
 import {useMutation,useQuery,useQueryClient} from "@tanstack/react-query";
 import {Button} from "@heroui/react";
-import {Check,FolderPlus,Settings2,Trash2,Users,Plus,BookOpen} from "lucide-react";
+import {Check,FolderPlus,Settings2,Trash2,Users,Plus,BookOpen,Pencil,Archive,RotateCcw} from "lucide-react";
 import {QAModal} from "../../components/ui/QAModal";
 import {ToastNotice} from "../../components/ui/Toasts";
 import {useAuth} from "../auth/AuthProvider";
@@ -9,7 +9,7 @@ import {teams} from "../collaboration/team-data";
 import {getAdminRole} from "../../lib/data";
 import {
  releaseLists,releaseItems,createReleaseList,renameReleaseList,removeReleaseList,
- addReleaseItem,removeReleaseItem
+ addReleaseItem,removeReleaseItem,renameReleaseItem,setReleaseItemActive
 } from "./release-lists-data";
 import type {ReleaseList,ReleaseListScope} from "./release-lists-data";
 
@@ -31,6 +31,8 @@ export default function ReleaseListsPicker({value,onChange}:{
  const [teamId,setTeamId]=useState("");
  const [itemName,setItemName]=useState("");
  const [rename,setRename]=useState("");
+ const [editingItem,setEditingItem]=useState<string|null>(null);
+ const [editingName,setEditingName]=useState("");
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
  const lists=useQuery({queryKey:listKey(userId),queryFn:releaseLists,
@@ -85,7 +87,7 @@ export default function ReleaseListsPicker({value,onChange}:{
  }
  function chooseManage(id:string){
    setManaged(id);setRename(lists.data?.find(x=>x.id===id)?.nome??"");
-   setError("");setNotice("");setItemName("");
+   setError("");setNotice("");setItemName("");setEditingItem(null);
  }
  return <div className="qa-release-lists">
    <div className="qa-release-list-heading">
@@ -211,14 +213,44 @@ export default function ReleaseListsPicker({value,onChange}:{
              managedItems.isError?<p role="alert">{managedItems.error.message}</p>:
              !managedItems.data?.length?<p className="qa-release-helper">Nenhum nome cadastrado.</p>:
              <ul className="qa-release-manage-items">
-               {managedItems.data.map(item=><li key={item.id}>
-                 <span><Check size={15} aria-hidden="true"/>{item.nome}</span>
-                 {canManage(managedList)&&<Button size="sm" variant="secondary"
-                   aria-label={"Excluir "+item.nome} isDisabled={mutation.isPending}
-                   onPress={()=>{
-                     if(window.confirm('Excluir "'+item.nome+'" desta lista?'))
-                       void execute(()=>removeReleaseItem(item.id),"Nome excluído.");
-                   }}><Trash2 size={15} aria-hidden="true"/></Button>}
+               {managedItems.data.map(item=><li key={item.id} className={!item.ativo?"qa-release-item-inactive":""}>
+                 {editingItem===item.id?<form className="qa-release-item-edit"
+                   onSubmit={event=>{
+                     event.preventDefault();
+                     void execute(async()=>{
+                       await renameReleaseItem(item.id,editingName);
+                       setEditingItem(null);
+                     },"Nome atualizado.");
+                   }}>
+                   <label className="sr-only" htmlFor={"release-rename-"+item.id}>Editar nome</label>
+                   <input id={"release-rename-"+item.id} value={editingName} required
+                     minLength={2} maxLength={90} onChange={event=>setEditingName(event.target.value)}/>
+                   <Button type="submit" size="sm" isDisabled={mutation.isPending||editingName.trim().length<2}>Salvar</Button>
+                   <Button type="button" size="sm" variant="secondary" onPress={()=>setEditingItem(null)}>Cancelar</Button>
+                 </form>:<>
+                   <span><Check size={15} aria-hidden="true"/>{item.nome}
+                     {!item.ativo&&<small>Arquivado</small>}</span>
+                   {canManage(managedList)&&<div className="qa-release-manage-item-actions">
+                     <Button size="sm" variant="secondary" aria-label={"Renomear "+item.nome}
+                       isDisabled={mutation.isPending} onPress={()=>{
+                         setEditingItem(item.id);setEditingName(item.nome);
+                       }}><Pencil size={15} aria-hidden="true"/></Button>
+                     <Button size="sm" variant="secondary"
+                       aria-label={(item.ativo?"Arquivar ":"Reativar ")+item.nome}
+                       isDisabled={mutation.isPending}
+                       onPress={()=>void execute(()=>setReleaseItemActive(item.id,!item.ativo),
+                         item.ativo?"Nome arquivado.":"Nome reativado.")}>
+                       {item.ativo?<Archive size={15} aria-hidden="true"/>:
+                         <RotateCcw size={15} aria-hidden="true"/>}
+                     </Button>
+                     <Button size="sm" variant="secondary"
+                       aria-label={"Excluir "+item.nome} isDisabled={mutation.isPending}
+                       onPress={()=>{
+                         if(window.confirm('Excluir "'+item.nome+'" desta lista?'))
+                           void execute(()=>removeReleaseItem(item.id),"Nome excluído.");
+                       }}><Trash2 size={15} aria-hidden="true"/></Button>
+                   </div>}
+                 </>}
                </li>)}
              </ul>}
            {canManage(managedList)&&<>
