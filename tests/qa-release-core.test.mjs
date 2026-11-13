@@ -57,7 +57,7 @@ test('client scope uses full literal customer identifier and preserves real spri
  assert.equal(releaseTaskScope(['Cliente: 6157 Visual Software Ltda']),'INTERNA');
  assert.equal(releaseTaskScope(['Cliente: 6157 Empresa Diferente']),'EXTERNA');
  assert.equal(releaseTaskScope(['Cliente: 96157 Visual Software']),'EXTERNA');
- assert.equal(releaseTaskScope(['#6157 Visual Software']),'INTERNA');
+ assert.equal(releaseTaskScope(['#6157 Visual Software']),'EXTERNA');
  const organized=organizeRelease({
   version:'12.10.06.0000',team:'Sprint Fiscal',
   raw:'#201632 — BUG — 6157 Visual Software — Sprint Fiscal'
