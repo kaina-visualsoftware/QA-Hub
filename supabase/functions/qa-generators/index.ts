@@ -5,7 +5,7 @@ import {edgeModels,edgeStreamingModels,edgeErrorHttp} from "../_shared/llm/edge-
 import {createClient} from "npm:@supabase/supabase-js@2.119.0";
 import {messagesForGenerator} from "./prompts.mjs";
 import {parseGeneratorBatch,messagesForGeneratorBatch} from "./batches.mjs";
-import {generatorModelOrder} from "./model-order.mjs";
+import {generatorModelOrder,VERIFIED_FREE_CHAT_MODELS} from "./model-order.mjs";
 
 // Only explicit free-endpoint NVIDIA Build models, not paid endpoints.
 const ORIGINS=new Set(["https://kaina-visualsoftware.github.io","http://127.0.0.1:8765","http://localhost:8765"]);
@@ -55,9 +55,12 @@ Deno.serve(async req=>{
     return reply(503,disabledAiResponse());
   const key=Deno.env.get("NVIDIA_API_KEY");
   if(!key)return reply(503,{error:"missing_key",message:"A chave NVIDIA ainda não está configurada no Supabase."});
-  // In case-generation mode, start with the low-latency NVIDIA model.
-  // The GLM reasoning model remains a fallback, never a second concurrent job.
-  const models=generatorModelOrder(mode,await edgeModels({apiKey:key,trace}));
+  // Discover currently advertised models through NVIDIA and intersect
+  // with audited Free Endpoint chat models. Neither a fixed model choice nor
+  // arbitrary /v1/models IDs are used (the API has no free-tier flag).
+  const catalog=await edgeModels({apiKey:key,trace,
+    ...(mode==="teste"?{modelIds:VERIFIED_FREE_CHAT_MODELS}:{})});
+  const models=generatorModelOrder(mode,catalog);
   if(!models.length)return reply(503,{error:"models_unavailable",
     message:"Nenhum modelo gratuito da NVIDIA está disponível neste momento."});
   const baseMessages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
