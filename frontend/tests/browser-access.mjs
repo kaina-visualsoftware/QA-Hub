@@ -170,7 +170,7 @@ try{
   assert.equal(await normal.getByLabel("Título da tarefa").inputValue(),"");
   assert.equal(await normal.getByLabel("Código da TF").inputValue(),"");
   assert.equal(await normal.getByRole("textbox",{name:"Versão",exact:true}).inputValue(),"");
-  assert.match(await normal.getByLabel("Descrição do problema").inputValue(),
+  assert.match(await normal.getByRole("textbox",{name:"Resumo do problema / descrição"}).inputValue(),
     /Atualização de descontos negativos/,
     "O texto original deve permanecer disponível para preenchimento manual.");
   assert.equal(await normal.getByRole("button",{name:"Analisar com IA local"}).count(),0,
