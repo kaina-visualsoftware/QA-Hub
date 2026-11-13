@@ -372,7 +372,9 @@ try{
   assert.equal(requirements[0].estado,"aprovado");
   await page.getByRole("tab",{name:"Cobertura"}).click();
   await page.getByRole("button",{name:"Vincular cenários"}).click();
-  await page.getByRole("checkbox",{name:/Remover desconto/}).check();
+  assert.equal(scenarios[0].titulo,"Versão revisada manualmente",
+    "O cenário anexado deve preservar a edição realizada na revisão da IA.");
+  await page.getByRole("checkbox",{name:scenarios[0].titulo}).check();
   await page.getByRole("button",{name:"Salvar vínculos"}).click();
   await page.getByText(/1 cenário\(s\) associado/).waitFor();
   assert.equal(coverageSaves,1);
