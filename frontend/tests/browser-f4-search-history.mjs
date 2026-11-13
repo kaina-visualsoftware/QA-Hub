@@ -140,7 +140,14 @@ try {
   await page.getByText("Filtro salvo para esta conta.").waitFor();
   await search.fill("");
   await page.getByText("108 resultado(s)").waitFor();
-  await page.getByRole("button",{name:"Descontos especiais"}).click();
+  await page.getByRole("button",{name:"Descontos especiais",exact:true}).click();
+   // Deletion must use a named, keyboard-accessible confirmation rather than window.confirm.
+   await page.getByRole("button",{name:"Excluir filtro salvo: Descontos especiais"}).click();
+   const confirmFilter=page.getByRole("dialog",{name:"Excluir filtro salvo?"});
+   await confirmFilter.waitFor();
+   assert.equal(await confirmFilter.getByRole("button",{name:"Cancelar"}).evaluate(el=>el===document.activeElement),true);
+   await confirmFilter.getByRole("button",{name:"Cancelar"}).click();
+   await confirmFilter.waitFor({state:"hidden"});
   assert.equal(await search.inputValue(),"QA-9999");
   await page.getByText("1 resultado(s)").waitFor();
 

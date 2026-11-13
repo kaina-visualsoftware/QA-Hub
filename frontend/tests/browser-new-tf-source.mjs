@@ -265,7 +265,7 @@ try{
   await page.getByRole("button",{name:"Entrar",exact:true}).click();
   await page.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor({timeout:20000});
 
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   const wizard=page.getByRole("dialog",{name:/Nova TF — etapa/});
   await wizard.waitFor();
   await page.getByText("Informações da tarefa").waitFor();
@@ -404,7 +404,7 @@ try{
   assert.ok(cases.every(x=>x.status==="nao_executado"));
 
   await page.getByRole("link",{name:"Todas as TFs"}).click();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   await wizard.getByRole("button",{name:"Continuar manualmente"}).click();
   await wizard.getByLabel("Título da tarefa").fill("TF sem casos");
   await wizard.getByRole("button",{name:"Avançar"}).click();
@@ -415,7 +415,7 @@ try{
   assert.equal(caseWrites,3,"Skip must save no test scenarios");
 
   await page.getByRole("link",{name:"Todas as TFs"}).click();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   await wizard.getByLabel("Informações da tarefa").fill("Texto de uma TF com falha de quota");
   rateLimited=true;
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
@@ -480,7 +480,7 @@ try{
   console.log("Nova TF em 3 etapas: fontes, IA, revisão, requisitos, deduplicação, persistência, pulo e 429.");
   // F2/F3: opt-in semantic analysis, verified citations and review before extraction.
   await page.getByRole("link",{name:"Todas as TFs"}).click();
-  await page.getByRole("button",{name:"Nova TF"}).click();
+  await page.getByRole("button",{name:"Nova TF"}).first().click();
   const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
     "RESULTADO: Nenhum teste executado foi informado.";
   await wizard.getByLabel("Informações da tarefa").fill(semanticSource);

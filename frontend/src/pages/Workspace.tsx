@@ -3,16 +3,17 @@ import { ToastNotice, notify } from "../components/ui/Toasts";
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@heroui/react";
-import { ArrowRight, CheckCheck, Filter, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowRight, Filter, Inbox, Plus, Search, Trash2 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthProvider";
 import { getAdminRole, removeTask } from "../lib/data";
-import { searchTasksPage,taskStatistics,listSavedFilters,saveFilter,
+import { searchTasksPage,listSavedFilters,saveFilter,
   deleteFilter,normalizeTaskFilters } from "../features/tasks/task-search-data";
 import { listTaskProgress } from "../lib/task-progress";
 import { taskStatusLabels } from "../lib/contracts";
 import type { Task } from "../lib/contracts";
 import { DeleteTaskDialog } from "../features/tasks/DeleteTaskDialog";
 import { NewTaskWizard } from "../features/tasks/NewTaskWizard";
+import { QAModal } from "../components/ui/QAModal";
 import { useFocus } from "../stores/focus";
 
 export function Workspace() {
@@ -27,6 +28,8 @@ export function Workspace() {
   const [debouncedSearch,setDebouncedSearch]=useState("");
   const [filterName,setFilterName]=useState("");
   const [filterNotice,setFilterNotice]=useState("");
+  const [filterNameError,setFilterNameError]=useState("");
+  const [filterToDelete,setFilterToDelete]=useState<{id:string;nome:string}|null>(null);
   useEffect(()=>{
     const timeout=setTimeout(()=>setDebouncedSearch(search),280);
     return ()=>clearTimeout(timeout);
@@ -49,12 +52,6 @@ export function Workspace() {
     enabled:!!userId && role.data!==undefined,
     staleTime:20000
   });
-  const stats=useQuery({
-    queryKey:["task-stats",userId,role.data],
-    queryFn:taskStatistics,
-    enabled:!!userId && role.data!==undefined,
-    staleTime:20000
-  });
   const savedFilters=useQuery({
     queryKey:["task-saved-filters",userId],
     queryFn:()=>listSavedFilters(userId),
@@ -63,18 +60,18 @@ export function Workspace() {
   const saveSavedFilter=useMutation({
     mutationFn:()=>saveFilter(userId,filterName,{search,status,type}),
     onSuccess:async()=>{
-      setFilterName("");setFilterNotice("Filtro salvo para esta conta.");
+      setFilterName("");setFilterNameError("");setFilterNotice("Filtro salvo para esta conta.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>notify.error(err.message)
+    onError:()=>notify.error("Não foi possível salvar o filtro. Tente novamente.")
   });
   const removeSavedFilter=useMutation({
     mutationFn:(id:string)=>deleteFilter(userId,id),
     onSuccess:async()=>{
-      setFilterNotice("Filtro removido.");
+      setFilterToDelete(null);setFilterNotice("Filtro removido.");
       await queryClient.invalidateQueries({queryKey:["task-saved-filters",userId]});
     },
-    onError:(err)=>notify.error(err.message)
+    onError:()=>notify.error("Não foi possível excluir o filtro. Tente novamente.")
   });
   const deleteSelectedTask=useMutation({
     mutationFn:(selected:Pick<Task,"id"|"titulo"|"codigo">)=>removeTask(selected.id),
@@ -125,49 +122,53 @@ export function Workspace() {
   });
   const progress=Object.assign({},...progressPages.map(page=>page.data??{}));
   const progressError=progressPages.find(page=>page.isError);
-  const pending=stats.data?.pending??0;
-  const approved=stats.data?.approved??0;
+  const hasActiveFilters=Boolean(search.trim()||status||type);
+  const clearFilters=()=>{setSearch("");setDebouncedSearch("");setStatus("");setType("");};
+  async function copyErrorDetails(value:string){
+    try{await navigator.clipboard.writeText(value);notify.success("Detalhes copiados.");}
+    catch{notify.error("Não foi possível copiar os detalhes neste navegador.");}
+  }
 
   return <div className="page">
     <div className="page-heading">
       <div><h1>Suas tarefas de teste</h1></div>
       <Button onPress={() => setShowForm(true)}><Plus size={17} /> Nova TF</Button>
     </div>
-    <section className="qa-home-metrics" aria-label="Resumo">
-      <div><strong>{stats.data?.total??0}</strong><span>TFs</span></div>
-      <div><strong>{pending}</strong><span>Em andamento</span></div>
-      <div><strong>{approved}</strong><span>Aprovadas</span></div>
-    </section>
 
     <NewTaskWizard open={showForm} userId={userId}
       onClose={()=>setShowForm(false)} onCreated={handleCreated}/>
     <section className="panel task-panel">
       <div className="section-heading"><div><h2>TFs</h2></div>
-        <span className="count-pill">{total} resultado(s)</span></div>
+        <span className="count-pill" role="status" aria-live="polite">
+          {tasks.isPending?"Consultando tarefas…":total+" resultado(s)"}
+        </span></div>
       <div className="filter-line">
-        <label className="search-box"><Search size={18} aria-hidden="true" />
-          <span className="sr-only">Pesquisar por título, código, módulo ou versão</span>
-          <input type="search" value={search} onChange={(e) => {
-            setSearch(e.target.value);
-          }} placeholder="Buscar código, título, sistema, versão…" />
+        <label className="search-box qa-filter-field">
+          <span className="qa-filter-field-label">Buscar TF</span>
+          <span className="qa-filter-input-row"><Search size={18} aria-hidden="true"/>
+            <input type="search" aria-label="Pesquisar por título, código, módulo ou versão" value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Ex.: 67866, desconto, v12.08"/>
+          </span>
         </label>
-        <label className="filter-select"><Filter size={17} aria-hidden="true" />
-          <span className="sr-only">Filtrar situação</span>
-          <select value={status} onChange={(e) => {
-            setStatus(e.target.value);
-          }}>
-            <option value="">Todas as situações</option>
-            {Object.entries(taskStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
+        <label className="filter-select qa-filter-field">
+          <span className="qa-filter-field-label">Situação</span>
+          <span className="qa-filter-input-row"><Filter size={17} aria-hidden="true"/>
+            <select value={status} onChange={e=>setStatus(e.target.value)}>
+              <option value="">Todas as situações</option>
+              {Object.entries(taskStatusLabels).map(([value,label])=>
+                <option key={value} value={value}>{label}</option>)}
+            </select>
+          </span>
         </label>
-        <label className="filter-select">
-          <span className="sr-only">Filtrar tipo</span>
-          <select value={type} onChange={e=>setType(e.target.value)}
-            aria-label="Filtrar tipo">
-            <option value="">Todos os tipos</option>
-            <option value="BUILD">BUILD</option>
-            <option value="RELEASE">RELEASE</option>
-          </select>
+        <label className="filter-select qa-filter-field">
+          <span className="qa-filter-field-label">Tipo de teste</span>
+          <span className="qa-filter-input-row">
+            <select value={type} onChange={e=>setType(e.target.value)}>
+              <option value="">Todos os tipos</option>
+              <option value="BUILD">BUILD</option>
+              <option value="RELEASE">RELEASE</option>
+            </select>
+          </span>
         </label>
       </div>
       <details className="qa-saved-filter-controls">
@@ -176,16 +177,27 @@ export function Workspace() {
           <div className="qa-saved-filter-input">
             <label className="field">Nome do filtro
               <input value={filterName} maxLength={60}
+                aria-invalid={Boolean(filterNameError)}
+                aria-describedby={filterNameError?"qa-filter-name-error":undefined}
                 placeholder="Ex.: Releases do financeiro"
-                onChange={e=>setFilterName(e.target.value)}/>
+                onChange={e=>{setFilterName(e.target.value);setFilterNameError("");}}/>
             </label>
-            <Button variant="secondary" isDisabled={saveSavedFilter.isPending||
-              filterName.trim().length<2}
-              onPress={()=>saveSavedFilter.mutate()}>Salvar filtro atual</Button>
+            <Button variant="secondary" isDisabled={saveSavedFilter.isPending}
+              onPress={()=>{
+                if(filterName.trim().length<2){setFilterNameError("Informe pelo menos 2 caracteres.");return;}
+                setFilterNameError("");saveSavedFilter.mutate();
+              }}>Salvar filtro atual</Button>
           </div>
-          {savedFilters.isPending&&<p role="status" className="text-muted text-sm">Carregando filtros…</p>}
-          {savedFilters.isError&&<p role="alert" className="notice error">
-            {savedFilters.error.message}</p>}
+          {filterNameError&&<p id="qa-filter-name-error" className="notice error" role="alert">{filterNameError}</p>}
+          {savedFilters.isPending&&<div role="status" className="qa-filter-loading">
+            <span className="qa-skeleton-line" aria-hidden="true"/>
+            <span className="qa-skeleton-line" aria-hidden="true"/>
+            <span className="sr-only">Carregando filtros salvos…</span>
+          </div>}
+          {savedFilters.isError&&<div className="notice error" role="alert">
+            <p>Não foi possível carregar seus filtros salvos.</p>
+            <button type="button" onClick={()=>void savedFilters.refetch()}>Tentar novamente</button>
+          </div>}
           {savedFilters.data?.length===0&&<p className="text-muted text-sm">
             Nenhum filtro salvo nesta conta.</p>}
           {savedFilters.data?.map(saved=><div className="qa-saved-filter-item" key={saved.id}>
@@ -195,22 +207,62 @@ export function Workspace() {
               setFilterNotice("Filtro aplicado: "+saved.nome);
             }}>{saved.nome}</button>
             <button type="button" className="qa-saved-filter-remove"
+              aria-label={"Excluir filtro salvo: "+saved.nome}
               disabled={removeSavedFilter.isPending}
-              onClick={()=>{
-                if(window.confirm("Excluir este filtro salvo?"))
-                  removeSavedFilter.mutate(saved.id);
-              }}>Excluir</button>
+              onClick={()=>setFilterToDelete({id:saved.id,nome:saved.nome})}>Excluir</button>
           </div>)}
-          <ToastNotice message={filterNotice} tone="success"/>
         </div>
       </details>
-      {(role.isPending || tasks.isPending) && <p className="empty-state" role="status">Carregando tarefas…</p>}
-      {(role.isError || tasks.isError) && <p className="notice error mt-4" role="alert">
-        Não foi possível consultar o Supabase: {role.error?.message || tasks.error?.message}
-      </p>}
-      {tasks.isSuccess && total === 0 && <div className="empty-state">
-        <CheckCheck size={28} /><strong>Nenhuma TF neste filtro</strong>
-        <p>{search || status || type ? "Altere os filtros para consultar outras tarefas." : "Crie a primeira TF para começar."}</p>
+      <div className="qa-filter-notice" role="status" aria-live="polite">
+        <ToastNotice message={filterNotice} tone="success"/>
+      </div>
+      <QAModal open={Boolean(filterToDelete)} size="sm"
+        title="Excluir filtro salvo?" eyebrow="CONFIRMAÇÃO"
+        description="O filtro será removido da conta. Suas TFs não serão excluídas."
+        onClose={()=>{if(!removeSavedFilter.isPending)setFilterToDelete(null);}}
+        busy={removeSavedFilter.isPending}
+        initialFocus=".qa-filter-delete-cancel">
+        <p>Deseja excluir o filtro <strong>{filterToDelete?.nome}</strong>?</p>
+        {removeSavedFilter.isError&&<p role="alert" className="notice error">
+          Não foi possível excluir o filtro. Tente novamente.
+        </p>}
+        <div className="qa-task-delete-actions">
+          <Button variant="secondary" className="qa-filter-delete-cancel"
+            isDisabled={removeSavedFilter.isPending}
+            onPress={()=>setFilterToDelete(null)}>Cancelar</Button>
+          <button type="button" className="qa-task-delete-confirm"
+            disabled={removeSavedFilter.isPending||!filterToDelete}
+            onClick={()=>filterToDelete&&removeSavedFilter.mutate(filterToDelete.id)}>
+            <Trash2 size={16} aria-hidden="true"/>
+            {removeSavedFilter.isPending?"Excluindo…":"Excluir filtro"}
+          </button>
+        </div>
+      </QAModal>
+      {(role.isPending||tasks.isPending)&&<div className="qa-task-list-skeleton" role="status" aria-busy="true">
+        <span className="sr-only">Carregando tarefas…</span>
+        {Array.from({length:4},(_,index)=><div className="qa-task-skeleton-row" key={index} aria-hidden="true">
+          <span className="qa-skeleton-avatar"/>
+          <span className="qa-skeleton-text"><span/><span/></span>
+          <span className="qa-skeleton-badge"/>
+        </div>)}
+      </div>}
+      {(role.isError||tasks.isError)&&<div className="notice error mt-4" role="alert">
+        <p>Não foi possível carregar as TFs. Você pode tentar novamente.</p>
+        <div className="qa-workspace-error-actions">
+          <button type="button" onClick={()=>{void role.refetch();void tasks.refetch();}}>Tentar novamente</button>
+          <button type="button" onClick={()=>void copyErrorDetails(
+            role.error?.message||tasks.error?.message||"Falha desconhecida.")}>Copiar detalhes</button>
+        </div>
+      </div>}
+      {tasks.isSuccess&&total===0&&<div className="empty-state">
+        <Inbox size={28} aria-hidden="true"/>
+        <strong>{hasActiveFilters?"Nenhuma TF encontrada com estes filtros":"Nenhuma TF cadastrada"}</strong>
+        <p>{hasActiveFilters?"Remova os filtros para voltar a encontrar suas tarefas.":
+          "Crie uma TF para registrar o primeiro teste."}</p>
+        <div className="qa-workspace-empty-actions">
+          {hasActiveFilters&&<Button variant="secondary" onPress={clearFilters}>Limpar filtros</Button>}
+          <Button onPress={()=>setShowForm(true)}><Plus size={16} aria-hidden="true"/> Nova TF</Button>
+        </div>
       </div>}
       {progressError && <p className="notice error mt-3" role="alert">
         Progresso temporariamente indisponível. As TFs ainda podem ser abertas normalmente.

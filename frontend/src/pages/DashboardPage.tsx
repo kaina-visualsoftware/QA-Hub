@@ -37,15 +37,27 @@ export default function DashboardPage(){
         <Plus size={17}/> Nova TF
       </Link>
     </div>
-    {tasks.isPending&&<p role="status">Carregando indicadores…</p>}
-    {tasks.isError&&<p className="notice error" role="alert">{tasks.error.message}</p>}
-    <section className="qa-dashboard-metrics" aria-label="Indicadores das tarefas">
-      <article><ClipboardList size={18}/><span>TFs</span><strong>{allCount}</strong></article>
+    {tasks.isPending&&<p role="status" aria-live="polite">Carregando indicadores…</p>}
+    {(tasks.isError||role.isError)&&<div className="notice error" role="alert">
+      <p>Não foi possível carregar os indicadores.</p>
+      <button type="button" onClick={()=>{void role.refetch();void tasks.refetch();}}>
+        Tentar novamente
+      </button>
+    </div>}
+    <section className="qa-dashboard-metrics" aria-label="Indicadores das tarefas"
+      aria-busy={tasks.isPending}>
+      <article><ClipboardList size={18}/><span>TFs</span>
+        {tasks.isSuccess?<strong>{allCount}</strong>:
+          <span className="qa-dashboard-skeleton-value" aria-hidden="true"/>}</article>
       <article><CircleDashed size={18}/><span>Em andamento</span>
-        <strong>{(summary.rascunho||0)+(summary.em_teste||0)}</strong></article>
-      <article><CircleCheck size={18}/><span>Aprovadas</span><strong>{summary.aprovado||0}</strong></article>
+        {tasks.isSuccess?<strong>{(summary.rascunho||0)+(summary.em_teste||0)}</strong>:
+          <span className="qa-dashboard-skeleton-value" aria-hidden="true"/>}</article>
+      <article><CircleCheck size={18}/><span>Aprovadas</span>
+        {tasks.isSuccess?<strong>{summary.aprovado||0}</strong>:
+          <span className="qa-dashboard-skeleton-value" aria-hidden="true"/>}</article>
       <article><ChartNoAxesCombined size={18}/><span>Com problema</span>
-        <strong>{(summary.reprovado||0)+(summary.bloqueado||0)}</strong></article>
+        {tasks.isSuccess?<strong>{(summary.reprovado||0)+(summary.bloqueado||0)}</strong>:
+          <span className="qa-dashboard-skeleton-value" aria-hidden="true"/>}</article>
     </section>
     <div className="qa-dashboard-panels">
       <section className="panel">
@@ -53,8 +65,8 @@ export default function DashboardPage(){
         <div className="qa-dashboard-statuses">
           {(Object.entries(taskStatusLabels) as [Task["status"],string][]).map(([key,label])=>
             <div key={key} className="qa-dashboard-barrow">
-              <div><span>{label}</span><strong>{summary[key]||0}</strong></div>
-              <div className="qa-dashboard-track"><span style={{width:percentage(summary[key]||0,allCount)+"%"}}/></div>
+              <div><span>{label}</span><strong>{tasks.isSuccess?summary[key]||0:"—"}</strong></div>
+              <div className="qa-dashboard-track"><span style={{width:(tasks.isSuccess?percentage(summary[key]||0,allCount):0)+"%"}}/></div>
             </div>)}
         </div>
         <p className="text-muted text-sm">Baseado nas TFs acessíveis à sua conta.</p>
@@ -62,16 +74,15 @@ export default function DashboardPage(){
       <section className="panel">
         <h2>Cobertura de execução</h2>
         <div className="qa-dashboard-coverage">
-          <strong>{percentage(totals.executed,totals.scenarios)}%</strong>
+          <strong>{tasks.isSuccess?percentage(totals.executed,totals.scenarios)+"%":"—"}</strong>
           <span>dos cenários registrados como executados</span>
         </div>
         <div className="qa-dashboard-track" role="progressbar" aria-label="Execução dos cenários"
           aria-valuemin={0} aria-valuemax={100}
-          aria-valuenow={percentage(totals.executed,totals.scenarios)}>
-          <span style={{width:percentage(totals.executed,totals.scenarios)+"%"}}/>
+          aria-valuenow={tasks.isSuccess?percentage(totals.executed,totals.scenarios):undefined}>
+          <span style={{width:(tasks.isSuccess?percentage(totals.executed,totals.scenarios):0)+"%"}}/>
         </div>
-        <p className="text-muted text-sm">{totals.executed} executados · {totals.pending} pendentes
-          {tasks.isPending?" · Consultando…":""}</p>
+        <p className="text-muted text-sm">{tasks.isSuccess?totals.executed+" executados · "+totals.pending+" pendentes":"Indicadores em atualização."}</p>
         <small className="text-muted">Cobertura calculada no banco a partir dos resultados gravados.
           Execução não equivale à aprovação da TF.</small>
       </section>
@@ -94,7 +105,7 @@ export default function DashboardPage(){
     <section className="panel qa-dashboard-recents">
       <div className="section-heading"><h2>Últimas tarefas</h2>
         <Link className="back-link" to="/">Ver todas <ArrowRight size={15}/></Link></div>
-      {recent.length===0&&<p className="empty-state">Nenhuma TF cadastrada.</p>}
+      {tasks.isSuccess&&recent.length===0&&<p className="empty-state">Nenhuma TF cadastrada.</p>}
       {recent.map(task=><Link key={task.id} to="/tarefa/$taskId" params={{taskId:task.id}}
         className="qa-dashboard-recent">
         <span><strong>{task.titulo}</strong>
