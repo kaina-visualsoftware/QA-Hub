@@ -166,6 +166,8 @@ try {
     await view.click();
     const zoom = page.getByRole("dialog", { name: "Visualizar diagrama — Fluxo da operação" });
     await zoom.waitFor();
+    assert.equal(await zoom.locator("iframe.qa-diagram-viewer-frame").getAttribute("tabindex"),"-1",
+      "The read-only diagram frame must not take Tab focus away from the modal Escape handler");
     await axeAudit(page,"diagrama público em modal",width);
     const close = zoom.getByRole("button", { name: "Fechar Visualizar diagrama — Fluxo da operação" });
     await close.focus();
