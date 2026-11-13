@@ -48,6 +48,7 @@ async function mock(route){
   }
   if(await mockF4Rpc(route,[task],[scenario]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
+  if(path.endsWith("/rest/v1/qa_release_listas"))return send([]);
   if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET")return send([task]);
   if(path.endsWith("/rest/v1/qa_cenarios")&&method==="GET"){
     if(url.searchParams.get("select")==="tarefa_id,status")
