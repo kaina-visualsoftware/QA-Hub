@@ -278,26 +278,32 @@ try{
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
     "Edited scenarios must remain intact until the user saves or discards them.");
   await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
-  page.once("dialog",dialog=>void dialog.dismiss());
+  const dismissInitialRegeneration=(dialog)=>void dialog.dismiss();
+  page.once("dialog",dismissInitialRegeneration);
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  page.off("dialog",dismissInitialRegeneration);
   assert.equal(aiCalls,1,"Cancelar regeneração não envia outro pedido.");
   await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
   await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente");
   await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
   failNextGenerator=true;
-  page.once("dialog",dialog=>void dialog.accept());
+  const acceptFailedRegeneration=(dialog)=>void dialog.accept();
+  page.once("dialog",acceptFailedRegeneration);
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
+  page.off("dialog",acceptFailedRegeneration);
   await page.getByText(/IA indisponível na simulação/).waitFor();
   await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
   await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
     "Falha da IA deve manter o rascunho editado.");
   await page.getByRole("button",{name:"Alterar modelo ou gerar novamente"}).click();
-  page.once("dialog",dialog=>void dialog.accept());
+  const acceptRetry=(dialog)=>void dialog.accept();
+  page.once("dialog",acceptRetry);
   // After an interrupted stage, the pipeline correctly offers to resume
   // pending batches instead of starting an unrelated fresh run.
   await page.getByRole("button",{name:/^(?:Retomar \d+ etapa\(s\)|Gerar novamente)$/}).click();
+  page.off("dialog",acceptRetry);
   await page.getByRole("button",{name:/Anexar 1 caso/}).waitFor();
   assert.equal(aiCalls,3);
   assert.equal(attachCalls,0);
@@ -469,8 +475,10 @@ try{
   const recordCounts=editLinks.getByRole("button",{name:"Salvar somente contagens na TF"});
   await recordCounts.waitFor();
   assert.equal(comparisonSaves,0,"Diff local não grava conteúdo nem metadados automaticamente");
-  page.once("dialog",(dialog)=>void dialog.accept());
+  const acceptSaveCounts=(dialog)=>void dialog.accept();
+  page.once("dialog",acceptSaveCounts);
   await recordCounts.click();
+  page.off("dialog",acceptSaveCounts);
   await page.getByText("Somente os indicadores foram registrados na TF. Os textos permanecem no navegador.").waitFor();
   assert.equal(comparisonSaves,1);
   assert.equal(comparisonRows[0].tipo,"diff_texto");
