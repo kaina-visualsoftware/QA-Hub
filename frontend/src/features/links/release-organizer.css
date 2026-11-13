@@ -214,3 +214,20 @@
  .qa-release-shell .qa-release-list-heading{align-items:center}
  .qa-release-shell .qa-release-list-heading button{font-size:.77rem}
 }
+
+/* On phones, the version does not need a full-height standalone row. */
+@media(max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block>div>p{display:none}
+ #qa-tool-panel-release .qa-tools-version-block{padding:8px 10px;gap:8px}
+ #qa-tool-panel-release .qa-tools-version-block h3{margin:0;font-size:.9rem}
+ #qa-tool-panel-release .qa-tools-version-block .field{gap:3px}
+ #qa-tool-panel-release .qa-tools-version-block .field input{min-height:38px}
+ #qa-tool-panel-release .qa-tools-version-block .field small{
+  font-size:.72rem;line-height:1.25
+ }
+}
+@media(min-width:360px) and (max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr) minmax(140px,180px)
+ }
+}
