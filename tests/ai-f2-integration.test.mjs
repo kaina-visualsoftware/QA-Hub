@@ -45,6 +45,8 @@ test("task generator does not retry auth or schema failures",()=>{
  const source=file("frontend/src/features/tasks/task-ai.ts");
  assert.match(source,/response\.error\.context\?\.status===429/);
  assert.match(source,/withAiRateLimitRetry\(/);
- assert.match(source,/protectedErrors/);
- assert.match(source,/rate_limited/);
+ assert.match(source,/status===401\|\|status===403/);
+ assert.match(source,/status===429/);
+ assert.match(source,/data\?\.fallback/);
+ assert.doesNotMatch(source,/extractLocalDraft\(/);
 });

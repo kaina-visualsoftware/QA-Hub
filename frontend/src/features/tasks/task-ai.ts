@@ -1,7 +1,7 @@
 import type {UseFormReturn} from "react-hook-form";
 import { normalizeTaskVersion } from "../../lib/task-version";
 import type {Scenario,TaskDraft} from "../../lib/contracts";
-import {extractLocalDraft,normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
+import {normalizeDraft} from "../../lib/legacy/qa-assistant.mjs";
 import type {LocalDraft} from "../../lib/legacy/qa-assistant.mjs";
 import {supabase} from "../../lib/supabase";
 import {readAiInvokeError,withAiRateLimitRetry} from "../../lib/ai-retry";
@@ -154,46 +154,9 @@ export async function loadTaskAiSource(taskId:string):Promise<string|null>{
 
 export type GeneratedTaskDraft=LocalDraft & {extractionSource:"nvidia"|"local";extractionReason?:string};
 
-/** The provider can respond with HTTP 200 but no structured content. In that
- * case use the existing deterministic report parser, never an empty "success".
- * The 200k parser ceiling is explicit; long inputs are never silently truncated.
+/** The NVIDIA response is the only source for AI-generated fields.
+ * Do not use a local parser to fill missing data, scenarios, or provider errors.
  */
-function localSourceDraft(source:string):LocalDraft|null{
-  if(source.length>200000)return null;
-  try{
-    const extracted=extractLocalDraft(source);
-    return Object.keys(extracted.fields).length||extracted.cenarios.length?extracted:null;
-  }catch{return null;}
-}
-
-function completeSourceDraft(fromAi:LocalDraft,local:LocalDraft|null):LocalDraft{
-  if(!local)return fromAi;
-  const localByTitle=new Map(local.cenarios.map(item=>[identity(item),item]));
-  const enriched=fromAi.cenarios.map(item=>{
-    const source=localByTitle.get(identity(item));
-    if(!source)return item;
-    // A partial model reply can omit the expected result of a documented test.
-    return {
-      ...item,
-      passos:item.passos?.trim()?item.passos:source.passos,
-      esperado:item.esperado?.trim()?item.esperado:source.esperado,
-      observacoes:item.observacoes?.trim()?item.observacoes:source.observacoes
-    };
-  });
-  const known=new Set(enriched.map(identity));
-  const additional=local.cenarios.filter(item=>{
-    const key=identity(item);
-    if(!key||known.has(key))return false;
-    known.add(key);
-    return true;
-  });
-  // Never replace meaningful NVIDIA fields or duplicate a source scenario.
-  return {
-    fields:{...local.fields,...fromAi.fields},
-    cenarios:[...enriched,...additional].slice(0,50)
-  };
-}
-
 export async function generateTaskAiDraft(text:string,{aiText,signal,onWait}:{aiText?:string;signal?:AbortSignal;onWait?:AiWaitCallback}={}):Promise<GeneratedTaskDraft>{
   const source=text.trim();
   if(!source)throw Error("Informe a descrição da tarefa para gerar com IA.");
@@ -216,48 +179,26 @@ export async function generateTaskAiDraft(text:string,{aiText,signal,onWait}:{ai
     return response;
   },{signal:requestSignal,onWait});
   if(error){
-    let detail:{message?:string;error?:string}={};
+    let detail:{message?:string;error?:string;code?:string}={};
     try{detail=await error.context?.json?.()??{};}catch{}
-    const code=detail.error??"";
     const status=typeof error.context?.status==="number"?error.context.status:0;
-    // Provider outages must never block a recoverable TF source. We only use
-    // the full, unchanged input for the deterministic local parser. Do not
-    // hide authentication, upstream-key, quota or database failures.
-    const recoverable=new Set([
-      "ai_temporarily_unavailable","free_model_unavailable",
-      "model_context_exceeded","nvidia_not_configured"
-    ]);
-    const protectedErrors=new Set([
-      "unauthorized","forbidden","nvidia_key_invalid",
-      "auth_unconfigured","rate_limit_not_ready","rate_limited",
-      "nvidia_rate_limited"
-    ]);
-    const transportFailure=!status&&(!code||code==="");
-    const retryableHttp=[500,502,503,504,522,524].includes(status);
-    if(recoverable.has(code)||(retryableHttp&&!protectedErrors.has(code))||transportFailure){
-      const local=localSourceDraft(relevant);
-      const cause=status?"HTTP "+status:transportFailure?"falha de conexão ou tempo limite":code;
-      if(local)return {...local,extractionSource:"local",extractionReason:cause};
-      throw Error("A NVIDIA não respondeu ("+cause+"). O texto integral da TF foi preservado, mas não foi possível extrair os campos localmente. Revise ou tente novamente.");
-    }
+    const code=detail.error??detail.code??"";
     if(status===429||code==="rate_limited"||code==="nvidia_rate_limited")
-      throw Error(detail.message||"A NVIDIA atingiu a cota de chamadas. O documento foi preservado; tente novamente após a liberação.");
+      throw Error(detail.message||"A NVIDIA atingiu a cota de chamadas. O documento foi preservado; retome após a liberação.");
     if(status===401||status===403)
       throw Error(detail.message||"Sessão inválida para acessar a NVIDIA. Entre novamente no QA Hub.");
     throw Error(detail.message||"A NVIDIA não concluiu a análise"+
-      (status?" (HTTP "+status+")":"")+". O texto foi mantido; tente novamente ou continue manualmente.");
+      (status?" (HTTP "+status+")":"")+". Nenhum dado foi extraído fora da IA. "+
+      "A fonte original foi mantida para uma nova tentativa ou preenchimento manual.");
   }
-  if(data?.provider!=="NVIDIA Build")
-    throw Error("A resposta da análise não foi autenticada como NVIDIA Build.");
-
+  if(data?.provider!=="NVIDIA Build"||data?.fallback)
+    throw Error("A NVIDIA não retornou uma resposta estruturada verificável. "+
+      "Nenhum mecanismo local foi usado; retome a análise ou preencha manualmente.");
   const raw=data?.draft;
-  const validRaw=!data?.fallback&&raw&&typeof raw==="object"&&!Array.isArray(raw)&&
-    Object.keys(raw).length>0;
-  const parsed=validRaw?normalizeDraft(raw):null;
-  const usefulAi=Boolean(parsed&&(Object.keys(parsed.fields).length||parsed.cenarios.length));
-  const local=localSourceDraft(relevant);
-  const complete=completeSourceDraft(usefulAi&&parsed?parsed:{fields:{},cenarios:[]},local);
-  if(!Object.keys(complete.fields).length&&!complete.cenarios.length)
-    throw Error("A NVIDIA não estruturou os campos e a extração local não foi suficiente. Revise o texto ou continue manualmente; o conteúdo original foi preservado.");
-  return {...complete,extractionSource:usefulAi?"nvidia":"local"};
+  if(!raw||typeof raw!=="object"||Array.isArray(raw)||!Object.keys(raw).length)
+    throw Error("A NVIDIA respondeu sem campos estruturados. A fonte foi preservada; tente novamente.");
+  const parsed=normalizeDraft(raw);
+  if(!Object.keys(parsed.fields).length&&!parsed.cenarios.length)
+    throw Error("A NVIDIA não forneceu campos ou cenários utilizáveis. A fonte foi preservada.");
+  return {...parsed,extractionSource:"nvidia"};
 }

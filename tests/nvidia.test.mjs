@@ -10,14 +10,14 @@ test('NVIDIA extraction accepts structured output but keeps extracted scenarios 
    assert.equal(name,'qa-ai');
    assert.match(body.text,/TF 67866/);
    assert.ok(signal);
-   return {data:{model:'nvidia/nemotron-3.5-lightning-30b-a3b',draft:{
+   return {data:{provider:'NVIDIA Build',model:'nvidia/nemotron-3.5-lightning-30b-a3b',draft:{
      codigo:'99999',titulo:'Promoção por tabela',descricao:'Testes de preço',
      status:'aprovado',user_id:'admin',cenarios:[{titulo:'Validar promoção',status:'aprovado',passos:'Incluir item'}]
    }},error:null};
  }}};
  const info=await extractWithNvidia('TF 67866 — Promoção por tabela. Versão: 12.08.08.0000',fake);
  assert.equal(called,1);
- assert.equal(info.draft.fields.codigo,'67866');
+ assert.equal(info.draft.fields.codigo,undefined, 'Identificador divergente da fonte não pode ser completado localmente.');
  assert.equal(info.draft.fields.status,undefined);
  assert.equal(info.draft.fields.user_id,undefined);
  assert.equal(info.draft.cenarios[0].status,'nao_executado');
@@ -68,6 +68,6 @@ test('NVIDIA AI uses a global rolling 15/minute limit without daily quota',()=>{
 
 test('accepts long TF input without truncating the request',async()=>{
  const text='Relatório de QA. '.repeat(6000)+' FIM DO CONTEXTO';
- const db={functions:{async invoke(_,{body}){assert.equal(body.text,text);return {data:{draft:{titulo:'Análise completa',descricao:'Descrição'},model:'NVIDIA Build'},error:null};}}};
+ const db={functions:{async invoke(_,{body}){assert.equal(body.text,text);return {data:{provider:'NVIDIA Build',draft:{titulo:'Análise completa',descricao:'Descrição'},model:'NVIDIA Build'},error:null};}}};
  const result=await extractWithNvidia(text,db);assert.equal(result.fallback,false);
 });

@@ -1,5 +1,4 @@
-import { parseOpenModelJson,mergeOpenModelDraft } from './qa-ai-open.mjs';
-import { extractLocalDraft } from './qa-assistant.mjs';
+import { parseOpenModelJson } from './qa-ai-open.mjs';
 
 
 /**
@@ -14,27 +13,27 @@ export async function extractWithNvidia(text, db, onStatus=()=>{}) {
     body:{text},
     signal:AbortSignal.timeout(95000)
   });
-  const fallback=()=>{
-    onStatus('A NVIDIA não retornou campos utilizáveis; organizando o texto localmente.');
-    if(text.length>30000)throw Error('A NVIDIA não retornou campos utilizáveis. Tente novamente; o texto original foi preservado.');
-    return {draft:extractLocalDraft(text),model:'Extração local',fallback:true};
-  };
+
   if(error){
     let info={};
     try{info=await error.context?.json?.()||{};}catch{}
-    if(['ai_temporarily_unavailable','free_model_unavailable'].includes(info.error)){
-      return fallback();
-    }
-    throw Error(info.message || 'Não foi possível contatar a IA. Tente novamente ou use a extração sem IA.');
+    throw Error(info.message || 'A NVIDIA não concluiu a extração. O relatório original foi preservado.');
   }
-  if(data?.fallback || !data?.draft || typeof data.draft!=='object'){
-    return fallback();
-  }
+  if(data?.provider!=='NVIDIA Build'||data?.fallback||
+     !data?.draft||typeof data.draft!=='object'||!Object.keys(data.draft).length)
+    throw Error('A NVIDIA não devolveu campos válidos. Nenhuma extração local foi executada.');
   try {
-    const draft=text.length>30000?parseOpenModelJson(JSON.stringify(data.draft)):mergeOpenModelDraft(text,JSON.stringify(data.draft));
+    const draft=parseOpenModelJson(JSON.stringify(data.draft));
+    // Literal consistency checks are allowed; they never infer missing values.
+    for(const key of ['codigo','versao']){
+      if(draft.fields?.[key] && !text.includes(draft.fields[key]))
+        delete draft.fields[key];
+    }
+    if(!Object.keys(draft.fields??{}).length&&!draft.cenarios?.length)
+      throw Error('Sem dados estruturados.');
     onStatus('Campos organizados com '+String(data.model||'NVIDIA Build')+'.');
     return {draft,model:String(data.model||'NVIDIA Build'),fallback:false};
   } catch {
-    return fallback();
+    throw Error('A resposta da NVIDIA não pôde ser validada. O relatório foi preservado.');
   }
 }

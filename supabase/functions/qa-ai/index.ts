@@ -10,8 +10,8 @@ import { parseNvidiaDraft } from "./response.mjs";
 import { MODEL_DISCOVERY_TIMEOUT_MS, PROVIDER_TIMEOUT_MS, nvidiaRequestOptions, hasMeaningfulTaskData } from "./request.mjs";
 import { diagramMessages, extractDiagramFromNvidia } from "./diagram.mjs";
 import { diagramSummaryMessages,extractDiagramSummary } from "./summary.mjs";
-import {parseScenarioSeeds,taskFieldMessages,taskScenarioMessages} from "./stages.mjs";
-import {groundedTaskFields,groundedTaskScenarios} from "./schemas.ts";
+import {parseScenarioSeeds,taskFieldMessages,taskSeedMessages,taskScenarioMessages} from "./stages.mjs";
+import {groundedTaskFields,groundedTaskSeeds,groundedTaskScenarios} from "./schemas.ts";
 
 // The explicit free-endpoint allowlist lives only in _shared/llm/models.mjs.
 // A runtime GET /v1/models filters it without accepting arbitrary model IDs.
@@ -118,13 +118,14 @@ Deno.serve(async req => {
   const summaryMode=(body as {mode?:unknown})?.mode==="diagram-summary";
   const fieldsMode=(body as {mode?:unknown})?.mode==="task-fields";
   const scenariosMode=(body as {mode?:unknown})?.mode==="task-scenarios";
-  if((fieldsMode||scenariosMode)&&
+  const seedsMode=(body as {mode?:unknown})?.mode==="task-seeds";
+  if((fieldsMode||seedsMode||scenariosMode)&&
      !aiFeatureEnabled("task-phased",userResult.data.user.id))
     return reply(503,disabledAiResponse());
   const stageSeeds=scenariosMode?parseScenarioSeeds((body as {seeds?:unknown})?.seeds):null;
   if(scenariosMode&&!stageSeeds)
     return reply(400,{error:"bad_request",message:"Envie até quatro cenários locais com índices de origem válidos."});
-  if((fieldsMode||scenariosMode)&&text.length>30000)
+  if((fieldsMode||seedsMode||scenariosMode)&&text.length>30000)
     return reply(413,{error:"too_long",message:"Prepare o contexto de cada etapa em até 30.000 caracteres."});
   const previousMermaid=typeof (body as {mermaid?:unknown})?.mermaid==="string"
     ? (body as {mermaid:string}).mermaid.trim():"";
@@ -140,7 +141,7 @@ Deno.serve(async req => {
   if(!key) {
     return reply(503,{
       error:"nvidia_not_configured",
-      message:"A IA online ainda não foi ativada no Supabase. Utilize a extração sem IA ou a IA local."
+      message:"A NVIDIA não está configurada no Supabase. A fonte original foi preservada; tente novamente após a configuração."
     });
   }
 
@@ -155,10 +156,10 @@ Deno.serve(async req => {
     });
   }
   const telemetryMode=diagramMode?"diagram":summaryMode?"diagram-summary":
-    fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task";
+    fieldsMode?"task-fields":seedsMode?"task-seeds":scenariosMode?"task-scenarios":"task";
   const messages=diagramMode?diagramMessages(text,{mermaid:previousMermaid,syntaxError}):
     summaryMode?diagramSummaryMessages(text):
-      fieldsMode?taskFieldMessages(text):
+      fieldsMode?taskFieldMessages(text):seedsMode?taskSeedMessages(text):
         scenariosMode?taskScenarioMessages(text,stageSeeds):promptForReport(text);
   const chars=promptChars(messages);
   let hadReply=false;
@@ -166,7 +167,7 @@ Deno.serve(async req => {
   let contextExceeded=false;
   for(const [modelIndex,model] of available.entries()) {
     const options=nvidiaRequestOptions(model,diagramMode?"diagram":summaryMode?"summary":
-      fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task");
+      fieldsMode?"task-fields":seedsMode?"task-seeds":scenariosMode?"task-scenarios":"task");
     const telemetry={correlation_id:trace,mode:telemetryMode,model,
       prompt_chars:chars,max_tokens:options.max_tokens,
       attempt:modelIndex+1,fallback_model:modelIndex>0};
@@ -174,8 +175,8 @@ Deno.serve(async req => {
       const result=await callModel({
         apiKey:key,model,messages,
         mode:diagramMode?"diagram":summaryMode?"summary":
-          fieldsMode?"task-fields":scenariosMode?"task-scenarios":"task",
-        stream:false,options,maxRetries:0,rejectLength:false,
+          fieldsMode?"task-fields":seedsMode?"task-seeds":scenariosMode?"task-scenarios":"task",
+        stream:false,options,maxRetries:0,rejectLength:true,
         timeoutMs:PROVIDER_TIMEOUT_MS,firstTokenTimeoutMs:PROVIDER_TIMEOUT_MS,
         deadlineAt,fallbackModel:modelIndex>0,
         // Claim one of the existing 15/min RPC slots BEFORE any network attempt.
@@ -214,6 +215,11 @@ Deno.serve(async req => {
         if(validated)return reply(200,{
           stage:"fields",...validated,model,provider:"NVIDIA Build"
         });
+      }else if(seedsMode){
+        const validated=groundedTaskSeeds(response,text);
+        if(validated)return reply(200,{
+          stage:"seeds",...validated,model,provider:"NVIDIA Build"
+        });
       }else if(scenariosMode){
         const validated=groundedTaskScenarios(response,text,stageSeeds!);
         if(validated)return reply(200,{
@@ -231,8 +237,8 @@ Deno.serve(async req => {
       });
     } catch(error) {
       if(!(error instanceof ProviderError)){
-        console.warn("qa-ai upstream exception",{model,reason:"request_failed"});
-        continue;
+        console.error("qa-ai unexpected provider exception",{model,reason:"request_failed",trace});
+        return reply(503,{error:"provider_unavailable",message:"Falha inesperada na comunicação com a NVIDIA. A fonte foi preservada; tente novamente."});
       }
       lastStatus=error.status||lastStatus;
       if(error.stage==="quota"){
@@ -273,24 +279,19 @@ Deno.serve(async req => {
     error:"model_context_exceeded",message:"A estimativa de tokens ultrapassou o orçamento operacional desta geração. Esse orçamento é menor que a janela anunciada dos modelos. O QA Hub não cortou o texto. Revise a seleção de trechos ou utilize a análise semântica por blocos."
   });
   if(hadReply){
-    if(fieldsMode||scenariosMode)return reply(502,{
+    if(fieldsMode||seedsMode||scenariosMode)return reply(502,{
       error:"output_invalid",message:"A NVIDIA não devolveu dados estruturados válidos para esta etapa. Os resultados anteriores e a fonte original foram preservados."
     });
     if(summaryMode)return reply(502,{
       error:"summary_incomplete",
       message:"A NVIDIA não concluiu um resumo confiável. Tente novamente sem perder os dados da TF."
     });
-    // A provider replied but did not produce recognizable fields; the client
-    // will transparently use the local original-report parser.
-    return reply(200,diagramMode ? {
-      mermaid:null,fallback:true,model:"Diagrama local",provider:"NVIDIA Build"
-    } : {
-      draft:{},fallback:true,model:"Extração local",provider:"NVIDIA Build"
-    });
+    return reply(502,{error:"output_invalid",
+      message:"A NVIDIA respondeu sem uma estrutura completa e válida. Nenhum resultado vazio foi aceito; a fonte permanece disponível para nova tentativa."});
   }
   return reply(503,{
     error:"ai_temporarily_unavailable",
-    message:"A NVIDIA está temporariamente indisponível. O texto pode ser organizado localmente.",
+    message:"A NVIDIA está temporariamente indisponível. O texto original foi preservado; retome a solicitação após a recuperação do provedor.",
     status:lastStatus
   });
 });

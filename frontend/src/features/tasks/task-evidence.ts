@@ -195,3 +195,42 @@ export function parseGroundedScenarioReply(data:unknown,source:string,
   throw Error("Nem todos os cenários de origem receberam evidência.");
  return {accepted,review,repaired:response.data.repaired};
 }
+
+
+/** These are candidate scenarios created by NVIDIA, never by a browser parser.
+ * Both server and browser must verify a literal source quote before a
+ * scenario may be sent to the next NVIDIA stage.
+ */
+const seedsReply=z.strictObject({
+ stage:z.literal("seeds"),provider:z.literal("NVIDIA Build"),
+ model:z.string().min(1),repaired:z.boolean(),
+ draft:z.strictObject({seeds:z.array(scenario).max(20)}),
+ review_seeds:z.array(scenario).max(20)
+}).superRefine((value,ctx)=>{
+ const all=[...value.draft.seeds,...value.review_seeds];
+ if(all.length>20||new Set(all.map(x=>x.source_index)).size!==all.length||
+    value.review_seeds.some(x=>x.evidence.status!=="needs_review"))
+  ctx.addIssue({code:"custom",message:"Candidatos de cenários inválidos"});
+});
+export function parseGroundedSeedReply(data:unknown,source:string){
+ const result=seedsReply.safeParse(data);
+ if(!result.success)throw Error("A NVIDIA não devolveu sementes de cenários verificáveis.");
+ const accepted:GroundedScenario[]=[],review:ScenarioReview[]=[];
+ for(const item of [...result.data.draft.seeds,...result.data.review_seeds]){
+  const combined=[item.titulo,item.passos,item.esperado,item.observacoes].join(" ");
+  const line=locateEvidence(source,item.evidence.quote);
+  const good=verified(source,combined,item.evidence.quote,item.evidence.source_line)&&
+   item.evidence.status==="verified"&&!result.data.repaired&&
+   Boolean(item.passos.trim()&&item.esperado.trim());
+  review.push({sourceIndex:item.source_index,title:item.titulo,
+   quote:item.evidence.quote,sourceLine:line,
+   status:good?"verified":"needs_review",
+   reason:good?null:result.data.repaired?"json_repaired":
+    item.evidence.reason??"unverified_model"});
+  if(good)accepted.push({
+   source_index:item.source_index,titulo:item.titulo,passos:item.passos,
+   esperado:item.esperado,observacoes:item.observacoes
+  });
+ }
+ return {seeds:accepted,review};
+}

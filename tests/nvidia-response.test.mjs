@@ -72,18 +72,16 @@ test('returns null safely for unusable or incomplete responses',()=>{
   assert.equal(parseNvidiaDraft({choices:[{message:{content:'<think>Raciocínio</think>Não há dados reconhecíveis.'}}]}),null);
 });
 
-test('when NVIDIA reply has no structure the original QA text is extracted locally',async()=>{
+test('NVIDIA invalid reply cannot masquerade as a local successful extraction',async()=>{
   const fake={functions:{async invoke(){return {data:{draft:{},fallback:true,model:'Extração local'},error:null};}}};
-  const result=await extractWithNvidia('TF 67866 — Teste de desconto\nO QUE FOI TESTADO:\nValidar desconto por pedido.',fake);
-  assert.equal(result.fallback,true);
-  assert.equal(result.draft.fields.codigo,'67866');
-  assert.match(result.draft.fields.descricao,/Validar desconto/);
+  await assert.rejects(
+   extractWithNvidia('TF 67866 — Teste de desconto\nO QUE FOI TESTADO:\nValidar desconto por pedido.',fake),
+   /Nenhuma extração local/);
 });
 
-test('service temporary unavailable falls back but credential errors do not',async()=>{
+test('service temporarily unavailable and invalid credentials never activate a parser',async()=>{
   const service={functions:{async invoke(){return {data:null,error:{context:{async json(){return {error:'ai_temporarily_unavailable'};}}}};}}};
-  const recovered=await extractWithNvidia('TF 67866 — Checagem.',service);
-  assert.equal(recovered.fallback,true);
+  await assert.rejects(extractWithNvidia('TF 67866 — Checagem.',service),/NVIDIA não concluiu/);
   const auth={functions:{async invoke(){return {data:null,error:{context:{async json(){return {error:'nvidia_key_invalid',message:'Chave inválida'};}}}};}}};
   await assert.rejects(extractWithNvidia('TF 67866 — Checagem.',auth),/Chave inválida/);
 });

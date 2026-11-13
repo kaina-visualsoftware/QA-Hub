@@ -1,7 +1,7 @@
 import { parseReport } from './qa-parser.mjs';
 import { cleanQaSourceText, formatQaSentenceCase } from './qa-text-cleaner.mjs';
 
-// All extraction runs in the browser. Never send QA reports to an external API.
+// Deterministic parser for explicit legacy/manual operations only. NVIDIA AI requests use the authenticated Edge Function; never use this parser as an implicit NVIDIA fallback.
 export const ASSIST_FIELD_LIMITS = Object.freeze({
   codigo:120, titulo:240, tipo_teste:7, sistema:200, versao:120, ambiente:160,
   base_teste:160, empresa:200, testador:200, descricao:30000, explicacao:30000,
@@ -66,8 +66,8 @@ export function standardizeImportedScenario(item){
   const esperado=formatQaSentenceCase(item?.esperado||'').replace(/^\s*(?:Resultado esperado|Esperado)\s*:\s*/i,'')
     .split('\n').map(line=>line.trim().replace(/^[-*•]\s*/,'')).filter(Boolean).join('\n').slice(0,20000);
   const notes=splitScenarioNotes(item?.observacoes||'');
-  const objetivo=formatQaSentenceCase(item?.objetivo||notes.objetivo||'').trim()
-    || ('Validar o resultado esperado do cenário "'+titulo+'": '+(esperado||'revisar o resultado esperado.') );
+  // A missing objective is not grounds for fabricating one outside NVIDIA.
+  const objetivo=formatQaSentenceCase(item?.objetivo||notes.objetivo||'').trim();
   const observed=formatQaSentenceCase(item?.obtido||'').trim();
   let more=notes.observacoes;
   // If the source already has a recorded observation, preserve it, but do not
@@ -77,7 +77,7 @@ export function standardizeImportedScenario(item){
   }
   return {
     titulo,passos,esperado,
-    observacoes:('Objetivo:\n'+objetivo+(more?'\n\nObservações:\n'+more:'')).slice(0,20000)
+    observacoes:(objetivo?'Objetivo:\n'+objetivo+(more?'\n\nObservações:\n'+more:''):more).slice(0,20000)
   };
 }
 
