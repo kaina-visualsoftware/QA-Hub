@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {organizeRelease,reviewRelease,compareTextLines} from '../qa-release-core.mjs';
+import {organizeRelease,reviewRelease,compareTextLines,releaseTaskScope} from '../qa-release-core.mjs';
 
 test('native release organizer preserves SIA status classification',()=>{
   const result=organizeRelease({
@@ -29,4 +29,38 @@ test('native text comparison never interprets unchanged content as change',()=>{
   assert.equal(diff.removed,1);
   assert.deepEqual(diff.changes.map(x=>x[0]),[' ','-','+',' ']);
   assert.throws(()=>compareTextLines('a\n'.repeat(1501),'b'),/1\.500/);
+});
+
+test('release marks only client 6157 Visual Software as INTERNA and other clients as EXTERNA',()=>{
+ const result=organizeRelease({
+  version:'12.10.06.0000',
+  raw:[
+   'Status 12',
+   '#201632 — BUG — 6157 Visual Software',
+   '#201633 — MELHORIA — 6157 - Visual Software',
+   '#201634 — BUG — 61570 Visual Software',
+   'Status 11',
+   '#201635 — MELHORIA — 6810 Outra Empresa',
+   '#201636 — BUG — Sem cliente informado'
+  ].join('\n')
+ });
+ assert.match(result.text,/- #201632 — BUG \(INTERNA\) — SEM SPRINT/);
+ assert.match(result.text,/- #201633 — MELHORIA \(INTERNA\) — SEM SPRINT/);
+ assert.match(result.text,/- #201634 — BUG \(EXTERNA\) —/);
+ assert.match(result.text,/- #201635 — MELHORIA \(EXTERNA\) —/);
+ assert.match(result.text,/- #201636 — BUG \(EXTERNA\) —/);
+ assert.deepEqual(result.numbers,['201632','201633','201634','201635','201636']);
+});
+test('client scope uses full literal customer identifier and preserves real sprint',()=>{
+ assert.equal(releaseTaskScope(['#201632','Cliente: 6157 Visual Software']),'INTERNA');
+ assert.equal(releaseTaskScope(['6157 - VISUAL SOFTWARE']),'INTERNA');
+ assert.equal(releaseTaskScope(['Cliente: 6157 Visual Software Ltda']),'INTERNA');
+ assert.equal(releaseTaskScope(['Cliente: 6157 Empresa Diferente']),'EXTERNA');
+ assert.equal(releaseTaskScope(['Cliente: 96157 Visual Software']),'EXTERNA');
+ assert.equal(releaseTaskScope(['#6157 Visual Software']),'EXTERNA');
+ const organized=organizeRelease({
+  version:'12.10.06.0000',team:'Sprint Fiscal',
+  raw:'#201632 — BUG — 6157 Visual Software — Sprint Fiscal'
+ });
+ assert.match(organized.text,/- #201632 — BUG \(INTERNA\) — Sprint Fiscal/);
 });
