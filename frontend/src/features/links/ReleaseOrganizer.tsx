@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {ToastNotice} from "../../components/ui/Toasts";
 import { Button } from "@heroui/react";
 import { ClipboardCopy, ListChecks, PackageCheck } from "lucide-react";
@@ -33,6 +33,9 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
     setOrganized(null);setReviewed(null);setError("");setMessage("");
   },[version]);
 
+  const updateSavedTeam=useCallback((names:string)=>{
+    setTeam(names);setOrganized(null);setReviewed(null);setError("");setMessage("");
+  },[]);
   function clearResults() {
     setOrganized(null); setReviewed(null); setError(""); setMessage("");
   }
@@ -84,7 +87,7 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
             <option value="11">11 — aguardando versão</option>
           </select>
         </label>
-        <ReleaseListsPicker value={team} onChange={names=>{setTeam(names);clearResults();}}/>
+        <ReleaseListsPicker value={team} onChange={updateSavedTeam}/>
       </div>
       <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
