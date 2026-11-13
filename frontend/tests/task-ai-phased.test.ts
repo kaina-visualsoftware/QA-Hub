@@ -82,6 +82,19 @@ const failure=(status=503)=>({data:null,error:{context:{status,
  json:async()=>({code:"provider_unavailable",message:"NVIDIA indisponível"})}}} as never);
 
 describe("Criação faseada com extração exclusiva pela NVIDIA",()=>{
+ it("extrai apenas os campos na etapa 1, sem chamadas de geração de casos",async()=>{
+  const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>
+   invoke(args!.body as Record<string,unknown>));
+  const result=await generateTaskAiDraftPhased(sourceWith(6),{fieldsOnly:true});
+  const modes=spy.mock.calls.map(x=>(x[1]?.body as {mode:string}).mode);
+  expect(modes).toEqual(["task-fields"]);
+  expect(result.fields.titulo).toBeDefined();
+  expect(result.cenarios).toEqual([]);
+  expect(result.seedsPending).toBe(false);
+  expect(result.pendingBatches).toBe(0);
+  expect(result.partial).toBe(false);
+  expect(result.extractionSource).toBe("nvidia");
+ });
  it("extrai campos e usa etapa NVIDIA de descoberta mesmo sem cenários",async()=>{
   const spy=vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_n,args)=>
    invoke(args!.body as Record<string,unknown>));
