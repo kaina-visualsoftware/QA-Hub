@@ -149,12 +149,15 @@ try{
   }
  }
  await page.getByRole("textbox",{name:"Lista autorizada de tarefas"})
-  .fill("Status 12\n#67866 — BUG — Sprint Fiscal");
+  .fill("Status 12\n#201632 — BUG — 6157 Visual Software\n#201633 — MELHORIA — 9999 Cliente Externo\n#67866 — BUG — Sprint Fiscal");
  await page.getByRole("textbox",{name:"Versão da release"}).fill("12.10.06.0000");
  await page.getByRole("button",{name:"Organizar lista"}).click();
  await page.getByRole("region",{name:"Lista organizada"}).waitFor();
- assert.match(await page.getByRole("textbox",{name:"Lista organizada (somente leitura)"}).inputValue(),
-  /Sprint Fiscal/);
+ const output=await page.getByRole("textbox",{name:"Lista organizada (somente leitura)"}).inputValue();
+ assert.match(output,/Sprint Fiscal/);
+ assert.match(output,/- #201632 — BUG \\(INTERNA\\) — SEM SPRINT/);
+ assert.match(output,/- #201633 — MELHORIA \\(EXTERNA\\) —/);
+ assert.match(output,/- #67866 — BUG \\(EXTERNA\\) — Sprint Fiscal/);
  assert.deepEqual(errors,[],"Não houve exceções nem chamadas Supabase desconhecidas.");
  console.log("Release lists: cadastro pessoal, seleção, checkbox, extração local e layout em 390/768/1366.");
 }finally{await browser.close();}
