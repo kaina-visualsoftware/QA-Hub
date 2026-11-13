@@ -53,7 +53,7 @@ type WorkStatus={
 };
 const WORK_STEPS: Record<WorkKind,string[]>={
   files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
-  task:["Validar contexto","Extrair campos","Gerar cenários em lotes","Revisar resultados"],
+  task:["Validar contexto","Extrair campos da TF","Preparar revisão"],
   cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
   save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
 };
@@ -324,7 +324,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         throw Error("Revise e autorize o contexto preparado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
+      // A etapa 1 extrai somente os campos. Os casos são gerados uma vez
+      // na etapa 3, após a revisão e os requisitos complementares.
       const response=await generateTaskAiDraftPhased(snapshot,{
+        fieldsOnly:true,
         aiText:sourcePreparation.prepared.mode==="integral"?undefined:
           semanticTask.enabled&&semanticTask.ready&&semanticTask.digest?
             semanticTask.digest.task:sourcePreparation.prepared.text,
@@ -334,16 +337,15 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           setFieldEvidence([...checkpoint.fieldReview]);
           setScenarioEvidence([...checkpoint.seedReview,...Object.values(checkpoint.scenarioReview).flat()]);},
         onProgress:progress=>setWork({kind:"task",
-          phase:progress.stage==="fields"?1:
-             progress.stage==="seeds"||progress.stage==="scenarios"?2:3,
+          phase:progress.stage==="fields"?1:2,
           detail:progress.detail,
           current:progress.current,total:progress.total}),
         signal:abort.signal,onWait:setQuotaWait
       });
-      setTaskPending(response.pendingBatches+(response.fieldsPending?1:0)+(response.seedsPending?1:0));
+      setTaskPending(response.fieldsPending?1:0);
       setTaskPartial(response.partial);
       setFieldEvidence(response.fieldReview);setScenarioEvidence(response.scenarioReview);
-      setWork({kind:"task",phase:3,detail:"Organizando o resultado para revisão humana."});
+      setWork({kind:"task",phase:2,detail:"Organizando os campos para revisão humana."});
       if(snapshot!==combine("",sourceText,taskFiles)){
         throw Error("O conteúdo da TF mudou durante a geração. Analise novamente.");
       }
@@ -366,8 +368,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       })) as Partial<TaskDraft>;
       automaticallyFilled.current=applied;
       setDraft(merged);
-      // Cases are suggestions only. The QA must opt in per scenario to save.
-      setCases(current=>addUnique(current,freshTaskAiScenarios(response,current,false)));
       setAiUsed(true);
       
       setStep(2);
@@ -377,20 +377,17 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       ] as const).filter(field=>!String(merged[field]??"").trim()).length;
       const missingHint=missing?` ${missing} campo(s) sem informação identificada; complete apenas com dados da TF.`:"";
       setNotice((response.partial
-        ? "A análise ficou parcial. "+response.pendingBatches+" lote(s) de cenários pendente(s)"+
-          (response.fieldsPending?" e campos ainda não concluídos":"")+
-          ". Os resultados já recebidos foram preservados. "+
-          (response.pendingBatches||response.fieldsPending
-            ?"Você pode retomar sem reenviar os lotes concluídos. ":"")+
+        ? "A extração dos campos exige revisão de evidências. "+
+          (response.fieldsPending?"A etapa de campos está pendente; retome a análise. ":"")+
           (response.extractionReason??"")
         : sourcePreparation.prepared.needsReview
             ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
-            : "Campos e cenários organizados pela NVIDIA. Revise antes de avançar.")+missingHint);
+            : "Campos da TF identificados pela NVIDIA. A geração dos casos ocorrerá somente na etapa 3.")+missingHint);
     }catch(reason){
       if(abort.signal.aborted&&taskCheckpoint.current)
         setTaskPending(pipelinePendingCount(taskCheckpoint.current));
       setError(abort.signal.aborted
-        ? "Análise cancelada. Campos e lotes concluídos foram preservados nesta sessão; clique em retomar."
+        ? "Análise cancelada. Campos concluídos foram preservados nesta sessão; clique em retomar."
         :reason instanceof Error?reason.message:"Falha ao analisar a TF.");
     }
     finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;}
@@ -652,9 +649,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </div>
       <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
       {work.kind==="task"&&<AiBusyStatus
-        title={work.phase===1?"NVIDIA: extraindo campos":
-          work.phase===2?"NVIDIA: processando cenários por lotes":"NVIDIA: preparando revisão"}
-        detail="Acompanhe o progresso. Se uma etapa falhar, o documento e os lotes concluídos continuam disponíveis."/>}
+        title={work.phase===1?"NVIDIA: extraindo campos":"NVIDIA: preparando revisão"}
+        detail="A NVIDIA interpreta somente os dados da tarefa. Os casos serão gerados na etapa 3, depois da revisão."/>}
       <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
       <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
         {WORK_STEPS[work.kind].map((label,index)=><li key={label}
@@ -667,7 +663,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </ol>
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
-          {work.kind==="task"?(work.phase===1?"Extração de campos":"Lotes de cenários"):
+          {work.kind==="task"?"Extração de campos":
             work.kind==="cases"?"Etapas da geração":
             (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
           {" "+Math.min(work.current??0,work.total)+" de "+work.total}

@@ -105,10 +105,7 @@ async function mock(route){
         },review_fields:[]
       });
     }
-    assert.equal(payload.mode,"task-seeds",
-      "A segunda etapa deve identificar cenários pela NVIDIA, sem parser local.");
-    return send({stage:"seeds",provider:"NVIDIA Build",model:"fixture",
-      repaired:false,draft:{seeds:[]},review_seeds:[]});
+    throw Error("Na etapa 1, apenas task-fields é permitido; casos ficam para a etapa 3.");
   }
   writes++;
   errors.push(method+" "+path);
@@ -257,7 +254,7 @@ try{
   // keep this source-grounded value instead of the fixture's expanded AI guess.
   assert.equal(await form.getByRole("textbox",{name:"Título da tarefa"}).inputValue(),
     "Revisar desconto");
-  assert.equal(aiCalls,2,"Campos e identificação de cenários exigem duas etapas NVIDIA.");
+  assert.equal(aiCalls,1,"A etapa 1 deve consultar somente os campos da TF.");
   assert.equal(writes,0,"The AI may fill a preview but must not save before finalization");
   assert.deepEqual(errors,[]);
   console.log("Profile and legacy tools: navigation persisted, task grouping, local utilities, file import and online AI with consent.");
