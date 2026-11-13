@@ -115,9 +115,38 @@ try{
  await page.waitForFunction(()=>document.querySelector("#release-free-names")?.value==="Sprint Fiscal");
  for(const width of [390,768,1366]){
   await page.setViewportSize({width,height:844});
-  const overflow=await page.evaluate(()=>
-   document.documentElement.scrollWidth-document.documentElement.clientWidth);
-  assert.ok(overflow<=1,"Release form horizontal overflow at "+width+": "+overflow);
+  const metrics=await page.evaluate(()=>{
+   const box=(selector)=>{
+    const rect=document.querySelector(selector)?.getBoundingClientRect();
+    return rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null;
+   };
+   return {
+    overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,
+    list:box(".qa-release-primary-grid .qa-release-main-input textarea"),
+    status:box(".qa-release-primary-grid .qa-release-side select"),
+    announcement:box(".qa-release-review-grid .qa-release-main-input textarea"),
+    compatibility:box(".qa-release-review-grid .qa-release-side textarea"),
+    version:box("#qa-tool-panel-release .qa-tools-version-block")
+   };
+  });
+  for(const key of ["list","status","announcement","compatibility","version"]){
+   assert.ok(metrics[key],key+" must be rendered at "+width+"px");
+  }
+  assert.ok(metrics.overflow<=1,"Release form horizontal overflow at "+width+": "+metrics.overflow);
+  assert.ok(metrics.version.height<155,"Version header too tall at "+width+"px");
+  assert.ok(metrics.list.height<=220&&metrics.announcement.height<=220,
+   "Textareas must remain compact by default and resize only when requested");
+  if(width===1366){
+   assert.ok(metrics.status.x>=metrics.list.x+metrics.list.width-3,
+    "Desktop must place status / teams beside the list rather than under it");
+   assert.ok(metrics.compatibility.x>=metrics.announcement.x+metrics.announcement.width-3,
+    "Desktop must place compatibility / signature beside the announcement");
+  }else{
+   assert.ok(metrics.status.y>=metrics.list.y+metrics.list.height-3,
+    "Tablet/mobile should stack status after the list");
+   assert.ok(metrics.compatibility.y>=metrics.announcement.y+metrics.announcement.height-3,
+    "Tablet/mobile should stack optional fields after the announcement");
+  }
  }
  await page.getByRole("textbox",{name:"Lista autorizada de tarefas"})
   .fill("Status 12\n#67866 — BUG — Sprint Fiscal");
