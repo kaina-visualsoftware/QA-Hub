@@ -925,8 +925,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         </> : !generating && (generatedCount > 0
           ? <div className="qa-ai-review-empty" role="status">
               <FileCheck2 size={22} aria-hidden="true"/>
-              <strong>Nenhum caso novo para adicionar</strong>
-              <p>Os cenários encontrados já estão contemplados nesta TF. Experimente outro modelo de geração para explorar novas situações.</p>
+              <strong>Nenhum caso novo e completo para adicionar</strong>
+              <p>Casos repetidos ou sem passos e resultado esperado foram excluídos automaticamente da seleção. Revise a resposta original ou tente outra geração.</p>
             </div>
           : <div className="qa-ai-review-empty" role="status">
               <strong>Nenhum caso de teste identificável</strong>
