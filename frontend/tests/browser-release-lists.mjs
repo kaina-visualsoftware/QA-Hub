@@ -58,6 +58,11 @@ async function mock(route){
    items.push({...data,id:itemId,ativo:true,created_at:"2026-11-13T10:00:00Z"});
    return send({id:itemId},201);
   }
+  if(method==="PATCH"){
+   assert.equal(url.searchParams.get("id"),"eq."+itemId);
+   Object.assign(items[0],req.postDataJSON());
+   return send({id:itemId});
+  }
   if(method==="DELETE"){items.length=0;return send({id:itemId});}
  }
  errors.push(method+" "+path);
@@ -92,6 +97,12 @@ try{
  await modal.getByRole("button",{name:"Adicionar",exact:true}).click();
  await modal.getByText("Nome adicionado.").waitFor();
  assert.equal(items.length,1);
+ await modal.getByRole("button",{name:"Arquivar Sprint Fiscal"}).click();
+ await modal.getByText("Nome arquivado.").waitFor();
+ assert.equal(items[0].ativo,false);
+ await modal.getByRole("button",{name:"Reativar Sprint Fiscal"}).click();
+ await modal.getByText("Nome reativado.").waitFor();
+ assert.equal(items[0].ativo,true);
  await modal.getByRole("button",{name:"Fechar Gerenciar listas de equipe e sprints"}).click();
  await select.selectOption(listId);
  await page.locator("#release-free-names").waitFor();
