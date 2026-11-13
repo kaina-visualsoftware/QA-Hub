@@ -6,6 +6,8 @@ import {
   organizeRelease, reviewRelease
 } from "../../lib/legacy/qa-release-core.mjs";
 import type { Task } from "../../lib/contracts";
+import ReleaseListsPicker from "./ReleaseListsPicker";
+import "./release-organizer.css";
 
 const INPUT_LIMIT = 100000;
 type Organized = ReturnType<typeof organizeRelease>;
@@ -59,21 +61,21 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
       setError("A cópia não está disponível. Selecione o texto manualmente.");
     }
   }
-  return <details className={expanded?"generator-context qa-release-expanded":"generator-context"} open={expanded ? true : undefined}
+  return <details className={expanded?"generator-context qa-release-shell qa-release-expanded":"generator-context qa-release-shell"} open={expanded ? true : undefined}
     aria-label="Organizador local de releases">
     <summary>Organizar lista e revisar comunicado de release (local)</summary>
-    <div className="stack mt-4">
-      <p className="text-muted text-sm">
+    <div className="qa-release-content">
+      <p className="qa-release-privacy" role="note">
         O processamento ocorre somente neste navegador, sem IA.
         {task ? " O vínculo com a TF exige confirmação separada." : " Nenhuma TF será vinculada."}
       </p>
-      <fieldset className="qa-tool-form-section"><legend>1. Preparar a lista</legend>
-      <label className="field">Lista autorizada de tarefas
-        <textarea rows={7} maxLength={INPUT_LIMIT} spellCheck={false}
+      <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">01</span> Preparar a lista</legend>
+      <label className="field qa-release-full">Lista autorizada de tarefas
+        <textarea rows={5} maxLength={INPUT_LIMIT} spellCheck={false}
           placeholder={"Status 12\n#67866 — BUG — Desconto\nStatus 11\n#199727 — MELHORIA — Interface"}
           value={raw} onChange={(event) => { setRaw(event.target.value); clearResults(); }} />
       </label>
-      <div className="form-grid">
+      <div className="qa-release-controls-grid">
         <label className="field">Status padrão
           <select value={defaultStatus} onChange={(event) => {
             setDefaultStatus(event.target.value as "11"|"12"); clearResults();
@@ -82,13 +84,9 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
             <option value="11">11 — aguardando versão</option>
           </select>
         </label>
-        <label className="field grow-2">Equipe / sprints (opcional, um nome por linha)
-          <textarea rows={3} maxLength={10000} value={team} onChange={(event) => {
-            setTeam(event.target.value); clearResults();
-          }} />
-        </label>
+        <ReleaseListsPicker value={team} onChange={names=>{setTeam(names);clearResults();}}/>
       </div>
-      <div className="flex gap-2 flex-wrap">
+      <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
           onPress={organize}><ListChecks size={16}/> Organizar lista</Button>
       </div>
@@ -119,17 +117,17 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
         </Button></div>
       </section>}
       </fieldset>
-      <fieldset className="qa-tool-form-section"><legend>2. Revisar o comunicado</legend>
-      <label className="field">Comunicado de release (opcional, para revisão)
-        <textarea rows={6} maxLength={INPUT_LIMIT} spellCheck={false}
+      <fieldset className="qa-tool-form-section qa-release-step"><legend><span aria-hidden="true">02</span> Revisar o comunicado</legend>
+      <label className="field qa-release-full">Comunicado de release (opcional, para revisão)
+        <textarea rows={5} maxLength={INPUT_LIMIT} spellCheck={false}
           placeholder="Cole o comunicado e compare com a lista autorizada."
           value={announcement} onChange={(event) => {
             setAnnouncement(event.target.value); setReviewed(null);
           }} />
       </label>
-      <div className="form-grid">
+      <div className="qa-release-bottom-grid">
         <label className="field">Compatibilidades (opcional)
-          <textarea rows={2} maxLength={4000} value={compat}
+          <textarea rows={3} maxLength={4000} value={compat}
             onChange={(event) => { setCompat(event.target.value); setReviewed(null); }} />
         </label>
         <label className="field">Assinatura (opcional)
