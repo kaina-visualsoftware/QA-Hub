@@ -43,10 +43,21 @@
 .qa-release-lists>select:focus-visible{outline:3px solid #cee9ed;outline-offset:1px;border-color:#187d8a}
 .qa-release-step .field textarea::placeholder,
 .qa-release-step .field input::placeholder{color:#637d85;opacity:1}
-.qa-release-controls-grid{display:grid;grid-template-columns:minmax(205px,.8fr) minmax(0,1.65fr);
- align-items:start;gap:18px;min-width:0}
-.qa-release-bottom-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
- gap:18px;min-width:0}
+/* Sequential stages, each with an input area and a compact settings column. */
+.qa-release-primary-grid,.qa-release-review-grid{
+ display:grid;grid-template-columns:minmax(0,1.24fr) minmax(270px,.88fr);
+ align-items:start;gap:16px;min-width:0;width:100%
+}
+.qa-release-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.qa-release-primary-grid .qa-release-main-input textarea{
+ height:162px;min-height:138px;max-height:420px
+}
+.qa-release-review-grid .qa-release-main-input textarea{
+ height:154px;min-height:130px;max-height:420px
+}
+.qa-release-review-grid .qa-release-side textarea{
+ height:78px;min-height:72px;max-height:210px
+}
 .qa-release-action-row{display:flex;gap:10px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
 .qa-release-action-row>button{min-height:42px}
 .qa-release-lists{min-width:0;display:flex;flex-direction:column;gap:8px}
@@ -108,7 +119,7 @@
  padding-top:12px}
 @media(max-width:760px){
  .qa-release-step{padding:14px 14px 17px!important}
- .qa-release-controls-grid,.qa-release-bottom-grid,.qa-release-manager-columns{
+ .qa-release-primary-grid,.qa-release-review-grid,.qa-release-manager-columns{
   grid-template-columns:minmax(0,1fr)}
  .qa-release-manager-panel form.qa-release-rename,
  .qa-release-manager-panel form.qa-release-add-name{grid-template-columns:minmax(0,1fr)}
@@ -135,4 +146,71 @@
 @media(max-width:420px){
  .qa-release-manage-items li{align-items:flex-start;flex-direction:column}
  .qa-release-manage-item-actions{align-self:flex-end}
+}
+
+/* Compact release form only; leave the comparison tool and the global theme intact. */
+#qa-tool-panel-release>header{padding:16px 20px 14px}
+#qa-tool-panel-release>header h2{font-size:1.14rem;margin-bottom:4px}
+#qa-tool-panel-release>header p{line-height:1.45}
+#qa-tool-panel-release .qa-tools-form-body{padding:14px 20px 20px}
+#qa-tool-panel-release .qa-tools-version-block{
+ margin:0 0 12px;padding:10px 14px;gap:16px;
+ grid-template-columns:minmax(0,1fr) minmax(220px,290px)
+}
+#qa-tool-panel-release .qa-tools-version-block h3{margin:0 0 3px}
+#qa-tool-panel-release .qa-tools-version-block p{line-height:1.4;margin:0}
+#qa-tool-panel-release .qa-tools-version-block .field input{min-height:40px}
+#qa-tool-panel-release .qa-tools-version-block small{line-height:1.3}
+.qa-release-shell .qa-release-content{gap:12px}
+.qa-release-shell .qa-release-privacy{
+ padding:6px 10px;line-height:1.35;font-size:.8rem
+}
+.qa-release-shell .qa-release-step{
+ padding:11px 14px 13px!important;gap:12px!important
+}
+.qa-release-shell .qa-release-step legend{
+ margin-bottom:4px!important;font-size:.97rem!important
+}
+.qa-release-shell .qa-release-step legend span{padding:3px 6px}
+.qa-release-shell .qa-release-step .field{gap:5px}
+.qa-release-shell .qa-release-step .field :is(input,select){
+ min-height:40px;padding:8px 11px
+}
+.qa-release-shell .qa-release-step .field textarea{
+ padding:9px 11px;line-height:1.48;resize:vertical
+}
+.qa-release-shell .qa-release-step .qa-release-main-input textarea{
+ min-height:130px
+}
+.qa-release-shell .qa-release-step .qa-release-review-grid .qa-release-side textarea{
+ min-height:72px
+}
+.qa-release-shell .qa-release-list-heading{gap:6px}
+.qa-release-shell .qa-release-list-heading button{min-height:32px}
+.qa-release-shell .qa-release-lists{gap:6px}
+.qa-release-shell .qa-release-manual{margin-top:0;padding-top:6px}
+.qa-release-shell .qa-release-action-row{justify-content:flex-end}
+.qa-release-shell .qa-release-step>div:last-of-type>button{min-height:40px}
+.qa-release-shell .qa-release-options{max-height:120px}
+.qa-release-shell .qa-release-preset{padding:10px;margin-top:2px}
+.qa-release-shell .qa-release-main-input{min-width:0}
+@media(max-width:780px){
+ #qa-tool-panel-release .qa-tools-version-block{
+  grid-template-columns:minmax(0,1fr);gap:10px
+ }
+ .qa-release-primary-grid,.qa-release-review-grid{
+  grid-template-columns:minmax(0,1fr);gap:12px
+ }
+ .qa-release-shell .qa-release-primary-grid .qa-release-main-input textarea,
+ .qa-release-shell .qa-release-review-grid .qa-release-main-input textarea{
+  height:136px;min-height:112px
+ }
+ .qa-release-shell .qa-release-action-row{justify-content:flex-start}
+}
+@media(max-width:440px){
+ #qa-tool-panel-release>header{padding:14px 14px 12px}
+ #qa-tool-panel-release .qa-tools-form-body{padding:12px}
+ .qa-release-shell .qa-release-step{padding:11px 11px 12px!important}
+ .qa-release-shell .qa-release-list-heading{align-items:center}
+ .qa-release-shell .qa-release-list-heading button{font-size:.77rem}
 }
