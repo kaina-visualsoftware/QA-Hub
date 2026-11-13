@@ -65,7 +65,7 @@ function cmpRel(auth,com){
  * the task number (#201632) or the release version. No implicit lookup.
  * Client "6157 Visual Software" is internal; everything else is external.
  */
-const INTERNAL_RELEASE_CLIENT=/\b6157\s*(?:[-–—]\s*)?visual\s+software\b/iu;
+const INTERNAL_RELEASE_CLIENT=/(?<![#\d])6157\s*(?:[-–—]\s*)?visual\s+software\b/iu;
 export function releaseTaskScope(lines){
  const source=Array.isArray(lines)?lines.join("\n"):String(lines??"");
  return INTERNAL_RELEASE_CLIENT.test(source)?"INTERNA":"EXTERNA";
