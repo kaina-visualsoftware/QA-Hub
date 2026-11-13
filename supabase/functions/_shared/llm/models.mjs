@@ -1,4 +1,4 @@
-/** NVIDIA Build free-endpoint model catalogue.
+/** NVIDIA Build verified free-endpoint model profiles.
  * Advertised context is from model cards, NOT a hosted API service guarantee.
  */
 import {MODEL_CONTEXT_PUBLISHED} from "./token-budget.mjs";
@@ -7,6 +7,8 @@ export const MODEL_IDS=Object.freeze([
  "z-ai/glm-5.3-flash",
  "nvidia/nemotron-3.5-lightning-30b-a3b"
 ]);
+// The default discovery list remains unchanged for TF extraction and other flows.
+// Extra verified profiles may be selected only by explicitly scoped generators.
 export const MODEL_REGISTRY=Object.freeze({
  "z-ai/glm-5.3-flash":Object.freeze({
   id:"z-ai/glm-5.3-flash",contextTokens:MODEL_CONTEXT_PUBLISHED["z-ai/glm-5.3-flash"],maxOutputTokens:null,
@@ -19,6 +21,12 @@ export const MODEL_REGISTRY=Object.freeze({
   contextSource:"published_model_spec_not_hosted_guarantee",
   supportsJsonMode:true,reasoning:"off",priority:1,
   params:Object.freeze({chat_template_kwargs:{enable_thinking:false}})
+ }),
+ "openai/gpt-oss-20b":Object.freeze({
+  id:"openai/gpt-oss-20b",contextTokens:MODEL_CONTEXT_PUBLISHED["openai/gpt-oss-20b"],maxOutputTokens:null,
+  contextSource:"published_model_spec_not_hosted_guarantee",
+  supportsJsonMode:false,reasoning:"configurable",priority:2,
+  params:Object.freeze({})
  })
 });
 const BUDGETS=Object.freeze({task:null,"task-fields":3000,"task-seeds":4000,"task-scenarios":3200,
