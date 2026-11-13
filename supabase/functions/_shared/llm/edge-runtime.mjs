@@ -5,8 +5,8 @@ import {ProviderError} from "./errors.mjs";
 import {promptChars,logAiAttempt} from "../ai-observability.mjs";
 
 /** @param {{apiKey:string,trace:string}} input */
-export async function edgeModels({apiKey,trace}){
- return discoverModels({apiKey,modelIds:MODEL_IDS,
+export async function edgeModels({apiKey,trace,modelIds=MODEL_IDS}){
+ return discoverModels({apiKey,modelIds,
   onDiscovery:event=>logAiAttempt({...event,correlation_id:trace})});
 }
 /** @param {{db:any,trace:string,mode:string,model:string,

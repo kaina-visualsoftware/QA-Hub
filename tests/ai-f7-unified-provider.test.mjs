@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {edgeJsonModels,edgeStreamingModels,edgeErrorHttp,edgeHooks}
  from "../supabase/functions/_shared/llm/edge-runtime.mjs";
-import {MODEL_IDS} from "../supabase/functions/_shared/llm/models.mjs";
+import {MODEL_IDS,MODEL_REGISTRY,discoverModels,clearModelDiscoveryCache}
+ from "../supabase/functions/_shared/llm/models.mjs";
 import {resetModelBreakers} from "../supabase/functions/_shared/llm/call-model.mjs";
-import {generatorModelOrder,CASE_STREAM_PREFERRED_MODEL}
+import {generatorModelOrder,resetGeneratorModelRotation,VERIFIED_FREE_CHAT_MODELS}
  from "../supabase/functions/qa-generators/model-order.mjs";
 const messages=[{role:"system",content:"Resumo técnico em português."},
  {role:"user",content:"RF-12: não duplicar descontos."}];
@@ -157,21 +158,54 @@ test("F7 headers and quota callbacks never include raw prompt data",async()=>{
  assert.equal(x.count(),1);
 });
 
-test("F7 case generation prefers a non-reasoning low-latency model without modifying other modes",()=>{
- const regular=[...MODEL_IDS];
- assert.deepEqual(generatorModelOrder("post",regular),regular);
- assert.deepEqual(generatorModelOrder("teste",regular),
-  [CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
- assert.deepEqual(generatorModelOrder("teste",[MODEL_IDS[0]]),[MODEL_IDS[0]]);
+test("F7 model choice is dynamic among verified free chat endpoints",()=>{
+ resetGeneratorModelRotation();
+ assert.deepEqual(MODEL_IDS,[
+  "z-ai/glm-5.3-flash","nvidia/nemotron-3.5-lightning-30b-a3b"
+ ],"The default TF/other-flow model list must remain unchanged");
+ assert.ok(VERIFIED_FREE_CHAT_MODELS.length>=3);
+ assert.ok(VERIFIED_FREE_CHAT_MODELS.every(id=>Object.hasOwn(MODEL_REGISTRY,id)));
+ assert.equal(generatorModelOrder("post",[...MODEL_IDS]).join(","),MODEL_IDS.join(","));
+ const first=generatorModelOrder("teste",[...VERIFIED_FREE_CHAT_MODELS]);
+ const second=generatorModelOrder("teste",[...VERIFIED_FREE_CHAT_MODELS]);
+ assert.equal(first[0],"nvidia/nemotron-3.5-lightning-30b-a3b");
+ assert.equal(second[0],"openai/gpt-oss-20b");
+ assert.deepEqual([...first].sort(),[...VERIFIED_FREE_CHAT_MODELS].sort());
+ assert.deepEqual([...second].sort(),[...VERIFIED_FREE_CHAT_MODELS].sort());
+ assert.deepEqual(generatorModelOrder("teste",["partner/paid-private-model"]),[]);
  assert.deepEqual(generatorModelOrder("teste",[]),[]);
- assert.deepEqual(generatorModelOrder("teste",[MODEL_IDS[0],MODEL_IDS[0],MODEL_IDS[1]]),
-  [CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
- assert.deepEqual(regular,[...MODEL_IDS],"O catálogo não deve ser alterado");
+ assert.deepEqual(generatorModelOrder("teste",["openai/gpt-oss-20b"]),["openai/gpt-oss-20b"]);
 });
-test("F7 case generation recovers HTTP 502 before streaming by trying another free NVIDIA model",async()=>{
+test("F7 availability and breaker health win over rotation or unavailable endpoints",()=>{
+ resetGeneratorModelRotation();
+ const discovered=["partner/paid-private-model","z-ai/glm-5.3-flash",
+  "nvidia/nemotron-3.5-lightning-30b-a3b","openai/gpt-oss-20b"];
+ const ranked=generatorModelOrder("teste",discovered,{
+  breakerState:id=>id==="nvidia/nemotron-3.5-lightning-30b-a3b"?
+   {open:true,failures:3}:{open:false,failures:0}
+ });
+ assert.equal(ranked[0],"openai/gpt-oss-20b");
+ assert.equal(ranked.at(-1),"nvidia/nemotron-3.5-lightning-30b-a3b");
+ assert.ok(!ranked.includes("partner/paid-private-model"));
+});
+test("F7 catalog discovery accepts only vetted free models, not every model exposed by NVIDIA",async()=>{
+ clearModelDiscoveryCache();
+ const response=await discoverModels({
+  apiKey:"TEST_ONLY",modelIds:VERIFIED_FREE_CHAT_MODELS,
+  fetchImpl:async()=>new Response(JSON.stringify({data:[
+   {id:"openai/gpt-oss-20b"},
+   {id:"partner/paid-private-model"},
+   {id:"z-ai/glm-5.3-flash"}
+  ]}),{status:200})
+ });
+ assert.deepEqual(response,["openai/gpt-oss-20b","z-ai/glm-5.3-flash"]);
+ clearModelDiscoveryCache();
+});
+test("F7 case generation recovers HTTP 502 with the next available free model",async()=>{
  resetModelBreakers();
+ resetGeneratorModelRotation();
  const quota=db([{allowed:true},{allowed:true}]);
- const order=generatorModelOrder("teste",[...MODEL_IDS]);
+ const order=generatorModelOrder("teste",[...VERIFIED_FREE_CHAT_MODELS]);
  const seen=[];
  const result=await edgeStreamingModels(base(quota,{
   mode:"teste",modelMode:"teste",models:order,maxTokens:600,timeoutMs:5000,
@@ -187,8 +221,9 @@ test("F7 case generation recovers HTTP 502 before streaming by trying another fr
  }));
  assert.equal(result.ok,true);
  const text=await new Response(result.body).text();
- assert.deepEqual(seen,[CASE_STREAM_PREFERRED_MODEL,MODEL_IDS[0]]);
- assert.equal(quota.count(),2,"Cada tentativa precisa consumir uma vaga de cota");
+ assert.deepEqual(seen,order.slice(0,2));
+ assert.ok(seen.every(id=>VERIFIED_FREE_CHAT_MODELS.includes(id)));
+ assert.equal(quota.count(),2,"Each provider attempt consumes one quota slot");
  assert.match(text,/event: chunk/);
  assert.match(text,/event: done/);
  assert.doesNotMatch(text,/event: error/);
