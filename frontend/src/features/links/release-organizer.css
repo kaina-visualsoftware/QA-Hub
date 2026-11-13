@@ -122,3 +122,17 @@
  .qa-release-preset-head{flex-wrap:wrap}
  .qa-release-step .field{font-size:.83rem}
 }
+
+.qa-release-manage-item-actions{display:flex;align-items:center;gap:6px;flex:none}
+.qa-release-item-inactive{opacity:.68}
+.qa-release-manage-items li>span small{display:inline-block;font-size:.7rem;color:#637b83;
+ border-radius:6px;background:#ecf2f3;padding:2px 6px;margin-left:6px}
+.qa-release-manager-panel form.qa-release-item-edit{display:flex;align-items:center;gap:8px;
+ width:100%;min-width:0;flex-wrap:wrap}
+.qa-release-item-edit input{flex:1 1 180px;min-width:0;height:38px;border:1px solid #a5c1c8;
+ border-radius:8px;padding:7px 9px}
+.qa-release-item-edit button{flex:none}
+@media(max-width:420px){
+ .qa-release-manage-items li{align-items:flex-start;flex-direction:column}
+ .qa-release-manage-item-actions{align-self:flex-end}
+}
