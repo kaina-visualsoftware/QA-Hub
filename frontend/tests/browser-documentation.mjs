@@ -190,6 +190,16 @@ try{
   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);await audit("catalog "+width);
   await page.screenshot({path:"artifacts/documentation/catalog-"+width+".png"});
  }
+ // Public links must never fall back to the private CRUD modal for signed-in users.
+ await page.goto(ROOT+"#/documentacoes?view=public");
+ await page.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
+ assert.equal(await page.getByRole("button",{name:"Nova documentação"}).count(),0);
+ await page.getByRole("link",{name:/Resolver falha de emissão/}).click();
+ await page.getByRole("heading",{name:record.titulo,exact:true}).waitFor();
+ assert.equal(await page.getByRole("dialog").count(),0);
+ assert.equal(await page.locator(".app-shell").count(),0,"public pages must not inherit the private workspace shell");
+ await page.goto(ROOT+"#/documentacoes");
+ await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
  await guest.goto(ROOT+"#/publicas");
  await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
