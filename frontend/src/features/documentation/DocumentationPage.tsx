@@ -109,7 +109,7 @@ export default function DocumentationPage(){
    <nav className="qa-doc-collections" aria-label="Coleções de documentações">
     <h2>Biblioteca</h2>
     {user&&<button type="button" aria-pressed={activeScope==='mine'} onClick={()=>setScope('mine')}><BookOpenText size={18}/> Minhas documentações</button>}
-    <button type="button" aria-pressed={activeScope==='public'} onClick={()=>setScope('public')}><Globe size={18}/> Documentações públicas</button>
+    <button type="button" onClick={()=>void navigate({to:'/documentacoes',search:{view:'public'}})}><Globe size={18}/> Documentações públicas</button>
     <p>Documentações marcadas como públicas ficam acessíveis para qualquer visitante, assim como as TFs publicadas.</p>
    </nav>
    <section className="qa-doc-library" aria-label="Lista de documentações">
