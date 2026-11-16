@@ -4,7 +4,7 @@ import {Link,useNavigate,useSearch} from '@tanstack/react-router';
 import {Button} from '@heroui/react';
 import {BookOpenText,Eye,Globe,Link2,LockKeyhole,Pencil,Plus,Search,Trash2} from 'lucide-react';
 import {useAuth} from '../auth/AuthProvider';
-import {BrandLogo} from '../../components/ui/BrandLogo';
+import {PublicHeader} from '../public/PublicHeader';
 import {QAModal} from '../../components/ui/QAModal';
 import {ToastNotice} from '../../components/ui/Toasts';
 import DocumentationEditor from './DocumentationEditor';
@@ -16,14 +16,15 @@ import './documentation.css';
 
 export default function DocumentationPage(){
  const {user}=useAuth(),client=useQueryClient(),navigate=useNavigate();
- const {doc}=useSearch({from:'/documentacoes'});
+ const {doc,view}=useSearch({from:'/documentacoes'});
  const [scope,setScope]=useState<'mine'|'public'>(user?'mine':'public');
  const [search,setSearch]=useState(''),[type,setType]=useState('all');
  const [editor,setEditor]=useState<Documentation|'new'|null>(null);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
- const activeScope=user?scope:'public';
- const list=useQuery({queryKey:['documentations',activeScope,user?.id],queryFn:()=>listDocumentation(activeScope,user?.id)});
- const detail=useQuery({queryKey:['documentation',doc,user?.id],queryFn:()=>loadDocumentation(doc!,user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
+ const publicMode=view==='public'||!user;
+ const activeScope=publicMode?'public':scope;
+ const list=useQuery({queryKey:['documentations',activeScope,publicMode?'public':user?.id],queryFn:()=>listDocumentation(activeScope,publicMode?undefined:user?.id)});
+ const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,publicMode?undefined:user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
  const results=(list.data??[]).filter(item=>(type==='all'||item.tipo_documentacao===type)&&
   (item.titulo+' '+item.conteudo).toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
  function closeDetail(){void navigate({to:'/documentacoes',search:{},replace:true});}
@@ -35,21 +36,15 @@ export default function DocumentationPage(){
   catch(reason){setError((reason as Error).message);}finally{setBusy(false);}
  }
  async function copyLink(record:Documentation){
-  const url=new URL(window.location.href);url.hash='/documentacoes?doc='+record.id;
+  const url=new URL(window.location.href);url.hash=record.publica?'/documentacoes?view=public&doc='+record.id:'/documentacoes?doc='+record.id;
   try{await navigator.clipboard.writeText(url.href);setMessage(record.publica?'Link público copiado.':'Link copiado. A documentação continua privada para sua conta.');}catch{setError('Não foi possível copiar o link. Copie o endereço da página.');}
  }
 
- // Public documents use the same dedicated reader layout as published TFs.
- // Keep CRUD controls and the administrative document modal exclusive to authenticated users.
- if(!user) return <div className="public-react-shell">
+ // The public catalog and reader are pages for guests and signed-in visitors.
+ // The authenticated workspace retains its CRUD modals for private documents.
+ if(publicMode) return <div className="public-react-shell">
   <button type="button" className="skip-link" onClick={()=>document.getElementById('public-content')?.focus()}>Pular para o conteúdo</button>
-  <header className="public-react-header">
-   <Link to="/publicas" search={{}} className="brand"><BrandLogo/><span><strong>QA Hub</strong><small>BIBLIOTECA PÚBLICA</small></span></Link>
-   <div className="qa-public-header-links">
-    <Link to="/publicas" search={{}} className="secondary-link">TFs públicas</Link>
-    <Link to="/" className="secondary-link">Entrar no QA Hub</Link>
-   </div>
-  </header>
+  <PublicHeader current="documentacoes"/>
   <main id="public-content" tabIndex={-1} className="public-react-main">
    {!doc ? <>
     <div className="page-heading">
@@ -57,7 +52,7 @@ export default function DocumentationPage(){
       <p className="text-muted">Manuais, procedimentos, SQL e arquivos publicados para consulta.</p></div>
      <span className="public-react-readonly"><Globe size={16}/> Somente leitura</span>
     </div>
-    <div className="qa-doc-filters">
+    <div className="qa-doc-filters qa-public-document-filters">
      <label className="field">Pesquisar por título ou conteúdo
       <span className="public-react-search"><Search size={18}/><input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar documentações públicas…"/></span>
      </label>
@@ -73,7 +68,7 @@ export default function DocumentationPage(){
     {list.isSuccess&&<p role="status" className="text-muted mt-4">{results.length} documentação(ões) pública(s)</p>}
     {list.isSuccess&&!results.length&&<p className="panel mt-4">Nenhuma documentação pública encontrada.</p>}
     <div className="public-react-list mt-4">
-     {results.map(item=><Link key={item.id} to="/documentacoes" search={{doc:item.id}} className="task-row">
+     {results.map(item=><Link key={item.id} to="/documentacoes" search={{view:"public",doc:item.id}} className="task-row">
       <span className="task-initial"><BookOpenText size={20} aria-hidden="true"/></span>
       <span className="task-text"><strong>{item.titulo}</strong>
        <small>{docTypes[item.tipo_documentacao]||'Documento'} · {new Date(item.updated_at||item.created_at).toLocaleDateString('pt-BR')}</small>
@@ -81,7 +76,7 @@ export default function DocumentationPage(){
      </Link>)}
     </div>
    </> : <>
-    <Link to="/documentacoes" search={{}} className="back-link"><BookOpenText size={16}/> Todas as documentações públicas</Link>
+    <Link to="/documentacoes" search={{view:"public"}} className="back-link"><BookOpenText size={16}/> Todas as documentações públicas</Link>
     {detail.isPending&&<p role="status" className="notice mt-4">Carregando documentação pública…</p>}
     {detail.isError&&<p role="alert" className="notice error mt-4">{detail.error.message}</p>}
     {detail.isSuccess&&!detail.data&&<p role="alert" className="notice error mt-4">Esta documentação não é pública ou não existe.</p>}
