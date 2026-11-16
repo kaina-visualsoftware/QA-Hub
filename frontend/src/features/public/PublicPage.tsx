@@ -1,14 +1,14 @@
-import {BrandLogo} from "../../components/ui/BrandLogo";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "@tanstack/react-router";
-import { ArrowLeft, BookOpenText, ExternalLink, Eye, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpenText, Eye, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@heroui/react";
 import { z } from "zod";
 import { listPublishedTasks, loadPublishedTask, publicEvidenceImageUrl } from "./public-data";
 import {QAModal} from "../../components/ui/QAModal";
 import {DiagramViewer} from "../diagrams/DiagramViewer";
 import {PublicResources} from "./PublicResources";
+import {PublicHeader} from "./PublicHeader";
 import {docTypes,listDocumentation} from "../documentation/documentation-data";
 import type { PublicDiagram, PublicTaskDetail } from "./public-data";
 
@@ -96,16 +96,7 @@ export default function PublicPage() {
       onClick={() => document.getElementById("public-content")?.focus()}>
       Pular para o conteúdo
     </button>
-    <header className="public-react-header">
-      <Link to="/publicas" search={{}} className="brand">
-        <BrandLogo/>
-        <span><strong>QA Hub</strong><small>BIBLIOTECA PÚBLICA</small></span>
-      </Link>
-      <div className="qa-public-header-links">
-       <Link to="/documentacoes" search={{}} className="secondary-link"><BookOpenText size={16}/> Documentações públicas</Link>
-       <Link to="/" className="secondary-link"><ExternalLink size={16} /> Entrar no QA Hub</Link>
-      </div>
-    </header>
+    <PublicHeader current="tfs"/>
     <main id="public-content" tabIndex={-1} className="public-react-main">
       {!tf && <>
         <div className="page-heading">
@@ -140,14 +131,14 @@ export default function PublicPage() {
            <div><p className="eyebrow">CONHECIMENTO COMPARTILHADO</p><h2>Documentações públicas</h2>
             <p className="text-muted">Manuais, SQL, procedimentos e arquivos disponíveis sem login.</p>
            </div>
-           <Link to="/documentacoes" search={{}} className="secondary-link">Ver biblioteca completa</Link>
+           <Link to="/documentacoes" search={{view:"public"}} className="secondary-link">Ver biblioteca completa</Link>
           </div>
           {publicDocs.isPending&&<p role="status">Carregando documentações públicas…</p>}
           {publicDocs.isError&&<p role="alert" className="notice error">{publicDocs.error.message}</p>}
           {publicDocs.isSuccess&&!publicDocs.data.length&&<p className="text-muted">Ainda não há documentações públicas.</p>}
           <div className="public-react-list mt-4">
            {publicDocs.data?.slice(0,8).map(doc=><Link key={doc.id} to="/documentacoes"
-             search={{doc:doc.id}} className="task-row">
+             search={{view:"public",doc:doc.id}} className="task-row">
              <span className="task-initial"><BookOpenText size={20} aria-hidden="true"/></span>
              <span className="task-text"><strong>{doc.titulo}</strong>
               <small>{docTypes[doc.tipo_documentacao]??'Documento'} · {new Date(doc.updated_at??doc.created_at).toLocaleDateString('pt-BR')}</small>
