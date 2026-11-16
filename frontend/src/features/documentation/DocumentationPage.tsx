@@ -4,7 +4,7 @@ import {Link,useNavigate,useSearch} from '@tanstack/react-router';
 import {Button} from '@heroui/react';
 import {BookOpenText,Eye,Globe,Link2,LockKeyhole,Pencil,Plus,Search,Trash2} from 'lucide-react';
 import {useAuth} from '../auth/AuthProvider';
-import {BrandLogo} from '../../components/ui/BrandLogo';
+import {PublicHeader} from '../public/PublicHeader';
 import {QAModal} from '../../components/ui/QAModal';
 import {ToastNotice} from '../../components/ui/Toasts';
 import DocumentationEditor from './DocumentationEditor';
@@ -16,14 +16,15 @@ import './documentation.css';
 
 export default function DocumentationPage(){
  const {user}=useAuth(),client=useQueryClient(),navigate=useNavigate();
- const {doc}=useSearch({from:'/documentacoes'});
+ const {doc,view}=useSearch({from:'/documentacoes'});
  const [scope,setScope]=useState<'mine'|'public'>(user?'mine':'public');
  const [search,setSearch]=useState(''),[type,setType]=useState('all');
  const [editor,setEditor]=useState<Documentation|'new'|null>(null);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
- const activeScope=user?scope:'public';
- const list=useQuery({queryKey:['documentations',activeScope,user?.id],queryFn:()=>listDocumentation(activeScope,user?.id)});
- const detail=useQuery({queryKey:['documentation',doc,user?.id],queryFn:()=>loadDocumentation(doc!,user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
+ const publicMode=view==='public'||!user;
+ const activeScope=publicMode?'public':scope;
+ const list=useQuery({queryKey:['documentations',activeScope,publicMode?'public':user?.id],queryFn:()=>listDocumentation(activeScope,publicMode?undefined:user?.id)});
+ const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,publicMode?undefined:user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
  const results=(list.data??[]).filter(item=>(type==='all'||item.tipo_documentacao===type)&&
   (item.titulo+' '+item.conteudo).toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
  function closeDetail(){void navigate({to:'/documentacoes',search:{},replace:true});}
@@ -35,9 +36,70 @@ export default function DocumentationPage(){
   catch(reason){setError((reason as Error).message);}finally{setBusy(false);}
  }
  async function copyLink(record:Documentation){
-  const url=new URL(window.location.href);url.hash='/documentacoes?doc='+record.id;
+  const url=new URL(window.location.href);url.hash=record.publica?'/documentacoes?view=public&doc='+record.id:'/documentacoes?doc='+record.id;
   try{await navigator.clipboard.writeText(url.href);setMessage(record.publica?'Link público copiado.':'Link copiado. A documentação continua privada para sua conta.');}catch{setError('Não foi possível copiar o link. Copie o endereço da página.');}
  }
+
+ // The public catalog and reader are pages for guests and signed-in visitors.
+ // The authenticated workspace retains its CRUD modals for private documents.
+ if(publicMode) return <div className="public-react-shell">
+  <button type="button" className="skip-link" onClick={()=>document.getElementById('public-content')?.focus()}>Pular para o conteúdo</button>
+  <PublicHeader current="documentacoes"/>
+  <main id="public-content" tabIndex={-1} className="public-react-main">
+   {!doc ? <>
+    <div className="page-heading">
+     <div><p className="eyebrow">ACESSO SEM LOGIN</p><h1>Documentações públicas</h1>
+      <p className="text-muted">Manuais, procedimentos, SQL e arquivos publicados para consulta.</p></div>
+     <span className="public-react-readonly"><Globe size={16}/> Somente leitura</span>
+    </div>
+    <div className="qa-doc-filters qa-public-document-filters">
+     <label className="field">Pesquisar por título ou conteúdo
+      <span className="public-react-search"><Search size={18}/><input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar documentações públicas…"/></span>
+     </label>
+     <label className="field">Tipo de documentação
+      <select value={type} onChange={event=>setType(event.target.value)}>
+       <option value="all">Todos os tipos</option>
+       {Object.entries(docTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}
+      </select>
+     </label>
+    </div>
+    {list.isPending&&<p role="status" className="notice mt-4">Carregando documentações públicas…</p>}
+    {list.isError&&<div className="notice error mt-4" role="alert">{list.error.message} <Button variant="secondary" onPress={()=>void list.refetch()}>Tentar novamente</Button></div>}
+    {list.isSuccess&&<p role="status" className="text-muted mt-4">{results.length} documentação(ões) pública(s)</p>}
+    {list.isSuccess&&!results.length&&<p className="panel mt-4">Nenhuma documentação pública encontrada.</p>}
+    <div className="public-react-list mt-4">
+     {results.map(item=><Link key={item.id} to="/documentacoes" search={{view:"public",doc:item.id}} className="task-row">
+      <span className="task-initial"><BookOpenText size={20} aria-hidden="true"/></span>
+      <span className="task-text"><strong>{item.titulo}</strong>
+       <small>{docTypes[item.tipo_documentacao]||'Documento'} · {new Date(item.updated_at||item.created_at).toLocaleDateString('pt-BR')}</small>
+      </span><span className="public-react-readonly">Pública</span>
+     </Link>)}
+    </div>
+   </> : <>
+    <Link to="/documentacoes" search={{view:"public"}} className="back-link"><BookOpenText size={16}/> Todas as documentações públicas</Link>
+    {detail.isPending&&<p role="status" className="notice mt-4">Carregando documentação pública…</p>}
+    {detail.isError&&<p role="alert" className="notice error mt-4">{detail.error.message}</p>}
+    {detail.isSuccess&&!detail.data&&<p role="alert" className="notice error mt-4">Esta documentação não é pública ou não existe.</p>}
+    {detail.data&&<div className="stack mt-4">
+     <div className="page-heading"><div>
+      <p className="eyebrow">DOCUMENTAÇÃO PÚBLICA</p>
+      <h1>{detail.data.titulo}</h1>
+      <p className="text-muted">{docTypes[detail.data.tipo_documentacao]||'Documento'} · Atualizada em {new Date(detail.data.updated_at||detail.data.created_at).toLocaleDateString('pt-BR')}</p>
+     </div><span className="public-react-readonly"><Globe size={16}/> Somente leitura</span></div>
+     <div className="qa-doc-reader-actions">
+      <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
+      {detail.data.tarefa_id&&<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>}
+     </div>
+     <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
+     <section className="panel qa-doc-reader" aria-label="Conteúdo da documentação">
+      <DocumentationMarkdown markdown={detail.data.conteudo} docId={detail.data.id}/>
+      <DocumentationFiles docId={detail.data.id} owner={false}/>
+     </section>
+    </div>}
+   </>}
+  </main>
+ </div>;
+
  const body=<div className="page qa-documentation-page">
   <header className="page-heading qa-doc-page-heading"><div><h1>Documentações</h1>
    <p>Manuais, procedimentos, SQL e anexos em páginas Markdown pesquisáveis.</p></div>
@@ -47,7 +109,7 @@ export default function DocumentationPage(){
    <nav className="qa-doc-collections" aria-label="Coleções de documentações">
     <h2>Biblioteca</h2>
     {user&&<button type="button" aria-pressed={activeScope==='mine'} onClick={()=>setScope('mine')}><BookOpenText size={18}/> Minhas documentações</button>}
-    <button type="button" aria-pressed={activeScope==='public'} onClick={()=>setScope('public')}><Globe size={18}/> Documentações públicas</button>
+    <button type="button" onClick={()=>void navigate({to:'/documentacoes',search:{view:'public'}})}><Globe size={18}/> Documentações públicas</button>
     <p>Documentações marcadas como públicas ficam acessíveis para qualquer visitante, assim como as TFs publicadas.</p>
    </nav>
    <section className="qa-doc-library" aria-label="Lista de documentações">
@@ -94,5 +156,5 @@ export default function DocumentationPage(){
   </QAModal>}
   {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
- return user?body:<div className="public-react-shell"><header className="public-react-header"><Link to="/" className="brand"><BrandLogo/><strong>QA Hub</strong></Link><Link className="secondary-link" to="/publicas" search={{}}>TFs públicas</Link><Link className="secondary-link" to="/">Entrar no QA Hub</Link></header><main className="public-react-main">{body}</main></div>;
+ return body;
 }

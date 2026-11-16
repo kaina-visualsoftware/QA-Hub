@@ -190,15 +190,47 @@ try{
   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);await audit("catalog "+width);
   await page.screenshot({path:"artifacts/documentation/catalog-"+width+".png"});
  }
+ // Public links must never fall back to the private CRUD modal for signed-in users.
+ await page.goto(ROOT+"#/documentacoes?view=public");
+ await page.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
+ assert.equal(await page.getByRole("button",{name:"Nova documentação"}).count(),0);
+ await page.getByRole("link",{name:/Resolver falha de emissão/}).click();
+ await page.getByRole("heading",{name:record.titulo,exact:true}).waitFor();
+ assert.equal(await page.getByRole("dialog").count(),0);
+ assert.equal(await page.locator(".app-shell").count(),0,"public pages must not inherit the private workspace shell");
+ await page.goto(ROOT+"#/documentacoes");
+ await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
  await guest.goto(ROOT+"#/publicas");
- await guest.getByRole("heading",{name:"Documentações públicas"}).waitFor();
+ await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
+ await guest.getByRole("link",{name:"Documentações públicas",exact:true}).click();
+ await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
  await guest.getByRole("link",{name:/Resolver falha de emissão/}).waitFor();
- await guest.goto(ROOT+"#/documentacoes?doc="+record.id);
- await guest.getByRole("dialog",{name:record.titulo,exact:true}).waitFor();
+ for(const width of [320,390,768,1366]){
+  await guest.setViewportSize({width,height:844});
+  assert.ok(await guest.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1,"public catalog overflow at "+width);
+  await guest.screenshot({path:"artifacts/documentation/public-list-"+width+".png"});
+ }
+ await guest.getByRole("link",{name:/Resolver falha de emissão/}).click();
+ await guest.getByRole("heading",{name:record.titulo,exact:true}).waitFor();
+ assert.ok(guest.url().includes("view=public")&&guest.url().includes(record.id),"public detail link must retain the reader mode");
+ assert.equal(await guest.getByRole("dialog").count(),0,"public document opens as page, not modal");
  assert.equal(await guest.getByRole("button",{name:"Editar documentação",exact:true}).count(),0);
  await guest.getByText("passos.txt",{exact:true}).waitFor();
- record.publica=false;await guest.reload();await guest.getByText("Esta documentação é privada, foi excluída ou não existe.").waitFor();await context.close();
+ for(const width of [320,390,768,1366]){
+  await guest.setViewportSize({width,height:844});
+  assert.ok(await guest.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1,"public reader overflow at "+width);
+  await guest.screenshot({path:"artifacts/documentation/public-reader-"+width+".png"});
+ }
+ await guest.getByRole("link",{name:"Todas as documentações públicas"}).click();
+ await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
+ await guest.goto(ROOT+"#/documentacoes?doc="+record.id);
+ await guest.getByRole("heading",{name:record.titulo,exact:true}).waitFor();
+ assert.equal(await guest.getByRole("dialog").count(),0,"legacy anonymous links must open full pages");
+ record.publica=false;
+ await guest.reload();
+ await guest.getByText("Esta documentação não é pública ou não existe.").waitFor();
+ await context.close();
  await page.getByRole("button",{name:"Minhas documentações",exact:true}).click();await page.getByRole("link",{name:"Visualizar "+record.titulo,exact:true}).click();await viewer.waitFor();
  page.once("dialog",d=>void d.accept());await viewer.getByRole("button",{name:"Excluir documentação"}).click();await viewer.waitFor({state:"detached"});
  assert.equal(referenceRows.length,0);assert.equal(files.length,0);assert.deepEqual(errors,[]);

@@ -1,6 +1,6 @@
 # Documentações e ferramentas
 
-A área **Documentações** fica no menu principal, separada de Ferramentas. A rota `#/documentacoes` permite consultar a própria biblioteca e a coleção pública. O endereço `#/documentacoes?doc=UUID` abre um documento e funciona sem login quando ele é público.
+A área **Documentações** fica no menu principal, separada de Ferramentas. A rota `#/documentacoes` permite consultar a própria biblioteca e a coleção pública. A biblioteca pública (`#/documentacoes?view=public`) segue o fluxo das TFs públicas: listagem com busca e filtro, seguida por uma página de leitura ao escolher um item (`#/documentacoes?view=public&doc=UUID`). Os links públicos mantêm esse modo inclusive para usuários autenticados, sem modais de edição ou menu de gerenciamento. O endereço legado `#/documentacoes?doc=UUID` continua funcionando sem login quando o documento é público; na área autenticada, mantém o modal de administração.
 
 ## Funcionalidades
 

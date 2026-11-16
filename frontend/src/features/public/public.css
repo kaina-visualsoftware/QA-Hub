@@ -1,0 +1,145 @@
+/* Shared public interface: loaded by both TF and documentation pages. */
+.public-react-header{
+ gap:16px;
+ flex-wrap:wrap;
+}
+.public-react-header .brand{
+ display:inline-flex;
+ align-items:center;
+ gap:12px;
+ min-width:0;
+ flex-shrink:0;
+}
+.public-react-header .brand span{
+ display:flex;
+ flex-direction:column;
+ min-width:0;
+}
+.public-react-header .qa-public-header-links{
+ display:flex;
+ align-items:center;
+ justify-content:flex-end;
+ flex-wrap:wrap;
+ gap:8px;
+ min-width:0;
+ margin-left:auto;
+}
+.public-react-header .qa-public-header-links .secondary-link{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ text-align:center;
+ gap:7px;
+ min-height:44px;
+ padding:9px 12px;
+ white-space:normal;
+ overflow-wrap:anywhere;
+ line-height:1.35;
+}
+.public-react-header .qa-public-header-links .secondary-link svg{flex-shrink:0}
+.public-react-header .qa-public-header-links .secondary-link.is-active{
+ background:#dff1ed;
+ color:#175b56;
+ border-color:#a2c8c1;
+}
+.public-react-main{width:100%;min-width:0}
+.public-react-main .page-heading > div{min-width:0}
+.public-react-main .public-react-list .task-row{
+ display:grid;
+ grid-template-columns:48px minmax(0,1fr) auto;
+ align-items:center;
+ gap:14px;
+ min-width:0;
+ border:1px solid #dce8e9;
+ border-radius:12px;
+ padding:14px 16px;
+ background:#fff;
+}
+.public-react-main .public-react-list .task-row:hover{background:#f1f8f8}
+.public-react-main .public-react-list .task-row:focus-visible{
+ outline:3px solid #167786;
+ outline-offset:2px;
+}
+.public-react-main .public-react-list .task-text{min-width:0}
+.public-react-main .public-react-list .public-react-readonly{justify-self:end}
+.public-react-main .qa-public-document-filters{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) minmax(170px,230px);
+ gap:14px;
+ align-items:end;
+}
+.public-react-main .qa-public-document-filters .field{min-width:0}
+.public-react-main .qa-public-document-filters .field select{min-height:44px}
+.public-react-main .qa-public-document-filters .public-react-search{min-height:44px;min-width:0}
+.public-react-main .qa-public-document-filters .public-react-search input{
+ width:100%;
+ min-width:0;
+ border:0;
+ box-shadow:none;
+ background:transparent;
+}
+.public-react-main .qa-doc-reader-actions,
+.public-react-main .section-heading,
+.public-react-main .qa-public-scenario-heading,
+.public-react-main .qa-resource-actions{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ flex-wrap:wrap;
+}
+.public-react-main .qa-doc-reader-actions a,
+.public-react-main .qa-doc-reader-actions button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:7px;
+ min-height:44px;
+}
+.public-react-main .qa-doc-reader,
+.public-react-main .panel,
+.public-react-main .qa-doc-markdown-content{min-width:0}
+.qa-public-documents{padding:20px 0 28px;border-top:1px solid #dce8ea}
+.qa-public-documents .section-heading{align-items:center;gap:12px;flex-wrap:wrap}
+.qa-public-documents h2{font-size:1.26rem;font-weight:750;color:#224f5a}
+.qa-public-documents .task-row{min-width:0}
+@media (max-width:800px){
+ .public-react-header{
+  align-items:stretch;
+  padding:14px 18px;
+ }
+ .public-react-header .brand{width:100%}
+ .public-react-header .qa-public-header-links{
+  width:100%;
+  margin-left:0;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+ }
+ .public-react-header .qa-public-header-links .secondary-link{width:100%}
+ .public-react-header .qa-public-login{grid-column:1/-1}
+}
+@media (max-width:620px){
+ .public-react-main .public-react-list .task-row{
+  grid-template-columns:42px minmax(0,1fr);
+  gap:10px;
+  padding:13px;
+ }
+ .public-react-main .public-react-list .public-react-readonly{
+  grid-column:2;
+  justify-self:start;
+  white-space:normal;
+ }
+ .public-react-main .qa-public-document-filters{grid-template-columns:minmax(0,1fr)}
+ .public-react-main .qa-doc-reader-actions{align-items:stretch;flex-direction:column}
+ .public-react-main .qa-doc-reader-actions > *{width:100%}
+ .public-react-main .qa-public-documents .section-heading .secondary-link{
+  width:100%;
+  justify-content:center;
+  min-height:44px;
+ }
+ .public-react-main .qa-public-scenario-heading{align-items:flex-start}
+}
+@media (max-width:375px){
+ .public-react-header .qa-public-header-links{grid-template-columns:1fr}
+ .public-react-header .qa-public-login{grid-column:auto}
+}

@@ -26,7 +26,8 @@ function AppLayout() {
   const { user, loading, recovering } = useAuth();
   const taskId = useFocus((s) => s.taskId);
   const navigation = navigationFromMetadata(user?.user_metadata);
-  const publicView = useRouterState({ select: (state) => state.location.pathname === "/publicas" });
+  const publicView = useRouterState({ select: (state) => state.location.pathname === "/publicas" ||
+    (state.location.pathname === "/documentacoes" && (state.location.search as Record<string,unknown>).view === "public") });
   const documentationView=useRouterState({select:state=>state.location.pathname==="/documentacoes"});
   const recoveryView = useRouterState({ select: (state) => state.location.pathname === "/recuperar" });
   const adminRole = useQuery({
@@ -139,7 +140,10 @@ const toolsRoute = createRoute({
 });
 const documentationRoute=createRoute({
  getParentRoute:()=>rootRoute,path:"/documentacoes",
- validateSearch:(search:Record<string,unknown>):{doc?:string}=>({doc:typeof search.doc==='string'?search.doc:undefined}),
+ validateSearch:(search:Record<string,unknown>):{doc?:string;view?:"public"}=>({
+  doc:typeof search.doc==='string'?search.doc:undefined,
+  view:search.view==='public'?'public':undefined
+ }),
  component:()=> <Suspense fallback={<p role="status">Carregando documentações…</p>}><DocumentationPage/></Suspense>
 });
 const profileRoute = createRoute({
