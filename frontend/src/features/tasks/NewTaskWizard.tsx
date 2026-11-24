@@ -30,7 +30,6 @@ import type {GeneratorCheckpoint} from "../generators/batched-stream";
 import {recoverInterruptedWizardCases} from "./wizard-case-recovery";
 import {prepareGeneratorContext} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
-import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
 import type {AiWaitState} from "../../lib/ai-retry";
 import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
@@ -54,12 +53,6 @@ type WorkKind="files"|"task"|"cases"|"save";
 type WorkStatus={
   kind:WorkKind; phase:number; detail:string;
   current?:number; total?:number;
-};
-const WORK_STEPS: Record<WorkKind,string[]>={
-  files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
-  task:["Dividir texto em partes","Analisar cada parte","Revisar campos"],
-  cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
-  save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
 };
 const WORK_LABELS:Record<WorkKind,string>={
   files:"Lendo os documentos",task:"Interpretando a tarefa",
@@ -638,30 +631,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           onClick={()=>controller.current?.abort()}>Cancelar</button>}
       </div>
       <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
-      {work.kind==="task"&&<AiBusyStatus
-        title={work.phase===1?"NVIDIA: extraindo campos":"NVIDIA: preparando revisão"}
-        detail="O texto integral é dividido automaticamente; até dois blocos são verificados em paralelo. Os casos ficam para a etapa 3."/>}
-      <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
-      {work.kind==="task"&&work.total!==undefined&&work.total>0&&
+      {work.total!==undefined&&work.total>0&&<>
         <progress className="qa-wizard-block-progress" max={work.total}
           value={Math.min(work.total,work.current??0)}
-          aria-label="Partes da TF analisadas"/>}
-      <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
-        {WORK_STEPS[work.kind].map((label,index)=><li key={label}
-          className={index<work.phase?"is-complete":index===work.phase?"is-active":""}>
-          {index<work.phase?<CheckCircle2 size={15} aria-hidden="true"/>:
-            index===work.phase?<LoaderCircle size={15} aria-hidden="true"/>:
-              <span className="qa-wizard-work-dot" aria-hidden="true"/>}
-          <span>{label}</span>
-        </li>)}
-      </ol>
-      {work.total!==undefined&&work.total>0&&
-        <p className="qa-wizard-work-metric">
-          {work.kind==="task"?"Blocos verificados":
-            work.kind==="cases"?"Etapas da geração":
-            (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
-          {" "+Math.min(work.current??0,work.total)+" de "+work.total}
-        </p>}
+          aria-label={work.kind==="task"?"Partes da TF analisadas":"Andamento do processamento"}/>
+        <p className="qa-wizard-work-metric" role="status">
+          {Math.min(work.total,work.current??0)} de {work.total} etapas concluídas
+        </p>
+      </>}
       {work.kind==="cases"&&streamText.length>0&&<p className="qa-wizard-work-metric">
         {streamText.length.toLocaleString("pt-BR")} caracteres recebidos
         {caseHeadingsReceived>0?" · "+caseHeadingsReceived+" cenário(s) encontrados no texto recebido":""}
