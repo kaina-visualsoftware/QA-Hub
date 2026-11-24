@@ -66,7 +66,8 @@ Deno.serve(async req=>{
   const baseMessages=messagesForGenerator(mode as "post"|"teste",tarefa,requisito);
   const messages=batch?messagesForGeneratorBatch(mode as "post"|"teste",
     tarefa,requisito,batch,baseMessages):baseMessages;
-  const maxTokens=batch?(mode==="teste"?3200:batch.stage==="details"?3500:2300):
+  const maxTokens=batch?(mode==="teste"?batch.version===2?2300:3200:
+    batch.stage==="details"?3500:2300):
     mode==="teste"?11000:3500;
   // The shared SSE bridge holds the HTTP status until the first upstream
   // content token. Thus F2 quota/provider 429 remains an HTTP 429 and each

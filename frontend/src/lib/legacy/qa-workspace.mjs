@@ -69,7 +69,7 @@ export function parseGeneratedCases(markdown) {
     const end = untilNextHeading<0 ? raw.length : start + untilNextHeading;
     const segment = raw.slice(start,end);
     const rawTitle = headers[index][1].replace(/^\s*\d+\s*(?:[—–:-]\s*)?/, '').replace(/^[—–:-]\s*/, '').trim();
-    const title = clean(rawTitle).replace(/\*\*/g,'').slice(0,240) || 'Cenário '+(index+1);
+    const headerTitle=clean(rawTitle).replace(/\*\*/g,'').slice(0,240);
     const blocks = [...segment.matchAll(/^###[ \t]+([^\n]+)\n([\s\S]*?)(?=^###[ \t]+|$(?![\s\S]))/gm)];
     const fields = new Map(blocks.map(match=>[
       normalized(match[1]).replace(/\*/g,'').normalize('NFD')
@@ -85,6 +85,12 @@ export function parseGeneratedCases(markdown) {
       fields.get('resultados esperados') || fields.get('resultado esperado do teste') ||
       fields.get('comportamento esperado') || '';
     const objective = fields.get('cenario') || fields.get('objetivo') || '';
+    // Recover a descriptive title from the AI's own objective, not from a
+    // local interpretation of the original TF. Generic numbering is rejected
+    // downstream if no descriptive content was supplied.
+    const title=/^cen[áa]rio\s*\d+$/i.test(headerTitle)||!headerTitle?
+      clean(objective).replace(/\*\*/g,'').slice(0,240)||headerTitle||
+      'Cenário '+(index+1):headerTitle;
     const prerequisites = fields.get('pre-requisitos') || fields.get('precondicoes') || '';
     const additional=[
       ['Objetivo',objective],

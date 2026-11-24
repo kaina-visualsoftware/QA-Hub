@@ -31,7 +31,14 @@ import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
 import {recoverCompletedCases,onlyNewResumedCases} from "./recover-cases";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
+import {listRequirementSources} from "../requirements/requirements-data";
+import {listEvidenceFiles} from "../evidence/evidence-files";
+import {planScenarioSources} from "./case-source-plan";
+import type {CaseDocument,CasePlan} from "./case-source-plan";
+import {generateCasesBySource} from "./case-chunk-generation";
+import type {CasePartsCheckpoint,CasePartProgress} from "./case-chunk-generation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
+import {CaseSourceStatus} from "./CaseSourceStatus";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
 import {AuditTrailPanel} from "./AuditTrailPanel";
@@ -65,6 +72,15 @@ function messageOf(error: unknown) {
   return error instanceof Error ? error.message : "Falha ao executar a operação.";
 }
 
+function caseEvidenceRecords(records:Record<string,unknown>[]|undefined){
+ return (records??[]).map((row,index)=>({
+  id:typeof row.id==="string"?row.id:"unknown-"+index,
+  tipo:typeof row.tipo==="string"?row.tipo:undefined,
+  resumo:typeof row.resumo==="string"?row.resumo:undefined,
+  referencia:typeof row.referencia==="string"?row.referencia:undefined,
+  cenario_id:typeof row.cenario_id==="string"?row.cenario_id:null
+ }));
+}
 function editableCopy(items: GeneratedCase[]) {
   return items.map((item) => ({
     ...item, selected: item.selected !== false,
@@ -87,6 +103,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [batchProgress,setBatchProgress]=useState<GeneratorBatchProgress|null>(null);
   const batchCheckpoint=useRef<GeneratorCheckpoint|null>(null);
   const focusedCheckpoint=useRef<GeneratorCheckpoint|null>(null);
+  const scenarioCheckpoint=useRef<CasePartsCheckpoint|null>(null);
+  const [sourceProgress,setSourceProgress]=useState<CasePartProgress|null>(null);
+  const [sourcePreview,setSourcePreview]=useState("");
   const [showSetup, setShowSetup] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
@@ -128,6 +147,42 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     queryFn: () => fetchTaskSupport(supabase, task, userId),
     enabled: formOwn
   });
+  const caseSources=useQuery({
+    queryKey:["gen-scenario-files",userId,task.id],
+    queryFn:()=>listRequirementSources(task.id),
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
+  const caseEvidenceFiles=useQuery({
+    queryKey:["gen-scenario-evidence-files",userId,task.id],
+    queryFn:()=>listEvidenceFiles(supabase,task.id),
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
+  const caseDocuments=useQuery({
+    queryKey:["gen-scenario-documents",userId,task.id],
+    queryFn:async():Promise<CaseDocument[]>=>{
+      const {data,error}=await supabase.from("qa_documentos")
+        .select("id,tarefa_id,titulo,conteudo,tipo").eq("tarefa_id",task.id)
+        .limit(151);
+      if(error)throw error;
+      if((data??[]).length>150)throw Error(
+        "Mais de 150 documentos associados. Divida a geração para preservar as fontes.");
+      return (data??[]) as CaseDocument[];
+    },
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
+  const scenarioPlan=useMemo<{plan:CasePlan|null;error:string}>(()=>{
+    if(mode!=="teste"||!caseSources.data||!caseDocuments.data||!caseEvidenceFiles.data||!requirements.data)
+      return {plan:null,error:""};
+    try{
+      return {plan:planScenarioSources({task,scenarios,
+        requirements:requirements.data,files:caseSources.data,
+        documents:caseDocuments.data,evidence:caseEvidenceRecords(support.data?.evidence),
+        evidenceFiles:caseEvidenceFiles.data,selectedRequirementIds:selected,
+        instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))}),error:""};
+    }catch(err){return {plan:null,error:messageOf(err)};}
+  },[mode,caseSources.data,caseDocuments.data,caseEvidenceFiles.data,support.data,
+    requirements.data,task,scenarios,
+    selected,extra,preset]);
   useEffect(() => {
     if (requirements.data) setSelected(requirements.data.map((item) => item.id));
   }, [requirements.data]);
@@ -146,14 +201,19 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setChangedCodes([]);
     lastGenerationInput.current=null;
     batchCheckpoint.current=null;focusedCheckpoint.current=null;setBatchProgress(null);
+    scenarioCheckpoint.current=null;setSourceProgress(null);setSourcePreview("");
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
     if (!support.data || !requirements.data) return null;
     try {
-      const taskContext = composeFullTaskContext(task, support.data, { limit: 250000 });
+      // Cases consume original sources independently, without this legacy compact view.
+      const taskContext = composeFullTaskContext(task,mode==="teste"?
+        {scenarios:[],documents:[],evidence:[],events:[],failures:[]}:
+        support.data,{limit:250000});
       const approved = composeRequirementContext(
-        requirements.data, selected, sanitizeAiContext(combinedInstructions(mode,preset,extra)),
+        requirements.data,mode==="teste"?[]:selected,
+        sanitizeAiContext(combinedInstructions(mode,preset,extra)),
         { taskId: task.id, limit: 250000 }
       );
       const prepared=prepareGeneratorContext(taskContext.text,approved.text);
@@ -176,13 +236,18 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setConsent(false);
     setPartialConsent(false);
     setCompactApproved(false);
-  },[context?.taskContext.text,context?.approved.text]);
+  },[context?.taskContext.text,context?.approved.text,scenarioPlan.plan?.signature]);
   const canSend = formOwn && !generating && !busySave && !revisionBusy && !auditBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
-    (!missingSources.length || partialConsent) &&
-    (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved)) &&
-    !semantic.working;
+    (mode==="teste"?
+      Boolean(scenarioPlan.plan)&&!caseSources.isLoading&&!caseDocuments.isLoading&&
+      !caseEvidenceFiles.isLoading&&!caseSources.isError&&!caseDocuments.isError&&
+      !caseEvidenceFiles.isError&&
+      (!scenarioPlan.plan?.warnings.length||partialConsent):
+      (!missingSources.length||partialConsent)&&
+      (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved))&&
+      !semantic.working);
 
   const available = useMemo(() =>
     markScenarioDuplicates(cases, scenarios)
@@ -302,7 +367,99 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     }finally{setAuditBusy(false);}
   }
 
-  async function generate() {
+  async function generateAllSourceCases(){
+    const plan=scenarioPlan.plan;
+    if(!canSend||!plan||!context)return;
+    const prior=scenarioCheckpoint.current?.signature===plan.signature?
+      scenarioCheckpoint.current:null;
+    const resume=Boolean(prior&&Object.keys(prior.complete).length<plan.parts.length);
+    if(!resume&&dirtyOutput&&cases.length&&
+      !window.confirm("Substituir os casos editados nesta geração? Os registros já salvos na TF não serão alterados."))return;
+    const previousRaw=raw;
+    const previousCases=cases;
+    const abort=new AbortController();
+    controller.current=abort;
+    setGenerating(true);onBusyChange?.(true);
+    setError("");setMessage("");setGeneratorWait(null);
+    setActivityPhase("connecting");setCompleted(false);setSourcePreview("");
+    try{
+      // Fresh scoped reads are required: files and requirements may have been
+      // added AFTER creation, without closing the current generation modal.
+      const [updatedFiles,updatedDocs,updatedRequirements,updatedEvidenceFiles,updatedSupport]=await Promise.all([
+        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch(),
+        caseEvidenceFiles.refetch(),support.refetch()
+      ]);
+      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error||updatedEvidenceFiles.error||updatedSupport.error)
+        throw Error("Não foi possível atualizar os arquivos e requisitos anexados.");
+      // A requirement created while this modal is open must not be silently
+      // skipped because it was absent from the prior checkbox snapshot.
+      const oldRequirementIds=new Set((requirements.data??[]).map(item=>item.id));
+      const newlyAdded=(updatedRequirements.data??[])
+        .filter(item=>!oldRequirementIds.has(item.id)).map(item=>item.id);
+      const latest=planScenarioSources({task,scenarios,
+        requirements:updatedRequirements.data??[],
+        files:updatedFiles.data??[],documents:updatedDocs.data??[],
+        evidence:caseEvidenceRecords(updatedSupport.data?.evidence),evidenceFiles:updatedEvidenceFiles.data??[],
+        selectedRequirementIds:[...selected,...newlyAdded],
+        instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
+      if(latest.signature!==plan.signature){
+        setConsent(false);scenarioCheckpoint.current=null;setSourceProgress(null);
+        throw Error("As fontes da TF foram atualizadas. Revise as partes e autorize o envio novamente.");
+      }
+      if(!resume){scenarioCheckpoint.current=null;setRaw("");setContent("");
+        setTruncated(false);}
+      const response=await generateCasesBySource(latest,{
+        checkpoint:prior,existing:scenarios.map(sc=>({
+          source_index:sc.id,titulo:sc.titulo,passos:sc.passos,
+          esperado:sc.esperado,observacoes:sc.observacoes,selected:false
+        })),signal:abort.signal,
+        onWait:setGeneratorWait,
+        onCheckpoint:cp=>{scenarioCheckpoint.current=cp;},
+        onProgress:setSourceProgress,
+        onPreview:text=>{setActivityPhase("receiving");setSourcePreview(text);}
+      });
+      setActivityPhase("organizing");
+      const nextCases=resume?
+        onlyNewResumedCases(response.cases,scenarios,previousCases):
+        onlyNewScenarioCandidates(response.cases,scenarios);
+      if(!resume)setGenerationId(crypto.randomUUID());
+      // Never replace an edited draft with a partial generation.
+      // Only a fully successful fresh run may replace the previous candidate list.
+      const replaceAll=response.allDone&&!resume;
+      setCases(old=>replaceAll?editableCopy(nextCases):
+        [...old,...editableCopy(nextCases)]);
+      setGeneratedCount(replaceAll?response.cases.length:
+        previousCases.length+nextCases.length);
+      setContent(old=>replaceAll?response.text:
+        [old,response.text].filter(Boolean).join("\n\n---\n\n"));
+      setRaw(response.text);
+      setTruncated(!response.allDone);
+      setDirtyOutput(!replaceAll&&dirtyOutput);
+      lastGenerationInput.current={
+        task:latest.overview,
+        requirements:latest.sources.map(src=>src.label).join(" · ").slice(0,6000)
+      };
+      setShowSetup(!response.allDone);
+      setMessage(response.allDone?
+        response.cases.length+" cenário(s) distinto(s) preparados após verificar "+
+          response.complete+" parte(s). Revise os títulos, passos e resultados antes de salvar.":
+        response.complete+" de "+latest.parts.length+" parte(s) concluída(s), "+
+          response.failed+" com falha. Os cenários encontrados foram preservados. "+
+          "Retome apenas as partes pendentes.");
+      if(response.failed>0)setError(response.failed+" parte(s) não concluídas; "+
+        "abra a lista de partes para ver os erros e retome quando possível.");
+    }catch(cause){
+      setRaw(previousRaw);setTruncated(Boolean(scenarioCheckpoint.current));
+      setShowSetup(true);
+      setError(abort.signal.aborted?"Geração interrompida. Partes concluídas preservadas.":
+        messageOf(cause));
+    }finally{
+      controller.current=null;setGenerating(false);setGeneratorWait(null);
+      onBusyChange?.(false);
+    }
+  }
+
+  async function generateLegacyContent() {
     if (!canSend || !context) return;
     // Check whether a checkpoint has precisely the same approved source.
     const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
@@ -409,6 +566,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setBatchProgress(null);
       onBusyChange?.(false);
     }
+  }
+
+  async function generate(){
+    if(mode==="teste")await generateAllSourceCases();
+    else await generateLegacyContent();
   }
 
   async function generateFocusedCases(ids:string[]){
@@ -567,9 +729,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length ||
-    (mode==="teste"&&interruptedPreview));
-  const hasRecoverableCases=mode==="teste"&&Boolean(interruptedPreview)&&Boolean(
-    batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0);
+    (mode==="teste"&&(interruptedPreview||sourceProgress?.complete)));
+  const hasRecoverableCases=mode==="teste"&&(
+   Boolean(scenarioPlan.plan&&scenarioCheckpoint.current&&
+     scenarioCheckpoint.current.signature===scenarioPlan.plan.signature&&
+     sourceProgress&&sourceProgress.complete<sourceProgress.total)||
+   Boolean(interruptedPreview&&batchCheckpoint.current&&
+     unfinishedGeneratorStages(batchCheckpoint.current)>0));
   const stage: JourneyStage = generating ? "generate" :
     !showSetup && completed ? "complete" :
     hasOutput && (!showSetup||hasRecoverableCases) ? "review" : "configure";
@@ -617,12 +783,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
-    {(support.isLoading || requirements.isLoading) && !postMode &&
+    {(support.isLoading || requirements.isLoading || caseSources.isLoading || caseDocuments.isLoading || caseEvidenceFiles.isLoading) && !postMode &&
       <p role="status" className="mt-4">Carregando o contexto da TF…</p>}
-    {(support.isError || requirements.isError || generationError) &&
+    {(support.isError || requirements.isError || caseSources.isError || caseDocuments.isError || caseEvidenceFiles.isError || generationError || scenarioPlan.error) &&
       <p className="notice error mt-4" role="alert">
-        {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
-          ? messageOf(support.error || requirements.error) : generationError}
+        {messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error||caseEvidenceFiles.error)!==
+         "Falha ao executar a operação."?
+         messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error||caseEvidenceFiles.error):
+         scenarioPlan.error||generationError}
       </p>}
     {context&&formOwn&&<AuditTrailPanel key={task.id} taskId={task.id} userId={userId}
       taskText={context.taskContext.text}
@@ -656,6 +824,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               <span>Evidências: <strong>{context.taskContext.sourceCounts.evidence}</strong></span>
               <span>Eventos: <strong>{context.taskContext.sourceCounts.events}</strong></span>
               <span>Requisitos: <strong>{selected.length}</strong></span>
+              {!postMode&&scenarioPlan.plan&&<>
+                <span>Anexos: <strong>{caseSources.data?.length??0}</strong></span>
+                <span>Partes: <strong>{scenarioPlan.plan.parts.length}</strong></span>
+              </>}
             </div>
             {requirements.data && requirements.data.length > 0 && <fieldset className="extracted-cases">
               <legend className="font-semibold">Requisitos aprovados para incluir</legend>
@@ -696,10 +868,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <p>O formato selecionado será usado na prévia, ao copiar e ao salvar.
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
-      {needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
+      {postMode&&needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
         onConflictDecision={saveConflictDecision}
         disabled={generating||busySave||auditBusy}/>}
-      {!semantic.enabled&&<ContextPreparationPanel
+      {postMode&&!semantic.enabled&&<ContextPreparationPanel
         items={[
           {label:"TF",result:context.prepared.task,original:context.taskContext.text},
           ...(context.prepared.requirements?[{label:"Requisitos e complemento",
@@ -707,7 +879,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         ]}
         acknowledged={compactApproved} onAcknowledge={setCompactApproved}
         disabled={generating||busySave}/>}
-      {missingSources.length > 0 && <div className="notice error">
+      {postMode&&missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
         <label className="flex items-start gap-2 mt-3">
@@ -715,13 +887,22 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           Estou ciente de que este contexto está incompleto e desejo continuar.
         </label>
       </div>}
-      <details className="generator-context">
+      {!postMode&&scenarioPlan.plan&&<CaseSourceStatus
+        plan={scenarioPlan.plan} progress={sourceProgress}
+        checkpoint={scenarioCheckpoint.current} processing={generating}/>}
+      {!postMode&&scenarioPlan.plan&&scenarioPlan.plan.warnings.length>0&&
+        <label className="qa-ai-consent-compact">
+          <input type="checkbox" checked={partialConsent}
+            disabled={generating} onChange={event=>setPartialConsent(event.target.checked)}/>
+          <span>Revisei os avisos dos anexos e aceito gerar com essas limitações explícitas.</span>
+        </label>}
+      {postMode&&<details className="generator-context">
         <summary>Ver dados enviados à IA</summary>
         <label className="field mt-3">Contexto da TF enviado<textarea readOnly rows={9} value={semantic.enabled&&semantic.ready&&semantic.digest?
           semantic.digest.task:context.prepared.task.text} /></label>
         <label className="field mt-3">Requisitos e complemento enviados<textarea readOnly rows={5} value={semantic.enabled&&semantic.ready&&semantic.digest?
           semantic.digest.requirements:context.prepared.requirements?.text??""} /></label>
-      </details>
+      </details>}
       <div className="qa-ai-submit-row">
         <label className="qa-ai-consent-compact">
           <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
@@ -732,10 +913,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
             {generating?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
               raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
             {generating ? "Gerando…" :
+              mode==="teste"&&scenarioPlan.plan&&scenarioCheckpoint.current&&
+                scenarioCheckpoint.current.signature===scenarioPlan.plan.signature&&
+                sourceProgress&&sourceProgress.complete<sourceProgress.total?
+                  "Retomar "+(sourceProgress.total-sourceProgress.complete)+" parte(s)":
               batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0
                ? "Retomar "+unfinishedGeneratorStages(batchCheckpoint.current)+" etapa(s)"
                : raw||content||cases.length?"Gerar novamente":
-                 mode==="post"?"Gerar post":"Gerar casos"}
+                 mode==="post"?"Gerar post":"Gerar cenários por partes"}
           </Button>
           {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
             Cancelar geração
@@ -748,7 +933,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </p>
     </div>}
     {generating&&<AiQuotaWait state={generatorWait} onCancel={()=>controller.current?.abort()}/>}
-    {generating&&batchProgress&&
+    {generating&&postMode&&batchProgress&&
       <div className="qa-generation-batch-status" role="status" aria-live="polite">
         <strong>{mode==="post"?"Post por seções":"Roteiro por grupos"} ·
           {" "+(batchProgress.index+1)+" de "+batchProgress.total}</strong>
@@ -759,10 +944,20 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           aria-label="Seções concluídas"/>
         <small>{batchProgress.completed} seção(ões) concluída(s). Os trechos anteriores não são reenviados.</small>
       </div>}
-     {generating && <GeneratorActivity
+     {generating && postMode && <GeneratorActivity
       phase={generatorWait?"cooldown":activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
     />}
+    {generating&&!postMode&&scenarioPlan.plan&&<>
+      <CaseSourceStatus plan={scenarioPlan.plan} progress={sourceProgress}
+        checkpoint={scenarioCheckpoint.current} processing/>
+      <div className="qa-case-processing-line" role="status">
+        {sourcePreview||"Conectando à NVIDIA para analisar os trechos…"}
+      </div>
+      <Button variant="secondary" onPress={()=>controller.current?.abort()}>
+        Interromper e manter partes concluídas
+      </Button>
+    </>}
     </div>}
     {!generating && hasOutput && (!showSetup||hasRecoverableCases) && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
@@ -775,6 +970,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         </span>}
       </div>
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
+      {mode==="teste"&&scenarioPlan.plan&&sourceProgress&&
+        <details className="qa-case-review-sources">
+          <summary>Partes analisadas ({sourceProgress.complete}/{sourceProgress.total})</summary>
+          <CaseSourceStatus plan={scenarioPlan.plan} progress={sourceProgress}
+            checkpoint={scenarioCheckpoint.current}/>
+        </details>}
       {mode==="teste"&&interruptedPreview&&<details className="generator-context mt-3">
         <summary>Conferir texto da geração interrompida (não salvo automaticamente)</summary>
         <label className="field mt-3">Trecho recebido antes da interrupção

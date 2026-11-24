@@ -213,7 +213,9 @@ async function mock(route){
     }
     const stage=payload.batch?.stage;
     const text=payload.mode==="teste"
-      ?stage==="setup"
+      ?stage==="source"?(payload.batch.index===0?
+        "## Cenário 01 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido\n## Cenário 02 — Remover desconto\n### Passos\n1. Acessar pagamentos\n2. Remover desconto\n### Resultado esperado\n- Desconto removido":
+        "[Sem cenários nesta parte]"):stage==="setup"
         ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar desconto.\n## Pré-requisitos\n- Pedido criado."
         :stage==="positive"
           // Two intentionally identical cases prove that deduplication still
@@ -253,7 +255,7 @@ try{
     "Test-generation dialog must not duplicate other AI tools");
   await page.getByRole("combobox",{name:"Modelo de geração"}).selectOption("regressao");
   const generate=page.getByRole("dialog",{name:"Gerar casos com IA"})
-    .getByRole("button",{name:"Gerar casos",exact:true});
+    .getByRole("button",{name:"Gerar cenários por partes",exact:true});
   assert.equal(await generate.isDisabled(),true);
   assert.equal(aiCalls,0);
   await page.getByRole("checkbox",{name:/Autorizo enviar os textos/}).check();
@@ -269,7 +271,8 @@ try{
     "Nothing should be attached without explicit selection");
   await page.getByRole("button",{name:"Selecionar todos"}).click();
   assert.equal(await attach.isDisabled(),false);
-  assert.match(aiPayloads[0].requisito,/casos de regressão/i);
+  assert.equal(aiPayloads[0].batch.version,2);
+  assert.equal(aiPayloads[0].batch.stage,"source");
   assert.equal(attachCalls,0,"IA não pode persistir execução automaticamente");
   const caseReview=page.locator(".qa-ai-case-review").first();
   await caseReview.getByText("Editar cenário").click();
@@ -292,7 +295,9 @@ try{
   page.once("dialog",acceptFailedRegeneration);
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   page.off("dialog",acceptFailedRegeneration);
-  await page.getByText(/IA indisponível na simulação/).waitFor();
+  await page.getByRole("button",{name:/Retomar \d+ parte\(s\)/}).waitFor();
+  assert.equal(await page.locator(".qa-case-source-failed").count()>0,true,
+    "A falha de uma parte deve manter estado visível para retomada");
   await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
   await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
@@ -302,7 +307,7 @@ try{
   page.once("dialog",acceptRetry);
   // After an interrupted stage, the pipeline correctly offers to resume
   // pending batches instead of starting an unrelated fresh run.
-  await page.getByRole("button",{name:/^(?:Retomar \d+ etapa\(s\)|Gerar novamente)$/}).click();
+  await page.getByRole("button",{name:/^(?:Retomar \d+ parte\(s\)|Gerar novamente)$/}).click();
   page.off("dialog",acceptRetry);
   await page.getByRole("button",{name:/Anexar 1 caso/}).waitFor();
   assert.equal(aiCalls,3);
