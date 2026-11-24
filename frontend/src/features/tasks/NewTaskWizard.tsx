@@ -684,12 +684,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <strong>Informações da tarefa</strong>
           <small>{taskContextLength.toLocaleString("pt-BR")} caracteres</small>
         </div>
-        <label className="field">
-          <span className="sr-only">Informações da tarefa</span>
+        <div className="field">
           <textarea id="qa-wizard-source" aria-label="Informações da tarefa" rows={6} disabled={busy}
             value={sourceText} onChange={event=>alterSource(event.target.value)}
             placeholder="Cole aqui o problema, a análise de viabilidade, a correção e os requisitos."/>
-        </label>
+        </div>
         <div className="qa-wizard-attachment-line">
           {filePicker(false)}
           <p>TXT, MD, PDF ou DOCX · até 10 MB por arquivo</p>
@@ -752,73 +751,64 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <span className="qa-wizard-section-mark"><ClipboardList size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">02 · CONFERÊNCIA</span>
           <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Revise os dados da TF</h3>
-          <p>Confira e ajuste as informações antes de criar os casos de teste.</p>
+          <p>Confira as informações principais. Dados técnicos e evidências ficam disponíveis abaixo.</p>
         </div>
       </div>
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
         <span>{aiUsed?(taskPartial?"Análise parcial — confira as pendências":
-  "Análise concluída com IA"):"Preenchimento manual"}</span>
+          "Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
-      <TaskFieldEvidenceReview fields={fieldEvidence}
-        confirmed={fieldEvidenceApproved}
-        disabled={busy}
-        onConfirm={(field,checked)=>setFieldEvidenceApproved(old=>({...old,[field]:checked}))}
-        onApply={(field,value)=>{
-          update(field as keyof TaskDraft,value);
-          delete automaticallyFilled.current[field as keyof TaskDraft];
-          setFieldEvidenceApproved(old=>({...old,[field]:false}));
-        }}/>
-      {aiUsed&&<div className="qa-wizard-ai-review">
-        <div>
-          <strong>{missingFields.length?
-            "Confira os campos não identificados":"Campos principais identificados"}</strong>
-          <p>{missingFields.length?
-            "Sem informações confirmadas para: "+missingFields.join(", ")+
-            ". Revise o texto ou preencha manualmente; a IA não deve inventar dados.":
-            "Confira o resultado antes de avançar. Você pode analisar novamente sem perder suas edições."}</p>
-        </div>
-        <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
-          {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
-            <Sparkles size={16} aria-hidden="true"/>}
-          {analyzing?"Analisando…":taskPending?
-  "Retomar "+taskPending+" etapa(s) pendentes":"Analisar novamente"}
-        </Button>
-      </div>}
-      <div className="qa-wizard-fields-panel">
-        <h4>Identificação</h4>
-        <div className="qa-wizard-form-grid">
-        <label className="field" style={{gridColumn:"1/-1"}}>Título da tarefa
+      <div className="qa-wizard-fields-panel qa-wizard-form-main">
+        <h4>Dados principais</h4>
+        <label className="field">Título da tarefa
           <input id="qa-wizard-title" value={draft.titulo} maxLength={240}
             disabled={busy} onChange={event=>update("titulo",event.target.value)}/>
           {draftErrors.titulo&&<small role="alert" className="text-error">{draftErrors.titulo}</small>}
         </label>
-        {field("codigo","Código da TF")}
-        <label className="field">Tipo de teste
-          <select value={draft.tipo_teste} disabled={busy}
-            onChange={event=>{
-            setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}));
-            setConsentCases(false);
-          }}>
-            <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
-          </select>
-        </label>
-        {field("versao","Versão")}
-        {field("sistema","Sistema / módulo")}
+        <div className="qa-wizard-summary-field">
+          {field("descricao","Resumo do problema / descrição",true)}
+        </div>
+        <div className="qa-wizard-form-grid">
+          {field("codigo","Código da TF")}
+          <label className="field">Tipo de teste
+            <select value={draft.tipo_teste} disabled={busy}
+              onChange={event=>{
+                setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}));
+                setConsentCases(false);
+              }}>
+              <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
+            </select>
+          </label>
+          {field("versao","Versão")}
+          {field("sistema","Sistema / módulo")}
         </div>
       </div>
-      <div className="qa-wizard-fields-panel">
-        <h4>Descrição do problema</h4>
-        {field("descricao","Resumo do problema / descrição",true)}
-      </div>
-      <details className="qa-wizard-more" key={aiUsed?"ai":"manual"} open={aiUsed}>
-        <summary>Análise técnica e demais informações {aiUsed?"· revisar dados da IA":""}</summary>
+      {aiUsed&&<div className="qa-wizard-compact-reanalysis">
+        <p>{missingFields.length?
+          missingFields.length+" campo(s) principais não identificados. Preencha somente dados documentados.":
+          "Campos identificados. Você pode corrigir qualquer informação antes de avançar."}</p>
+        <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
+          {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
+            <Sparkles size={16} aria-hidden="true"/>}
+          {analyzing?"Analisando…":taskPending?
+            "Retomar "+taskPending+" parte(s)":"Analisar novamente"}
+        </Button>
+      </div>}
+      <details className="qa-wizard-more">
+        <summary>Análise técnica</summary>
         <div className="stack mt-3">
+          <p className="qa-wizard-group-hint">Funcionamento, causa, correção e conclusão da TF.</p>
           {field("explicacao","Como funciona",true)}
           {field("causa","Causa identificada",true)}
           {field("correcao","Correção realizada",true)}
           {field("conclusao","Conclusão",true)}
+        </div>
+      </details>
+      <details className="qa-wizard-more">
+        <summary>Ambiente, responsável e observações</summary>
+        <div className="stack mt-3">
           <div className="qa-wizard-form-grid">
             {field("ambiente","Ambiente")}
             {field("base_teste","Base de teste")}
@@ -828,6 +818,25 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           {field("observacoes","Observações",true)}
         </div>
       </details>
+      {!!fieldEvidence.length&&<details className="qa-wizard-more qa-wizard-evidence-details">
+        <summary>
+          Evidências da NVIDIA
+          <small>{fieldEvidence.filter(item=>item.status==="needs_review").length?
+            fieldEvidence.filter(item=>item.status==="needs_review").length+" item(ns) para conferir":
+            fieldEvidence.length+" evidência(s) disponível(is)"}</small>
+        </summary>
+        <div className="mt-3">
+          <TaskFieldEvidenceReview fields={fieldEvidence}
+            confirmed={fieldEvidenceApproved}
+            disabled={busy}
+            onConfirm={(item,checked)=>setFieldEvidenceApproved(old=>({...old,[item]:checked}))}
+            onApply={(item,value)=>{
+              update(item as keyof TaskDraft,value);
+              delete automaticallyFilled.current[item as keyof TaskDraft];
+              setFieldEvidenceApproved(old=>({...old,[item]:false}));
+            }}/>
+        </div>
+      </details>}
       <div className="qa-wizard-actions">
         <Button variant="secondary" isDisabled={busy} onPress={()=>{setStep(1);setError("");}}>
           <ArrowLeft size={16}/> Voltar
