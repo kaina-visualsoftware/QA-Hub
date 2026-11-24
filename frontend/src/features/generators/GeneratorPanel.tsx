@@ -34,7 +34,7 @@ import {prepareGeneratorContext} from "./context-preparation";
 import {listRequirementSources} from "../requirements/requirements-data";
 import {planScenarioSources} from "./case-source-plan";
 import type {CaseDocument,CasePlan} from "./case-source-plan";
-import {generateCasesBySource,casePartStatus} from "./case-chunk-generation";
+import {generateCasesBySource} from "./case-chunk-generation";
 import type {CasePartsCheckpoint,CasePartProgress} from "./case-chunk-generation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {CaseSourceStatus} from "./CaseSourceStatus";
@@ -384,7 +384,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       if(!resume){scenarioCheckpoint.current=null;setRaw("");setContent("");
         setTruncated(false);}
       const response=await generateCasesBySource(latest,{
-        checkpoint:prior,existing:scenarios,signal:abort.signal,
+        checkpoint:prior,existing:scenarios.map(sc=>({
+          source_index:sc.id,titulo:sc.titulo,passos:sc.passos,
+          esperado:sc.esperado,observacoes:sc.observacoes,selected:false
+        })),signal:abort.signal,
         onWait:setGeneratorWait,
         onCheckpoint:cp=>{scenarioCheckpoint.current=cp;},
         onProgress:setSourceProgress,
@@ -425,9 +428,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     }
   }
 
-  async function generate() {
+  async function generateLegacyContent() {
     if (!canSend || !context) return;
-    if(mode==="teste"){await generateAllSourceCases();return;}
     // Check whether a checkpoint has precisely the same approved source.
     const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
       ?semantic.digest.task:context.prepared.task.text;
@@ -533,6 +535,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setBatchProgress(null);
       onBusyChange?.(false);
     }
+  }
+
+  async function generate(){
+    if(mode==="teste")await generateAllSourceCases();
+    else await generateLegacyContent();
   }
 
   async function generateFocusedCases(ids:string[]){
