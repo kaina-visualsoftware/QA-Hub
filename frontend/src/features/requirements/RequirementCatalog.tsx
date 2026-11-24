@@ -4,7 +4,7 @@ import { Button } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import type { Task } from "../../lib/contracts";
 import {
-  parseRequirements, prepareImport
+  parseRequirements, prepareImport, inspectRequirementSource
 } from "../../lib/legacy/qa-requirements.mjs";
 import type { DraftRequirement } from "../../lib/legacy/qa-requirements.mjs";
 import {
@@ -40,6 +40,7 @@ export default function RequirementCatalog({
      onChanged: () => Promise<void>; readOnly?:boolean }) {
   const [source, setSource] = useState("");
   const [preparedSource, setPreparedSource] = useState("");
+  const [inspection, setInspection] = useState<{context:string[];ignored:string[]}|null>(null);
   const [sourceId, setSourceId] = useState("");
   const [preview, setPreview] = useState<DraftRequirement[]>([]);
   const [editItem, setEditItem] = useState<Requirement | null>(null);
@@ -63,6 +64,8 @@ export default function RequirementCatalog({
   function parseText() {
     setError(""); setMessage("");
     try {
+      const report = inspectRequirementSource(source);
+      setInspection({context:report.context,ignored:report.ignored});
       const rows = parseRequirements(source, { existing: records });
       setPreview(rows); setPreparedSource(source);
       setMessage(rows.length + " requisito(s) preparados. Nenhum dado foi salvo. Revise antes de importar.");
@@ -79,7 +82,7 @@ export default function RequirementCatalog({
         ? await importRequirementSource(task.id, sourceId, source, preview, sources)
         : await importRequirementText(task.id, source, preview);
       await onChanged();
-      setPreview([]); setPreparedSource(""); setSource(""); setSourceId("");
+      setPreview([]); setPreparedSource(""); setSource(""); setSourceId("");setInspection(null);
       setMessage(result.inserted + " requisito(s) importado(s); " + result.skipped +
         " código(s) já existente(s) ignorado(s).");
     } catch (cause) { setError((cause as Error).message); }
@@ -137,7 +140,7 @@ export default function RequirementCatalog({
               const file = sources.find((item) => item.id === next);
               setSourceId(next);
               setSource(file?.texto_extraido || "");
-              setPreview([]); setPreparedSource("");
+              setPreview([]); setPreparedSource("");setInspection(null);
               setMessage(file ? "Texto do arquivo carregado para revisão." : "");
             }}>
               <option value="">Novo texto (fonte independente)</option>
@@ -151,7 +154,7 @@ export default function RequirementCatalog({
         <label className="field">Cole a especificação, critérios de aceite ou regras de negócio
           <textarea rows={7} maxLength={30000} value={source} readOnly={Boolean(sourceId)}
             onChange={(e) => {
-            setSource(e.target.value);
+            setSource(e.target.value);setInspection(null);
             if (preview.length) setMessage("Texto alterado. Organize novamente antes de importar.");
           }} placeholder="RF-001: O sistema deve..." />
         </label>
@@ -175,6 +178,23 @@ export default function RequirementCatalog({
             </Button>
           </>}
         </div>
+
+        {inspection && (inspection.context.length > 0 || inspection.ignored.length > 0) && (
+          <div className="generator-context" aria-label="Triagem do texto importado">
+            <p className="text-sm"><strong>Triagem do documento</strong></p>
+            <p className="text-muted text-sm mt-2">Os trechos abaixo não foram transformados em RF. O texto original permanece guardado na fonte após a importação. Para transformá-los em requisitos, descreva o comportamento verificável no texto de entrada.</p>
+            {!!inspection.context.length && <details className="mt-3">
+              <summary>Contexto e metadados ({inspection.context.length})</summary>
+              <ul className="stack mt-2">{inspection.context.map((line,index)=>
+                <li key={index} className="text-sm">{line.slice(0,650)}</li>)}</ul>
+            </details>}
+            {!!inspection.ignored.length && <details className="mt-3">
+              <summary>Controles e cartões ignorados ({inspection.ignored.length})</summary>
+              <ul className="stack mt-2">{inspection.ignored.map((line,index)=>
+                <li key={index} className="text-sm">{line.slice(0,450)}</li>)}</ul>
+            </details>}
+          </div>
+        )}
         {!!preview.length && <div className="stack">
           <p className="text-muted text-sm">Classificações automáticas são apenas sugestões. Revise código, origem e aceitação.</p>
           {preview.map((item, index) => <article className="generator-case" key={index}>
