@@ -47,6 +47,16 @@ describe("limpeza do conteúdo enviado à NVIDIA",()=>{
     expect(cleanQaSourceText("Preview\nGoogle Drive\nDownload\nAbrir")).toBe("");
   });
 
+  it("remove cartões copiados e links isolados do Drive sem apagar requisitos reais",()=>{
+    const card="RF-004 · Cliente de origem: Oestetrigo (17351)rascunho · 0 cenário(s) vinculado(s)";
+    const link="[Download](https://drive.google.com/uc?export=download&id=123) [Abrir](https://drive.google.com/uc?id=123)";
+    const real="RF-001: O usuário deve abrir o relatório para visualizar o valor unitário.";
+    expect(isCopiedInterfaceLine(card)).toBe(true);
+    expect(isCopiedInterfaceLine(link)).toBe(true);
+    expect(isCopiedInterfaceLine(real)).toBe(false);
+    expect(cleanQaSourceText([card,link,real].join("\n"))).toBe(real);
+  });
+
   it("padroniza frases inteiras em caixa alta e preserva siglas e identificadores",()=>{
     expect(formatQaSentenceCase("GERADO UMA VENDA TAL")).toBe("Gerado uma venda tal");
     expect(formatQaSentenceCase(
