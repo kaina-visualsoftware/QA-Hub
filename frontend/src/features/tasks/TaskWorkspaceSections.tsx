@@ -156,10 +156,6 @@ export function TaskResultsDashboard({scenarios}:{scenarios:Scenario[]}){
     <details className="qa-task-results-details">
       <summary>Ver distribuição dos resultados</summary>
     <div className="qa-task-results-distribution">
-      <div className="qa-task-results-distribution-header">
-        <h3>Distribuição dos resultados</h3>
-        <span>{executed} de {total} executados</span>
-      </div>
       <div className="qa-task-results-stack" role="img"
         aria-label={results.map(item=>item.name+": "+item.count).join("; ")}>
         {results.map(item=>item.count>0&&<span key={item.status}
