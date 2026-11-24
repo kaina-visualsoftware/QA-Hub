@@ -33,6 +33,24 @@ type SourceEvidence={
  quote:string;source_line:number|null;status:"verified"|"needs_review";reason:string|null;
  derivation?:"explicit"|"synthesized"
 };
+/** Recover only a syntactically delimited JSON object, never prose meaning. */
+function enclosedJson(text:string):string|null{
+ let start=-1,depth=0,inString=false,escape=false;
+ for(let i=0;i<text.length;i++){
+  const c=text[i];
+  if(start<0){if(c==="{"){start=i;depth=1;}continue;}
+  if(inString){
+   if(escape){escape=false;continue;}
+   if(c==="\\"){escape=true;continue;}
+   if(c==='"'){inString=false;}continue;
+  }
+  if(c==='"'){inString=true;continue;}
+  if(c==="{")depth++;
+  if(c==="}"&&--depth===0)return text.slice(start,i+1);
+ }
+ return null;
+}
+
 function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
  if(!response||typeof response!=="object")return null;
  const payload=response as {choices?:{finish_reason?:unknown;message?:{
@@ -54,7 +72,15 @@ function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
  try{return {data:JSON.parse(source),repaired:false};}
  catch{
   try{return {data:JSON.parse(jsonrepair(source)),repaired:true};}
-  catch{return null;}
+  catch{
+   const embedded=enclosedJson(source);
+   if(!embedded)return null;
+   try{return {data:JSON.parse(embedded),repaired:true};}
+   catch{
+    try{return {data:JSON.parse(jsonrepair(embedded)),repaired:true};}
+    catch{return null;}
+   }
+  }
  }
 }
 function evidence(source:string,value:string,quote:string,repaired:boolean,
