@@ -2,6 +2,7 @@ import {describe,it,expect,vi} from "vitest";
 import type {Task} from "../src/lib/contracts";
 import {planScenarioSources} from "../src/features/generators/case-source-plan";
 import {generateCasesBySource,casePartStatus} from "../src/features/generators/case-chunk-generation";
+import type {CasePartsCheckpoint} from "../src/features/generators/case-chunk-generation";
 import {parseGeneratedCases} from "../src/lib/legacy/qa-workspace.mjs";
 import type {GeneratorBatchRequest} from "../src/features/generators/stream";
 const task=(description:string)=>({
@@ -69,7 +70,7 @@ describe("geração de cenários por fontes",()=>{
     return {text:reply,truncated:false};
    }finally{active--;}
   });
-  let checkpoint:Parameters<typeof generateCasesBySource>[1] extends infer _X ? any : never=null;
+  let checkpoint:CasePartsCheckpoint|null=null;
   const initial=await generateCasesBySource(plan,{request:mock as never,
    onCheckpoint:cp=>{checkpoint=cp;}});
   expect(maxActive).toBeLessThanOrEqual(2);
