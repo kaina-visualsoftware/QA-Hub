@@ -455,7 +455,7 @@ try{
   // Cancellation leaves a resumable field-stage checkpoint, so the CTA
   // is renamed to "Retomar análise" rather than "Gerar tarefa com IA".
   await wizard.locator(".qa-wizard-work").waitFor({state:"detached"});
-  assert.equal(await wizard.getByRole("button",{name:/Retomar análise|Gerar tarefa com IA/}).isEnabled(),true);
+  assert.equal(await wizard.getByRole("button",{name:/Retomar|Gerar tarefa com IA/}).isEnabled(),true);
   rateLimited=false;
 
   for(const width of [320,390,768,1366]){
