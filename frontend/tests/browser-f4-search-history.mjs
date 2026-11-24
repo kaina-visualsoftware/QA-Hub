@@ -134,8 +134,17 @@ try {
   assert.equal(await page.locator(".task-list-entry").count(),1);
   assert.equal(requests.at(-1).p_search,"QA-9999");
 
-  await page.locator(".qa-workspace-advanced-filters > summary").click();
-  await page.getByText("Filtros salvos",{exact:true}).click();
+  const advanced=page.locator(".qa-workspace-advanced-filters");
+  const savedPresets=page.locator(".qa-workspace-filter-line > .qa-saved-filter-controls");
+  assert.equal(await advanced.getAttribute("open"),null,
+    "Advanced filters should be collapsed by default");
+  await advanced.locator("summary").click();
+  assert.equal(await advanced.getAttribute("open"),"",
+    "Advanced filters remain available independently");
+  await advanced.locator("summary").click();
+  await savedPresets.locator("summary").click();
+  assert.equal(await advanced.getAttribute("open"),null,
+    "Opening saved presets must not reopen advanced filters");
   await page.getByRole("textbox",{name:"Nome do filtro"}).fill("Descontos especiais");
   await page.getByRole("button",{name:"Salvar filtro atual"}).click();
   await page.getByText("Filtro salvo para esta conta.").waitFor();
@@ -150,6 +159,8 @@ try {
    await confirmFilter.getByRole("button",{name:"Cancelar"}).click();
    await confirmFilter.waitFor({state:"hidden"});
   assert.equal(await search.inputValue(),"QA-9999");
+  assert.equal(await advanced.getAttribute("open"),null,
+    "Applying a saved filter should not force the advanced panel open");
   await page.getByText("1 resultado(s)").waitFor();
 
   await page.addScriptTag({path:"node_modules/axe-core/axe.min.js"});
