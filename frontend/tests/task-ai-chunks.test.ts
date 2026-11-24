@@ -87,7 +87,7 @@ describe("Criação uniforme com NVIDIA por blocos",()=>{
   expect(next.fieldsPending).toBe(false);
  });
  it("aceita resposta NVIDIA explicitamente vazia em parte sem dados",async()=>{
-  const source="Apenas dados operacionais. ".repeat(500)+"\\n"+
+  const source="Apenas dados operacionais. ".repeat(500)+"\n"+
    "A conferência do cadastro por filial valida dados do pedido.";
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
    const body=args!.body as {text:string};
