@@ -84,7 +84,7 @@ export function groundedTaskFields(response:unknown,source:string){
    draft[name]=value.trim();field_evidence[name]=record;
   }else review_fields.push({field:name,value:value.trim(),evidence:record});
  }
- if(!anchored)return null;
+ if(!anchored&&Object.keys(parsed.data.fields).length)return null;
  // Older F4 clients read only draft and cannot apply review-only values.
  return {draft,field_evidence,review_fields,repaired:decoded.repaired};
 }

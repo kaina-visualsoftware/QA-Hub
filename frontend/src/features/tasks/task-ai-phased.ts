@@ -8,6 +8,8 @@ import type {GeneratedTaskDraft} from "./task-ai";
 import {parseGroundedFieldReply,parseGroundedSeedReply,parseGroundedScenarioReply}
  from "./task-evidence";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
+import {splitTaskFieldSource,combineVerifiedTaskFields,TASK_FIELD_CHUNK_CONCURRENCY} from "./task-ai-chunks";
+import type {TaskFieldChunkResult} from "./task-ai-chunks";
 
 export type TaskPipelineStage="fields"|"seeds"|"scenarios"|"complete";
 export type TaskPipelineProgress={
@@ -24,6 +26,7 @@ export type TaskPipelineCheckpoint={
  source:string;prepared:string;
  seeds:ScenarioSeed[]|null;resolvedSeeds:boolean;
  fields:LocalDraft["fields"]|null;resolvedFields:boolean;
+ fieldChunks?:Record<number,TaskFieldChunkResult>;fieldChunkCount?:number;
  completedBatches:Record<number,TaskScenarioRow[]>;
  fieldReview:FieldReview[];seedReview:ScenarioReview[];
  scenarioReview:Record<number,ScenarioReview[]>;
@@ -124,7 +127,9 @@ export function checkpointMatches(checkpoint:TaskPipelineCheckpoint|null,
 }
 export function pipelinePendingCount(checkpoint:TaskPipelineCheckpoint):number{
  const total=toBatches(checkpoint.seeds??[]).length;
- return (checkpoint.resolvedFields?0:1)+(checkpoint.resolvedSeeds?0:1)+
+ return (checkpoint.fieldChunkCount===undefined?(checkpoint.resolvedFields?0:1):
+   Math.max(0,checkpoint.fieldChunkCount-Object.keys(checkpoint.fieldChunks??{}).length))+
+  (checkpoint.resolvedSeeds?0:1)+
   Math.max(0,total-Object.keys(checkpoint.completedBatches).length);
 }
 export function newCheckpoint(source:string,prepared:string):TaskPipelineCheckpoint{
@@ -147,8 +152,9 @@ export async function generateTaskAiDraftPhased(text:string,{
  const source=text.trim(),cleaned=cleanQaSourceText(source);
  if(!source||cleaned.length<10)throw Error("Informe o problema ou requisito da TF.");
  const prepared=aiText?cleanQaSourceText(aiText):cleaned;
- if(!prepared.trim()||prepared.length>30000)
-  throw Error("O contexto precisa ser preparado com até 30 mil caracteres e revisado antes do envio.");
+ if(!prepared.trim()||prepared.length>(fieldsOnly?250000:30000))
+  throw Error(fieldsOnly?"O documento excede 250 mil caracteres. Divida-o em fontes menores.":
+   "O contexto precisa ser preparado com até 30 mil caracteres e revisado antes do envio.");
  const state=checkpointMatches(checkpoint??null,source,prepared)?
   checkpoint!:newCheckpoint(source,prepared);
  // Step 1 extracts verified TF fields; scenarios are generated only after
@@ -162,6 +168,84 @@ export async function generateTaskAiDraftPhased(text:string,{
  }
  onCheckpoint(state);
  if(signal?.aborted)throw abortError();
+ // For creation, ALL inputs use the same exhaustive map/review path.
+ // No compacted/sampled context and no single giant request, even for 10k.
+ if(fieldsOnly){
+  const parts=splitTaskFieldSource(prepared);
+  state.fieldChunkCount=parts.length;
+  state.fieldChunks??={};
+  const pending=parts.filter(part=>!Object.hasOwn(state.fieldChunks!,part.index));
+  let next=0,complete=Object.keys(state.fieldChunks).length;
+  let fatal:unknown=null;
+  const errors:string[]=[];
+  const waits=new Map<number,AiWaitState>();
+  const onChunkWait=(index:number,wait:AiWaitState|null)=>{
+   if(wait)waits.set(index,wait);else waits.delete(index);
+   onWait([...waits.values()].sort((a,b)=>a.until-b.until)[0]??null);
+  };
+  const refresh=()=>{
+   const combined=combineVerifiedTaskFields(state.fieldChunks!);
+   state.fields=normalizeDraft(combined.fields).fields;
+   state.fieldReview=combined.fieldReview;
+   state.resolvedFields=Object.keys(state.fieldChunks!).length===parts.length;
+   onCheckpoint(state);
+   return combined;
+  };
+  refresh();
+  const worker=async()=>{
+   while(next<pending.length&&!fatal){
+    if(signal?.aborted)throw abortError();
+    const part=pending[next++];
+    onProgress({stage:"fields",current:complete,total:parts.length,
+     detail:"NVIDIA: analisando parte "+(part.index+1)+" de "+parts.length+
+      ". Nenhum trecho será descartado."});
+    try{
+     const data=await stageRequest({text:part.text,mode:"task-fields"},signal,
+      wait=>onChunkWait(part.index,wait));
+     if(signal?.aborted)throw abortError();
+     const parsed=parseGroundedFieldReply(data,part.text);
+     state.fieldChunks![part.index]={
+      fields:normalizeDraft(parsed.values).fields,
+      review:parsed.review.map(item=>({...item,sourceLine:item.sourceLine===null?
+       null:item.sourceLine+part.startLine-1}))
+     };
+     complete++;refresh();
+    }catch(error){
+     if(signal?.aborted)throw abortError();
+     if(protectedError(error)){fatal=error;return;}
+     errors.push("Parte "+(part.index+1)+": "+briefReason(error));
+    }finally{
+     onChunkWait(part.index,null);
+     onProgress({stage:"fields",current:complete,total:parts.length,
+      detail:complete+" de "+parts.length+
+       " partes verificadas; o progresso concluído foi preservado."});
+    }
+   }
+  };
+  try{
+   await Promise.all(Array.from({length:Math.min(TASK_FIELD_CHUNK_CONCURRENCY,pending.length)},
+    ()=>worker()));
+  }finally{onWait(null);}
+  const combined=refresh();
+  if(fatal)throw fatal;
+  if(!Object.keys(combined.fields).length)
+   throw Error("A NVIDIA não forneceu campos verificados. "+
+    "Os blocos permanecem disponíveis para retomada; nenhuma extração local foi feita.");
+  const reasons=[
+   ...errors,
+   ...(combined.conflictFields.length?
+    ["Dados diferentes entre partes para: "+combined.conflictFields.join(", ")+". Confira na revisão."]:[]),
+   ...(!state.resolvedFields?["Existem "+
+     (parts.length-complete)+" partes pendentes; use Retomar análise."]:[])
+  ];
+  const result=combine(state,[],reasons);
+  // Conflicting verified metadata must not look like an all-clear.
+  if(combined.conflictFields.length)result.partial=true;
+  onProgress({stage:"complete",current:complete,total:parts.length,
+   detail:result.partial?"Análise parcial; revise os campos e retome os blocos pendentes.":
+    "Todos os blocos analisados pela NVIDIA. Revise os campos antes de salvar."});
+  return result;
+ }
  if(!state.resolvedFields){
   onProgress({stage:"fields",current:0,total:1,
    detail:"A NVIDIA está identificando título, problema, causa e correção com evidências."});

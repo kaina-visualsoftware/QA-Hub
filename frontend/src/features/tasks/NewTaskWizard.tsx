@@ -9,6 +9,7 @@ import { taskDraftSchema, scenarioDraftSchema } from "../../lib/contracts";
 import type { TaskDraft } from "../../lib/contracts";
 import { formatTaskVersionInput, normalizeTaskVersion } from "../../lib/task-version";
 import { normalizeDraft } from "../../lib/legacy/qa-assistant.mjs";
+import {cleanQaSourceText} from "../../lib/legacy/qa-text-cleaner.mjs";
 import { taskToGeneratorText, parseGeneratedCases } from "../../lib/legacy/qa-workspace.mjs";
 import { sanitizeAiContext } from "../../lib/legacy/qa-test-context.mjs";
 import {
@@ -17,14 +18,14 @@ import {
 } from "./task-ai";
 import type { SuggestedScenario } from "./task-ai";
 import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
+import {splitTaskFieldSource} from "./task-ai-chunks";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
 import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
 import {generateBatchedWithNvidia,unfinishedGeneratorStages} from "../generators/batched-stream";
 import type {GeneratorCheckpoint} from "../generators/batched-stream";
 import {recoverInterruptedWizardCases} from "./wizard-case-recovery";
-import {prepareQaContext,prepareGeneratorContext} from "../generators/context-preparation";
-import type {ContextPreparation} from "../generators/context-preparation";
+import {prepareGeneratorContext} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
 import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
@@ -53,7 +54,7 @@ type WorkStatus={
 };
 const WORK_STEPS: Record<WorkKind,string[]>={
   files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
-  task:["Validar contexto","Extrair campos da TF","Preparar revisão"],
+  task:["Dividir texto em partes","Analisar cada parte","Revisar campos"],
   cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
   save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
 };
@@ -111,7 +112,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [cases,setCases] = useState<SuggestedScenario[]>([]);
   const [consentTask,setConsentTask] = useState(false);
   const [consentCases,setConsentCases] = useState(false);
-  const [compactApprovedTask,setCompactApprovedTask] = useState(false);
   const [compactApprovedCases,setCompactApprovedCases] = useState(false);
   const [aiUsed,setAiUsed] = useState(false);
   const [reading,setReading] = useState(false);
@@ -143,16 +143,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const stepperRef=useRef<HTMLDivElement|null>(null);
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
-  type SourcePreparation={original:string;prepared:ContextPreparation}|{error:string};
-  const sourcePreparation=useMemo<SourcePreparation|null>(()=>{
-    const original=combine("",sourceText,taskFiles);
-    if(!original.trim())return null;
-    try{
-      return {original,prepared:prepareQaContext(sanitizeAiContext(original),{
-        limit:28000,description:"criação de TF"
-      })};
-    }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
-  },[sourceText,taskFiles]);
+  const taskSource=useMemo(()=>combine("",sourceText,taskFiles),[sourceText,taskFiles]);
+  const plannedTaskParts=useMemo(()=>taskSource.trim()?
+    splitTaskFieldSource(cleanQaSourceText(taskSource)).length:0,[taskSource]);
   type CasePreparation={
     originalTask:string;originalRequirements:string;
     prepared:ReturnType<typeof prepareGeneratorContext>
@@ -177,17 +170,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         prepared:prepareGeneratorContext(taskText,requirements)};
     }catch(reason){return {error:reason instanceof Error?reason.message:String(reason)};}
   },[step,draft,sourceText,taskFiles,cases,requirementText,requirementFiles]);
-  const semanticTask=useSemanticContext(sourcePreparation&&"prepared" in sourcePreparation?
-    sanitizeAiContext(sourcePreparation.original):"","","task",
-    Boolean(sourcePreparation&&"prepared" in sourcePreparation&&sourcePreparation.prepared.needsReview));
   const semanticCases=useSemanticContext(casePreparation&&"prepared" in casePreparation?
     casePreparation.originalTask:"",casePreparation&&"prepared" in casePreparation?
     casePreparation.originalRequirements:"","teste",
     Boolean(casePreparation&&"prepared" in casePreparation&&
       (casePreparation.prepared.task.needsReview||casePreparation.prepared.requirements?.needsReview)));
-  const busy=reading||analyzing||generating||finishing||
-    semanticTask.working||semanticCases.working;
-  useEffect(()=>setCompactApprovedTask(false),[sourceText,taskFiles]);
+  const busy=reading||analyzing||generating||finishing||semanticCases.working;
   useEffect(()=>setCompactApprovedCases(false),[casePreparation]);
 
 
@@ -316,21 +304,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     // Avoid artificial headings in the content submitted to the model.
     const snapshot=combine("",sourceText,taskFiles);
     try{
-      if(!sourcePreparation||!("prepared" in sourcePreparation))throw Error(
-        sourcePreparation&&"error" in sourcePreparation?sourcePreparation.error:
-          "Não foi possível preparar o contexto.");
-      if(sourcePreparation.prepared.needsReview&&
-        (semanticTask.enabled?!semanticTask.ready:!compactApprovedTask))
-        throw Error("Revise e autorize o contexto preparado antes de enviar.");
       assertReadable(taskFiles);
       if(!snapshot.trim())throw Error("Informe o conteúdo da tarefa.");
       // A etapa 1 extrai somente os campos. Os casos são gerados uma vez
       // na etapa 3, após a revisão e os requisitos complementares.
       const response=await generateTaskAiDraftPhased(snapshot,{
         fieldsOnly:true,
-        aiText:sourcePreparation.prepared.mode==="integral"?undefined:
-          semanticTask.enabled&&semanticTask.ready&&semanticTask.digest?
-            semanticTask.digest.task:sourcePreparation.prepared.text,
         checkpoint:taskPending>0?taskCheckpoint.current:null,
         onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
           setTaskPending(pipelinePendingCount(checkpoint));
@@ -342,7 +321,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           current:progress.current,total:progress.total}),
         signal:abort.signal,onWait:setQuotaWait
       });
-      setTaskPending(response.fieldsPending?1:0);
+      setTaskPending(taskCheckpoint.current?pipelinePendingCount(taskCheckpoint.current):0);
       setTaskPartial(response.partial);
       setFieldEvidence(response.fieldReview);setScenarioEvidence(response.scenarioReview);
       setWork({kind:"task",phase:2,detail:"Organizando os campos para revisão humana."});
@@ -377,12 +356,11 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       ] as const).filter(field=>!String(merged[field]??"").trim()).length;
       const missingHint=missing?` ${missing} campo(s) sem informação identificada; complete apenas com dados da TF.`:"";
       setNotice((response.partial
-        ? "A extração dos campos exige revisão de evidências. "+
-          (response.fieldsPending?"A etapa de campos está pendente; retome a análise. ":"")+
+        ? "Análise por blocos parcialmente concluída. "+
+          (response.fieldsPending?"Retome as partes pendentes antes de finalizar. ":"")+
           (response.extractionReason??"")
-        : sourcePreparation.prepared.needsReview
-            ? "Campos extraídos da seleção compactada. Compare com a fonte integral antes de salvar."
-            : "Campos da TF identificados pela NVIDIA. A geração dos casos ocorrerá somente na etapa 3.")+missingHint);
+        : "Todas as "+plannedTaskParts+" partes da TF foram analisadas pela NVIDIA. "+
+          "Os casos serão gerados somente na etapa 3.")+missingHint);
     }catch(reason){
       if(abort.signal.aborted&&taskCheckpoint.current)
         setTaskPending(pipelinePendingCount(taskCheckpoint.current));
@@ -575,7 +553,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     ["correcao","Correção realizada"],
     ["conclusao","Conclusão"]
   ] as const).filter(([key])=>!draft[key]?.trim()).map(([,label])=>label);
-  const taskContextLength=combine("",sourceText,taskFiles).length;
+  const taskContextLength=taskSource.length;
   const fullTaskReview=Object.entries(draft)
     .filter(([,value])=>Boolean(value?.trim()))
     .map(([name,value])=>name.replaceAll("_"," ")+": "+value).join("\n\n");
@@ -650,8 +628,12 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
       {work.kind==="task"&&<AiBusyStatus
         title={work.phase===1?"NVIDIA: extraindo campos":"NVIDIA: preparando revisão"}
-        detail="A NVIDIA interpreta somente os dados da tarefa. Os casos serão gerados na etapa 3, depois da revisão."/>}
+        detail="O texto integral é dividido automaticamente; até dois blocos são verificados em paralelo. Os casos ficam para a etapa 3."/>}
       <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
+      {work.kind==="task"&&work.total!==undefined&&work.total>0&&
+        <progress className="qa-wizard-block-progress" max={work.total}
+          value={Math.min(work.total,work.current??0)}
+          aria-label="Partes da TF analisadas"/>}
       <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
         {WORK_STEPS[work.kind].map((label,index)=><li key={label}
           className={index<work.phase?"is-complete":index===work.phase?"is-active":""}>
@@ -663,7 +645,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </ol>
       {work.total!==undefined&&work.total>0&&
         <p className="qa-wizard-work-metric">
-          {work.kind==="task"?"Extração de campos":
+          {work.kind==="task"?"Blocos verificados":
             work.kind==="cases"?"Etapas da geração":
             (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
           {" "+Math.min(work.current??0,work.total)+" de "+work.total}
@@ -696,14 +678,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       {!!taskContextLength&&<p className="qa-wizard-size">
         {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
       </p>}
-      {sourcePreparation&&"error" in sourcePreparation&&<p role="alert" className="notice error">{sourcePreparation.error}</p>}
-      {sourcePreparation&&"prepared" in sourcePreparation&&sourcePreparation.prepared.needsReview&&
-        <SemanticPreparationPanel semantic={semanticTask} authorized={consentTask} disabled={busy}/>}
-      {!semanticTask.enabled&&sourcePreparation&&"prepared" in sourcePreparation&&
-        <ContextPreparationPanel
-          items={[{label:"TF",result:sourcePreparation.prepared,original:sourcePreparation.original}]}
-          acknowledged={compactApprovedTask} onAcknowledge={setCompactApprovedTask} disabled={busy}/>}
-      <div className="qa-wizard-ai-panel">
+      {!!plannedTaskParts&&<p className="qa-wizard-size" role="status">
+         Processamento por blocos: {plannedTaskParts} parte(s). Cada trecho será analisado sem cortes.
+       </p>}
+       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
           <div><strong>Preenchimento inteligente</strong>
@@ -715,10 +693,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onChange={event=>setConsentTask(event.target.checked)}/>
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
-        <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
-          !taskContextLength||!sourcePreparation||!("prepared" in sourcePreparation)||
-          (sourcePreparation.prepared.needsReview&&
-            (semanticTask.enabled?!semanticTask.ready:!compactApprovedTask))}
+        <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||!taskContextLength}
           onPress={()=>void generateTask()}>
           {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
             <Sparkles size={17} aria-hidden="true"/>}
