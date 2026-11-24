@@ -910,9 +910,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       phase={generatorWait?"cooldown":activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
     />}
-    {generating&&!postMode&&scenarioPlan.plan&&<div className="qa-case-processing-line" role="status">
-      {sourcePreview||"Conectando à NVIDIA para analisar os trechos…"}
-    </div>}
+    {generating&&!postMode&&scenarioPlan.plan&&<>
+      <CaseSourceStatus plan={scenarioPlan.plan} progress={sourceProgress}
+        checkpoint={scenarioCheckpoint.current} processing/>
+      <div className="qa-case-processing-line" role="status">
+        {sourcePreview||"Conectando à NVIDIA para analisar os trechos…"}
+      </div>
+      <Button variant="secondary" onPress={()=>controller.current?.abort()}>
+        Interromper e manter partes concluídas
+      </Button>
+    </>}
     </div>}
     {!generating && hasOutput && (!showSetup||hasRecoverableCases) && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
@@ -925,6 +932,12 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         </span>}
       </div>
       {truncated && <p className="notice error mt-3">Resposta parcial: verifique os itens incompletos antes de usar.</p>}
+      {mode==="teste"&&scenarioPlan.plan&&sourceProgress&&
+        <details className="qa-case-review-sources">
+          <summary>Partes analisadas ({sourceProgress.complete}/{sourceProgress.total})</summary>
+          <CaseSourceStatus plan={scenarioPlan.plan} progress={sourceProgress}
+            checkpoint={scenarioCheckpoint.current}/>
+        </details>}
       {mode==="teste"&&interruptedPreview&&<details className="generator-context mt-3">
         <summary>Conferir texto da geração interrompida (não salvo automaticamente)</summary>
         <label className="field mt-3">Trecho recebido antes da interrupção
