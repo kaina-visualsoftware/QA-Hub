@@ -151,7 +151,7 @@ export default function GuidedExecution({
         <div className="qa-guided-details">
           <div><h5>Passos</h5><p>{current.passos||"Não informado"}</p></div>
           <div><h5>Resultado esperado</h5><p>{current.esperado||"Não informado"}</p></div>
-          {current.observacoes&&<div><h5>Observações</h5><p>{current.observacoes}</p></div>}
+          {current.observacoes&&<details className="qa-progressive-details qa-guided-extra"><summary>Observações do cenário</summary><p>{current.observacoes}</p></details>}
           {current.obtido&&<div className="qa-guided-observed">
             <h5>Resultado observado anteriormente</h5><p>{current.obtido}</p></div>}
         </div>
@@ -190,8 +190,10 @@ export default function GuidedExecution({
             <RotateCcw size={15} aria-hidden="true"/> Desfazer execução
           </button>
         </div>}
-        {owner&&<ScenarioEvidencePanel key={current.id}
-          task={task} userId={userId} scenario={current}/>}
+        {owner&&<details key={current.id} className="qa-progressive-details qa-guided-evidence-details">
+          <summary>Evidências e anexos do cenário</summary>
+          <ScenarioEvidencePanel task={task} userId={userId} scenario={current}/>
+        </details>}
         <div className="qa-guided-navigation">
           <button type="button" disabled={busy||position<=0}
             onClick={()=>move(-1)}><ArrowLeft size={16} aria-hidden="true"/> Anterior</button>
@@ -202,7 +204,9 @@ export default function GuidedExecution({
       </article>}
     <ToastNotice message={error} tone="error"/>
     <ToastNotice message={announcement} tone="info"/>
-    <p className="qa-guided-disclaimer"><ClipboardList size={14} aria-hidden="true"/>
-      Os resultados só são registrados após confirmação do servidor. A situação da TF não muda automaticamente.</p>
+    <details className="qa-progressive-details qa-guided-help">
+      <summary><ClipboardList size={14} aria-hidden="true"/> Sobre o registro dos resultados</summary>
+      <p>Os resultados são registrados após confirmação do servidor. A situação da TF não muda automaticamente.</p>
+    </details>
   </section>;
 }
