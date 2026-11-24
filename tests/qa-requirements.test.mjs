@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseRequirements,normalizeRequirement,prepareImport,requirementKey} from '../qa-requirements.mjs';
+import {parseRequirements,normalizeRequirement,prepareImport,requirementKey,inspectRequirementSource} from '../qa-requirements.mjs';
 
 test('R1: explicit RF/RN and acceptance criteria are extracted without changing wording',()=>{
  const text=[
@@ -52,4 +52,37 @@ test('R1: source size and item count are bounded',()=>{
  assert.throws(()=>parseRequirements('x'),/5 caracteres/);
  assert.throws(()=>parseRequirements('x'.repeat(30001)),/30.000/);
  assert.throws(()=>parseRequirements(Array.from({length:101},(_,i)=>'RF'+String(i+1).padStart(3,'0')+': Comportamento número '+(i+1)).join('\n')),/Mais de 100/);
+});
+
+
+test('Issue #125: cards, cover sheets, counters and customer identity are not functional requirements',()=>{
+ const pasted=[
+  'RF-001 · Visual Software Especificação de Requisito REQ-2026-1004 versão 1.30 MyCommerce Rascunho Valor unitário e valorascunho · 0 cenário(s) vinculado(s)',
+  'Visual Software Especificação de Requisito REQ-2026-1004 versão 1.30 MyCommerce Rascunho Valor unitário e valor total no grid de produtos',
+  'RF-002 · 199043 28 itens de requisito: 8 RF 3 RNF 7 RN 10 CA Problema a Resolver Na consulta de Pedidos orascunho · 0 cenário(s) vinculado(s)',
+  '199043 28 itens de requisito: 8 RF 3 RNF 7 RN 10 CA Problema a Resolver Na consulta de Pedidos / Pré-Vendas, o grid inferior Produtos mostra só código e quantidade.',
+  'RF-004 · Cliente de origem: Oestetrigo Distribuição e Representação de Alimentos Ltda (17351)rascunho · 0 cenário(s) vinculado(s)',
+  'Cliente de origem: Oestetrigo Distribuição e Representação de Alimentos Ltda (17351).',
+  'RF-005: O sistema deve apresentar o valor unitário e total nas consultas de pedidos.'
+ ].join('\n');
+ const inspection=inspectRequirementSource(pasted);
+ assert.equal(inspection.ignored.length,3);
+ assert.equal(inspection.context.length,3);
+ assert.ok(inspection.raw.includes('Oestetrigo'));
+ const items=parseRequirements(pasted);
+ assert.deepEqual(items.map(x=>x.codigo),['RF-005']);
+ assert.match(items[0].descricao,/valor unitário e total/);
+ assert.ok(items[0].selected);
+});
+test('Issue #125: metadata alone never creates a requirement, without losing the original',()=>{
+ const source='RF-004: Cliente de origem: Oestetrigo Distribuição e Representação de Alimentos Ltda (17351).';
+ assert.equal(inspectRequirementSource(source).context.length,1);
+ assert.throws(()=>parseRequirements(source),/Nenhum requisito verificável/);
+});
+test('Issue #125: functional conditions and exceptions survive filtering',()=>{
+ const original='RF-001: O sistema deve mostrar o preço por item.\nRN-002: Impedir alteração dos pedidos cancelados, exceto pelo administrador.';
+ const rows=parseRequirements(original);
+ assert.equal(rows.length,2);
+ assert.match(rows[1].descricao,/exceto pelo administrador/);
+ assert.equal(prepareImport(original,rows).text,original);
 });
