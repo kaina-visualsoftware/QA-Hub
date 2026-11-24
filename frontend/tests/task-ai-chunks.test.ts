@@ -89,11 +89,9 @@ describe("Criação uniforme com NVIDIA por blocos",()=>{
  it("aceita resposta NVIDIA explicitamente vazia em parte sem dados",async()=>{
   const source="Apenas dados operacionais. ".repeat(500)+"\\n"+
    "A conferência do cadastro por filial valida dados do pedido.";
-  let index=0;
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
-   index++;
    const body=args!.body as {text:string};
-   if(index===1)return {data:{stage:"fields",provider:"NVIDIA Build",model:"fixture",
+   if(!body.text.includes("conferência do cadastro"))return {data:{stage:"fields",provider:"NVIDIA Build",model:"fixture",
     repaired:false,draft:{},field_evidence:{},review_fields:[]},error:null};
    return reply(body.text);
   });
