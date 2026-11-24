@@ -6,7 +6,7 @@ import {validateSemanticFacts} from "./semantic-context";
 import type {SemanticChunk,SemanticGoal,ChunkOutcome} from "./semantic-context";
 
 const responseSchema=z.object({
- chunkId:z.string(),source:z.enum(["TF","REQ"]),goal:z.enum(["task","post","teste"]),
+ chunkId:z.string(),source:z.enum(["TF","REQ"]),goal:z.enum(["task","post","teste","requisito"]),
  provider:z.literal("NVIDIA Build"),model:z.string(),
  unverified:z.number().int().min(0).max(100),
  facts:z.array(z.object({
