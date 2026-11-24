@@ -127,7 +127,13 @@ try{
     assert.equal(await actions.getByRole("button",{name:"Gerar post"}).count(),1);
     assert.equal(await actions.getByRole("button",{name:"Criar relatório"}).count(),1);
     assert.equal(await actions.getByRole("button",{name:"Criar diagrama"}).count(),1);
-    assert.equal(await page.locator(".qa-task-results-legend").locator("div").count(),4);
+    const distribution=page.locator("details.qa-task-results-details");
+    assert.equal(await distribution.getAttribute("open"),null,
+      "Extra execution metrics should start collapsed");
+    await distribution.locator("summary").click();
+    assert.equal(await distribution.getAttribute("open"),"",
+      "Execution breakdown should open on user request");
+    assert.equal(await distribution.locator(".qa-task-results-legend").locator("div").count(),4);
     assert.equal(await page.getByRole("tabpanel",{name:"Relatórios e posts"})
       .getByRole("button",{name:"Novo diagrama"}).count(),0,
       "Creation must only appear in the report toolbar, not again in the gallery");
