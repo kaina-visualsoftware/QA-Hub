@@ -13,6 +13,8 @@ import {
 } from "./requirements-data";
 import type { Requirement, RequirementSource } from "./requirements-data";
 import { Check, FileUp, Pencil, Save, Trash2, X } from "lucide-react";
+import {useSemanticContext} from "../generators/useSemanticContext";
+import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
 
 function RevisionHistory({ taskId, requirementId }: { taskId: string; requirementId: string }) {
   const q = useQuery({
@@ -39,6 +41,8 @@ export default function RequirementCatalog({
 }: { task: Task; records: Requirement[]; sources: RequirementSource[];
      onChanged: () => Promise<void>; readOnly?:boolean }) {
   const [source, setSource] = useState("");
+  const [authorized, setAuthorized] = useState(false);
+  const semantic = useSemanticContext(source, "", "requisito", true);
   const [preparedSource, setPreparedSource] = useState("");
   const [inspection, setInspection] = useState<{context:string[];ignored:string[]}|null>(null);
   const [sourceId, setSourceId] = useState("");
@@ -71,6 +75,36 @@ export default function RequirementCatalog({
       setMessage(rows.length + " requisito(s) preparados. Nenhum dado foi salvo. Revise antes de importar.");
     } catch (reason) {
       setPreview([]); setPreparedSource(""); setError((reason as Error).message);
+    }
+  }
+  function prepareNvidiaEvidence() {
+    setError("");setMessage("");
+    try {
+      if (!semantic.ready || !semantic.complete) {
+        throw Error("Conclua a análise NVIDIA e revise as citações antes de utilizar os resultados.");
+      }
+      const seen = new Set<string>();
+      const quotes = Object.values(semantic.outcomes).flatMap(outcome => outcome.facts)
+        .filter(fact => ["regra", "aceite", "excecao", "permissao"].includes(fact.category))
+        .map(fact => fact.quote.trim())
+        .filter(quote => {
+          if (seen.has(quote)) return false;
+          seen.add(quote);
+          return true;
+        });
+      if (!quotes.length) throw Error("A NVIDIA não encontrou regras ou critérios verificáveis. Nenhum RF foi inventado.");
+      const evidence = quotes.join("\n\n");
+      if (evidence.length > 30000) {
+        throw Error("As citações superaram 30.000 caracteres. Revise os blocos; nenhum trecho foi cortado silenciosamente.");
+      }
+      const rows = parseRequirements(evidence, { existing: records });
+      const report = inspectRequirementSource(source);
+      setInspection({context: report.context,ignored: report.ignored});
+      setPreview(rows);
+      setPreparedSource(source);
+      setMessage(rows.length + " candidato(s) sustentado(s) por citações literais da NVIDIA. Revise títulos, condições e cobertura antes de salvar.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Falha ao preparar as citações verificadas.");
     }
   }
   async function importNow() {
@@ -139,7 +173,7 @@ export default function RequirementCatalog({
               const next = e.target.value;
               const file = sources.find((item) => item.id === next);
               setSourceId(next);
-              setSource(file?.texto_extraido || "");
+              setSource(file?.texto_extraido || "");setAuthorized(false);
               setPreview([]); setPreparedSource("");setInspection(null);
               setMessage(file ? "Texto do arquivo carregado para revisão." : "");
             }}>
@@ -154,7 +188,7 @@ export default function RequirementCatalog({
         <label className="field">Cole a especificação, critérios de aceite ou regras de negócio
           <textarea rows={7} maxLength={30000} value={source} readOnly={Boolean(sourceId)}
             onChange={(e) => {
-            setSource(e.target.value);setInspection(null);
+            setSource(e.target.value);setInspection(null);setAuthorized(false);
             if (preview.length) setMessage("Texto alterado. Organize novamente antes de importar.");
           }} placeholder="RF-001: O sistema deve..." />
         </label>
@@ -162,9 +196,24 @@ export default function RequirementCatalog({
           O texto desse arquivo é imutável; a importação usará a mesma fonte no banco.
           Para editar o texto antes de importar, escolha “Novo texto”.
         </p>}
+        {source.trim().length >= 10 && <details className="generator-context">
+          <summary>Tratamento inteligente com NVIDIA (análise por partes)</summary>
+          <div className="stack mt-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={authorized} disabled={semantic.working}
+                onChange={(event) => setAuthorized(event.target.checked)} />
+              Autorizo analisar este texto pela NVIDIA. O documento original não será alterado.
+            </label>
+            <SemanticPreparationPanel semantic={semantic} authorized={authorized} disabled={busy} />
+            <Button variant="secondary" isDisabled={busy || !semantic.ready}
+              onPress={prepareNvidiaEvidence}>
+              <Check size={16}/> Preparar candidatos com evidências verificadas
+            </Button>
+          </div>
+        </details>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onPress={parseText} isDisabled={busy || source.trim().length < 5}>
-            <FileUp size={16} /> Organizar
+            <FileUp size={16} /> Organizar manualmente
           </Button>
           {!!preview.length && <>
             <Button variant="secondary" onPress={() => setPreview((rows) =>
