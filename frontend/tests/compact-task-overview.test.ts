@@ -1,8 +1,8 @@
 import {createElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
 import {describe,expect,it} from "vitest";
-import {TaskOverview} from "../src/features/tasks/TaskWorkspaceSections";
-import type {Task} from "../src/lib/contracts";
+import {TaskOverview,TaskResultsDashboard} from "../src/features/tasks/TaskWorkspaceSections";
+import type {Task,Scenario} from "../src/lib/contracts";
 
 function overview(fields:Partial<Task>){
   const task={codigo:"TF-001",titulo:"Conferir pedidos",sistema:"MyCommerce",
@@ -35,5 +35,17 @@ describe("layout compacto da TF",()=>{
     expect(html).toContain("Dados complementares");
     expect(html).toContain("Homologação");
     expect(html).toContain("Testador");
+  });
+});
+
+describe("resumo da execução compacto",()=>{
+  it("mantém os resultados detalhados recolhíveis sem perder as contagens",()=>{
+    const scenarios=[{status:"aprovado"},{status:"nao_executado"}] as Scenario[];
+    const html=renderToStaticMarkup(createElement(TaskResultsDashboard,{scenarios}));
+    expect(html).toContain("Indicadores da execução");
+    expect(html).toContain("Ver distribuição dos resultados");
+    expect(html).toContain("qa-task-results-details");
+    expect(html).toContain("Aprovados");
+    expect(html).toContain("50%");
   });
 });
