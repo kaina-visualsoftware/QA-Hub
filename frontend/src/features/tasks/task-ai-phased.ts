@@ -142,11 +142,12 @@ export function newCheckpoint(source:string,prepared:string):TaskPipelineCheckpo
  * fieldsOnly leaves scenario generation to the wizard's third step.
  */
 export async function generateTaskAiDraftPhased(text:string,{
- aiText,signal,onWait=()=>{},onProgress=()=>{},onCheckpoint=()=>{},checkpoint,fieldsOnly=false
+ aiText,signal,onWait=()=>{},onProgress=()=>{},onCheckpoint=()=>{},onFieldChunkState=()=>{},checkpoint,fieldsOnly=false
 }:{
  aiText?:string;signal?:AbortSignal;onWait?:AiWaitCallback;
  onProgress?:(state:TaskPipelineProgress)=>void;
  onCheckpoint?:(value:TaskPipelineCheckpoint)=>void;
+ onFieldChunkState?:(index:number,status:"processing"|"complete"|"failed")=>void;
  checkpoint?:TaskPipelineCheckpoint|null;fieldsOnly?:boolean
 }={}):Promise<PhasedTaskDraft>{
  const source=text.trim(),cleaned=cleanQaSourceText(source);
@@ -196,6 +197,7 @@ export async function generateTaskAiDraftPhased(text:string,{
    while(next<pending.length&&!fatal){
     if(signal?.aborted)throw abortError();
     const part=pending[next++];
+    onFieldChunkState(part.index,"processing");
     onProgress({stage:"fields",current:complete,total:parts.length,
      detail:"NVIDIA: analisando parte "+(part.index+1)+" de "+parts.length+
       ". Nenhum trecho será descartado."});
@@ -209,8 +211,9 @@ export async function generateTaskAiDraftPhased(text:string,{
       review:parsed.review.map(item=>({...item,sourceLine:item.sourceLine===null?
        null:item.sourceLine+part.startLine-1}))
      };
-     complete++;refresh();
+     complete++;refresh();onFieldChunkState(part.index,"complete");
     }catch(error){
+     onFieldChunkState(part.index,"failed");
      if(signal?.aborted)throw abortError();
      if(protectedError(error)){fatal=error;return;}
      errors.push("Parte "+(part.index+1)+": "+briefReason(error));
