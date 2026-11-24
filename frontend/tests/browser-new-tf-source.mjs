@@ -132,7 +132,7 @@ async function backend(route){
       return {quote:needle,source_line:input.slice(0,from).split("\n").length,
         status:"verified",reason:null};
     };
-    const longForm=input.length>5000||
+    const longForm=input.length>1500||
       input.includes("MARCADOR FINAL DO RELATÓRIO")||
       input.includes("REQUISITO RF-12:");
     if(longForm){
