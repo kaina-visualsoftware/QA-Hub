@@ -4,7 +4,7 @@ import type {AiWaitState} from "../../lib/ai-retry";
 import type {TaskFieldChunk,TaskFieldChunkResult} from "./task-ai-chunks";
 import "./task-field-chunk-panel.css";
 
-export type ChunkProcessingStatus="processing"|"failed";
+export type ChunkProcessingStatus="processing"|"complete"|"failed";
 
 type Props={
  chunks:TaskFieldChunk[];
