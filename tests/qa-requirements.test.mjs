@@ -86,3 +86,14 @@ test('Issue #125: functional conditions and exceptions survive filtering',()=>{
  assert.match(rows[1].descricao,/exceto pelo administrador/);
  assert.equal(prepareImport(original,rows).text,original);
 });
+
+
+test('Issue #125: a real rule about customer origin is not hidden',()=>{
+ const source='RF-004: Cliente de origem: o sistema deve registrar o cliente no pedido quando houver devolução.';
+ const report=inspectRequirementSource(source);
+ assert.equal(report.context.length,0);
+ const items=parseRequirements(source);
+ assert.equal(items.length,1);
+ assert.equal(items[0].codigo,'RF-004');
+ assert.match(items[0].descricao,/deve registrar/);
+});
