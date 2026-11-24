@@ -103,7 +103,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
       {Object.entries(docTypes).map(([value,label])=><option key={value} value={value}>{label}</option>)}
     </select></label>
     <details className="qa-progressive-details qa-doc-link-options"
-      defaultOpen={Boolean(initial?.tarefa_id)}>
+      open={Boolean(initial?.tarefa_id)}>
       <summary>Vincular a uma TF (opcional)</summary>
       <label className="field">TF vinculada (opcional)
         <select disabled={tasks.isPending||tasks.isError} value={draft.tarefa_id??''}
@@ -142,7 +142,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
      </div>}
    </fieldset>
    <details className="qa-progressive-details qa-doc-publication-options"
-     defaultOpen={Boolean(initial?.publica)}>
+     open={Boolean(initial?.publica)}>
      <summary>Compartilhamento e anexos
        <small>{draft.publica?"Pública":"Privada"}{files.length?" · "+files.length+" arquivo(s)":""}</small>
      </summary>
