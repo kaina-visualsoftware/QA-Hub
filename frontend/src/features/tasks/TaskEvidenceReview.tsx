@@ -22,10 +22,12 @@ export function TaskFieldEvidenceReview({fields,confirmed,onConfirm,onApply,disa
      A IA pode sintetizar informações implícitas na TF. Uma citação localizada não comprova sozinha a interpretação; confira os valores.</p>
    </div>
   </div>
-  <details>
+  <details open={fields.some(row=>row.status==="needs_review")}>
    <summary>Conferir citações, linhas e propostas não aplicadas</summary>
    <div className="qa-task-evidence-list">
-    {fields.map(row=><article key={row.field} className="qa-task-evidence-item">
+    {fields.map((row,index)=>{
+     const approvalKey=[row.field,row.sourceLine??"?",row.value,row.quote].join("|");
+     return <article key={row.field+"-"+index} className="qa-task-evidence-item">
      <strong>{row.field.replaceAll("_"," ")}</strong>
      <span>{row.derivation==="synthesized"?"Síntese da IA":"Informação literal"} ·
       {row.status==="verified"?" trecho localizado":" revisão necessária"}
@@ -37,14 +39,14 @@ export function TaskFieldEvidenceReview({fields,confirmed,onConfirm,onApply,disa
      <p className="qa-task-evidence-value">{row.value}</p>
      {row.quote&&<blockquote>{row.quote}</blockquote>}
      {row.status==="needs_review"&&<div className="qa-task-evidence-actions">
-      <label><input type="checkbox" checked={Boolean(confirmed[row.field])}
-       disabled={disabled} onChange={event=>onConfirm(row.field,event.target.checked)}/>
+      <label><input type="checkbox" checked={Boolean(confirmed[approvalKey])}
+       disabled={disabled} onChange={event=>onConfirm(approvalKey,event.target.checked)}/>
        Conferi o valor com o relatório original</label>
-      <button type="button" disabled={disabled||!confirmed[row.field]||
+      <button type="button" disabled={disabled||!confirmed[approvalKey]||
        (row.field==="tipo_teste"&&!["BUILD","RELEASE"].includes(row.value))}
        onClick={()=>onApply(row.field,row.value)}>Aplicar manualmente</button>
      </div>}
-    </article>)}
+    </article>})}
    </div>
   </details>
  </section>;
