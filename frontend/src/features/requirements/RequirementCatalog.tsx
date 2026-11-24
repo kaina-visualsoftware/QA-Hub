@@ -124,11 +124,9 @@ export default function RequirementCatalog({
     {!readOnly&&<div className="generator-stats">
       <span><strong>{records.length}</strong> cadastrados</span>
       <span><strong>{records.filter((r) => r.estado === "aprovado").length}</strong> aprovados</span>
-      <span><strong>{records.filter((r) => r.estado === "rascunho").length}</strong> rascunhos</span>
-      <span><strong>{records.filter((r) => r.estado === "arquivado").length}</strong> arquivados</span>
     </div>}
     {!readOnly&&<details className="generator-context" open={records.length === 0}>
-      <summary>Importar requisitos de texto (prévia e revisão)</summary>
+      <summary>Importar requisitos</summary>
       <div className="stack mt-4">
         {sources.some((item) => item.tipo_fonte === "arquivo" && item.texto_extraido.length >= 5) &&
           <label className="field">Origem de importação
@@ -176,16 +174,17 @@ export default function RequirementCatalog({
           </>}
         </div>
         {!!preview.length && <div className="stack">
-          <p className="text-muted text-sm">Classificações automáticas são apenas sugestões. Revise código, origem e aceitação.</p>
+          <p className="text-muted text-sm">Revise os itens selecionados antes de salvar.</p>
           {preview.map((item, index) => <article className="generator-case" key={index}>
             <label className="flex items-start gap-2">
               <input type="checkbox" checked={item.selected && !item.duplicate}
                 disabled={item.duplicate}
                 onChange={(e) => updatePreview(index, { selected: e.target.checked })} />
-              <strong className="text-sm">Incluir {item.codigo}
-                {item.suggested ? " · classificação sugerida" : ""}
+              <strong className="text-sm">{item.codigo} · {item.titulo}
                 {item.duplicate ? " · possível duplicata" : ""}</strong>
             </label>
+            <details className="qa-requirement-preview-fields" open={preview.length===1}>
+              <summary>Revisar campos{item.suggested?" · sugestão":""}</summary>
             <div className="form-grid mt-3">
               <label className="field">Tipo<select value={item.tipo} onChange={(e) => {
                 const tipo = e.target.value;
@@ -212,7 +211,10 @@ export default function RequirementCatalog({
                 value={item.criterios_aceite} onChange={(e) =>
                   updatePreview(index, { criterios_aceite: e.target.value })} /></label>
             </div>
-            <p className="text-muted text-sm mt-2">Trecho de origem: {(item.origem_trecho || item.descricao).slice(0,220)}</p>
+            <details className="qa-requirement-source-details mt-2">
+              <summary>Ver texto de origem</summary><p className="text-muted text-sm mt-2">{item.origem_trecho||item.descricao}</p>
+            </details>
+            </details>
           </article>)}
         </div>}
       </div>
