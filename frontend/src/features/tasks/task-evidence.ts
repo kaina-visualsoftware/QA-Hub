@@ -28,8 +28,7 @@ const fieldsReply=z.strictObject({
 }).superRefine((v,ctx)=>{
  const names=Object.keys(v.draft);
  const candidates=v.review_fields.map(item=>item.field);
- if(!names.length&&!candidates.length||
-  candidates.some(k=>!allowedFields.has(k)||names.includes(k))||
+ if(candidates.some(k=>!allowedFields.has(k)||names.includes(k))||
   new Set(candidates).size!==candidates.length||
   v.review_fields.some(item=>item.evidence.status!=="needs_review")||
   names.some(k=>!allowedFields.has(k))||
