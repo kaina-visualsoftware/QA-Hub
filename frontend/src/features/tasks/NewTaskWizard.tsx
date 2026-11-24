@@ -671,36 +671,41 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </p>}
     </section>}
     {error&&<ToastNotice message={error} tone="error"/>}
-    {step===1&&<section className="qa-wizard-step stack">
+    {step===1&&<section className="qa-wizard-step qa-wizard-step--task stack">
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileText size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">01 · ORIGEM</span>
           <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Conteúdo da tarefa</h3>
-          <p>Cole o chamado completo e adicione os documentos que a IA deve considerar.</p>
+          <p>Cole o texto ou anexe um arquivo. A divisão em partes é automática.</p>
         </div>
       </div>
-      <div className="qa-wizard-source-panel">
-        <label className="field">Informações da tarefa
-          <textarea id="qa-wizard-source" rows={8} disabled={busy}
+      <div className="qa-wizard-source-panel qa-wizard-source-panel--compact">
+        <div className="qa-wizard-source-label">
+          <strong>Informações da tarefa</strong>
+          <small>{taskContextLength.toLocaleString("pt-BR")} caracteres</small>
+        </div>
+        <label className="field">
+          <span className="sr-only">Informações da tarefa</span>
+          <textarea id="qa-wizard-source" aria-label="Informações da tarefa" rows={6} disabled={busy}
             value={sourceText} onChange={event=>alterSource(event.target.value)}
-            placeholder="Cole o problema, a análise de viabilidade, a correção e demais informações da TF."/>
+            placeholder="Cole aqui o problema, a análise de viabilidade, a correção e os requisitos."/>
         </label>
         <div className="qa-wizard-attachment-line">
           {filePicker(false)}
           <p>TXT, MD, PDF ou DOCX · até 10 MB por arquivo</p>
         </div>
       </div>
-      {!!taskContextLength&&<p className="qa-wizard-size">
-        {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
+      <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
+        statuses={taskChunkStatuses} running={analyzing}
+        quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+      {taskContextLength>250000&&<p className="text-error" role="alert">
+        O limite de análise por tarefa é de 250.000 caracteres.
       </p>}
-      {!!plannedTaskParts&&<p className="qa-wizard-size" role="status">
-         Processamento por blocos: {plannedTaskParts} parte(s). Cada trecho será analisado sem cortes.
-       </p>}
-       <div className="qa-wizard-ai-panel">
+       <div className="qa-wizard-ai-panel qa-wizard-ai-panel--compact">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
-          <div><strong>Preenchimento inteligente</strong>
-            <p>A NVIDIA organiza os campos para você revisar na próxima etapa.</p>
+          <div><strong>Gerar dados com a NVIDIA</strong>
+            <p>Os resultados poderão ser revisados antes de salvar.</p>
           </div>
         </div>
         <label className="qa-wizard-consent">
@@ -708,18 +713,19 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onChange={event=>setConsentTask(event.target.checked)}/>
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
-        <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||!taskContextLength}
-          onPress={()=>void generateTask()}>
-          {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
-            <Sparkles size={17} aria-hidden="true"/>}
-          {analyzing?"Analisando tarefa…":taskPending?
-  "Retomar análise ("+taskPending+" etapa(s) pendentes)":"Gerar tarefa com IA"}
-          {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
-        </Button>
-      </div>
-      <div className="qa-wizard-manual">
-        <span>ou</span>
-        <button type="button" disabled={busy} onClick={continueManual}>Continuar manualmente</button>
+        <div className="qa-wizard-ai-buttons">
+          <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
+            !taskContextLength||taskContextLength>250000}
+            onPress={()=>void generateTask()}>
+            {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
+              <Sparkles size={17} aria-hidden="true"/>}
+            {analyzing?"Analisando partes…":taskPending?
+              "Retomar "+taskPending+" parte(s)":"Gerar tarefa com IA"}
+            {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
+          </Button>
+          <button type="button" className="qa-wizard-manual-link"
+            disabled={busy} onClick={continueManual}>Continuar manualmente</button>
+        </div>
       </div>
       {recoverable&&<div className="qa-wizard-recover">
         <strong>Rascunho da sessão anterior</strong>
@@ -734,7 +740,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           Descartar
         </Button>
       </div>}
-      <label className="qa-wizard-draft">
+      <label className="qa-wizard-draft qa-wizard-draft--compact">
         <input type="checkbox" checked={remember} onChange={event=>{
           setRemember(event.target.checked);
           if(!event.target.checked)discardNewTaskDraft(userId);
