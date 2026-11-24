@@ -300,6 +300,7 @@ try{
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+  const statusPanel=wizard.locator(".qa-wizard-work");
   const chunkPanel=wizard.getByRole("region",{name:"Partes da tarefa para análise"});
   await chunkPanel.getByText("Parte 01").waitFor();
   await chunkPanel.getByText("Analisando…").waitFor();
