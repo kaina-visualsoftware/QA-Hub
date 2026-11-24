@@ -56,12 +56,15 @@ export default function DocumentationPage(){
      <label className="field">Pesquisar por título ou conteúdo
       <span className="public-react-search"><Search size={18}/><input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar documentações públicas…"/></span>
      </label>
-     <label className="field">Tipo de documentação
-      <select value={type} onChange={event=>setType(event.target.value)}>
-       <option value="all">Todos os tipos</option>
-       {Object.entries(docTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}
-      </select>
-     </label>
+     <details className="qa-doc-advanced-filter" open={type!=='all'||undefined}>
+      <summary>Filtrar por tipo{type!=='all'?' · 1 ativo':''}</summary>
+      <label className="field">Tipo de documentação
+       <select value={type} onChange={event=>setType(event.target.value)}>
+        <option value="all">Todos os tipos</option>
+        {Object.entries(docTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}
+       </select>
+      </label>
+     </details>
     </div>
     {list.isPending&&<p role="status" className="notice mt-4">Carregando documentações públicas…</p>}
     {list.isError&&<div className="notice error mt-4" role="alert">{list.error.message} <Button variant="secondary" onPress={()=>void list.refetch()}>Tentar novamente</Button></div>}
@@ -110,12 +113,18 @@ export default function DocumentationPage(){
     <h2>Biblioteca</h2>
     {user&&<button type="button" aria-pressed={activeScope==='mine'} onClick={()=>setScope('mine')}><BookOpenText size={18}/> Minhas documentações</button>}
     <button type="button" onClick={()=>void navigate({to:'/documentacoes',search:{view:'public'}})}><Globe size={18}/> Documentações públicas</button>
-    <p>Documentações marcadas como públicas ficam acessíveis para qualquer visitante, assim como as TFs publicadas.</p>
+    <details className="qa-doc-collection-help">
+      <summary>Sobre o compartilhamento</summary>
+      <p>Documentações públicas ficam acessíveis a visitantes sem login.</p>
+    </details>
    </nav>
    <section className="qa-doc-library" aria-label="Lista de documentações">
     <div className="qa-doc-library-heading"><h2>{activeScope==='mine'?'Minhas documentações':'Documentações públicas'}</h2><span className="count-pill">{results.length}</span></div>
     <div className="qa-doc-filters"><label className="field">Buscar documentação<span className="qa-doc-search"><Search size={18} aria-hidden="true"/><input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Título ou conteúdo"/></span></label>
-     <label className="field">Tipo de documentação<select value={type} onChange={e=>setType(e.target.value)}><option value="all">Todos os tipos</option>{Object.entries(docTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
+     <details className="qa-doc-advanced-filter" open={type!=='all'||undefined}>
+      <summary>Filtrar por tipo{type!=='all'?' · 1 ativo':''}</summary>
+      <label className="field">Tipo de documentação<select value={type} onChange={e=>setType(e.target.value)}><option value="all">Todos os tipos</option>{Object.entries(docTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
+     </details>
     </div>
     <ToastNotice message={message} tone="success"/><ToastNotice message={error||list.error?.message} tone="error"/>
     {list.isError&&<Button variant="secondary" onPress={()=>void list.refetch()}>Tentar novamente</Button>}
@@ -127,7 +136,7 @@ export default function DocumentationPage(){
      <span className="qa-doc-row-icon" aria-hidden="true"><BookOpenText size={22}/></span>
      <div className="qa-resource-copy"><strong>{item.titulo}</strong>
       <small>{docTypes[item.tipo_documentacao]||'Nota'} · {item.publica?'Pública':'Privada'} · {new Date(item.updated_at||item.created_at).toLocaleDateString('pt-BR')}</small>
-      <p>{item.conteudo.slice(0,180)}{item.conteudo.length>180?'…':''}</p>
+
      </div>
      <div className="qa-resource-actions"><Link to="/documentacoes" search={{doc:item.id}} aria-label={'Visualizar '+item.titulo}><Eye size={16}/> Visualizar</Link>
       {item.user_id===user?.id&&user&&<button type="button" onClick={()=>setEditor(item)} aria-label={'Editar '+item.titulo}><Pencil size={16}/> Editar</button>}
