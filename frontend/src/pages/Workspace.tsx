@@ -142,35 +142,47 @@ export function Workspace() {
         <span className="count-pill" role="status" aria-live="polite">
           {tasks.isPending?"Consultando tarefas…":total+" resultado(s)"}
         </span></div>
-      <div className="filter-line">
+      <div className="filter-line qa-workspace-filter-line">
         <label className="search-box qa-filter-field">
           <span className="qa-filter-field-label">Buscar TF</span>
           <span className="qa-filter-input-row"><Search size={18} aria-hidden="true"/>
-            <input type="search" aria-label="Pesquisar por título, código, módulo ou versão" value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="Ex.: 67866, desconto, v12.08"/>
+            <input type="search" aria-label="Pesquisar por título, código, módulo ou versão"
+              value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Buscar por título, código ou módulo"/>
           </span>
         </label>
-        <label className="filter-select qa-filter-field">
-          <span className="qa-filter-field-label">Situação</span>
-          <span className="qa-filter-input-row"><Filter size={17} aria-hidden="true"/>
-            <select value={status} onChange={e=>setStatus(e.target.value)}>
-              <option value="">Todas as situações</option>
-              {Object.entries(taskStatusLabels).map(([value,label])=>
-                <option key={value} value={value}>{label}</option>)}
-            </select>
-          </span>
-        </label>
-        <label className="filter-select qa-filter-field">
-          <span className="qa-filter-field-label">Tipo de teste</span>
-          <span className="qa-filter-input-row">
-            <select value={type} onChange={e=>setType(e.target.value)}>
-              <option value="">Todos os tipos</option>
-              <option value="BUILD">BUILD</option>
-              <option value="RELEASE">RELEASE</option>
-            </select>
-          </span>
-        </label>
-      </div>
+        <details className="qa-workspace-advanced-filters" open={Boolean(status||type)||undefined}>
+          <summary><Filter size={17} aria-hidden="true"/> Filtros
+            {(status||type)&&<span className="qa-filter-active-count">
+              {Number(Boolean(status))+Number(Boolean(type))}
+            </span>}
+          </summary>
+          <div className="qa-workspace-filter-options">
+            <label className="filter-select qa-filter-field">
+              <span className="qa-filter-field-label">Situação</span>
+              <span className="qa-filter-input-row">
+                <select value={status} onChange={e=>setStatus(e.target.value)}>
+                  <option value="">Todas as situações</option>
+                  {Object.entries(taskStatusLabels).map(([value,label])=>
+                    <option key={value} value={value}>{label}</option>)}
+                </select>
+              </span>
+            </label>
+            <label className="filter-select qa-filter-field">
+              <span className="qa-filter-field-label">Tipo de teste</span>
+              <span className="qa-filter-input-row">
+                <select value={type} onChange={e=>setType(e.target.value)}>
+                  <option value="">Todos os tipos</option>
+                  <option value="BUILD">BUILD</option>
+                  <option value="RELEASE">RELEASE</option>
+                </select>
+              </span>
+            </label>
+            {(status||type)&&<button type="button" className="qa-filter-reset-secondary"
+              onClick={()=>{setStatus("");setType("");}}>
+              Limpar filtros avançados
+            </button>}
+          </div>
       <details className="qa-saved-filter-controls">
         <summary>Filtros salvos</summary>
         <div className="qa-saved-filters-content">
@@ -213,6 +225,8 @@ export function Workspace() {
           </div>)}
         </div>
       </details>
+        </details>
+      </div>
       <div className="qa-filter-notice" role="status" aria-live="polite">
         <ToastNotice message={filterNotice} tone="success"/>
       </div>
