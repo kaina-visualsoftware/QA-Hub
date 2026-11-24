@@ -33,6 +33,7 @@
 .field{gap:5px;font-size:.78rem}
 .form-grid{gap:11px}
 .field input,.field select,.field textarea{padding:9px 11px;border-radius:9px}
+.field input,.field select{min-height:44px}
 .field textarea{min-height:76px}
 .generator-context,.generator-case,.requirement-row{border-radius:10px}
 .generator-context{padding:10px 12px;background:#fff}
