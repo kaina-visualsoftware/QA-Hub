@@ -930,7 +930,7 @@ export default function TaskPage() {
       className="qa-task-panel" hidden={activeTab !== "tests"}>
       {activeTab==="tests"&&<>
       <div className="qa-task-section-heading qa-tests-heading">
-        <div><h2>Testes da TF</h2><p>{executionMode==="guided"?"Um cenário de cada vez.":"Consulte e execute os cenários cadastrados."}</p></div>
+        <div><h2>Cenários</h2></div>
         <div className="qa-tests-tools">
           <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
             <Plus size={16} aria-hidden="true"/> Cenário
@@ -960,8 +960,6 @@ export default function TaskPage() {
       </div>}
     {executionMode==="list"&&<section ref={executionRef}
       className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
-      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
-        <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
           <button key={value} data-qa-filter={value}
@@ -1040,7 +1038,6 @@ export default function TaskPage() {
           <div>
 
             <h2>Relatórios e publicações</h2>
-            <p>Analise os resultados registrados e consulte os documentos produzidos nesta TF.</p>
           </div>
         </div>
         <TaskResultsDashboard scenarios={scenarios.data??[]}/>
@@ -1082,7 +1079,6 @@ export default function TaskPage() {
           <div>
 
             <h2>Arquivos e requisitos</h2>
-            <p>Consulte os itens registrados. Use a ação desta seção para adicionar ou gerenciar seus registros.</p>
           </div>
           {(resourceView==="team"?rights.canManage||rights.canComment:own)&&
             <Button onPress={()=>{
