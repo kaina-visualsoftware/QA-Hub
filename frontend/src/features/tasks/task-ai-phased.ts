@@ -231,9 +231,12 @@ export async function generateTaskAiDraftPhased(text:string,{
   }finally{onWait(null);}
   const combined=refresh();
   if(fatal)throw fatal;
-  if(!Object.keys(combined.fields).length)
-   throw Error("A NVIDIA não forneceu campos verificados. "+
-    "Os blocos permanecem disponíveis para retomada; nenhuma extração local foi feita.");
+  // NVIDIA may identify legitimate fields without a usable quotation.
+  // These are suggestions for human approval, not automatically filled values.
+  const reviewOnly=combined.fieldReview.some(item=>item.status==="needs_review");
+  if(!Object.keys(combined.fields).length&&!reviewOnly)
+   throw Error("A NVIDIA não identificou campos aproveitáveis em nenhuma parte. "+
+    "Revise o texto original e tente novamente; nenhuma extração local foi feita.");
   const reasons=[
    ...errors,
    ...(combined.conflictFields.length?
@@ -243,7 +246,15 @@ export async function generateTaskAiDraftPhased(text:string,{
   ];
   const result=combine(state,[],reasons);
   // Conflicting verified metadata must not look like an all-clear.
-  if(combined.conflictFields.length)result.partial=true;
+  if(combined.conflictFields.length||reviewOnly&&
+   !Object.keys(combined.fields).length)result.partial=true;
+  if(reviewOnly&&!Object.keys(combined.fields).length){
+   result.extractionReason=[
+    result.extractionReason,
+    "A NVIDIA sugeriu campos, mas suas citações não foram confirmadas. "+
+    "Abra Evidências da NVIDIA na etapa de revisão e aplique apenas os valores corretos."
+   ].filter(Boolean).join(" ");
+  }
   onProgress({stage:"complete",current:complete,total:parts.length,
    detail:result.partial?"Análise parcial; revise os campos e retome os blocos pendentes.":
     "Todos os blocos analisados pela NVIDIA. Revise os campos antes de salvar."});
