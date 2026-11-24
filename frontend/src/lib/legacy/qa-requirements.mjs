@@ -27,7 +27,8 @@ export function inspectRequirementSource(raw){
     }
     const withoutCode=value.replace(/^(?:RF|RNF|RN|CA)\s*[- ]?\s*\d{1,4}\s*(?:[·:]|[.)-])\s*/i,'');
     const normalized=requirementKey(withoutCode);
-    if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(normalized) ||
+    if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(normalized) &&
+       !/\b(deve|devem|permitir|validar|registrar|bloquear|impedir)\b/.test(normalized) ||
        /^(?:visual software\s+)?especificacao de requisito\b/.test(normalized) ||
        /^(?:\d{3,}\s+)?\d+\s+itens? de requisitos?\b/.test(normalized) ||
        /^problema a resolver\b/.test(normalized) ||
@@ -43,7 +44,8 @@ export function inspectRequirementSource(raw){
 function isRequirementCandidate(chunk){
   const text=requirementKey(chunk.body);
   if(!text||/^\d[\d\s.,/:()-]*$/.test(text))return false;
-  if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(text))return false;
+  if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(text) &&
+     !/\b(deve|devem|permitir|validar|registrar|bloquear|impedir)\b/.test(text))return false;
   if(/^(?:visual software\s+)?especificacao de requisito\b|^\d+\s+itens? de requisitos?\b|^problema a resolver\b/.test(text))return false;
   // Explicit RF/RN/RNF/CA records remain eligible even if written as a terse
   // business rule. For unstructured paste, require actionable language rather
