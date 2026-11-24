@@ -63,13 +63,12 @@ describe("Criação uniforme com NVIDIA por blocos",()=>{
  });
  it("conserva partes prontas e retoma apenas a parte com falha",async()=>{
   const source=makeSource(14000);
-  const chunks=splitTaskFieldSource(cleanQaSourceText(source));
   let failing=true,checkpoint:TaskPipelineCheckpoint|null=null;
   let calls=0;
   vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
    const body=args!.body as {mode:string;text:string};
    calls++;
-   if(failing&&body.text===chunks[1].text)
+   if(failing&&calls===2)
     return {data:null,error:{context:{status:503,
      json:async()=>({code:"provider_unavailable",message:"Indisponível"})}}} as never;
    return reply(body.text);
