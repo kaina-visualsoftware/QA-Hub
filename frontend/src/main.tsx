@@ -7,6 +7,7 @@ import { router } from "./app/router";
 import "./styles.css";
 import "./resource-patterns.css";
 import "./progressive-ui.css";
+import "./compact-workspace.css";
 import {ToastCenter,notify} from "./components/ui/Toasts";
 
 // When an open tab requests a chunk removed by a newer deployment,
