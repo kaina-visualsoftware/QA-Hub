@@ -908,7 +908,7 @@ export default function TaskPage() {
           {scenarioForm.formState.errors.passos && <small role="alert" className="text-error">{scenarioForm.formState.errors.passos.message}</small>}</label>
         <label className="field">Resultado esperado<textarea rows={3} {...scenarioForm.register("esperado")} />
           {scenarioForm.formState.errors.esperado && <small role="alert" className="text-error">{scenarioForm.formState.errors.esperado.message}</small>}</label>
-        <details className="qa-progressive-details qa-scenario-form-extra" key={editingScenario?.id??"new"} defaultOpen={Boolean(editingScenario?.observacoes?.trim())}>
+        <details className="qa-progressive-details qa-scenario-form-extra" key={editingScenario?.id??"new"} open={Boolean(editingScenario?.observacoes?.trim())}>
           <summary>Observações adicionais (opcional)</summary>
           <label className="field">Observações<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
         </details>
