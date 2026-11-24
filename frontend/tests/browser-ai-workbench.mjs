@@ -137,21 +137,15 @@ try {
       const encoder=new TextEncoder();
       const event=(kind,data)=>encoder.encode(
         "event: "+kind+"\ndata: "+JSON.stringify(data)+"\n\n");
-      // The generator now uses five independent, bounded stages. Simulate
-      // the real stage contract instead of replaying a whole scenario five times
-      // (which used to make the 12s browser assertion time out).
-      const stage=request.batch?.stage;
-      const first=stage==="setup"
-        ?"# ROTEIRO DE TESTES\n## Objetivo\nValidar recálculo do pedido.\n## Pré-requisitos\n- Pedido com desconto."
-        :stage==="positive"
-          ?"## Cenário 1 — Validar recálculo de desconto\n### Passos\n"
-          :stage==="negative"?"[Sem cenários negativos adicionais documentados]"
-          :stage==="regression"?"[Sem cenários de regressão adicionais documentados]"
-          :"## Resultado dos testes\nA confirmar.";
-      const second=stage==="positive"
-        ?"Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\nO valor final é recalculado sem desconto.\n":"";
+      // V2 uses each original source part. Only the first test part
+      // streams a case; the rest correctly report no additional cases.
+      const first=request.batch?.stage==="source"&&request.batch.index===0
+        ?"## Cenário 1 — Validar recálculo de desconto\n### Passos\n"
+        :"[Sem cenários nesta parte]";
+      const second=request.batch?.stage==="source"&&request.batch.index===0
+        ?"1. Abrir pedido e remover o desconto aplicado.\n### Resultado esperado\n- O valor final é recalculado sem desconto.\n":"";
       const stream=new ReadableStream({start(controller){
-        if(stage==="positive"){
+        if(second){
           setTimeout(()=>controller.enqueue(event("chunk",{text:first})),250);
           setTimeout(()=>controller.enqueue(event("chunk",{text:second})),1100);
           setTimeout(()=>{
@@ -163,7 +157,7 @@ try {
             controller.enqueue(event("chunk",{text:first}));
             controller.enqueue(event("done",{truncated:false}));
             controller.close();
-          },stage==="setup"?400:60);
+          },60);
         }
       }});
       return Promise.resolve(new Response(stream,{
@@ -266,21 +260,18 @@ try {
       assert.equal(await dialog.locator(".qa-generation-steps li").count(),3);
       assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Configurar/);
       await dialog.getByRole("checkbox",{name:/Autorizo enviar/}).check();
-      await dialog.getByRole("button",{name:"Gerar casos",exact:true}).click();
-      await dialog.getByText("Conectando à NVIDIA").waitFor({timeout:10000});
+      await dialog.getByRole("button",{name:"Gerar cenários por partes",exact:true}).click();
+      await dialog.getByRole("region",{name:"Partes da TF para gerar cenários"}).waitFor({timeout:10000});
       await page.waitForFunction(()=>document.querySelector(".qa-modal-surface-cases .qa-modal-close")?.disabled===true);
       assert.equal(await dialog.getByRole("button",{name:"Fechar Gerar casos com IA"}).isDisabled(),true,
         "Close must be disabled while the API request is active");
       assert.match(await dialog.locator(".qa-generation-steps li.is-current").innerText(),/Gerar/);
-      await dialog.getByText("Recebendo a resposta",{exact:true}).waitFor({timeout:10000});
-      const telemetry=dialog.getByLabel("Medições da solicitação");
-      assert.match(await telemetry.innerText(),/Tempo decorrido\s+\d{2}:\d{2}/);
-      assert.match(await telemetry.innerText(),/Conteúdo recebido\s+\d+ caracteres/);
+      await dialog.locator(".qa-case-processing-line").getByText(/Cenário 1/).waitFor({timeout:10000});
+      assert.equal(await dialog.locator(".qa-case-source-status progress").count()>0,true);
       assert.equal(await dialog.locator(".qa-generation-steps li.is-current").count(),1,
         "Only one stage can be active while the API streams.");
-      await dialog.getByText("Prévia do texto recebido").waitFor();
-      assert.ok((await dialog.getByLabel("Trecho recente da resposta da IA").innerText())
-        .includes("Cenário 1"),"Partial SSE must be visible before completion");
+      assert.match(await dialog.locator(".qa-case-processing-line").innerText(),/Cenário 1/,
+        "A prévia de cada parte deve ser exibida antes da consolidação");
       await page.screenshot({path:"artifacts/mobile-ux/cases-streaming-390.png"});
       for(const width of [320,768,1366]){
         await page.setViewportSize({width,height:844});
@@ -292,8 +283,8 @@ try {
         });
         assert.ok(visual.page<=1&&visual.modal<=1,
           "AI streaming visual overflow at "+width+": "+JSON.stringify(visual));
-        assert.equal(await dialog.getByText("Recebendo a resposta",{exact:true}).isVisible(),true,
-          "The streaming stage must remain readable at "+width);
+        assert.equal(await dialog.locator(".qa-case-source-status").first().isVisible(),true,
+          "O progresso por fonte deve permanecer legível em "+width);
         await page.screenshot({path:"artifacts/mobile-ux/cases-streaming-"+width+".png"});
       }
       await page.setViewportSize({width:390,height:844});
