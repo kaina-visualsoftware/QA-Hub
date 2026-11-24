@@ -97,3 +97,24 @@ test('Issue #125: a real rule about customer origin is not hidden',()=>{
  assert.equal(items[0].codigo,'RF-004');
  assert.match(items[0].descricao,/deve registrar/);
 });
+
+test('mixed unnumbered and explicit RF IDs reserve original codes without collision',()=>{
+ const original=[
+  'O sistema deve impedir a exclusão de pedidos aprovados.',
+  'RF-001: O sistema deve registrar histórico das alterações.'
+ ].join('\n\n');
+ const items=parseRequirements(original);
+ assert.deepEqual(items.map(item=>item.codigo),['RF-002','RF-001']);
+ assert.equal(items.every(item=>!item.duplicate&&item.selected),true);
+ assert.deepEqual(prepareImport(original,items).items.map(item=>item.codigo),['RF-002','RF-001']);
+});
+
+test('duplicate explicit IDs remain visible and unselected for human review',()=>{
+ const source='RF-001: O sistema deve registrar vendas.\nRF-001: O sistema deve registrar devoluções.';
+ const rows=parseRequirements(source);
+ assert.deepEqual(rows.map(item=>item.codigo),['RF-001','RF-001']);
+ assert.equal(rows[0].selected,true);
+ assert.equal(rows[1].duplicate,true);
+ assert.equal(rows[1].selected,false);
+ assert.deepEqual(prepareImport(source,rows).items.map(item=>item.codigo),['RF-001']);
+});
