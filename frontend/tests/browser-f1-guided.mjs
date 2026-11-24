@@ -106,6 +106,8 @@ try{
 
   const guided=page.getByRole("region",{name:"Execução guiada dos testes"});
   await guided.waitFor();
+  assert.equal(await page.locator(".qa-workflow-anchor").isVisible(),false,
+    "A lista deve estar completamente oculta durante o modo guiado");
   assert.equal(await page.getByRole("button",{name:"Guiado",exact:true}).getAttribute("aria-pressed"),"true");
   const first=guided.getByRole("group",{name:"Registrar resultado de Venda sem desconto"});
   await first.waitFor();
@@ -192,6 +194,7 @@ try{
   assert.equal(scenarios[3].obtido,"","Older failure note must be removed from an approval");
   assert.equal(mutations.length,4);
 
+  await guided.locator(".qa-guided-evidence-details > summary").click();
   const evidence=guided.getByRole("region",{name:"Evidências do cenário Falha anterior"});
   await evidence.waitFor();
   assert.equal(await guided.getByRole("button",{name:"Adicionar evidência"}).count(),0);
@@ -209,6 +212,8 @@ try{
   await page.getByRole("button",{name:"Lista",exact:true}).click();
   assert.equal(await page.getByRole("button",{name:"Lista",exact:true}).getAttribute("aria-pressed"),"true");
   await page.getByRole("group",{name:"Resultado de Falha anterior"}).waitFor();
+  assert.equal(await page.locator(".qa-guided-container").isVisible(),false,
+    "Modo lista deve ocultar a execução guiada sem apagar o rascunho");
   assert.equal(mutations.length,4);
 
   // Route-to-route reuse must not keep a draft or scenario from a different TF.

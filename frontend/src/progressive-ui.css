@@ -1,0 +1,221 @@
+/* QA Hub — progressive disclosure for long forms and content-heavy workspaces.
+   Keep critical actions visible; render secondary material on demand. */
+.qa-progressive-details{
+  min-width:0;border:1px solid #dce7e8;border-radius:11px;
+  background:#fff;color:#294d56;
+}
+.qa-progressive-details>summary{
+  display:flex;align-items:center;gap:9px;cursor:pointer;
+  padding:12px 14px;min-height:45px;list-style:none;
+  font-size:.81rem;font-weight:740;line-height:1.35;
+}
+.qa-progressive-details>summary::-webkit-details-marker{display:none}
+.qa-progressive-details>summary::after{
+  content:"";margin-left:auto;flex:0 0 7px;
+  width:7px;height:7px;transform:rotate(45deg);
+  border-right:2px solid #52757a;border-bottom:2px solid #52757a;
+  transition:transform .12s ease;
+}
+.qa-progressive-details[open]>summary::after{transform:rotate(225deg)}
+.qa-progressive-details>summary:focus-visible{
+  outline:3px solid #177f84;outline-offset:2px;border-radius:9px;
+}
+.qa-progressive-details[open]>summary{border-bottom:1px solid #e9f0f0}
+.qa-progressive-details>p,
+.qa-progressive-details>.field{
+  margin:12px 14px 14px;font-size:.8rem;line-height:1.6;
+}
+.qa-task-overview-focused{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  max-width:1080px;gap:12px;padding-top:14px
+}
+.qa-task-overview-focused .qa-task-info-card{
+  padding:17px 19px;min-width:0
+}
+.qa-task-overview-focused .qa-task-info-heading h2{font-size:.99rem}
+.qa-task-overview-focused .qa-task-primary-description{
+  margin-top:12px;padding:13px 15px
+}
+.qa-task-overview-focused .qa-task-primary-description p{max-width:90ch;line-height:1.58}
+.qa-task-metadata-details{margin-top:14px;background:#fafcfc}
+.qa-task-metadata-details>summary span{
+  margin-left:auto;color:#5d7780;font-size:.73rem;font-weight:600
+}
+.qa-task-metadata-details>summary::after{margin-left:3px}
+.qa-task-metadata-details .qa-task-detail-grid{
+  margin:0;padding:7px 14px 14px;gap:0 20px
+}
+.qa-task-metadata-details .qa-task-detail{padding:8px 0}
+.qa-task-progressive-panel{border:1px solid #dce7e8}
+.qa-task-progressive-heading{
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  min-height:48px;list-style:none
+}
+.qa-task-progressive-heading::-webkit-details-marker{display:none}
+.qa-task-progressive-heading>span:first-child{min-width:0;flex:1}
+.qa-task-progressive-heading h2{font-size:.99rem;color:#1e4751;font-weight:790}
+.qa-task-progressive-heading small{
+  display:block;margin-top:3px;font-size:.73rem;line-height:1.4;color:#506c74
+}
+.qa-task-progressive-count{
+  font-size:.73rem;color:#567278;white-space:nowrap;font-weight:700
+}
+.qa-task-progressive-heading::after{
+  content:"";display:inline-block;flex:0 0 7px;
+  width:7px;height:7px;border-right:2px solid #607d81;
+  border-bottom:2px solid #607d81;transform:rotate(45deg);
+  margin:0 3px 4px 4px
+}
+.qa-task-progressive-panel[open] .qa-task-progressive-heading::after{
+  transform:rotate(225deg);margin:5px 3px 0 4px
+}
+.qa-task-progressive-panel[open] .qa-task-technical-list{
+  margin-top:12px;border-top:1px solid #e8eeee;padding-top:8px
+}
+.qa-task-overview-focused .qa-task-detail p{
+  max-width:100ch;line-height:1.57
+}
+/* Only the chosen execution mode should occupy document space. */
+.qa-task-panel[hidden],
+.qa-guided-container[hidden],
+.qa-workflow-anchor[hidden] {display:none!important}
+.qa-guided-active .qa-task-hero-progress,
+.qa-guided-active .qa-task-snapshot{display:none}
+.qa-guided-extra{margin-top:12px;background:#f8fbfb}
+.qa-guided-evidence-details{margin-top:14px;background:#f9fbfb}
+.qa-guided-evidence-details>summary{font-size:.8rem}
+.qa-guided-evidence-details>.qa-scenario-evidence,
+.qa-guided-evidence-details>section,
+.qa-guided-evidence-details>div{margin:12px}
+.qa-guided-help{margin-top:12px;background:transparent;border-color:transparent}
+.qa-guided-help>summary{color:#506a72;font-weight:600;font-size:.74rem}
+.qa-guided-help[open]{background:#f8fbfb;border-color:#dce7e8}
+.qa-scenario-form-extra{margin-top:2px;background:#fafcfc}
+.qa-scenario-form-extra .field{display:flex;flex-direction:column;gap:7px}
+.qa-scenario-form-extra textarea{width:100%}
+/* List page: one search input plus an explicit advanced filter action. */
+.qa-workspace-filter-line{
+  display:flex;align-items:end;flex-wrap:wrap;gap:10px;
+  position:relative;margin-top:12px;
+}
+.qa-workspace-filter-line>.search-box{
+  flex:1 1 310px;min-width:min(100%,250px);
+}
+.qa-workspace-advanced-filters{position:relative;flex:0 0 auto;min-width:0}
+.qa-workspace-advanced-filters>summary{
+  min-height:47px;display:inline-flex;align-items:center;
+  gap:8px;padding:9px 15px;border:1px solid #d0e0e2;
+  border-radius:10px;color:#355c66;background:white;
+  list-style:none;cursor:pointer;font-size:.83rem;font-weight:720
+}
+.qa-workspace-advanced-filters>summary::-webkit-details-marker{display:none}
+.qa-workspace-advanced-filters>summary:hover,
+.qa-workspace-advanced-filters[open]>summary{background:#eff7f7;border-color:#a9ced0}
+.qa-filter-active-count{
+  display:inline-grid;place-items:center;min-width:20px;height:20px;
+  padding:0 5px;border-radius:99px;background:#236c70;color:#fff;font-size:.69rem
+}
+.qa-workspace-filter-options{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+  position:absolute;right:0;top:calc(100% + 7px);
+  z-index:12;width:min(560px,calc(100vw - 30px));max-height:min(66vh,500px);
+  overflow-y:auto;padding:15px;border:1px solid #cfdfe0;
+  border-radius:12px;background:#fff;box-shadow:0 15px 36px #1939431f;
+}
+.qa-workspace-filter-options .filter-select{
+  flex:1 1 auto;max-width:none;width:100%;min-width:0
+}
+.qa-workspace-filter-options .qa-saved-filter-controls{grid-column:1/-1;margin:3px 0 0}
+.qa-filter-reset-secondary{
+  grid-column:1/-1;justify-self:start;padding:7px 9px;
+  color:#286874;font-size:.77rem;font-weight:700
+}
+.qa-filter-reset-secondary:hover{text-decoration:underline}
+.qa-workspace-filter-line .qa-filter-field-label{font-size:.72rem}
+.qa-workspace-filter-line .qa-filter-input-row{min-width:0}
+/* Documentation libraries display titles and metadata; type is optional. */
+.qa-doc-advanced-filter{
+  align-self:end;min-width:0;position:relative
+}
+.qa-doc-advanced-filter>summary{
+  display:flex;align-items:center;min-height:44px;
+  padding:8px 12px;border:1px solid #d7e4e5;
+  background:#f9fcfc;border-radius:9px;cursor:pointer;
+  font-size:.79rem;font-weight:700;color:#376473;list-style:none
+}
+.qa-doc-advanced-filter>summary::-webkit-details-marker{display:none}
+.qa-doc-advanced-filter>summary::after{
+  content:"";margin:0 3px 3px auto;display:block;
+  width:7px;height:7px;border-right:2px solid #648087;
+  border-bottom:2px solid #648087;transform:rotate(45deg)
+}
+.qa-doc-advanced-filter[open]>summary::after{transform:rotate(225deg)}
+.qa-doc-advanced-filter>.field{padding:10px 0 0}
+.qa-doc-advanced-filter select{width:100%}
+.qa-doc-collection-help{font-size:.76rem;color:#536f79;margin:12px 0}
+.qa-doc-collection-help>summary{cursor:pointer;padding:8px 12px;line-height:1.45}
+.qa-doc-collection-help>p{padding:8px 12px!important;margin:0}
+.qa-doc-row .qa-resource-copy small{line-height:1.5}
+.qa-doc-row .qa-resource-actions{flex-wrap:wrap}
+.qa-doc-library{padding:18px 20px}
+.qa-doc-library-heading{margin-bottom:13px}
+.qa-doc-filters{gap:10px}
+.qa-doc-row{min-height:66px}
+/* Reuse compact form rhythm inside dialogs while preserving 44px targets. */
+.qa-modal-editor>.stack,
+.qa-modal-editor form.stack{gap:12px}
+.qa-modal-editor textarea{resize:vertical;min-height:74px}
+.qa-modal-editor .qa-modal-actions{padding-top:8px}
+@media(max-width:760px){
+  .qa-task-overview-focused .qa-task-info-card{padding:14px 15px}
+  .qa-task-overview-focused .qa-task-detail-grid{grid-template-columns:minmax(0,1fr)}
+  .qa-workspace-filter-line>.search-box{flex:1 1 100%}
+  .qa-workspace-advanced-filters{width:100%}
+  .qa-workspace-advanced-filters>summary{width:max-content}
+  .qa-workspace-filter-options{
+    position:static;margin-top:8px;width:100%;
+    max-height:none;box-shadow:none
+  }
+  .qa-doc-filters{grid-template-columns:minmax(0,1fr)}
+  .qa-doc-advanced-filter{align-self:stretch}
+  .qa-doc-library{padding:14px}
+}
+@media(max-width:420px){
+  .qa-workspace-filter-options{grid-template-columns:minmax(0,1fr)}
+  .qa-workspace-filter-line>.search-box{min-width:0}
+  .qa-task-metadata-details>summary{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+  .qa-progressive-details>summary::after{transition:none}
+}
+
+/* Documentation editor: primary work stays visible, auxiliary options do not. */
+.qa-doc-form{gap:12px}
+.qa-doc-form>.qa-progressive-details{background:#fafcfc}
+.qa-doc-form>.qa-progressive-details>summary small{
+  font-size:.72rem;font-weight:650;color:#506d74;margin-left:auto
+}
+.qa-doc-link-options,.qa-doc-editor-help{margin-top:8px}
+.qa-doc-link-options .field{margin:10px 13px 12px}
+.qa-doc-editor-help p{margin:10px 14px 12px}
+.qa-doc-publication-options>fieldset{
+  min-width:0;border:0;padding:12px 14px;margin:0
+}
+.qa-doc-publication-options .field{width:100%;min-width:0}
+.qa-doc-publication-options fieldset>p{
+  margin:9px 0;font-size:.76rem;line-height:1.55;color:#516c73
+}
+.qa-doc-publication-options select{width:100%}
+.qa-doc-existing-files{min-width:0}
+.qa-doc-existing-files>.qa-doc-files{padding:12px}
+.qa-doc-form .qa-doc-editor-tabs{margin-top:10px}
+
+/* Tools: privacy is contextual help, not a permanent info banner. */
+.qa-tools-privacy-details{margin:10px 0 12px;background:#f9fcfc}
+.qa-tools-privacy-details>summary{min-height:40px;font-size:.75rem;color:#4a6972}
+.qa-tools-privacy-details>p{margin:10px 14px 12px}
+.qa-tools-redesign .qa-tools-version-block.qa-tools-version-compact{
+ display:block;padding:13px 15px
+}
+.qa-tools-version-compact .field{max-width:360px}
+.qa-tools-redesign .qa-tools-surface>header{padding-bottom:12px}

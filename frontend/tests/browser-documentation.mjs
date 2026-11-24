@@ -125,6 +125,7 @@ try{
  assert.equal(await editor.getByLabel("Quem pode consultar?").inputValue(),"private");
  await editor.getByLabel("Título",{exact:true}).fill("Resolver falha de emissão");
  await editor.getByRole("combobox",{name:/^Tipo/}).selectOption("solucao");
+ await editor.locator(".qa-doc-link-options > summary").click();
  await editor.getByLabel("TF vinculada (opcional)").selectOption(task.id);
  await editor.getByLabel("Texto da documentação").fill("# Contexto\n\nFalha recorrente.\n\n## Solução\n\n1. Revisar configuração.\n2. Repetir emissão.");
  const videoBytes=await page.evaluate(()=>new Promise(resolve=>{
@@ -140,6 +141,7 @@ try{
  samples.set("modelo.sql",sql);
  const zip=Buffer.from("PK synthetic archive fixture");
  samples.set("exemplo.zip",zip);
+ await editor.locator(".qa-doc-publication-options > summary").click();
  await editor.locator("input[type=file]").setInputFiles([
   {name:"passos.txt",mimeType:"text/plain",buffer:Buffer.from("Passos detalhados do arquivo")},
   {name:"tutorial.webm",mimeType:"video/webm",buffer:video},
@@ -182,6 +184,7 @@ try{
  await page.keyboard.press("Escape");
  await viewer.getByRole("button",{name:"Editar documentação",exact:true}).click();
  const edit=page.getByRole("dialog",{name:"Editar documentação",exact:true});
+ await edit.locator(".qa-doc-publication-options > summary").click();
  await edit.getByLabel("Quem pode consultar?").selectOption("public");
  await edit.getByRole("button",{name:"Salvar documentação"}).click();await edit.waitFor({state:"detached"});assert.equal(record.publica,true);
  await page.keyboard.press("Escape");await page.getByRole("button",{name:"Documentações públicas",exact:true}).click();

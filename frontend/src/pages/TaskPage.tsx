@@ -908,7 +908,10 @@ export default function TaskPage() {
           {scenarioForm.formState.errors.passos && <small role="alert" className="text-error">{scenarioForm.formState.errors.passos.message}</small>}</label>
         <label className="field">Resultado esperado<textarea rows={3} {...scenarioForm.register("esperado")} />
           {scenarioForm.formState.errors.esperado && <small role="alert" className="text-error">{scenarioForm.formState.errors.esperado.message}</small>}</label>
-        <label className="field">Observações (opcional)<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
+        <details className="qa-progressive-details qa-scenario-form-extra" key={editingScenario?.id??"new"} open={Boolean(editingScenario?.observacoes?.trim())}>
+          <summary>Observações adicionais (opcional)</summary>
+          <label className="field">Observações<textarea rows={2} {...scenarioForm.register("observacoes")} /></label>
+        </details>
         <div className="qa-modal-actions">
           <Button type="button" variant="secondary" onPress={closeScenarioEditor}>Cancelar</Button>
           {!editingScenario && <Button type="submit" variant="secondary"
@@ -925,7 +928,7 @@ export default function TaskPage() {
     <section id="qa-task-panel-tests" role="tabpanel" aria-labelledby="qa-task-tab-tests"
       className="qa-task-panel" hidden={activeTab !== "tests"}>
       <div className="qa-task-section-heading qa-tests-heading">
-        <div><h2>Testes da TF</h2><p>Registre cada resultado no modo guiado ou consulte a lista.</p></div>
+        <div><h2>Testes da TF</h2><p>{executionMode==="guided"?"Um cenário de cada vez.":"Consulte e execute os cenários cadastrados."}</p></div>
         <div className="qa-tests-tools">
           <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
             <Plus size={16} aria-hidden="true"/> Cenário
@@ -1020,7 +1023,6 @@ export default function TaskPage() {
       <ToastNotice tone="error"
         message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
     </section>
-
     </section>
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"

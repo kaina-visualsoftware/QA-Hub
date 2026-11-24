@@ -97,6 +97,15 @@ try{
     await summary.click();
     assert.equal(await summary.getAttribute("aria-selected"),"true");
     await page.getByRole("heading",{name:"Informações da TF"}).waitFor();
+    const analysis=page.locator(".qa-task-progressive-panel");
+    assert.equal(await analysis.getAttribute("open"),null,
+      "Análise técnica deve iniciar recolhida");
+    const metadata=page.locator(".qa-task-metadata-details");
+    assert.equal(await metadata.getAttribute("open"),null,
+      "Campos administrativos devem iniciar recolhidos");
+    await analysis.locator("summary").click();
+    await analysis.getByText("Correção implementada").waitFor();
+    await analysis.locator("summary").click();
     assert.equal(await page.getByRole("tabpanel",{name:"Visão geral"}).isVisible(),true);
     assert.equal(await page.getByRole("tabpanel",{name:"Cenários"}).isVisible(),false);
     assert.equal(await page.getByRole("tabpanel",{name:"Relatórios e posts"}).isVisible(),false);

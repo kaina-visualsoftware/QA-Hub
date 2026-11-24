@@ -25,18 +25,21 @@ export default function ToolsPage(){
     <Icon size={23} aria-hidden="true"/><span><strong>{label}</strong><small>{description}</small></span>
    </button>)}
   </div>
-  <div className="qa-tools-local"><ShieldCheck size={17} aria-hidden="true"/> Processamento local no navegador. Textos e XML não são enviados ao servidor.</div>
+  <details className="qa-progressive-details qa-tools-privacy-details">
+    <summary><ShieldCheck size={16} aria-hidden="true"/> Privacidade das ferramentas</summary>
+    <p>A comparação de textos e XML é feita localmente no navegador.</p>
+  </details>
   <section role="tabpanel" id="qa-tool-panel-release" aria-labelledby="qa-tool-tab-release" hidden={tab!=='release'} className="qa-tools-surface">
-   <header><h2>Organizar uma release</h2><p>Informe a versão, prepare a lista autorizada e confira o comunicado antes de copiar.</p></header>
+   <header><h2>Organizar uma release</h2></header>
    <div className="qa-tools-form-body">
-    <div className="qa-tools-version-block"><div><h3>Versão da publicação</h3><p>A mesma versão será usada na lista e na revisão do comunicado.</p></div>
+    <div className="qa-tools-version-block qa-tools-version-compact">
      <label className="field">Versão da release<VersionInput value={version} onValueChange={setVersion}/><small>Formato: 00.00.00.0000</small></label>
     </div>
     <ReleaseOrganizer version={normalizeTaskVersion(version)} expanded/>
    </div>
   </section>
   <section role="tabpanel" id="qa-tool-panel-comparison" aria-labelledby="qa-tool-tab-comparison" hidden={tab!=='comparison'} className="qa-tools-surface">
-   <header><h2>Conferir alterações</h2><p>Escolha o formato e coloque as duas versões lado a lado. O resultado destaca o que foi adicionado, removido ou alterado.</p></header>
+   <header><h2>Conferir alterações</h2></header>
    <div className="qa-tools-form-body"><ComparisonTool initialMode="text" embedded/></div>
   </section>
  </div>;
