@@ -391,11 +391,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       ]);
       if(updatedFiles.error||updatedDocs.error||updatedRequirements.error||updatedEvidenceFiles.error||updatedSupport.error)
         throw Error("Não foi possível atualizar os arquivos e requisitos anexados.");
+      // A requirement created while this modal is open must not be silently
+      // skipped because it was absent from the prior checkbox snapshot.
+      const oldRequirementIds=new Set((requirements.data??[]).map(item=>item.id));
+      const newlyAdded=(updatedRequirements.data??[])
+        .filter(item=>!oldRequirementIds.has(item.id)).map(item=>item.id);
       const latest=planScenarioSources({task,scenarios,
         requirements:updatedRequirements.data??[],
         files:updatedFiles.data??[],documents:updatedDocs.data??[],
         evidence:caseEvidenceRecords(updatedSupport.data?.evidence),evidenceFiles:updatedEvidenceFiles.data??[],
-        selectedRequirementIds:selected,
+        selectedRequirementIds:[...selected,...newlyAdded],
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
       if(latest.signature!==plan.signature){
         setConsent(false);scenarioCheckpoint.current=null;setSourceProgress(null);
