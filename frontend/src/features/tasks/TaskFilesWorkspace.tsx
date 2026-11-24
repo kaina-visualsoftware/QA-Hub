@@ -37,8 +37,6 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
         <FileArchive size={19} aria-hidden="true"/>
         <div>
           <h3 id="qa-task-source-files-heading">Documentos e fontes da TF</h3>
-          <p>Arquivos originais, requisitos anexados e textos importados.
-            A visibilidade dos documentos acompanha a configuração geral da TF.</p>
         </div>
       </div>
       {own?<SourcesView task={task} userId={userId}
@@ -54,7 +52,6 @@ export default function TaskFilesWorkspace({task,userId,scenarios,
         <FileCheck2 size={19} aria-hidden="true"/>
         <div>
           <h3 id="qa-task-evidence-files-heading">Evidências de execução</h3>
-          <p>Capturas, logs, arquivos de validação e registros de auditoria.</p>
         </div>
       </div>
       <EvidencePanel task={task} userId={userId} scenarios={scenarios}
