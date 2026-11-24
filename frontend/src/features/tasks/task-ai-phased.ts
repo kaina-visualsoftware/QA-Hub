@@ -204,8 +204,6 @@ export async function generateTaskAiDraftPhased(text:string,{
       wait=>onChunkWait(part.index,wait));
      if(signal?.aborted)throw abortError();
      const parsed=parseGroundedFieldReply(data,part.text);
-     if(!Object.keys(parsed.values).length&&parsed.review.length)
-      throw Error("O bloco não retornou campos com evidência verificada.");
      state.fieldChunks![part.index]={
       fields:normalizeDraft(parsed.values).fields,
       review:parsed.review.map(item=>({...item,sourceLine:item.sourceLine===null?
