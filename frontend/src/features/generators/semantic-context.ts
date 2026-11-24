@@ -3,7 +3,7 @@ import {estimateContextTokens} from "../../lib/token-budget";
  * A quote must match the original exact substring. No ungrounded model statement
  * is inserted in the generated post/cases payload.
  */
-export type SemanticGoal="task"|"post"|"teste";
+export type SemanticGoal="task"|"post"|"teste"|"requisito";
 export type SemanticCategory=
  "regra"|"aceite"|"antes"|"depois"|"excecao"|"permissao"|"dado"|"resultado"|"contexto";
 export type SemanticChunk={
@@ -27,7 +27,8 @@ const identifiers=(text:string)=>new Set((text.match(/\b(?:RF|RNF|REQ|CR|CT)[-_ 
 const priority:Record<SemanticGoal,Record<SemanticCategory,number>>={
  task:{regra:7,aceite:6,antes:8,depois:8,excecao:6,permissao:6,dado:5,resultado:7,contexto:3},
  post:{regra:7,aceite:5,antes:10,depois:10,excecao:6,permissao:7,dado:6,resultado:7,contexto:4},
- teste:{regra:8,aceite:10,antes:5,depois:7,excecao:10,permissao:9,dado:9,resultado:8,contexto:3}
+ teste:{regra:8,aceite:10,antes:5,depois:7,excecao:10,permissao:9,dado:9,resultado:8,contexto:3},
+ requisito:{regra:10,aceite:10,antes:2,depois:5,excecao:10,permissao:9,dado:6,resultado:3,contexto:1}
 };
 function sourceChunks(input:string,source:"TF"|"REQ"):SemanticChunk[]{
  if(!input.trim())return [];
