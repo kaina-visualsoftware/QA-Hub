@@ -1,0 +1,113 @@
+/* New TF: short and long documents use the same legible, scrollable source map. */
+.qa-task-chunks{
+ display:grid;gap:10px;min-width:0;padding:14px 16px;
+ border:1px solid #dbe6e7;border-radius:13px;background:#fbfcfc;
+}
+.qa-task-chunks-head{display:flex;align-items:center;gap:10px;min-width:0}
+.qa-task-chunks-symbol{
+ display:grid;place-items:center;flex:0 0 37px;width:37px;height:37px;
+ border-radius:10px;background:#e8f2f0;color:#24766d
+}
+.qa-task-chunks-title{display:grid;gap:3px;flex:1;min-width:0}
+.qa-task-chunks-title strong{font-size:.88rem;color:#244950}
+.qa-task-chunks-title>span{font-size:.74rem;color:#5c7378;line-height:1.45}
+.qa-task-chunks-counter{white-space:nowrap;color:#1d625d;font-size:.82rem;font-weight:800;font-variant-numeric:tabular-nums}
+.qa-task-chunks-progress{display:block;appearance:auto;width:100%;height:8px;accent-color:#28887b;border:0}
+.qa-task-chunks-progress::-webkit-progress-bar{border-radius:10px;background:#e1e9e9}
+.qa-task-chunks-progress::-webkit-progress-value{border-radius:10px;background:#27877b}
+.qa-task-chunks-progress::-moz-progress-bar{border-radius:10px;background:#27877b}
+.qa-task-chunks-meta{display:flex;align-items:center;flex-wrap:wrap;gap:7px 14px;color:#60757a;font-size:.72rem}
+.qa-task-chunks-error{color:#a24c4c}
+.qa-task-chunks-cancel{
+ display:inline-flex;align-items:center;gap:5px;margin-left:auto;padding:5px 8px;
+ border:1px solid #cfdbdd;border-radius:7px;background:#fff;color:#42646a;
+ font-weight:700;cursor:pointer
+}
+.qa-task-chunks-cancel:focus-visible,.qa-task-chunk>summary:focus-visible{
+ outline:2px solid #187f7c;outline-offset:2px
+}
+.qa-task-chunks-scroll{
+ display:grid;gap:6px;max-height:290px;overflow-y:auto;overscroll-behavior:contain;
+ border-radius:9px
+}
+.qa-task-chunk{min-width:0;background:#fff;border:1px solid #dce6e8;border-radius:9px}
+.qa-task-chunk[open]{border-color:#aacdc8}
+.qa-task-chunk>summary{
+ display:flex;align-items:center;gap:9px;padding:10px 11px;cursor:pointer;
+ min-height:45px;list-style:none;color:#385a61
+}
+.qa-task-chunk>summary::-webkit-details-marker{display:none}
+.qa-task-chunk>summary:after{
+ content:"";display:block;flex:0 0 6px;width:6px;height:6px;
+ border-right:1.7px solid #607980;border-bottom:1.7px solid #607980;
+ transform:rotate(45deg);margin:0 4px 3px 2px
+}
+.qa-task-chunk[open]>summary:after{transform:rotate(225deg);margin-top:5px}
+.qa-task-chunk-number{white-space:nowrap;color:#284e54;font-weight:780;font-size:.77rem}
+.qa-task-chunk-source{font-size:.71rem;color:#61777d;flex:1;min-width:0;overflow-wrap:anywhere}
+.qa-task-chunk-status{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;color:#677b7f;white-space:nowrap}
+.qa-task-chunk--processing .qa-task-chunk-status{color:#197a73}
+.qa-task-chunk--complete .qa-task-chunk-status{color:#367b5b}
+.qa-task-chunk--failed .qa-task-chunk-status{color:#b24c4c}
+.qa-task-chunk-spin{animation:qa-wizard-spin 1.15s linear infinite}
+.qa-task-chunk-detail{display:grid;gap:8px;border-top:1px solid #e5eeee;padding:12px}
+.qa-task-chunk-detail>div{display:flex;align-items:center;gap:6px;color:#526e74;font-size:.73rem;font-weight:730}
+.qa-task-chunk-detail>pre{
+ min-width:0;max-height:180px;overflow:auto;
+ padding:10px 12px;margin:0;border-radius:8px;background:#f5f8f9;
+ font:400 .76rem/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;
+ color:#324b52;white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2
+}
+.qa-task-chunk-detail>small{color:#536d72;font-size:.72rem}
+.qa-task-chunks-footnote{color:#667b7f;font-size:.7rem;line-height:1.45}
+
+/* Reduce nested cards and make the document, its parts, and the primary action obvious. */
+.qa-wizard-source-panel--compact{gap:9px;padding:14px}
+.qa-wizard-source-panel--compact .qa-wizard-source-label{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap
+}
+.qa-wizard-source-panel--compact .qa-wizard-source-label strong{font-size:.84rem;color:#284d56}
+.qa-wizard-source-panel--compact .qa-wizard-source-label small{font-size:.72rem;color:#698087}
+.qa-wizard-source-panel--compact textarea{min-height:130px;max-height:50vh;line-height:1.6}
+.qa-wizard-source-panel--compact .qa-wizard-attachment-line{
+ padding-top:9px;align-items:center;gap:10px;border-color:#e8eeee
+}
+.qa-wizard-source-panel--compact .qa-wizard-attach-button{min-height:35px;padding:7px 11px;font-size:.77rem}
+.qa-wizard-source-panel--compact .qa-wizard-attachment-line>p{font-size:.7rem}
+.qa-wizard-ai-panel--compact{
+ display:grid;gap:10px;padding:13px 15px;background:#fff;border-color:#dce8e9
+}
+.qa-wizard-ai-panel--compact .qa-wizard-ai-panel-title strong{font-size:.85rem}
+.qa-wizard-ai-panel--compact .qa-wizard-ai-panel-title p{font-size:.74rem;margin-top:2px}
+.qa-wizard-ai-panel--compact .qa-wizard-consent{font-size:.76rem;line-height:1.5}
+.qa-wizard-ai-panel--compact .qa-wizard-primary{min-height:43px!important}
+.qa-wizard-ai-panel--compact .qa-wizard-ai-buttons{display:flex;align-items:center;gap:12px;min-width:0}
+.qa-wizard-ai-panel--compact .qa-wizard-ai-buttons>.qa-wizard-primary{flex:1;min-width:0;width:auto}
+.qa-wizard-ai-panel--compact .qa-wizard-manual-link{
+ flex-shrink:0;padding:9px 6px;font-size:.77rem;color:#316b71;font-weight:720;white-space:nowrap
+}
+.qa-wizard-ai-panel--compact .qa-wizard-manual-link:hover{text-decoration:underline}
+.qa-wizard-draft--compact{font-size:.74rem;color:#58747a}
+.qa-wizard-step--task{gap:12px}
+.qa-wizard-form-main{display:grid;gap:13px}
+.qa-wizard-form-main h4{margin:0;color:#294b54;font-size:.85rem}
+.qa-wizard-form-main .qa-wizard-summary-field{margin-top:3px}
+.qa-wizard-form-main textarea{min-height:96px}
+.qa-wizard-evidence-details>summary{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.qa-wizard-evidence-details>summary small{font-weight:600;color:#66787d}
+.qa-wizard-compact-reanalysis{
+ display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap
+}
+.qa-wizard-compact-reanalysis p{font-size:.76rem;color:#587178;line-height:1.45;flex:1;min-width:180px}
+.qa-wizard-compact-reanalysis button{flex-shrink:0}
+.qa-wizard-more .qa-wizard-group-hint{font-size:.76rem;color:#637980;line-height:1.4}
+@media(max-width:560px){
+ .qa-task-chunks{padding:12px;gap:8px}
+ .qa-task-chunks-scroll{max-height:250px}
+ .qa-task-chunk>summary{flex-wrap:wrap;gap:5px 9px}
+ .qa-task-chunk-number{width:100%}
+ .qa-task-chunk-status{margin-left:auto;white-space:normal}
+ .qa-wizard-ai-panel--compact .qa-wizard-ai-buttons{flex-direction:column;align-items:stretch;gap:4px}
+ .qa-wizard-ai-panel--compact .qa-wizard-ai-buttons>.qa-wizard-primary{width:100%;flex:auto}
+ .qa-wizard-ai-panel--compact .qa-wizard-manual-link{align-self:center}
+}
