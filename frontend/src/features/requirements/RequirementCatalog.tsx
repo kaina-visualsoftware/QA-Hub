@@ -50,6 +50,7 @@ export default function RequirementCatalog({
   const [editItem, setEditItem] = useState<Requirement | null>(null);
   const [revisions, setRevisions] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const [visibleLimit,setVisibleLimit] = useState(12);
   const [stateFilter, setStateFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -301,15 +302,15 @@ export default function RequirementCatalog({
     <div className="section-heading mt-4"><h3 className="font-semibold">Requisitos cadastrados</h3>
       <span className="count-pill">{visible.length}</span></div>
     <div className="flex flex-wrap gap-2">
-      <label className="field grow-2">Buscar<input value={term} onChange={(e) => setTerm(e.target.value)}
+      <label className="field grow-2">Buscar<input value={term} onChange={(e) => {setTerm(e.target.value);setVisibleLimit(12);}}
         placeholder="Código, título, regra..." /></label>
-      <label className="field">Situação<select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+      <label className="field">Situação<select value={stateFilter} onChange={(e) => {setStateFilter(e.target.value);setVisibleLimit(12);}}>
         <option value="all">Todos</option><option value="rascunho">Rascunhos</option>
         <option value="aprovado">Aprovados</option><option value="arquivado">Arquivados</option>
       </select></label>
     </div>
     {visible.length === 0 && <p className="text-muted text-sm">Nenhum requisito encontrado neste filtro.</p>}
-    {visible.map((item) => <article className="requirement-row" key={item.id}>
+    {visible.slice(0,visibleLimit).map((item) => <article className="requirement-row" key={item.id}>
       <div className="section-heading">
         <div><strong>{item.codigo} · {item.titulo}</strong>
           <p className="text-muted text-sm">{item.tipo} · {item.estado} · revisão {item.versao || 1}</p>
@@ -377,6 +378,11 @@ export default function RequirementCatalog({
         </div>
       </form>}
     </article>)}
+    {visible.length>visibleLimit&&<div className="qa-scenario-more">
+      <Button variant="secondary" onPress={()=>setVisibleLimit(limit=>limit+12)}>
+        Mostrar mais requisitos ({visible.length-visibleLimit} restantes)
+      </Button>
+    </div>}
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={error} tone="error"/>
   </div>;
