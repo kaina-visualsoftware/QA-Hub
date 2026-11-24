@@ -146,7 +146,6 @@ export function TaskResultsDashboard({scenarios}:{scenarios:Scenario[]}){
   return <section className="qa-task-results" aria-labelledby="qa-task-results-title">
     <header className="qa-task-info-heading">
       <h2 id="qa-task-results-title">Indicadores da execução</h2>
-      <p>Gráficos calculados a partir dos resultados efetivamente salvos nesta TF.</p>
     </header>
     <div className="qa-task-results-metrics" aria-label="Resumo dos cenários">
       <div><strong>{total}</strong><span>Cenários totais</span></div>
@@ -154,6 +153,8 @@ export function TaskResultsDashboard({scenarios}:{scenarios:Scenario[]}){
       <div><strong>{coverage}%</strong><span>Execução registrada</span></div>
       <div><strong>{results[1].count+results[2].count}</strong><span>Falhas e bloqueios</span></div>
     </div>
+    <details className="qa-task-results-details">
+      <summary>Ver distribuição dos resultados</summary>
     <div className="qa-task-results-distribution">
       <div className="qa-task-results-distribution-header">
         <h3>Distribuição dos resultados</h3>
@@ -174,6 +175,7 @@ export function TaskResultsDashboard({scenarios}:{scenarios:Scenario[]}){
       {total===0&&<p className="text-muted text-sm">
         Cadastre cenários para visualizar a distribuição de resultados.</p>}
     </div>
+    </details>
   </section>;
 }
 
