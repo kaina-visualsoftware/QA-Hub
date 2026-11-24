@@ -26,6 +26,7 @@ import {generateBatchedWithNvidia,unfinishedGeneratorStages} from "../generators
 import type {GeneratorCheckpoint} from "../generators/batched-stream";
 import {recoverInterruptedWizardCases} from "./wizard-case-recovery";
 import {prepareGeneratorContext} from "../generators/context-preparation";
+import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
 import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
 import type {AiWaitState} from "../../lib/ai-retry";
