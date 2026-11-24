@@ -818,7 +818,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           {field("observacoes","Observações",true)}
         </div>
       </details>
-      {!!fieldEvidence.length&&<details className="qa-wizard-more qa-wizard-evidence-details">
+      {!!fieldEvidence.length&&<details open={fieldEvidence.some(item=>item.status==="needs_review")} className="qa-wizard-more qa-wizard-evidence-details">
         <summary>
           Evidências da NVIDIA
           <small>{fieldEvidence.filter(item=>item.status==="needs_review").length?
@@ -833,7 +833,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onApply={(item,value)=>{
               update(item as keyof TaskDraft,value);
               delete automaticallyFilled.current[item as keyof TaskDraft];
-              setFieldEvidenceApproved(old=>({...old,[item]:false}));
+              setFieldEvidenceApproved({});
             }}/>
         </div>
       </details>}
