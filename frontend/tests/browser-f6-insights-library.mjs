@@ -170,6 +170,14 @@ try{
   await page.goto(ROOT+"#/painel");
   await page.getByRole("heading",{name:"Visão geral"}).waitFor();
   assert.equal(requests.length,0,"Insights must not run until requested");
+  const statuses=page.locator("details.qa-dashboard-status-details");
+  assert.equal(await statuses.getAttribute("open"),null,
+    "Status breakdown should begin collapsed to reduce dashboard clutter");
+  await statuses.locator("summary").click();
+  await statuses.locator(".qa-dashboard-statuses").waitFor({state:"visible"});
+  await statuses.locator("summary").click();
+  assert.equal(await page.getByRole("button",{name:"Explorar indicadores"}).count(),1,
+    "Insights action should appear once in the compact dashboard header");
   await page.getByRole("button",{name:"Explorar indicadores"}).click();
   const dialog=page.getByRole("dialog",{name:"Inteligência de QA"});
   await dialog.getByRole("heading",{name:"Cobertura atual por módulo"}).waitFor();
