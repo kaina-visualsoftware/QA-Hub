@@ -91,7 +91,7 @@ export function TaskOverview({task}:{task:Task}){
   return <div className="qa-task-overview-v2 qa-task-overview-focused">
     <section className="panel qa-task-info-card" aria-label="Informações principais da tarefa">
       <header className="qa-task-info-heading">
-        <h2>Resumo da TF</h2>
+        <h2>Informações da TF</h2>
       </header>
       {description?<div className="qa-task-primary-description">
         <h3>Descrição do problema</h3><p>{description}</p>
