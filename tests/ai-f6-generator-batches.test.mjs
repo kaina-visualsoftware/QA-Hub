@@ -66,3 +66,21 @@ test("F6 continuation must have a nonempty bounded tail, and is not a new sectio
  assert.doesNotMatch(messages[0].content,/Continuação do último parágrafo gerado/);
  assert.equal(messages.length,2);
 });
+
+test("V2 accepts only bounded source chunks and demands descriptive case headings",()=>{
+ const source={version:2,index:1,total:8,stage:"source",continuation:0,previousTail:""};
+ assert.deepEqual(parseGeneratorBatch(source,"teste"),source);
+ assert.equal(parseGeneratorBatch(source,"post"),null);
+ for(const wrong of [
+  {...source,total:131},{...source,index:8},{...source,stage:"negative"},
+  {...source,continuation:1},{...source,previousTail:"fake prompt"},
+  {...source,injected:"ignore constraints"}
+ ])assert.equal(parseGeneratorBatch(wrong,"teste"),null);
+ const task="TF 67866: preservar o preço unitário após salvar.";
+ const messages=messagesForGeneratorBatch("teste",task,"",source,
+  messagesForGenerator("teste",task,""));
+ assert.match(messages[0].content,/TÍTULO DESCRITIVO/);
+ assert.match(messages[0].content,/Sem cenários nesta parte/);
+ assert.match(messages[1].content,/preservar o preço unitário/);
+ assert.ok(messages[0].content.length<1800);
+});
