@@ -31,6 +31,11 @@ import {generateBatchedWithNvidia,matchesGeneratorCheckpoint,
 import {recoverCompletedCases,onlyNewResumedCases} from "./recover-cases";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
+import {listRequirementSources} from "../requirements/requirements-data";
+import {planScenarioSources} from "./case-source-plan";
+import type {CaseDocument,CasePlan} from "./case-source-plan";
+import {generateCasesBySource,casePartStatus} from "./case-chunk-generation";
+import type {CasePartsCheckpoint,CasePartProgress} from "./case-chunk-generation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
@@ -87,6 +92,9 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
   const [batchProgress,setBatchProgress]=useState<GeneratorBatchProgress|null>(null);
   const batchCheckpoint=useRef<GeneratorCheckpoint|null>(null);
   const focusedCheckpoint=useRef<GeneratorCheckpoint|null>(null);
+  const scenarioCheckpoint=useRef<CasePartsCheckpoint|null>(null);
+  const [sourceProgress,setSourceProgress]=useState<CasePartProgress|null>(null);
+  const [sourcePreview,setSourcePreview]=useState("");
   const [showSetup, setShowSetup] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [raw, setRaw] = useState("");
@@ -128,6 +136,35 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     queryFn: () => fetchTaskSupport(supabase, task, userId),
     enabled: formOwn
   });
+  const caseSources=useQuery({
+    queryKey:["gen-scenario-files",userId,task.id],
+    queryFn:()=>listRequirementSources(task.id),
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
+  const caseDocuments=useQuery({
+    queryKey:["gen-scenario-documents",userId,task.id],
+    queryFn:async():Promise<CaseDocument[]>=>{
+      const {data,error}=await supabase.from("qa_documentos")
+        .select("id,tarefa_id,titulo,conteudo,tipo").eq("tarefa_id",task.id)
+        .limit(151);
+      if(error)throw error;
+      if((data??[]).length>150)throw Error(
+        "Mais de 150 documentos associados. Divida a geração para preservar as fontes.");
+      return (data??[]) as CaseDocument[];
+    },
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
+  const scenarioPlan=useMemo<{plan:CasePlan|null;error:string}>(()=>{
+    if(mode!=="teste"||!caseSources.data||!caseDocuments.data||!requirements.data)
+      return {plan:null,error:""};
+    try{
+      return {plan:planScenarioSources({task,scenarios,
+        requirements:requirements.data,files:caseSources.data,
+        documents:caseDocuments.data,selectedRequirementIds:selected,
+        instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))}),error:""};
+    }catch(err){return {plan:null,error:messageOf(err)};}
+  },[mode,caseSources.data,caseDocuments.data,requirements.data,task,scenarios,
+    selected,extra,preset]);
   useEffect(() => {
     if (requirements.data) setSelected(requirements.data.map((item) => item.id));
   }, [requirements.data]);
@@ -146,14 +183,19 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setChangedCodes([]);
     lastGenerationInput.current=null;
     batchCheckpoint.current=null;focusedCheckpoint.current=null;setBatchProgress(null);
+    scenarioCheckpoint.current=null;setSourceProgress(null);setSourcePreview("");
   }, [task.id, mode]);
 
   const assembly = useMemo<GeneratorAssembly | null>(() => {
     if (!support.data || !requirements.data) return null;
     try {
-      const taskContext = composeFullTaskContext(task, support.data, { limit: 250000 });
+      // Cases consume original sources independently, without this legacy compact view.
+      const taskContext = composeFullTaskContext(task,mode==="teste"?
+        {scenarios:[],documents:[],evidence:[],events:[],failures:[]}:
+        support.data,{limit:250000});
       const approved = composeRequirementContext(
-        requirements.data, selected, sanitizeAiContext(combinedInstructions(mode,preset,extra)),
+        requirements.data,mode==="teste"?[]:selected,
+        sanitizeAiContext(combinedInstructions(mode,preset,extra)),
         { taskId: task.id, limit: 250000 }
       );
       const prepared=prepareGeneratorContext(taskContext.text,approved.text);
@@ -176,13 +218,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     setConsent(false);
     setPartialConsent(false);
     setCompactApproved(false);
-  },[context?.taskContext.text,context?.approved.text]);
+  },[context?.taskContext.text,context?.approved.text,scenarioPlan.plan?.signature]);
   const canSend = formOwn && !generating && !busySave && !revisionBusy && !auditBusy && !!context &&
     !requirements.isLoading && !support.isLoading &&
     !requirements.isError && !support.isError && consent &&
-    (!missingSources.length || partialConsent) &&
-    (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved)) &&
-    !semantic.working;
+    (mode==="teste"?
+      Boolean(scenarioPlan.plan)&&!caseSources.isLoading&&!caseDocuments.isLoading&&
+      !caseSources.isError&&!caseDocuments.isError&&
+      (!scenarioPlan.plan?.warnings.length||partialConsent):
+      (!missingSources.length||partialConsent)&&
+      (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved))&&
+      !semantic.working);
 
   const available = useMemo(() =>
     markScenarioDuplicates(cases, scenarios)
