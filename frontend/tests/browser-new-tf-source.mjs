@@ -314,6 +314,7 @@ try{
   releaseTaskRequest();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
   await chunkPanel.waitFor({state:"detached"});
+  await wizard.getByText(/Partes analisadas \(/).waitFor();
   assert.equal(await wizard.getByText(/A TF será salva somente após a finalização/).count(),1);
   assert.match(aiRequests[0].text,/Análise: o rateio ignora descontos negativos/);
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
