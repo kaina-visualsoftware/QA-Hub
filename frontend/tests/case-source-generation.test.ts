@@ -37,12 +37,17 @@ describe("geração de cenários por fontes",()=>{
     {id:"f2",tipo_fonte:"arquivo",nome_arquivo:"imagem-sem-texto.png",
      texto_extraido:""}],
    documents:[{id:"d1",titulo:"Relatório de correção",
-    conteudo:"Aplicada validação de valor total dos itens."}]
+    conteudo:"Aplicada validação de valor total dos itens."}],
+   evidence:[{id:"e1",tipo:"print",resumo:"A grade exibe preços incorretos"}],
+   evidenceFiles:[{id:"ef1",nome_original:"comprovante.png",mime_type:"image/png",
+     descricao:"O total gravado aparece após reabrir a tela"}]
   });
   expect(plan.parts.map(p=>p.text).join(" ")).toContain("manter casas decimais");
   expect(plan.parts.map(p=>p.text).join(" ")).toContain("Retornar preço gravado");
   expect(plan.parts.map(p=>p.text).join(" ")).toContain("valor total dos itens");
   expect(plan.warnings[0]).toContain("imagem-sem-texto.png");
+  expect(plan.warnings.some(w=>w.includes("comprovante.png"))).toBe(true);
+  expect(plan.parts.map(p=>p.text).join(" ")).toContain("O total gravado aparece");
   expect(plan.sources.some(s=>s.label==="Anexo: regras.txt")).toBe(true);
  });
  it("gera títulos descritivos até com cabeçalho numérico sem descrição",()=>{
