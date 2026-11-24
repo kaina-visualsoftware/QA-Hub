@@ -1,0 +1,197 @@
+/*
+ * QA Hub · compact workspace
+ * Shared visual hierarchy. Content is never removed by CSS; optional data
+ * stays reachable through details, tabs and dedicated actions.
+ */
+:root{--qa-border:#dce7e9;--qa-muted:#557079;--qa-radius:12px}
+.main-area{padding:clamp(14px,2vw,28px)}
+.page-heading{margin-bottom:16px;gap:12px}
+.page-heading h1{font-size:clamp(1.4rem,2.1vw,1.95rem);line-height:1.2;margin:0 0 4px}
+.page-heading p{font-size:.79rem;line-height:1.45}
+.stack{gap:12px}
+.panel{padding:clamp(14px,1.6vw,20px);border-radius:var(--qa-radius);box-shadow:none}
+.section-heading{gap:10px;align-items:center}
+.section-heading h2,.action-rail h2{font-size:1.03rem}
+.empty-state{padding:30px 14px}
+.topbar{min-height:60px;padding:10px clamp(15px,2vw,30px)}
+.topbar-kicker,.brand small,.sidebar-section{display:none}
+.sidebar{padding:19px 10px 14px}
+.brand{padding:0 10px 18px}
+.nav-link{padding:10px 12px;border-radius:9px;min-height:42px;gap:10px;font-size:.83rem}
+.sidebar-footer{padding:14px 10px 3px}
+.account-email{display:none}
+.stat-strip{padding:14px 18px;margin-bottom:16px;gap:12px;border-radius:12px}
+.stat-strip strong{font-size:1.35rem}
+.stat-strip span{margin-bottom:2px}
+.stat-strip>div+div{padding-left:14px}
+.task-row{padding:11px 7px;gap:12px}
+.task-initial{flex-basis:40px;min-height:38px;border-radius:9px}
+.task-text strong{font-size:.85rem}
+.task-text small{font-size:.72rem;margin-top:2px}
+.search-box,.filter-select{min-height:42px;border-radius:9px}
+.filter-line{gap:9px;margin-top:12px}
+.field{gap:5px;font-size:.78rem}
+.form-grid{gap:11px}
+.field input,.field select,.field textarea{padding:9px 11px;border-radius:9px}
+.field input,.field select{min-height:44px}
+.field textarea{min-height:76px}
+.generator-context,.generator-case,.requirement-row{border-radius:10px}
+.generator-context{padding:10px 12px;background:#fff}
+.generator-stats{gap:7px}
+.generator-stats span{padding:6px 10px;font-size:.74rem}
+.generator-case{padding:12px 14px;background:#fff}
+.requirement-row{padding:12px 14px}
+.requirement-row>.section-heading>div:first-child{min-width:0}
+.requirement-row>.section-heading strong{font-size:.83rem;line-height:1.45}
+.requirement-row>.section-heading p.text-muted{font-size:.71rem;margin-top:3px}
+.requirement-row .qa-resource-list-detail{margin-top:8px}
+.requirements-tabs{gap:5px;margin-top:12px!important}
+.requirements-tabs .filter-chip{padding:8px 11px;border-radius:8px}
+.qa-requirement-row-more{position:relative;min-width:0}
+.qa-requirement-row-more>summary{
+  list-style:none;cursor:pointer;min-height:34px;display:flex;align-items:center;
+  border:1px solid var(--qa-border);border-radius:8px;padding:6px 10px;
+  color:#466973;font-size:.75rem;font-weight:700;background:#fff
+}
+.qa-requirement-row-more>summary::-webkit-details-marker{display:none}
+.qa-requirement-row-more[open]>summary{background:#eff7f7}
+.qa-requirement-row-menu{position:absolute;z-index:3;right:0;top:calc(100% + 4px);
+  display:flex;gap:7px;flex-direction:column;padding:9px;border:1px solid var(--qa-border);
+  background:#fff;box-shadow:0 10px 25px #1237441b;border-radius:9px;min-width:135px
+}
+.qa-requirement-row-menu button{justify-content:center}
+.qa-requirement-preview-fields{margin-top:9px;border-top:1px solid var(--qa-border);padding-top:6px}
+.qa-requirement-preview-fields>summary,.qa-requirement-source-details>summary{
+  cursor:pointer;min-height:35px;padding:7px 3px;color:#266776;font-size:.77rem;font-weight:700
+}
+.qa-requirement-source-details p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto}
+.qa-requirement-preview-fields .form-grid{margin-top:7px}
+.qa-requirement-preview-fields .stack{gap:9px}
+.qa-task-hero{padding:15px 18px;border-radius:var(--qa-radius);box-shadow:none;margin-top:10px!important}
+.qa-task-hero-top{align-items:center;gap:13px}
+.qa-task-hero h1{font-size:clamp(1.22rem,2vw,1.7rem);line-height:1.28;margin:3px 0 7px;letter-spacing:-.025em}
+.qa-task-eyebrow{font-size:.63rem;letter-spacing:.06em}
+.qa-task-meta{gap:5px}
+.qa-task-meta span{padding:3px 7px;border-radius:6px;font-size:.7rem}
+.qa-task-hero-controls{gap:6px;justify-content:flex-end}
+.qa-task-hero-controls button{min-height:38px;font-size:.76rem}
+.qa-task-header-delete{width:37px;min-width:37px;padding:0!important;justify-content:center;display:inline-flex;align-items:center}
+.qa-task-config-button{height:38px;width:38px}
+.qa-task-compact-status{margin-top:10px;gap:8px 16px}
+.qa-task-compact-status span{font-size:.72rem}
+.qa-task-hero .qa-task-hero-progress{margin-top:9px}
+.qa-task-tabs-workspace{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  margin-top:11px;padding:2px;gap:3px;background:#fff;
+  border:1px solid var(--qa-border);border-radius:11px;
+}
+.qa-task-tabs-workspace .qa-task-tab{border:0;border-radius:8px;min-width:0;min-height:44px;padding:9px 8px;gap:7px;font-size:.77rem}
+.qa-task-tabs-workspace .qa-task-tab.selected{background:#edf6f5}
+.qa-task-tabs-workspace .qa-task-tab.selected:after{height:2px;bottom:1px;left:13px;right:13px}
+.qa-task-tabs-workspace .qa-task-tab-long{display:inline}
+.qa-task-tabs-workspace .qa-task-tab-short{display:none}
+.qa-task-panel{padding-top:12px}
+.qa-task-overview-focused{max-width:100%;gap:10px;padding-top:0}
+.qa-task-overview-focused .qa-task-info-card{padding:15px 17px}
+.qa-task-overview-focused .qa-task-primary-description{margin-top:9px;padding:0;background:none;border:0}
+.qa-task-overview-focused .qa-task-primary-description p{font-size:.84rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.qa-task-description-more{margin-top:9px;border-top:1px solid var(--qa-border);padding-top:6px}
+.qa-task-description-more>summary{font-size:.77rem;color:#236875;font-weight:700;cursor:pointer;min-height:32px;padding:6px 0}
+.qa-task-description-more>p{padding:10px 0;max-width:100ch}
+.qa-task-metadata-details{margin-top:12px}
+.qa-task-progressive-heading{min-height:42px}
+.qa-task-progressive-heading h2{font-size:.9rem}
+.qa-task-technical-list .qa-task-detail{padding:9px 0}
+.qa-task-panel .qa-workflow-anchor{padding:13px 15px}
+.qa-task-section-heading{gap:8px;margin-bottom:10px}
+.qa-task-section-heading h2,.qa-task-area-heading h2{font-size:1.04rem}
+.qa-task-section-heading p,.qa-task-area-heading p{font-size:.77rem;line-height:1.45}
+.qa-tests-tools,.qa-task-area-actions{gap:7px;flex-wrap:wrap}
+.qa-tests-tools button,.qa-task-area-actions button{min-height:38px}
+.qa-execution-switch{margin:7px 0 10px}
+.qa-task-panel .scenario{padding:12px 0}
+.qa-task-panel .scenario-heading h3{font-size:.86rem}
+.qa-task-panel .scenario-result-actions{margin-top:9px;gap:6px}
+.qa-task-panel .scenario-result-actions button{min-height:40px}
+.qa-scenario-more{display:flex;justify-content:center;padding:14px 6px 6px}
+.qa-task-deliverables{padding:14px}
+.qa-task-resources-tabs,.qa-task-resource-panel{min-width:0}
+.qa-task-resource-group-heading{margin-bottom:12px}
+.qa-task-resource-group-heading p{font-size:.74rem;line-height:1.45}
+.qa-modal{border-radius:13px}
+.qa-modal-header{padding:14px 18px}
+.qa-modal-heading h2{font-size:clamp(1.15rem,1.6vw,1.45rem)}
+.qa-modal-description{font-size:.76rem;line-height:1.45;margin-top:4px}
+.qa-modal-content{padding:14px 18px 18px}
+.qa-modal-content .section-heading{margin-bottom:9px}
+.qa-modal-content .generator-context{background:#fff}
+.qa-modal-content .form-grid{gap:11px}
+.qa-modal-actions{gap:8px}
+.qa-wizard-section-intro{gap:8px}
+.qa-wizard-section-intro h3{font-size:1.03rem}
+.qa-wizard-section-mark{width:32px;height:32px}
+.qa-wizard-progress{margin-bottom:10px}
+.qa-wizard-step.stack{gap:12px}
+.qa-wizard-source-panel,.qa-wizard-ai-panel,.qa-wizard-fields-panel{border-radius:10px}
+.qa-wizard-source-panel--compact{padding:12px}
+.qa-wizard-ai-panel--compact{padding:12px}
+.qa-wizard-blocks-compact{border:1px solid var(--qa-border);border-radius:9px;padding:8px 11px}
+.qa-wizard-blocks-compact>summary{cursor:pointer;font-size:.78rem;font-weight:700;color:#376772;padding:5px}
+.qa-wizard-blocks-compact .qa-task-field-chunks{margin-top:9px}
+.qa-wizard-case{padding:12px}
+.qa-wizard-case>p{font-size:.78rem}
+.qa-doc-library{padding:14px 16px}
+.qa-doc-row{min-height:56px}
+@media(max-width:900px){
+  .app-shell{grid-template-columns:205px minmax(0,1fr)}
+  .main-area{padding:14px}
+  .qa-task-hero-top{align-items:flex-start}
+  .qa-task-hero-controls{flex-wrap:wrap}
+}
+@media(max-width:800px){
+  .app-shell{display:block}
+  .sidebar{padding:9px 12px}
+  .topbar{min-height:56px;padding:9px 15px}
+  .qa-task-hero-top{flex-direction:column;align-items:stretch;gap:10px}
+  .qa-task-hero-controls{justify-content:flex-start}
+  .qa-task-hero-controls>.status-chip{margin-right:auto;order:-1}
+  .qa-task-tabs-workspace .qa-task-tab-long{display:none}
+  .qa-task-tabs-workspace .qa-task-tab-short{display:inline}
+}
+@media(max-width:500px){
+  .main-area{padding:12px}
+  .page-heading h1{font-size:1.4rem}
+  .panel{padding:12px;border-radius:11px}
+  .stat-strip{padding:12px;gap:9px;margin-bottom:12px}
+  .stat-strip>div+div{padding-left:0}
+  .stat-strip strong{font-size:1.2rem}
+  .qa-task-hero{padding:12px}
+  .qa-task-hero h1{font-size:1.22rem}
+  .qa-task-tabs-workspace{gap:1px;padding:2px}
+  .qa-task-tabs-workspace .qa-task-tab{
+    min-height:47px;display:flex;flex-direction:column;gap:3px;
+    padding:6px 3px;font-size:.66rem
+  }
+  .qa-task-tabs-workspace .qa-task-tab-count{position:absolute;top:1px;right:2px;min-width:17px;height:17px;font-size:.61rem}
+  .qa-task-panel{padding-top:10px}
+  .qa-task-overview-focused .qa-task-info-card{padding:12px}
+  .qa-tests-tools{width:100%}
+  .qa-tests-tools button{flex:1 1 auto}
+  .qa-task-panel .qa-workflow-anchor{padding:11px}
+  .qa-task-panel .scenario-result-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qa-task-panel .scenario-result-actions button{min-height:42px}
+  .qa-task-panel .scenario-result-actions button:nth-child(4){grid-column:1/-1}
+  .qa-task-resource-group-heading p{display:none}
+  .qa-modal,.qa-modal-full{border-radius:0}
+  .qa-modal-header{padding:12px 14px}
+  .qa-modal-content{padding:12px 13px 22px}
+  .qa-wizard-section-mark{display:none}
+  .generator-stats{gap:5px}
+  .generator-stats span{padding:5px 8px}
+  .qa-requirement-row-menu{position:static;box-shadow:none;margin-top:5px}
+  .requirement-row>.section-heading{gap:9px}
+  .requirement-row .flex.flex-wrap.gap-2{gap:5px}
+}
+@media(prefers-reduced-motion:reduce){
+  .qa-task-description-more>summary{transition:none}
+}
