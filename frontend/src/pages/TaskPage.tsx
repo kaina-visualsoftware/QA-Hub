@@ -924,8 +924,9 @@ export default function TaskPage() {
 
     <section id="qa-task-panel-tests" role="tabpanel" aria-labelledby="qa-task-tab-tests"
       className="qa-task-panel" hidden={activeTab !== "tests"}>
+      {activeTab==="tests"&&<>
       <div className="qa-task-section-heading qa-tests-heading">
-        <div><h2>Testes da TF</h2><p>Registre cada resultado no modo guiado ou consulte a lista.</p></div>
+        <div><h2>Testes da TF</h2><p>{executionMode==="guided"?"Um cenário de cada vez.":"Consulte e execute os cenários cadastrados."}</p></div>
         <div className="qa-tests-tools">
           <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
             <Plus size={16} aria-hidden="true"/> Cenário
@@ -946,14 +947,14 @@ export default function TaskPage() {
           className={executionMode==="list"?"selected":""}
           onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
       </div>
-      <div hidden={executionMode!=="guided"} className="qa-guided-container">
+      {executionMode==="guided"&&<div className="qa-guided-container">
         <GuidedExecution key={task.id} task={task} userId={userId} scenarios={scenarios.data ?? []} owner={canExecute}
           canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
           onNewScenario={startScenario}
           canManage={own} onEdit={openScenarioEditor}
           onDelete={scenario=>void requestScenarioDeletion(scenario)}/>
-      </div>
-    <section ref={executionRef} hidden={executionMode!=="list"}
+      </div>}
+    {executionMode==="list"&&<section ref={executionRef}
       className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
         <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
@@ -1019,8 +1020,8 @@ export default function TaskPage() {
       </div>
       <ToastNotice tone="error"
         message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
-    </section>
-
+    </section>}
+    </>}
     </section>
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
