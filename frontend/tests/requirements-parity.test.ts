@@ -41,6 +41,14 @@ describe("migração de requisitos R1-R4", () => {
       .toThrow("Nenhum requisito verificável");
   });
 
+  it("reserva códigos RF explícitos antes de numerar candidatos sem ID", () => {
+    const source = ["O sistema deve impedir a exclusão de vendas aprovadas.",
+      "RF-001: O sistema deve registrar as alterações."].join("\n\n");
+    const items = parseRequirements(source);
+    expect(items.map(item => item.codigo)).toEqual(["RF-002","RF-001"]);
+    expect(items.every(item => item.selected && !item.duplicate)).toBe(true);
+    expect(prepareImport(source,items).items).toHaveLength(2);
+  });
   it("organiza requisitos sem aprovar automaticamente", () => {
     const source = "RF001: O sistema deve recalcular o pedido.";
     const items = parseRequirements(source);
