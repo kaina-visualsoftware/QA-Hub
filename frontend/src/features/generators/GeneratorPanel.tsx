@@ -32,6 +32,7 @@ import {recoverCompletedCases,onlyNewResumedCases} from "./recover-cases";
 import type {GeneratorCheckpoint,GeneratorBatchProgress} from "./batched-stream";
 import {prepareGeneratorContext} from "./context-preparation";
 import {listRequirementSources} from "../requirements/requirements-data";
+import {listEvidenceFiles} from "../evidence/evidence-files";
 import {planScenarioSources} from "./case-source-plan";
 import type {CaseDocument,CasePlan} from "./case-source-plan";
 import {generateCasesBySource} from "./case-chunk-generation";
@@ -142,6 +143,11 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     queryFn:()=>listRequirementSources(task.id),
     enabled:formOwn&&mode==="teste",refetchOnMount:"always"
   });
+  const caseEvidenceFiles=useQuery({
+    queryKey:["gen-scenario-evidence-files",userId,task.id],
+    queryFn:()=>listEvidenceFiles(supabase,task.id),
+    enabled:formOwn&&mode==="teste",refetchOnMount:"always"
+  });
   const caseDocuments=useQuery({
     queryKey:["gen-scenario-documents",userId,task.id],
     queryFn:async():Promise<CaseDocument[]>=>{
@@ -156,15 +162,17 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     enabled:formOwn&&mode==="teste",refetchOnMount:"always"
   });
   const scenarioPlan=useMemo<{plan:CasePlan|null;error:string}>(()=>{
-    if(mode!=="teste"||!caseSources.data||!caseDocuments.data||!requirements.data)
+    if(mode!=="teste"||!caseSources.data||!caseDocuments.data||!caseEvidenceFiles.data||!requirements.data)
       return {plan:null,error:""};
     try{
       return {plan:planScenarioSources({task,scenarios,
         requirements:requirements.data,files:caseSources.data,
-        documents:caseDocuments.data,selectedRequirementIds:selected,
+        documents:caseDocuments.data,evidence:support.data?.evidence??[],
+        evidenceFiles:caseEvidenceFiles.data,selectedRequirementIds:selected,
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))}),error:""};
     }catch(err){return {plan:null,error:messageOf(err)};}
-  },[mode,caseSources.data,caseDocuments.data,requirements.data,task,scenarios,
+  },[mode,caseSources.data,caseDocuments.data,caseEvidenceFiles.data,support.data,
+    requirements.data,task,scenarios,
     selected,extra,preset]);
   useEffect(() => {
     if (requirements.data) setSelected(requirements.data.map((item) => item.id));
@@ -225,7 +233,8 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     !requirements.isError && !support.isError && consent &&
     (mode==="teste"?
       Boolean(scenarioPlan.plan)&&!caseSources.isLoading&&!caseDocuments.isLoading&&
-      !caseSources.isError&&!caseDocuments.isError&&
+      !caseEvidenceFiles.isLoading&&!caseSources.isError&&!caseDocuments.isError&&
+      !caseEvidenceFiles.isError&&
       (!scenarioPlan.plan?.warnings.length||partialConsent):
       (!missingSources.length||partialConsent)&&
       (!needsCompactReview || (semantic.enabled?semantic.ready:compactApproved))&&
@@ -367,14 +376,15 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     try{
       // Fresh scoped reads are required: files and requirements may have been
       // added AFTER creation, without closing the current generation modal.
-      const [updatedFiles,updatedDocs,updatedRequirements]=await Promise.all([
-        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch()
+      const [updatedFiles,updatedDocs,updatedRequirements,updatedEvidenceFiles]=await Promise.all([
+        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch(),caseEvidenceFiles.refetch()
       ]);
-      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error)
+      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error||updatedEvidenceFiles.error)
         throw Error("Não foi possível atualizar os arquivos e requisitos anexados.");
       const latest=planScenarioSources({task,scenarios,
         requirements:updatedRequirements.data??[],
         files:updatedFiles.data??[],documents:updatedDocs.data??[],
+        evidence:support.data?.evidence??[],evidenceFiles:updatedEvidenceFiles.data??[],
         selectedRequirementIds:selected,
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
       if(latest.signature!==plan.signature){
@@ -758,13 +768,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
-    {(support.isLoading || requirements.isLoading || caseSources.isLoading || caseDocuments.isLoading) && !postMode &&
+    {(support.isLoading || requirements.isLoading || caseSources.isLoading || caseDocuments.isLoading || caseEvidenceFiles.isLoading) && !postMode &&
       <p role="status" className="mt-4">Carregando o contexto da TF…</p>}
-    {(support.isError || requirements.isError || caseSources.isError || caseDocuments.isError || generationError || scenarioPlan.error) &&
+    {(support.isError || requirements.isError || caseSources.isError || caseDocuments.isError || caseEvidenceFiles.isError || generationError || scenarioPlan.error) &&
       <p className="notice error mt-4" role="alert">
-        {messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error)!==
+        {messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error||caseEvidenceFiles.error)!==
          "Falha ao executar a operação."?
-         messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error):
+         messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error||caseEvidenceFiles.error):
          scenarioPlan.error||generationError}
       </p>}
     {context&&formOwn&&<AuditTrailPanel key={task.id} taskId={task.id} userId={userId}
