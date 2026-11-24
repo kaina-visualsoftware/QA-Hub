@@ -209,3 +209,45 @@
 @media(prefers-reduced-motion:reduce){
   .qa-task-description-more>summary{transition:none}
 }
+
+
+/* Saved presets are independently discoverable, not nested in advanced filters. */
+.qa-workspace-filter-line>.qa-saved-filter-controls{
+  position:relative;flex:0 0 auto;margin:0;align-self:end;
+  border:0;border-radius:0;min-width:0
+}
+.qa-workspace-filter-line>.qa-saved-filter-controls>summary{
+  min-height:44px;display:flex;align-items:center;justify-content:center;
+  padding:10px 14px;border:1px solid #d0e0e2;border-radius:10px;
+  background:#fff;color:#355c66;list-style:none;font-size:.82rem;
+  font-weight:720;white-space:nowrap
+}
+.qa-workspace-filter-line>.qa-saved-filter-controls>summary::-webkit-details-marker{display:none}
+.qa-workspace-filter-line>.qa-saved-filter-controls[open]>summary{
+  background:#eff7f7;border-color:#a9ced0
+}
+.qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
+  position:absolute;top:calc(100% + 7px);right:0;z-index:13;
+  width:min(420px,calc(100vw - 30px));max-height:min(70vh,530px);
+  overflow:auto;border:1px solid #cfdfe0;border-radius:12px;
+  background:#fff;box-shadow:0 15px 36px #1939431f
+}
+@media(max-width:760px){
+  .qa-workspace-filter-line>.qa-saved-filter-controls{
+    width:auto;max-width:100%
+  }
+  .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
+    position:static;width:min(420px,100%);max-height:none;box-shadow:none;margin-top:8px
+  }
+}
+@media(max-width:420px){
+  .qa-workspace-filter-line>.qa-saved-filter-controls{
+    width:100%
+  }
+  .qa-workspace-filter-line>.qa-saved-filter-controls>summary{
+    width:100%
+  }
+  .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
+    width:100%
+  }
+}
