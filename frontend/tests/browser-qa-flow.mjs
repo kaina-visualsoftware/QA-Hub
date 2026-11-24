@@ -295,7 +295,9 @@ try{
   page.once("dialog",acceptFailedRegeneration);
   await page.getByRole("button",{name:"Gerar novamente",exact:true}).click();
   page.off("dialog",acceptFailedRegeneration);
-  await page.getByText(/IA indisponível na simulação/).waitFor();
+  await page.getByRole("button",{name:/Retomar \d+ parte\(s\)/}).waitFor();
+  assert.equal(await page.locator(".qa-case-source-failed").count()>0,true,
+    "A falha de uma parte deve manter estado visível para retomada");
   await page.getByRole("button",{name:"Voltar ao resultado anterior"}).click();
   await caseReview.getByText("Editar cenário").click();
   assert.equal(await caseTitle.inputValue(),"Versão revisada manualmente",
