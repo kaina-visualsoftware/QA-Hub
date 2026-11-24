@@ -106,8 +106,8 @@ try{
 
   const guided=page.getByRole("region",{name:"Execução guiada dos testes"});
   await guided.waitFor();
-  assert.equal(await page.locator(".qa-workflow-anchor").count(),0,
-    "Modo guiado não pode montar a listagem de cenários simultaneamente");
+  assert.equal(await page.locator(".qa-workflow-anchor").isVisible(),false,
+    "A lista deve estar completamente oculta durante o modo guiado");
   assert.equal(await page.getByRole("button",{name:"Guiado",exact:true}).getAttribute("aria-pressed"),"true");
   const first=guided.getByRole("group",{name:"Registrar resultado de Venda sem desconto"});
   await first.waitFor();
@@ -212,8 +212,8 @@ try{
   await page.getByRole("button",{name:"Lista",exact:true}).click();
   assert.equal(await page.getByRole("button",{name:"Lista",exact:true}).getAttribute("aria-pressed"),"true");
   await page.getByRole("group",{name:"Resultado de Falha anterior"}).waitFor();
-  assert.equal(await page.locator(".qa-guided-container").count(),0,
-    "Modo lista não deve deixar os cartões guiados renderizados");
+  assert.equal(await page.locator(".qa-guided-container").isVisible(),false,
+    "Modo lista deve ocultar a execução guiada sem apagar o rascunho");
   assert.equal(mutations.length,4);
 
   // Route-to-route reuse must not keep a draft or scenario from a different TF.
