@@ -300,17 +300,19 @@ try{
   assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
-  const statusPanel=wizard.locator(".qa-wizard-work");
-  await statusPanel.getByText("Interpretando a tarefa").waitFor();
-  await statusPanel.getByText(/NVIDIA: analisando parte/).waitFor();
-  assert.equal(await statusPanel.locator(".qa-wizard-work-steps li.is-active").count(),1,
-    "Only the actual in-flight stage should be marked active");
+  const chunkPanel=wizard.getByRole("region",{name:"Partes da tarefa para análise"});
+  await chunkPanel.getByText("Parte 01").waitFor();
+  await chunkPanel.getByText("Analisando…").waitFor();
+  assert.equal(await chunkPanel.locator(".qa-task-chunks-progress").count(),1,
+    "Chunked creation must show one determinate progress bar");
+  assert.equal(await wizard.locator(".qa-wizard-work").count(),0,
+    "Do not stack another processing card over the chunk list");
   assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
     "Navigation must be blocked during in-flight NVIDIA analysis");
   await taskStarted;
   releaseTaskRequest();
   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
-  await statusPanel.waitFor({state:"detached"});
+  await chunkPanel.waitFor({state:"detached"});
   assert.equal(await wizard.getByText(/A TF será salva somente após a finalização/).count(),1);
   assert.match(aiRequests[0].text,/Análise: o rateio ignora descontos negativos/);
   assert.equal(await wizard.getByLabel("Título da tarefa").inputValue(),
@@ -318,9 +320,16 @@ try{
   assert.equal(await wizard.getByLabel("Versão").inputValue(),"12.09.00.0000");
   assert.equal(await wizard.getByLabel("Resumo do problema / descrição").inputValue(),
     "O desconto não era removido corretamente em certos pedidos.");
-  const details=wizard.locator("details.qa-wizard-more");
-  assert.equal(await details.getAttribute("open"),"",
-    "A análise técnica gerada deve estar visível para revisão na primeira geração");
+  const technical=wizard.locator("details.qa-wizard-more").filter({
+    has:wizard.locator("summary").getByText("Análise técnica",{exact:true})
+  });
+  const administrative=wizard.locator("details.qa-wizard-more").filter({
+    has:wizard.locator("summary").getByText("Ambiente, responsável e observações",{exact:true})
+  });
+  assert.equal(await technical.getAttribute("open"),null,
+    "Advanced technical fields must start collapsed to reduce clutter");
+  await technical.locator("summary").click();
+  await administrative.locator("summary").click();
   for(const [label,value] of [
     ["Como funciona","Os descontos são rateados entre os itens do pedido."],
     ["Causa identificada","A rotina ignorava valores negativos."],
@@ -330,7 +339,7 @@ try{
     ["Empresa","Empresa de teste"],["Testador","Analista QA"],
     ["Observações","Conferir desconto e baixa financeira."]
   ]){
-    const input=details.locator("label.field").filter({hasText:label})
+    const input=wizard.locator("label.field").filter({hasText:label})
       .locator("textarea,input").first();
     assert.equal(await input.inputValue(),value,
       "The initial AI generation must fill "+label+" like the regeneration flow");
@@ -458,7 +467,9 @@ try{
   const longSource="Pedido 88771. Condição de desconto e regra fiscal. ".repeat(2200)+" MARCADOR FINAL DO RELATÓRIO";
   await wizard.getByLabel("Informações da tarefa").fill(longSource);
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),longSource);
-  await wizard.getByText(/Processamento por blocos:/).waitFor();
+  await wizard.getByText(/Texto dividido em/).waitFor();
+  assert.ok(await wizard.locator(".qa-task-chunk").count()>=10,
+    "Large documents must visibly list each source part before analysis");
    assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0);
    await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
    const beforeChunks=aiRequests.length;
@@ -485,7 +496,7 @@ try{
    const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
      "RESULTADO: Nenhum teste executado foi informado.";
    await wizard.getByLabel("Informações da tarefa").fill(semanticSource);
-   await wizard.getByText(/Processamento por blocos:/).waitFor();
+   await wizard.getByText(/Texto dividido em/).waitFor();
    await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
    const beforeSemantic=aiRequests.length;
    await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
