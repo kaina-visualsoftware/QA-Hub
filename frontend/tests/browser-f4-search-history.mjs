@@ -134,6 +134,7 @@ try {
   assert.equal(await page.locator(".task-list-entry").count(),1);
   assert.equal(requests.at(-1).p_search,"QA-9999");
 
+  await page.locator(".qa-workspace-advanced-filters > summary").click();
   await page.getByText("Filtros salvos",{exact:true}).click();
   await page.getByRole("textbox",{name:"Nome do filtro"}).fill("Descontos especiais");
   await page.getByRole("button",{name:"Salvar filtro atual"}).click();
