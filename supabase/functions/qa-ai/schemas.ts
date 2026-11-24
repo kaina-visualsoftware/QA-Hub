@@ -41,8 +41,10 @@ function decodeModel(response:unknown):{data:unknown;repaired:boolean}|null{
  const choice=payload.choices?.[0];
  if(choice?.finish_reason==="length"||!choice?.message||
   choice.message.tool_calls||choice.message.function_call)return null;
- const raw=choice.message.content;
- if(typeof raw!=="string"||!raw.trim()||raw.length>60000)return null;
+ const content=choice.message.content;
+ const raw=typeof content==="string"?content:Array.isArray(content)?
+  content.map(part=>typeof part?.text==="string"?part.text:"").join(""):"";
+ if(!raw.trim()||raw.length>60000)return null;
  let source=raw.trim();
  const fence=String.fromCharCode(96).repeat(3);
  if(source.startsWith(fence)){
@@ -67,11 +69,54 @@ function evidence(source:string,value:string,quote:string,repaired:boolean,
  };
  return {...checked,derivation};
 }
+/** NVIDIA free endpoints sometimes wrap a valid fields object, provide
+ * plain string entries, or add harmless explanatory keys. Preserve *only*
+ * allowlisted task fields and never treat an uncited claim as verified.
+ */
+function normalizeFieldsPayload(input:unknown,source:string){
+ if(!input||typeof input!=="object"||Array.isArray(input))return null;
+ const root=input as Record<string,unknown>;
+ const wrapped=root.fields??(root.draft&&typeof root.draft==="object"?
+  (root.draft as Record<string,unknown>).fields??root.draft:undefined)??root;
+ const entries=Array.isArray(wrapped)?
+  wrapped.map(item=>{
+   if(!item||typeof item!=="object"||Array.isArray(item))return ["",null] as const;
+   const obj=item as Record<string,unknown>;
+   return [typeof obj.field==="string"?obj.field:"",obj] as const;
+  }):
+  wrapped&&typeof wrapped==="object"?Object.entries(wrapped):null;
+ if(!entries||entries.length>60)return null;
+ const fields:Record<string,{value:string;evidence:string;derivation?:"explicit"|"synthesized"}>={};
+ for(const [key,item] of entries){
+  if(!allowed.has(key)||Object.hasOwn(fields,key))continue;
+  const entry=item&&typeof item==="object"&&!Array.isArray(item)?
+   item as Record<string,unknown>:null;
+  const value=typeof item==="string"?item:typeof item==="number"?
+   String(item):entry?(typeof entry.value==="string"?entry.value:
+    typeof entry.text==="string"?entry.text:""):"";
+  if(!value.trim()||value.length>20000)continue;
+  const quoted=entry?(typeof entry.evidence==="string"?entry.evidence:
+   typeof entry.quote==="string"?entry.quote:""):"";
+  // Literal field values may serve as their *own* quote only if independently
+  // found in the input; inferred prose without a quote stays in review.
+  const literal=!quoted&&value.length>=12&&value.length<=550&&
+   source.includes(value)?value:"";
+  const evidence=(quoted||literal).slice(0,550);
+  const derivation=entry?.derivation==="synthesized"?"synthesized":"explicit";
+  fields[key]={value:value.trim(),evidence,derivation};
+ }
+ // Unknown-only objects are not valid successful extractions.
+ if(entries.length&&Object.keys(fields).length===0)return null;
+ return {fields};
+}
+
 export type ReviewCandidate={field:string;value:string;evidence:SourceEvidence};
 export function groundedTaskFields(response:unknown,source:string){
  const decoded=decodeModel(response);
  if(!decoded)return null;
- const parsed=fieldsSchema.safeParse(decoded.data);
+ const candidate=normalizeFieldsPayload(decoded.data,source);
+ if(!candidate)return null;
+ const parsed=fieldsSchema.safeParse(candidate);
  if(!parsed.success)return null;
  const draft:Record<string,string>={},field_evidence:Record<string,SourceEvidence>={};
  const review_fields:ReviewCandidate[]=[];
@@ -84,7 +129,8 @@ export function groundedTaskFields(response:unknown,source:string){
    draft[name]=value.trim();field_evidence[name]=record;
   }else review_fields.push({field:name,value:value.trim(),evidence:record});
  }
- if(!anchored&&Object.keys(parsed.data.fields).length)return null;
+ // A missing quotation is a review candidate, not a provider 502.
+ // Nothing unanchored is ever promoted to draft or used as verified evidence.
  // Older F4 clients read only draft and cannot apply review-only values.
  return {draft,field_evidence,review_fields,repaired:decoded.repaired};
 }
