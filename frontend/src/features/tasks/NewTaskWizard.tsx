@@ -19,6 +19,9 @@ import {
 import type { SuggestedScenario } from "./task-ai";
 import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
 import {splitTaskFieldSource} from "./task-ai-chunks";
+import type {TaskFieldChunkResult} from "./task-ai-chunks";
+import {TaskFieldChunkPanel} from "./TaskFieldChunkPanel";
+import type {ChunkProcessingStatus} from "./TaskFieldChunkPanel";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
 import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
@@ -129,6 +132,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const [taskPending,setTaskPending]=useState(0);
   const [taskPartial,setTaskPartial]=useState(false);
+  const [taskChunkResults,setTaskChunkResults]=useState<Record<number,TaskFieldChunkResult>>({});
+  const [taskChunkStatuses,setTaskChunkStatuses]=useState<Record<number,ChunkProcessingStatus>>({});
   const [fieldEvidence,setFieldEvidence]=useState<FieldReview[]>([]);
   const [scenarioEvidence,setScenarioEvidence]=useState<ScenarioReview[]>([]);
   const [fieldEvidenceApproved,setFieldEvidenceApproved]=useState<Record<string,boolean>>({});
@@ -144,8 +149,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const taskSource=useMemo(()=>combine("",sourceText,taskFiles),[sourceText,taskFiles]);
-  const plannedTaskParts=useMemo(()=>taskSource.trim()?
-    splitTaskFieldSource(cleanQaSourceText(taskSource)).length:0,[taskSource]);
+  const taskChunks=useMemo(()=>taskSource.trim()?
+    splitTaskFieldSource(cleanQaSourceText(taskSource)):[],[taskSource]);
+  const plannedTaskParts=taskChunks.length;
   type CasePreparation={
     originalTask:string;originalRequirements:string;
     prepared:ReturnType<typeof prepareGeneratorContext>
@@ -189,6 +195,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+      setTaskChunkResults({});setTaskChunkStatuses({});
       caseCheckpoint.current=null;caseSourceKey.current=null;
       recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
@@ -253,6 +260,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }else setNotice("");
     automaticallyFilled.current={};
     taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+    setTaskChunkResults({});setTaskChunkStatuses({});
     caseCheckpoint.current=null;caseSourceKey.current=null;
     recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
@@ -312,9 +320,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         fieldsOnly:true,
         checkpoint:taskPending>0?taskCheckpoint.current:null,
         onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
+          setTaskChunkResults({...checkpoint.fieldChunks});
           setTaskPending(pipelinePendingCount(checkpoint));
           setFieldEvidence([...checkpoint.fieldReview]);
           setScenarioEvidence([...checkpoint.seedReview,...Object.values(checkpoint.scenarioReview).flat()]);},
+        onFieldChunkState:(index,status)=>setTaskChunkStatuses(previous=>({
+          ...previous,[index]:status
+        })),
         onProgress:progress=>setWork({kind:"task",
           phase:progress.stage==="fields"?1:2,
           detail:progress.detail,
@@ -368,7 +380,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         ? "Análise cancelada. Campos concluídos foram preservados nesta sessão; clique em retomar."
         :reason instanceof Error?reason.message:"Falha ao analisar a TF.");
     }
-    finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;}
+    finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;
+      setTaskChunkStatuses(previous=>Object.fromEntries(Object.entries(previous)
+        .filter(([,status])=>status!=="processing")) as Record<number,ChunkProcessingStatus>);
+    }
   }
   function continueManual(){
     if(busy)return;
@@ -615,7 +630,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     <div className="qa-wizard-save-hint"><ShieldCheck size={15} aria-hidden="true"/>
       A TF será salva somente após a finalização.
     </div>
-    {work&&<section className="qa-wizard-work" data-process={work.kind}>
+    {work&&(work.kind!=="task"||step!==1)&&<section className="qa-wizard-work" data-process={work.kind}>
       <div className="qa-wizard-work-heading">
         <span className="qa-wizard-work-icon"><LoaderCircle aria-hidden="true" size={20}/></span>
         <div role="status" aria-live="polite" aria-atomic="true">
@@ -656,36 +671,40 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       </p>}
     </section>}
     {error&&<ToastNotice message={error} tone="error"/>}
-    {step===1&&<section className="qa-wizard-step stack">
+    {step===1&&<section className="qa-wizard-step qa-wizard-step--task stack">
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileText size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">01 · ORIGEM</span>
           <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Conteúdo da tarefa</h3>
-          <p>Cole o chamado completo e adicione os documentos que a IA deve considerar.</p>
+          <p>Cole o texto ou anexe um arquivo. A divisão em partes é automática.</p>
         </div>
       </div>
-      <div className="qa-wizard-source-panel">
-        <label className="field">Informações da tarefa
-          <textarea id="qa-wizard-source" rows={8} disabled={busy}
+      <div className="qa-wizard-source-panel qa-wizard-source-panel--compact">
+        <div className="qa-wizard-source-label">
+          <strong>Informações da tarefa</strong>
+          <small>{taskContextLength.toLocaleString("pt-BR")} caracteres</small>
+        </div>
+        <div className="field">
+          <textarea id="qa-wizard-source" aria-label="Informações da tarefa" rows={6} disabled={busy}
             value={sourceText} onChange={event=>alterSource(event.target.value)}
-            placeholder="Cole o problema, a análise de viabilidade, a correção e demais informações da TF."/>
-        </label>
+            placeholder="Cole aqui o problema, a análise de viabilidade, a correção e os requisitos."/>
+        </div>
         <div className="qa-wizard-attachment-line">
           {filePicker(false)}
           <p>TXT, MD, PDF ou DOCX · até 10 MB por arquivo</p>
         </div>
       </div>
-      {!!taskContextLength&&<p className="qa-wizard-size">
-        {taskContextLength.toLocaleString("pt-BR")} caracteres no contexto da tarefa
+      <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
+        statuses={taskChunkStatuses} running={analyzing}
+        quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+      {taskContextLength>250000&&<p className="text-error" role="alert">
+        O limite de análise por tarefa é de 250.000 caracteres.
       </p>}
-      {!!plannedTaskParts&&<p className="qa-wizard-size" role="status">
-         Processamento por blocos: {plannedTaskParts} parte(s). Cada trecho será analisado sem cortes.
-       </p>}
-       <div className="qa-wizard-ai-panel">
+       <div className="qa-wizard-ai-panel qa-wizard-ai-panel--compact">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
-          <div><strong>Preenchimento inteligente</strong>
-            <p>A NVIDIA organiza os campos para você revisar na próxima etapa.</p>
+          <div><strong>Gerar dados com a NVIDIA</strong>
+            <p>Os resultados poderão ser revisados antes de salvar.</p>
           </div>
         </div>
         <label className="qa-wizard-consent">
@@ -693,18 +712,19 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             onChange={event=>setConsentTask(event.target.checked)}/>
           Autorizo enviar o texto colado e o conteúdo extraído dos arquivos à NVIDIA.
         </label>
-        <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||!taskContextLength}
-          onPress={()=>void generateTask()}>
-          {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
-            <Sparkles size={17} aria-hidden="true"/>}
-          {analyzing?"Analisando tarefa…":taskPending?
-  "Retomar análise ("+taskPending+" etapa(s) pendentes)":"Gerar tarefa com IA"}
-          {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
-        </Button>
-      </div>
-      <div className="qa-wizard-manual">
-        <span>ou</span>
-        <button type="button" disabled={busy} onClick={continueManual}>Continuar manualmente</button>
+        <div className="qa-wizard-ai-buttons">
+          <Button className="qa-wizard-primary" isDisabled={busy||!consentTask||
+            !taskContextLength||taskContextLength>250000}
+            onPress={()=>void generateTask()}>
+            {analyzing?<LoaderCircle size={17} className="qa-wizard-spinner" aria-hidden="true"/>:
+              <Sparkles size={17} aria-hidden="true"/>}
+            {analyzing?"Analisando partes…":taskPending?
+              "Retomar "+taskPending+" parte(s)":"Gerar tarefa com IA"}
+            {!analyzing&&<ArrowRight size={17} aria-hidden="true"/>}
+          </Button>
+          <button type="button" className="qa-wizard-manual-link"
+            disabled={busy} onClick={continueManual}>Continuar manualmente</button>
+        </div>
       </div>
       {recoverable&&<div className="qa-wizard-recover">
         <strong>Rascunho da sessão anterior</strong>
@@ -719,7 +739,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           Descartar
         </Button>
       </div>}
-      <label className="qa-wizard-draft">
+      <label className="qa-wizard-draft qa-wizard-draft--compact">
         <input type="checkbox" checked={remember} onChange={event=>{
           setRemember(event.target.checked);
           if(!event.target.checked)discardNewTaskDraft(userId);
@@ -731,73 +751,64 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         <span className="qa-wizard-section-mark"><ClipboardList size={18} aria-hidden="true"/></span>
         <div><span className="qa-wizard-kicker">02 · CONFERÊNCIA</span>
           <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Revise os dados da TF</h3>
-          <p>Confira e ajuste as informações antes de criar os casos de teste.</p>
+          <p>Confira as informações principais. Dados técnicos e evidências ficam disponíveis abaixo.</p>
         </div>
       </div>
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
         <span>{aiUsed?(taskPartial?"Análise parcial — confira as pendências":
-  "Análise concluída com IA"):"Preenchimento manual"}</span>
+          "Análise concluída com IA"):"Preenchimento manual"}</span>
         <b>{filledFields} campo(s) preenchido(s)</b>
       </div>
-      <TaskFieldEvidenceReview fields={fieldEvidence}
-        confirmed={fieldEvidenceApproved}
-        disabled={busy}
-        onConfirm={(field,checked)=>setFieldEvidenceApproved(old=>({...old,[field]:checked}))}
-        onApply={(field,value)=>{
-          update(field as keyof TaskDraft,value);
-          delete automaticallyFilled.current[field as keyof TaskDraft];
-          setFieldEvidenceApproved(old=>({...old,[field]:false}));
-        }}/>
-      {aiUsed&&<div className="qa-wizard-ai-review">
-        <div>
-          <strong>{missingFields.length?
-            "Confira os campos não identificados":"Campos principais identificados"}</strong>
-          <p>{missingFields.length?
-            "Sem informações confirmadas para: "+missingFields.join(", ")+
-            ". Revise o texto ou preencha manualmente; a IA não deve inventar dados.":
-            "Confira o resultado antes de avançar. Você pode analisar novamente sem perder suas edições."}</p>
-        </div>
-        <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
-          {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
-            <Sparkles size={16} aria-hidden="true"/>}
-          {analyzing?"Analisando…":taskPending?
-  "Retomar "+taskPending+" etapa(s) pendentes":"Analisar novamente"}
-        </Button>
-      </div>}
-      <div className="qa-wizard-fields-panel">
-        <h4>Identificação</h4>
-        <div className="qa-wizard-form-grid">
-        <label className="field" style={{gridColumn:"1/-1"}}>Título da tarefa
+      <div className="qa-wizard-fields-panel qa-wizard-form-main">
+        <h4>Dados principais</h4>
+        <label className="field">Título da tarefa
           <input id="qa-wizard-title" value={draft.titulo} maxLength={240}
             disabled={busy} onChange={event=>update("titulo",event.target.value)}/>
           {draftErrors.titulo&&<small role="alert" className="text-error">{draftErrors.titulo}</small>}
         </label>
-        {field("codigo","Código da TF")}
-        <label className="field">Tipo de teste
-          <select value={draft.tipo_teste} disabled={busy}
-            onChange={event=>{
-            setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}));
-            setConsentCases(false);
-          }}>
-            <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
-          </select>
-        </label>
-        {field("versao","Versão")}
-        {field("sistema","Sistema / módulo")}
+        <div className="qa-wizard-summary-field">
+          {field("descricao","Resumo do problema / descrição",true)}
+        </div>
+        <div className="qa-wizard-form-grid">
+          {field("codigo","Código da TF")}
+          <label className="field">Tipo de teste
+            <select value={draft.tipo_teste} disabled={busy}
+              onChange={event=>{
+                setDraft(current=>({...current,tipo_teste:event.target.value as "BUILD"|"RELEASE"}));
+                setConsentCases(false);
+              }}>
+              <option value="BUILD">BUILD</option><option value="RELEASE">RELEASE</option>
+            </select>
+          </label>
+          {field("versao","Versão")}
+          {field("sistema","Sistema / módulo")}
         </div>
       </div>
-      <div className="qa-wizard-fields-panel">
-        <h4>Descrição do problema</h4>
-        {field("descricao","Resumo do problema / descrição",true)}
-      </div>
-      <details className="qa-wizard-more" key={aiUsed?"ai":"manual"} open={aiUsed}>
-        <summary>Análise técnica e demais informações {aiUsed?"· revisar dados da IA":""}</summary>
+      {aiUsed&&<div className="qa-wizard-compact-reanalysis">
+        <p>{missingFields.length?
+          missingFields.length+" campo(s) principais não identificados. Preencha somente dados documentados.":
+          "Campos identificados. Você pode corrigir qualquer informação antes de avançar."}</p>
+        <Button variant="secondary" isDisabled={busy||!consentTask} onPress={()=>void generateTask()}>
+          {analyzing?<LoaderCircle size={16} className="qa-wizard-spinner" aria-hidden="true"/>:
+            <Sparkles size={16} aria-hidden="true"/>}
+          {analyzing?"Analisando…":taskPending?
+            "Retomar "+taskPending+" parte(s)":"Analisar novamente"}
+        </Button>
+      </div>}
+      <details className="qa-wizard-more">
+        <summary>Análise técnica</summary>
         <div className="stack mt-3">
+          <p className="qa-wizard-group-hint">Funcionamento, causa, correção e conclusão da TF.</p>
           {field("explicacao","Como funciona",true)}
           {field("causa","Causa identificada",true)}
           {field("correcao","Correção realizada",true)}
           {field("conclusao","Conclusão",true)}
+        </div>
+      </details>
+      <details className="qa-wizard-more">
+        <summary>Ambiente, responsável e observações</summary>
+        <div className="stack mt-3">
           <div className="qa-wizard-form-grid">
             {field("ambiente","Ambiente")}
             {field("base_teste","Base de teste")}
@@ -807,6 +818,33 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           {field("observacoes","Observações",true)}
         </div>
       </details>
+      {!!fieldEvidence.length&&<details className="qa-wizard-more qa-wizard-evidence-details">
+        <summary>
+          Evidências da NVIDIA
+          <small>{fieldEvidence.filter(item=>item.status==="needs_review").length?
+            fieldEvidence.filter(item=>item.status==="needs_review").length+" item(ns) para conferir":
+            fieldEvidence.length+" evidência(s) disponível(is)"}</small>
+        </summary>
+        <div className="mt-3">
+          <TaskFieldEvidenceReview fields={fieldEvidence}
+            confirmed={fieldEvidenceApproved}
+            disabled={busy}
+            onConfirm={(item,checked)=>setFieldEvidenceApproved(old=>({...old,[item]:checked}))}
+            onApply={(item,value)=>{
+              update(item as keyof TaskDraft,value);
+              delete automaticallyFilled.current[item as keyof TaskDraft];
+              setFieldEvidenceApproved(old=>({...old,[item]:false}));
+            }}/>
+        </div>
+      </details>}
+      {aiUsed&&taskChunks.length>0&&<details className="qa-wizard-more qa-wizard-chunks-review">
+        <summary>Partes analisadas ({Object.keys(taskChunkResults).length}/{taskChunks.length})</summary>
+        <div className="mt-3">
+          <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
+            statuses={taskChunkStatuses} running={analyzing}
+            quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+        </div>
+      </details>}
       <div className="qa-wizard-actions">
         <Button variant="secondary" isDisabled={busy} onPress={()=>{setStep(1);setError("");}}>
           <ArrowLeft size={16}/> Voltar
