@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseRequirements, prepareImport, normalizeRequirement
+  parseRequirements, prepareImport, normalizeRequirement, inspectRequirementSource
 } from "../src/lib/legacy/qa-requirements.mjs";
 import {
   calculateRequirementCoverage, coverageCsv
@@ -27,6 +27,20 @@ const testCase = { id: caseId, tarefa_id: taskId, titulo: "Atualizar desconto", 
 const link = { id: "55555555-5555-4555-8555-555555555555",
   tarefa_id: taskId, requisito_id: reqId, cenario_id: caseId };
 describe("migração de requisitos R1-R4", () => {
+  it("separa metadados e rascunhos copiados sem transformar o cliente de origem em RF", () => {
+    const source = [
+      "RF-004 · Cliente de origem: Oestetrigo Distribuição e Representação de Alimentos Ltda (17351)rascunho · 0 cenário(s) vinculado(s)",
+      "Cliente de origem: Oestetrigo Distribuição e Representação de Alimentos Ltda (17351).",
+      "RF-005: O sistema deve exibir valores unitário e total no grid de produtos."
+    ].join("\n");
+    const report = inspectRequirementSource(source);
+    expect(report.context).toHaveLength(1);
+    expect(report.ignored).toHaveLength(1);
+    expect(parseRequirements(source).map(item => item.codigo)).toEqual(["RF-005"]);
+    expect(() => parseRequirements("RF-004: Cliente de origem: Oestetrigo (17351)."))
+      .toThrow("Nenhum requisito verificável");
+  });
+
   it("organiza requisitos sem aprovar automaticamente", () => {
     const source = "RF001: O sistema deve recalcular o pedido.";
     const items = parseRequirements(source);
