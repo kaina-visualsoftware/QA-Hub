@@ -195,7 +195,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
-    setTaskChunkResults({});setTaskChunkStatuses({});
       setTaskChunkResults({});setTaskChunkStatuses({});
       caseCheckpoint.current=null;caseSourceKey.current=null;
       recoveredSnapshots.current.clear();setCasePending(0);
@@ -261,6 +260,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     }else setNotice("");
     automaticallyFilled.current={};
     taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+    setTaskChunkResults({});setTaskChunkStatuses({});
     caseCheckpoint.current=null;caseSourceKey.current=null;
     recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
