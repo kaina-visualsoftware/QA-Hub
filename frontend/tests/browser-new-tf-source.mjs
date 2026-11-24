@@ -17,6 +17,7 @@ const cors={
 const tasks=[],cases=[],files=[],sources=[],errors=[],aiRequests=[],caseRequests=[],semanticRequests=[];
 let taskWrites=0,caseWrites=0,rateLimited=false;
 let activeSemanticRequests=0,peakSemanticRequests=0;
+let activeFieldRequests=0,peakFieldRequests=0;
 let holdTaskRequest=true,holdCasesRequest=true,releaseTaskRequest=()=>{},releaseCasesRequest=()=>{};
 let notifyTaskStarted=()=>{},notifyCasesStarted=()=>{};
 const taskStarted=new Promise(resolve=>{notifyTaskStarted=resolve;});
@@ -131,20 +132,25 @@ async function backend(route){
       return {quote:needle,source_line:input.slice(0,from).split("\n").length,
         status:"verified",reason:null};
     };
-    const longForm=input.includes("EXTRATOS CONFERIDOS")||
+    const longForm=input.length>5000||
       input.includes("MARCADOR FINAL DO RELATÓRIO")||
       input.includes("REQUISITO RF-12:");
     if(longForm){
-      const snippet=input.includes("EXTRATOS CONFERIDOS")
-        ?(input.match(/\[(?:TF-L\d+;[^\]]+)\]\s+([^\n]{18,120})/)?.[1]??"")
-        :input.includes("MARCADOR FINAL DO RELATÓRIO")
-          ?"Pedido 88771. Condição de desconto e regra fiscal."
-          :"REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.";
+      const snippet=input.includes("Pedido 88771. Condição de desconto e regra fiscal.")
+         ?"Pedido 88771. Condição de desconto e regra fiscal."
+         :input.includes("REQUISITO RF-12:")
+           ?"REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771."
+           :input.slice(0,Math.min(100,input.length)).trim();
       assert.ok(snippet.length>=18&&input.includes(snippet));
-      return send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
-        draft:{titulo:"Validar descontos de pedidos"},
-        field_evidence:{titulo:{...quote(snippet),derivation:"synthesized"}},
-        review_fields:[]});
+      activeFieldRequests++;
+      peakFieldRequests=Math.max(peakFieldRequests,activeFieldRequests);
+      try{
+        await new Promise(resolve=>setTimeout(resolve,15));
+        return await send({stage:"fields",provider:"NVIDIA Build",model:"fixture",repaired:false,
+          draft:{titulo:"Validar descontos de pedidos"},
+          field_evidence:{titulo:{...quote(snippet),derivation:"synthesized"}},
+          review_fields:[]});
+      }finally{activeFieldRequests--;}
     }
     const fields={
       titulo:"Validar descontos de pedidos",codigo:"88771",sistema:"Financeiro",
@@ -296,7 +302,7 @@ try{
   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
   const statusPanel=wizard.locator(".qa-wizard-work");
   await statusPanel.getByText("Interpretando a tarefa").waitFor();
-  await statusPanel.getByText(/A NVIDIA está identificando título, problema, causa e correção/).waitFor();
+  await statusPanel.getByText(/NVIDIA: analisando parte/).waitFor();
   assert.equal(await statusPanel.locator(".qa-wizard-work-steps li.is-active").count(),1,
     "Only the actual in-flight stage should be marked active");
   assert.equal(await wizard.getByRole("button",{name:"Continuar manualmente"}).isDisabled(),true,
@@ -452,33 +458,20 @@ try{
   const longSource="Pedido 88771. Condição de desconto e regra fiscal. ".repeat(2200)+" MARCADOR FINAL DO RELATÓRIO";
   await wizard.getByLabel("Informações da tarefa").fill(longSource);
   assert.equal(await wizard.getByLabel("Informações da tarefa").inputValue(),longSource);
-  const longContextPanel=wizard.getByRole("region",{name:"Preparação semântica do contexto"});
-  await longContextPanel.waitFor();
-  assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0,
-    "Long sources should not ask the user to choose a processing algorithm");
-  assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true,
-    "Unreviewed long sources cannot silently use a partial extract.");
-  await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
-  const beforeChunks=semanticRequests.length;
-  peakSemanticRequests=0;
-  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
-  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:60000});
-  assert.ok(semanticRequests.length-beforeChunks>=10,
-    "The original report must be read in successive chunks, not one shortened prompt.");
-  assert.equal(peakSemanticRequests,2,
-    "Long TF analysis must overlap two NVIDIA HTTP requests, not more than two.");
-  const analyzed=semanticRequests.slice(beforeChunks);
-  assert.equal(new Set(analyzed.map(item=>item.chunkId)).size,analyzed.length,
-    "Each source chunk must be sent once when there is no timeout or 429.");
-  assert.ok(analyzed.every(item=>item.text.length>0),
-    "No chunk can be replaced by a local semantic fallback.");
-
-  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
-  await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
-  await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
-  assert.ok(aiRequests.at(-1).text.length<=30000,"Verified citations fit the model budget");
-  assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
-  await wizard.getByRole("button",{name:"Avançar"}).click();
+  await wizard.getByText(/Processamento por blocos:/).waitFor();
+   assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0);
+   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+   const beforeChunks=aiRequests.length;
+   peakFieldRequests=0;
+   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+   const analyzed=aiRequests.slice(beforeChunks).filter(item=>item.mode==="task-fields");
+   assert.ok(analyzed.length>=10,"A fonte longa deve ser dividida automaticamente");
+   assert.ok(analyzed.every(item=>item.text.length<=6500&&
+     Buffer.byteLength(item.text,"utf8")<=9000),"Cada parte deve respeitar os limites da NVIDIA");
+   assert.equal(peakFieldRequests,2,"Duas partes no máximo em paralelo");
+   assert.equal(semanticRequests.length,0,"Etapa de campos não precisa da seleção semântica");
+   await wizard.getByRole("button",{name:"Avançar"}).click();
   // Grounded field extraction alone must not invent unexecuted test cases.
   await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
@@ -486,25 +479,20 @@ try{
     "The full pasted report must be archived without truncation");
   assert.deepEqual(errors,[]);
   console.log("Nova TF em 3 etapas: fontes, IA, revisão, requisitos, deduplicação, persistência, pulo e 429.");
-  // F2/F3: opt-in semantic analysis, verified citations and review before extraction.
-  await page.getByRole("link",{name:"Todas as TFs"}).click();
-  await page.getByRole("button",{name:"Nova TF"}).first().click();
-  const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
-    "RESULTADO: Nenhum teste executado foi informado.";
-  await wizard.getByLabel("Informações da tarefa").fill(semanticSource);
-  await wizard.getByRole("region",{name:"Preparação semântica do contexto"}).waitFor();
-  assert.equal(await wizard.getByRole("radio",{name:/Semântico por blocos/}).count(),0);
-  assert.equal(await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).isDisabled(),true);
-  await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
-  await wizard.getByRole("button",{name:"Analisar todo o texto com IA"}).click();
-  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).waitFor({timeout:30000});
-  assert.ok(semanticRequests.length>=3,"Long source must be processed in multiple chunks");
-  await wizard.getByRole("checkbox",{name:/Revisei a matriz de cobertura/}).check();
-  await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
-  await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
-  assert.match(aiRequests.at(-1).text,/EXTRATOS CONFERIDOS/);
-  assert.match(aiRequests.at(-1).text,/TF-L\d+/);
-  await wizard.getByRole("button",{name:"Avançar"}).click();
+  // Another long source follows the same chunked path without a selector.
+   await page.getByRole("link",{name:"Todas as TFs"}).click();
+   await page.getByRole("button",{name:"Nova TF"}).first().click();
+   const semanticSource=("REQUISITO RF-12: Não reaplicar desconto negativo no pedido 88771.\n").repeat(600)+
+     "RESULTADO: Nenhum teste executado foi informado.";
+   await wizard.getByLabel("Informações da tarefa").fill(semanticSource);
+   await wizard.getByText(/Processamento por blocos:/).waitFor();
+   await wizard.getByRole("checkbox",{name:/Autorizo enviar o texto colado/}).check();
+   const beforeSemantic=aiRequests.length;
+   await wizard.getByRole("button",{name:"Gerar tarefa com IA"}).click();
+   await wizard.getByRole("heading",{name:"Nova TF — etapa 2 de 3"}).waitFor();
+   assert.ok(aiRequests.length-beforeSemantic>=3,
+     "Documentos de tamanho intermediário usam os mesmos blocos");
+   await wizard.getByRole("button",{name:"Avançar"}).click();
   await wizard.getByRole("button",{name:"Finalizar sem casos"}).click();
   await page.getByRole("heading",{name:"Validar descontos de pedidos",exact:true}).waitFor();
   assert.deepEqual(errors,[]);
