@@ -185,7 +185,7 @@ export async function generateTaskAiDraftPhased(text:string,{
   };
   const refresh=()=>{
    const combined=combineVerifiedTaskFields(state.fieldChunks!);
-   state.fields=normalizeDraft({fields:combined.fields}).fields;
+   state.fields=normalizeDraft(combined.fields).fields;
    state.fieldReview=combined.fieldReview;
    state.resolvedFields=Object.keys(state.fieldChunks!).length===parts.length;
    onCheckpoint(state);
@@ -207,7 +207,7 @@ export async function generateTaskAiDraftPhased(text:string,{
      if(!Object.keys(parsed.values).length&&parsed.review.length)
       throw Error("O bloco não retornou campos com evidência verificada.");
      state.fieldChunks![part.index]={
-      fields:normalizeDraft({fields:parsed.values}).fields,
+      fields:normalizeDraft(parsed.values).fields,
       review:parsed.review.map(item=>({...item,sourceLine:item.sourceLine===null?
        null:item.sourceLine+part.startLine-1}))
      };
