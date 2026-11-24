@@ -789,7 +789,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               {!postMode&&scenarioPlan.plan&&<>
                 <span>Anexos: <strong>{caseSources.data?.length??0}</strong></span>
                 <span>Partes: <strong>{scenarioPlan.plan.parts.length}</strong></span>
-              </>
+              </>}
             </div>
             {requirements.data && requirements.data.length > 0 && <fieldset className="extracted-cases">
               <legend className="font-semibold">Requisitos aprovados para incluir</legend>
