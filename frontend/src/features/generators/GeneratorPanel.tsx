@@ -409,7 +409,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       setMessage(response.allDone?
         response.cases.length+" cenário(s) distinto(s) preparados após verificar "+
           response.complete+" parte(s). Revise os títulos, passos e resultados antes de salvar.":
-        response.complete+" de "+response.complete+" parte(s) concluída(s), "+
+        response.complete+" de "+latest.parts.length+" parte(s) concluída(s), "+
           response.failed+" com falha. Os cenários encontrados foram preservados. "+
           "Retome apenas as partes pendentes.");
       if(response.failed>0)setError(response.failed+" parte(s) não concluídas; "+
@@ -875,10 +875,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
             {generating?<LoaderCircle size={17} className="qa-ai-spinner" aria-hidden="true"/>:
               raw||content||cases.length?<RotateCcw size={16}/>:<WandSparkles size={16}/>}
             {generating ? "Gerando…" :
+              mode==="teste"&&scenarioPlan.plan&&scenarioCheckpoint.current&&
+                scenarioCheckpoint.current.signature===scenarioPlan.plan.signature&&
+                sourceProgress&&sourceProgress.complete<sourceProgress.total?
+                  "Retomar "+(sourceProgress.total-sourceProgress.complete)+" parte(s)":
               batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0
                ? "Retomar "+unfinishedGeneratorStages(batchCheckpoint.current)+" etapa(s)"
                : raw||content||cases.length?"Gerar novamente":
-                 mode==="post"?"Gerar post":"Gerar casos"}
+                 mode==="post"?"Gerar post":"Gerar cenários por partes"}
           </Button>
           {generating && <Button variant="secondary" onPress={() => controller.current?.abort()}>
             Cancelar geração
@@ -891,7 +895,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       </p>
     </div>}
     {generating&&<AiQuotaWait state={generatorWait} onCancel={()=>controller.current?.abort()}/>}
-    {generating&&batchProgress&&
+    {generating&&postMode&&batchProgress&&
       <div className="qa-generation-batch-status" role="status" aria-live="polite">
         <strong>{mode==="post"?"Post por seções":"Roteiro por grupos"} ·
           {" "+(batchProgress.index+1)+" de "+batchProgress.total}</strong>
@@ -902,10 +906,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           aria-label="Seções concluídas"/>
         <small>{batchProgress.completed} seção(ões) concluída(s). Os trechos anteriores não são reenviados.</small>
       </div>}
-     {generating && <GeneratorActivity
+     {generating && postMode && <GeneratorActivity
       phase={generatorWait?"cooldown":activityPhase} raw={raw} postMode={postMode}
       onCancel={()=>controller.current?.abort()}
     />}
+    {generating&&!postMode&&scenarioPlan.plan&&<div className="qa-case-processing-line" role="status">
+      {sourcePreview||"Conectando à NVIDIA para analisar os trechos…"}
+    </div>}
     </div>}
     {!generating && hasOutput && (!showSetup||hasRecoverableCases) && <section className="qa-generator-result" aria-label="Resultado da IA">
       <div className="qa-generator-result-heading">
