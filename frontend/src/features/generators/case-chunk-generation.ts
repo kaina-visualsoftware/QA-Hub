@@ -39,8 +39,20 @@ export function casePartStatus(plan:CasePlan,cp:CasePartsCheckpoint,active:strin
 }
 export function caseResult(plan:CasePlan,cp:CasePartsCheckpoint,existing:GeneratedCase[]=[]){
  const chunks=plan.parts.flatMap(part=>cp.complete[part.id]?.cases??[]);
+ // Identical actions and expectations are the same test even if the model
+ // invents a different heading. Do not collapse merely similar scenarios.
+ const norm=(value:string)=>value.normalize("NFKC")
+  .replace(/\s+/g," ").trim().toLocaleLowerCase("pt-BR");
+ const footprint=(item:Pick<GeneratedCase,"passos"|"esperado">)=>
+  norm(item.passos)+"\u241f"+norm(item.esperado);
+ const seen=new Set(existing.map(footprint));
  const distinct=onlyNewScenarioCandidates(chunks,existing)
-  .filter(item=>!/^cen[áa]rio\s*\d+$/i.test(item.titulo.trim()));
+  .filter(item=>{
+   if(/^cen[áa]rio\s*\d+$/i.test(item.titulo.trim()))return false;
+   const key=footprint(item);
+   if(seen.has(key))return false;
+   seen.add(key);return true;
+  });
  const text=plan.parts.map(part=>cp.complete[part.id]?.raw.trim()??"")
   .filter(Boolean).join("\n\n---\n\n");
  return {cases:distinct,text,
