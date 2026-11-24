@@ -9,7 +9,7 @@ const errorSchema = z.object({ message: z.string().min(1).max(500) });
 
 export type GeneratorMode = "post" | "teste";
 export type GeneratorBatchRequest={
- version:1;index:number;total:number;stage:string;continuation:number;previousTail:string
+ version:1|2;index:number;total:number;stage:string;continuation:number;previousTail:string
 };
 export type StreamResult = { text: string; truncated: boolean };
 
