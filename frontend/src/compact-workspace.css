@@ -249,7 +249,8 @@
     flex:1 1 0;width:auto;min-width:0;max-width:100%
   }
   .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
-    position:static;width:min(420px,100%);max-height:none;box-shadow:none;margin-top:8px
+    position:absolute;right:0;top:calc(100% + 7px);
+    width:min(420px,calc(100vw - 36px));max-height:65vh
   }
 }
 @media(max-width:420px){
@@ -259,9 +260,7 @@
   .qa-workspace-filter-line>.qa-saved-filter-controls>summary{
     width:100%;padding:10px 9px
   }
-  .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
-    width:100%
-  }
+
 }
 
 /* Dashboard density: metrics first, supporting explanations on demand. */
