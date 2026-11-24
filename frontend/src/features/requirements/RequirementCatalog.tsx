@@ -55,6 +55,10 @@ export default function RequirementCatalog({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const selectedCount = preview.filter((item) => item.selected && !item.duplicate).length;
+  const suspectRecords = useMemo(() => records.filter(item =>
+    inspectRequirementSource(item.titulo).text.length === 0 &&
+    inspectRequirementSource(item.descricao).text.length === 0
+  ), [records]);
   const visible = useMemo(() => records.filter((item) => {
     const text = [item.codigo, item.titulo, item.descricao, item.criterios_aceite].join(" ").toLowerCase();
     return (stateFilter === "all" || item.estado === stateFilter) &&
@@ -164,6 +168,12 @@ export default function RequirementCatalog({
       <span><strong>{records.filter((r) => r.estado === "rascunho").length}</strong> rascunhos</span>
       <span><strong>{records.filter((r) => r.estado === "arquivado").length}</strong> arquivados</span>
     </div>}
+    {!!suspectRecords.length && <details className="generator-context">
+      <summary>Revisar possíveis metadados cadastrados ({suspectRecords.length})</summary>
+      <p className="text-muted text-sm mt-2">Alguns registros parecem cabeçalhos, contagens ou identificação de clientes, e podem não representar uma regra verificável. Os registros permanecem intactos; revise ou arquive os itens na lista antes de reutilizá-los em cenários, posts ou diagramas.</p>
+      <ul className="stack mt-2">{suspectRecords.map(item =>
+        <li key={item.id} className="text-sm">{item.codigo} · {item.titulo.slice(0,120)}</li>)}</ul>
+    </details>}
     {!readOnly&&<details className="generator-context" open={records.length === 0}>
       <summary>Importar requisitos de texto (prévia e revisão)</summary>
       <div className="stack mt-4">
