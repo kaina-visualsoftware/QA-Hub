@@ -44,9 +44,9 @@ function segment(text:string){
  if(result.map(p=>p.text).join("")!==text)throw Error("Divisão incompleta: fonte alterada.");
  return result;
 }
-function signature(parts:CasePart[]){
+function signature(parts:CasePart[],overview:string){
  let hash=2166136261;
- for(const p of parts)for(const char of p.id+"\0"+p.text+"\0"){
+ for(const p of [{id:"overview",text:overview},...parts])for(const char of p.id+"\0"+p.text+"\0"){
   hash=Math.imul(hash^char.charCodeAt(0),16777619);
  }
  return parts.length+"-"+(hash>>>0).toString(16);
@@ -126,6 +126,6 @@ export function planScenarioSources({
  if(parts.length>CASE_MAX_PARTS)throw Error(
   "A TF possui "+parts.length+" partes. Limite de "+CASE_MAX_PARTS+
   " por geração; organize os documentos antes de continuar, sem omitir fontes.");
- return {parts,sources:active,signature:signature(parts),warnings,
+ return {parts,sources:active,signature:signature(parts,overview),warnings,
   sourceCount:active.length,chars:active.reduce((sum,s)=>sum+s.text.length,0),overview};
 }
