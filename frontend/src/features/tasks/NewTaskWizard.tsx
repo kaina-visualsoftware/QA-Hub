@@ -837,6 +837,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
             }}/>
         </div>
       </details>}
+      {aiUsed&&taskChunks.length>0&&<details className="qa-wizard-more qa-wizard-chunks-review">
+        <summary>Partes analisadas ({Object.keys(taskChunkResults).length}/{taskChunks.length})</summary>
+        <div className="mt-3">
+          <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
+            statuses={taskChunkStatuses} running={analyzing}
+            quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+        </div>
+      </details>}
       <div className="qa-wizard-actions">
         <Button variant="secondary" isDisabled={busy} onPress={()=>{setStep(1);setError("");}}>
           <ArrowLeft size={16}/> Voltar
