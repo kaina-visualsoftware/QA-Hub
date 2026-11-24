@@ -244,13 +244,18 @@ export default function RequirementCatalog({
             <Button size="sm" onPress={() => void changeState(item, "aprovado")} isDisabled={busy}>
               Aprovar
             </Button>}
-          {item.estado !== "arquivado" &&
-            <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
-              isDisabled={busy}>Arquivar</Button>}
-          <Button size="sm" variant="secondary" isDisabled={busy}
-            onPress={()=>void removeSaved(item)}>
-            <Trash2 size={14} aria-hidden="true"/> Excluir
-          </Button>
+          <details className="qa-requirement-row-more">
+            <summary>Mais ações</summary>
+            <div className="qa-requirement-row-menu">
+              {item.estado !== "arquivado" &&
+                <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
+                  isDisabled={busy}>Arquivar</Button>}
+              <Button size="sm" variant="secondary" isDisabled={busy}
+                onPress={()=>void removeSaved(item)}>
+                <Trash2 size={14} aria-hidden="true"/> Excluir
+              </Button>
+            </div>
+          </details>
         </div>}
       </div>
       <details className="qa-resource-list-detail">
