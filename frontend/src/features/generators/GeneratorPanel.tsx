@@ -37,6 +37,7 @@ import type {CaseDocument,CasePlan} from "./case-source-plan";
 import {generateCasesBySource,casePartStatus} from "./case-chunk-generation";
 import type {CasePartsCheckpoint,CasePartProgress} from "./case-chunk-generation";
 import {ContextPreparationPanel} from "./ContextPreparationPanel";
+import {CaseSourceStatus} from "./CaseSourceStatus";
 import {SemanticPreparationPanel} from "./SemanticPreparationPanel";
 import {useSemanticContext} from "./useSemanticContext";
 import {AuditTrailPanel} from "./AuditTrailPanel";
@@ -690,9 +691,13 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
 
   const postMode=mode==="post";
   const hasOutput=Boolean(raw || content || cases.length ||
-    (mode==="teste"&&interruptedPreview));
-  const hasRecoverableCases=mode==="teste"&&Boolean(interruptedPreview)&&Boolean(
-    batchCheckpoint.current&&unfinishedGeneratorStages(batchCheckpoint.current)>0);
+    (mode==="teste"&&(interruptedPreview||sourceProgress?.complete)));
+  const hasRecoverableCases=mode==="teste"&&(
+   Boolean(scenarioPlan.plan&&scenarioCheckpoint.current&&
+     scenarioCheckpoint.current.signature===scenarioPlan.plan.signature&&
+     sourceProgress&&sourceProgress.complete<sourceProgress.total)||
+   Boolean(interruptedPreview&&batchCheckpoint.current&&
+     unfinishedGeneratorStages(batchCheckpoint.current)>0));
   const stage: JourneyStage = generating ? "generate" :
     !showSetup && completed ? "complete" :
     hasOutput && (!showSetup||hasRecoverableCases) ? "review" : "configure";
@@ -740,12 +745,14 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     {!formOwn && <p className="notice error mt-4" role="alert">
       Gere conteúdo somente a partir de TFs pertencentes à sua conta. A consulta administrativa de outras contas é somente leitura neste fluxo.
     </p>}
-    {(support.isLoading || requirements.isLoading) && !postMode &&
+    {(support.isLoading || requirements.isLoading || caseSources.isLoading || caseDocuments.isLoading) && !postMode &&
       <p role="status" className="mt-4">Carregando o contexto da TF…</p>}
-    {(support.isError || requirements.isError || generationError) &&
+    {(support.isError || requirements.isError || caseSources.isError || caseDocuments.isError || generationError || scenarioPlan.error) &&
       <p className="notice error mt-4" role="alert">
-        {messageOf(support.error || requirements.error) !== "Falha ao executar a operação."
-          ? messageOf(support.error || requirements.error) : generationError}
+        {messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error)!==
+         "Falha ao executar a operação."?
+         messageOf(support.error||requirements.error||caseSources.error||caseDocuments.error):
+         scenarioPlan.error||generationError}
       </p>}
     {context&&formOwn&&<AuditTrailPanel key={task.id} taskId={task.id} userId={userId}
       taskText={context.taskContext.text}
@@ -779,6 +786,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
               <span>Evidências: <strong>{context.taskContext.sourceCounts.evidence}</strong></span>
               <span>Eventos: <strong>{context.taskContext.sourceCounts.events}</strong></span>
               <span>Requisitos: <strong>{selected.length}</strong></span>
+              {!postMode&&scenarioPlan.plan&&<>
+                <span>Anexos: <strong>{caseSources.data?.length??0}</strong></span>
+                <span>Partes: <strong>{scenarioPlan.plan.parts.length}</strong></span>
+              </>
             </div>
             {requirements.data && requirements.data.length > 0 && <fieldset className="extracted-cases">
               <legend className="font-semibold">Requisitos aprovados para incluir</legend>
@@ -819,10 +830,10 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         <p>O formato selecionado será usado na prévia, ao copiar e ao salvar.
           Imagens permanecem como marcadores para você substituir.</p>
       </fieldset>}
-      {needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
+      {postMode&&needsCompactReview&&<SemanticPreparationPanel semantic={semantic} authorized={consent}
         onConflictDecision={saveConflictDecision}
         disabled={generating||busySave||auditBusy}/>}
-      {!semantic.enabled&&<ContextPreparationPanel
+      {postMode&&!semantic.enabled&&<ContextPreparationPanel
         items={[
           {label:"TF",result:context.prepared.task,original:context.taskContext.text},
           ...(context.prepared.requirements?[{label:"Requisitos e complemento",
@@ -830,7 +841,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         ]}
         acknowledged={compactApproved} onAcknowledge={setCompactApproved}
         disabled={generating||busySave}/>}
-      {missingSources.length > 0 && <div className="notice error">
+      {postMode&&missingSources.length > 0 && <div className="notice error">
         <strong>Fontes indisponíveis:</strong>
         <p className="mt-2">{missingSources.join(" · ")}</p>
         <label className="flex items-start gap-2 mt-3">
@@ -838,13 +849,22 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
           Estou ciente de que este contexto está incompleto e desejo continuar.
         </label>
       </div>}
-      <details className="generator-context">
+      {!postMode&&scenarioPlan.plan&&<CaseSourceStatus
+        plan={scenarioPlan.plan} progress={sourceProgress}
+        checkpoint={scenarioCheckpoint.current} processing={generating}/>}
+      {!postMode&&scenarioPlan.plan&&scenarioPlan.plan.warnings.length>0&&
+        <label className="qa-ai-consent-compact">
+          <input type="checkbox" checked={partialConsent}
+            disabled={generating} onChange={event=>setPartialConsent(event.target.checked)}/>
+          <span>Revisei os avisos dos anexos e aceito gerar com essas limitações explícitas.</span>
+        </label>}
+      {postMode&&<details className="generator-context">
         <summary>Ver dados enviados à IA</summary>
         <label className="field mt-3">Contexto da TF enviado<textarea readOnly rows={9} value={semantic.enabled&&semantic.ready&&semantic.digest?
           semantic.digest.task:context.prepared.task.text} /></label>
         <label className="field mt-3">Requisitos e complemento enviados<textarea readOnly rows={5} value={semantic.enabled&&semantic.ready&&semantic.digest?
           semantic.digest.requirements:context.prepared.requirements?.text??""} /></label>
-      </details>
+      </details>}
       <div className="qa-ai-submit-row">
         <label className="qa-ai-consent-compact">
           <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
