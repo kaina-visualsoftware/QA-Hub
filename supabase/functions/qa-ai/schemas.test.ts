@@ -37,17 +37,52 @@ Deno.test("field with fabricated identifier is review-only, never verified",()=>
  assertEquals(result.review_fields[0].evidence.reason,"identifier_not_in_source");
  assertEquals(result.field_evidence.descricao.status,"verified");
 });
-Deno.test("unanchored field or unknown output keys cannot claim success",()=>{
+Deno.test("unanchored values remain review candidates, not HTTP 502 or approved fields",()=>{
  const source="O pedido 67866 contém descontos.";
- assertNull(groundedTaskFields(model({fields:{titulo:{
+ const result=groundedTaskFields(model({fields:{titulo:{
   value:"Falha inventada",evidence:"Texto inventado completamente."
- }}}),source));
- assertNull(groundedTaskFields(model({fields:{titulo:{
-  value:"Falha no pedido 67866",evidence:source,token:"SECRET"
- }}}),source));
+ }}}),source);
+ assert(result);
+ assertEquals(result.draft.titulo,undefined);
+ assertEquals(result.review_fields[0].field,"titulo");
+ assertEquals(result.review_fields[0].evidence.reason,"quote_not_found");
  assertNull(groundedTaskFields(model({fields:{unknown:{
   value:"Campo",evidence:source
  }}}),source));
+});
+Deno.test("field JSON with harmless extra keys retains only allowlisted verified data",()=>{
+ const source="O pedido 67866 contém descontos.";
+ const result=groundedTaskFields(model({fields:{
+  titulo:{value:"Pedido 67866 contém descontos.",evidence:source,token:"SECRET"},
+  anything:{value:"Nunca salvar",evidence:source}
+ }}),source);
+ assert(result);
+ assertEquals(result.draft.titulo,"Pedido 67866 contém descontos.");
+ assertEquals(result.draft.anything,undefined);
+});
+Deno.test("plain or unquoted NVIDIA fields are recovered with evidence guard",()=>{
+ const source="O pedido 67866 contém descontos.";
+ const good=groundedTaskFields(model({fields:{descricao:source}}),source);
+ assert(good);
+ assertEquals(good.draft.descricao,source);
+ const suggested=groundedTaskFields(model({fields:{
+  titulo:"Melhorar descontos no pedido 67866"
+ }}),source);
+ assert(suggested);
+ assertEquals(suggested.draft.titulo,undefined);
+ assertEquals(suggested.review_fields[0].value,"Melhorar descontos no pedido 67866");
+});
+Deno.test("fenced explanatory JSON remains review-only after structural recovery",()=>{
+ const source="O pedido 67866 contém descontos.";
+ const response={choices:[{message:{content:
+  'Resultado gerado:\\n\\x60\\x60\\x60json\\n'+
+  JSON.stringify({fields:{descricao:{value:"Pedido 67866 contém descontos.",evidence:source}}})+
+  '\\n\\x60\\x60\\x60'},finish_reason:"stop"}]};
+ const result=groundedTaskFields(response,source);
+ assert(result);
+ assertEquals(result.repaired,true);
+ assertEquals(result.draft.descricao,undefined);
+ assertEquals(result.review_fields[0].evidence.reason,"json_repaired");
 });
 Deno.test("JSON repair is marked for review, not silently accepted",()=>{
  const source="O pedido 67866 está bloqueado.";

@@ -165,7 +165,13 @@ Deno.serve(async req => {
   let hadReply=false;
   let lastStatus=0;
   let contextExceeded=false;
-  for(const [modelIndex,model] of available.entries()) {
+  // The primary GLM model often consumes its entire 35s timeout on field
+  // extraction. Prefer the faster NVIDIA JSON-capable model for this stage;
+  // keep GLM as a fallback if the fast response is unusable.
+  const orderedModels=fieldsMode?[...available].sort((left,right)=>
+    Number(right==="nvidia/nemotron-3.5-lightning-30b-a3b")-
+    Number(left==="nvidia/nemotron-3.5-lightning-30b-a3b")):available;
+  for(const [modelIndex,model] of orderedModels.entries()) {
     const options=nvidiaRequestOptions(model,diagramMode?"diagram":summaryMode?"summary":
       fieldsMode?"task-fields":seedsMode?"task-seeds":scenariosMode?"task-scenarios":"task");
     const telemetry={correlation_id:trace,mode:telemetryMode,model,

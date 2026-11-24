@@ -51,6 +51,7 @@ export function TaskFieldChunkPanel({chunks,results,statuses,running,quotaWait,o
     const status=result?"complete":statuses[part.index]??"pending";
     const count=result?Object.keys(result.fields).filter(key=>
      Boolean(result.fields[key]?.trim())).length:0;
+    const needsReview=result?.review.filter(row=>row.status==="needs_review").length??0;
     const endLine=part.startLine+(part.text.match(/\n/g)?.length??0);
     return <details className={"qa-task-chunk qa-task-chunk--"+status} key={part.index}>
      <summary>
@@ -61,7 +62,7 @@ export function TaskFieldChunkPanel({chunks,results,statuses,running,quotaWait,o
         status==="processing"?<LoaderCircle className="qa-task-chunk-spin" size={15} aria-hidden="true"/>:
          status==="failed"?<AlertCircle size={15} aria-hidden="true"/>:
           <Clock3 size={15} aria-hidden="true"/>}
-       {status==="complete"?(count?count+" campo(s) encontrado(s)":"Verificado · sem campos"):
+       {status==="complete"?(count?count+" campo(s) confirmado(s)":needsReview?needsReview+" sugestão(ões) para revisão":"Verificado · sem campos"):
         status==="processing"?"Analisando…":
          status==="failed"?"Falhou · pode retomar":"Aguardando"}
       </span>
