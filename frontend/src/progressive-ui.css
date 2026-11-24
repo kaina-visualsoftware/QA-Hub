@@ -188,3 +188,24 @@
 @media(prefers-reduced-motion:reduce){
   .qa-progressive-details>summary::after{transition:none}
 }
+
+/* Documentation editor: primary work stays visible, auxiliary options do not. */
+.qa-doc-form{gap:12px}
+.qa-doc-form>.qa-progressive-details{background:#fafcfc}
+.qa-doc-form>.qa-progressive-details>summary small{
+  font-size:.72rem;font-weight:650;color:#506d74;margin-left:auto
+}
+.qa-doc-link-options,.qa-doc-editor-help{margin-top:8px}
+.qa-doc-link-options .field{margin:10px 13px 12px}
+.qa-doc-editor-help p{margin:10px 14px 12px}
+.qa-doc-publication-options>fieldset{
+  min-width:0;border:0;padding:12px 14px;margin:0
+}
+.qa-doc-publication-options .field{width:100%;min-width:0}
+.qa-doc-publication-options fieldset>p{
+  margin:9px 0;font-size:.76rem;line-height:1.55;color:#516c73
+}
+.qa-doc-publication-options select{width:100%}
+.qa-doc-existing-files{min-width:0}
+.qa-doc-existing-files>.qa-doc-files{padding:12px}
+.qa-doc-form .qa-doc-editor-tabs{margin-top:10px}
