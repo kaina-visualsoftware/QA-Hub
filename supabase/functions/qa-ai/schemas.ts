@@ -120,11 +120,9 @@ export function groundedTaskFields(response:unknown,source:string){
  if(!parsed.success)return null;
  const draft:Record<string,string>={},field_evidence:Record<string,SourceEvidence>={};
  const review_fields:ReviewCandidate[]=[];
- let anchored=0;
  for(const [name,{value,evidence:quote,derivation}] of Object.entries(parsed.data.fields)){
   if(!value.trim())continue;
   const record=evidence(source,value,quote,decoded.repaired,derivation,name);
-  if(record.source_line!==null)anchored++;
   if(record.status==="verified"){
    draft[name]=value.trim();field_evidence[name]=record;
   }else review_fields.push({field:name,value:value.trim(),evidence:record});
