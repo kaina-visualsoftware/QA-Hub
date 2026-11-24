@@ -55,7 +55,7 @@
 .qa-task-progressive-heading>span:first-child{min-width:0;flex:1}
 .qa-task-progressive-heading h2{font-size:.99rem;color:#1e4751;font-weight:790}
 .qa-task-progressive-heading small{
-  display:block;margin-top:3px;font-size:.73rem;line-height:1.4;color:#647e85
+  display:block;margin-top:3px;font-size:.73rem;line-height:1.4;color:#506c74
 }
 .qa-task-progressive-count{
   font-size:.73rem;color:#567278;white-space:nowrap;font-weight:700
@@ -88,7 +88,7 @@
 .qa-guided-evidence-details>section,
 .qa-guided-evidence-details>div{margin:12px}
 .qa-guided-help{margin-top:12px;background:transparent;border-color:transparent}
-.qa-guided-help>summary{color:#667b80;font-weight:600;font-size:.74rem}
+.qa-guided-help>summary{color:#506a72;font-weight:600;font-size:.74rem}
 .qa-guided-help[open]{background:#f8fbfb;border-color:#dce7e8}
 .qa-scenario-form-extra{margin-top:2px;background:#fafcfc}
 .qa-scenario-form-extra .field{display:flex;flex-direction:column;gap:7px}
