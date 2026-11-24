@@ -19,6 +19,9 @@ import {
 import type { SuggestedScenario } from "./task-ai";
 import {generateTaskAiDraftPhased,pipelinePendingCount} from "./task-ai-phased";
 import {splitTaskFieldSource} from "./task-ai-chunks";
+import type {TaskFieldChunkResult} from "./task-ai-chunks";
+import {TaskFieldChunkPanel} from "./TaskFieldChunkPanel";
+import type {ChunkProcessingStatus} from "./TaskFieldChunkPanel";
 import type {TaskPipelineCheckpoint} from "./task-ai-phased";
 import {TaskFieldEvidenceReview,TaskScenarioEvidenceReview} from "./TaskEvidenceReview";
 import type {FieldReview,ScenarioReview} from "./task-evidence";
@@ -129,6 +132,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const [quotaWait,setQuotaWait]=useState<AiWaitState|null>(null);
   const [taskPending,setTaskPending]=useState(0);
   const [taskPartial,setTaskPartial]=useState(false);
+  const [taskChunkResults,setTaskChunkResults]=useState<Record<number,TaskFieldChunkResult>>({});
+  const [taskChunkStatuses,setTaskChunkStatuses]=useState<Record<number,ChunkProcessingStatus>>({});
   const [fieldEvidence,setFieldEvidence]=useState<FieldReview[]>([]);
   const [scenarioEvidence,setScenarioEvidence]=useState<ScenarioReview[]>([]);
   const [fieldEvidenceApproved,setFieldEvidenceApproved]=useState<Record<string,boolean>>({});
@@ -144,8 +149,9 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
   const wasOpen=useRef(false);
   const automaticallyFilled=useRef<Partial<TaskDraft>>({});
   const taskSource=useMemo(()=>combine("",sourceText,taskFiles),[sourceText,taskFiles]);
-  const plannedTaskParts=useMemo(()=>taskSource.trim()?
-    splitTaskFieldSource(cleanQaSourceText(taskSource)).length:0,[taskSource]);
+  const taskChunks=useMemo(()=>taskSource.trim()?
+    splitTaskFieldSource(cleanQaSourceText(taskSource)):[],[taskSource]);
+  const plannedTaskParts=taskChunks.length;
   type CasePreparation={
     originalTask:string;originalRequirements:string;
     prepared:ReturnType<typeof prepareGeneratorContext>
@@ -189,6 +195,8 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       setError("");setNotice("");setDraftErrors({});setStreamText("");setWork(null);setQuotaWait(null);
       setRemember(false);setRecoverable(null);automaticallyFilled.current={};
       taskCheckpoint.current=null;setTaskPending(0);setTaskPartial(false);
+    setTaskChunkResults({});setTaskChunkStatuses({});
+      setTaskChunkResults({});setTaskChunkStatuses({});
       caseCheckpoint.current=null;caseSourceKey.current=null;
       recoveredSnapshots.current.clear();setCasePending(0);
       setFieldEvidence([]);setScenarioEvidence([]);setFieldEvidenceApproved({});
@@ -312,9 +320,13 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         fieldsOnly:true,
         checkpoint:taskPending>0?taskCheckpoint.current:null,
         onCheckpoint:checkpoint=>{taskCheckpoint.current=checkpoint;
+          setTaskChunkResults({...checkpoint.fieldChunks});
           setTaskPending(pipelinePendingCount(checkpoint));
           setFieldEvidence([...checkpoint.fieldReview]);
           setScenarioEvidence([...checkpoint.seedReview,...Object.values(checkpoint.scenarioReview).flat()]);},
+        onFieldChunkState:(index,status)=>setTaskChunkStatuses(previous=>({
+          ...previous,[index]:status
+        })),
         onProgress:progress=>setWork({kind:"task",
           phase:progress.stage==="fields"?1:2,
           detail:progress.detail,
@@ -368,7 +380,10 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
         ? "Análise cancelada. Campos concluídos foram preservados nesta sessão; clique em retomar."
         :reason instanceof Error?reason.message:"Falha ao analisar a TF.");
     }
-    finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;}
+    finally{setAnalyzing(false);setWork(null);setQuotaWait(null);controller.current=null;
+      setTaskChunkStatuses(previous=>Object.fromEntries(Object.entries(previous)
+        .filter(([,status])=>status!=="processing")) as Record<number,ChunkProcessingStatus>);
+    }
   }
   function continueManual(){
     if(busy)return;
@@ -615,7 +630,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     <div className="qa-wizard-save-hint"><ShieldCheck size={15} aria-hidden="true"/>
       A TF será salva somente após a finalização.
     </div>
-    {work&&<section className="qa-wizard-work" data-process={work.kind}>
+    {work&&(work.kind!=="task"||step!==1)&&<section className="qa-wizard-work" data-process={work.kind}>
       <div className="qa-wizard-work-heading">
         <span className="qa-wizard-work-icon"><LoaderCircle aria-hidden="true" size={20}/></span>
         <div role="status" aria-live="polite" aria-atomic="true">
