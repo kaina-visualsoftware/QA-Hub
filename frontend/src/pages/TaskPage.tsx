@@ -91,6 +91,7 @@ export default function TaskPage() {
     enabled: Boolean(task)
   });
   const [activeTab, setActiveTab] = useState<TaskTab>("summary");
+  const [visibleLimit,setVisibleLimit] = useState(8);
   const [resourceView,setResourceView]=useState<TaskResourceView>("requirements");
   const [showResourceImport,setShowResourceImport]=useState(false);
   const [resourceFileType,setResourceFileType]=useState<"sources"|"evidence">("sources");
@@ -125,6 +126,7 @@ export default function TaskPage() {
   useEffect(()=>{
     setActiveTab("summary");setResourceView("requirements");setShowResourceImport(false);
     setResourceFileType("sources");setExecutionMode("list");
+    setVisibleLimit(8);setFilter("all");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
@@ -554,7 +556,6 @@ export default function TaskPage() {
   const failedCount = (scenarios.data ?? []).filter(s => s.status==="reprovado").length;
   const blockedCount = (scenarios.data ?? []).filter(s => s.status==="bloqueado").length;
   const progressPercent = progress.total ? Math.round(progress.executed/progress.total*100) : 0;
-  const [visibleLimit,setVisibleLimit] = useState(8);
   const visible = useMemo(() => (scenarios.data || []).filter((scenario) =>
     filter === "all" || filter === "pending" && scenario.status === "nao_executado" ||
     filter === "failed" && (scenario.status === "reprovado" || scenario.status === "bloqueado")
