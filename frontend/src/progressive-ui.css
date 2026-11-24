@@ -209,3 +209,13 @@
 .qa-doc-existing-files{min-width:0}
 .qa-doc-existing-files>.qa-doc-files{padding:12px}
 .qa-doc-form .qa-doc-editor-tabs{margin-top:10px}
+
+/* Tools: privacy is contextual help, not a permanent info banner. */
+.qa-tools-privacy-details{margin:10px 0 12px;background:#f9fcfc}
+.qa-tools-privacy-details>summary{min-height:40px;font-size:.75rem;color:#4a6972}
+.qa-tools-privacy-details>p{margin:10px 14px 12px}
+.qa-tools-redesign .qa-tools-version-block.qa-tools-version-compact{
+ display:block;padding:13px 15px
+}
+.qa-tools-version-compact .field{max-width:360px}
+.qa-tools-redesign .qa-tools-surface>header{padding-bottom:12px}
