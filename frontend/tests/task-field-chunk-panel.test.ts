@@ -28,10 +28,17 @@ describe("Painel de blocos da criação de TF",()=>{
    chunks,results:{0:{fields:{titulo:"Conferência fiscal"},review:[]}},
    statuses:{1:"processing",2:"failed"},running:true,quotaWait:null,onCancel:()=>{}
   }));
-  expect(html).toContain("campo(s) encontrado(s)");
+  expect(html).toContain("campo(s) confirmado(s)");
   expect(html).toContain("Analisando");
   expect(html).toContain("Falhou");
   expect(html).toContain("Interromper");
   expect(html).toContain("Parte 03");
+  const proposed=renderToStaticMarkup(createElement(TaskFieldChunkPanel,{
+   chunks,results:{0:{fields:{},review:[{field:"titulo",
+    value:"Corrigir a validação",quote:"",sourceLine:null,
+    status:"needs_review",reason:"quote_not_found",origin:"NVIDIA"}]}},
+   statuses:{},running:false,quotaWait:null,onCancel:()=>{}
+  }));
+  expect(proposed).toContain("sugestão(ões) para revisão");
  });
 });
