@@ -233,8 +233,14 @@
   background:#fff;box-shadow:0 15px 36px #1939431f
 }
 @media(max-width:760px){
+  .qa-workspace-filter-line>.qa-workspace-advanced-filters{
+    flex:1 1 0;width:auto;min-width:0
+  }
+  .qa-workspace-filter-line>.qa-workspace-advanced-filters>summary{
+    width:100%;justify-content:center
+  }
   .qa-workspace-filter-line>.qa-saved-filter-controls{
-    width:auto;max-width:100%
+    flex:1 1 0;width:auto;min-width:0;max-width:100%
   }
   .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
     position:static;width:min(420px,100%);max-height:none;box-shadow:none;margin-top:8px
@@ -242,10 +248,10 @@
 }
 @media(max-width:420px){
   .qa-workspace-filter-line>.qa-saved-filter-controls{
-    width:100%
+    width:auto
   }
   .qa-workspace-filter-line>.qa-saved-filter-controls>summary{
-    width:100%
+    width:100%;padding:10px 9px
   }
   .qa-workspace-filter-line>.qa-saved-filter-controls>.qa-saved-filters-content{
     width:100%
