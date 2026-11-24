@@ -952,13 +952,13 @@ export default function TaskPage() {
           className={executionMode==="list"?"selected":""}
           onClick={()=>setExecutionMode("list")}><Rows3 size={16} aria-hidden="true"/> Lista</button>
       </div>
-      {executionMode==="guided"&&<div className="qa-guided-container">
+      <div hidden={executionMode!=="guided"} className="qa-guided-container">
         <GuidedExecution key={task.id} task={task} userId={userId} scenarios={scenarios.data ?? []} owner={canExecute}
           canCreateScenario={own} busy={saveResult.isPending} onSave={saveGuidedResult}
           onNewScenario={startScenario}
           canManage={own} onEdit={openScenarioEditor}
           onDelete={scenario=>void requestScenarioDeletion(scenario)}/>
-      </div>}
+      </div>
     {executionMode==="list"&&<section ref={executionRef}
       className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
