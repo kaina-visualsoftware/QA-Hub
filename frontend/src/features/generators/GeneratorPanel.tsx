@@ -348,8 +348,85 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     }finally{setAuditBusy(false);}
   }
 
+  async function generateAllSourceCases(){
+    const plan=scenarioPlan.plan;
+    if(!canSend||!plan||!context)return;
+    const prior=scenarioCheckpoint.current?.signature===plan.signature?
+      scenarioCheckpoint.current:null;
+    const resume=Boolean(prior&&Object.keys(prior.complete).length<plan.parts.length);
+    if(!resume&&dirtyOutput&&cases.length&&
+      !window.confirm("Substituir os casos editados nesta geração? Os registros já salvos na TF não serão alterados."))return;
+    const previousRaw=raw;
+    const previousCases=cases;
+    const abort=new AbortController();
+    controller.current=abort;
+    setGenerating(true);onBusyChange?.(true);
+    setError("");setMessage("");setGeneratorWait(null);
+    setActivityPhase("connecting");setCompleted(false);setSourcePreview("");
+    try{
+      // Fresh scoped reads are required: files and requirements may have been
+      // added AFTER creation, without closing the current generation modal.
+      const [updatedFiles,updatedDocs,updatedRequirements]=await Promise.all([
+        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch()
+      ]);
+      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error)
+        throw Error("Não foi possível atualizar os arquivos e requisitos anexados.");
+      const latest=planScenarioSources({task,scenarios,
+        requirements:updatedRequirements.data??[],
+        files:updatedFiles.data??[],documents:updatedDocs.data??[],
+        selectedRequirementIds:selected,
+        instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
+      if(latest.signature!==plan.signature){
+        setConsent(false);scenarioCheckpoint.current=null;setSourceProgress(null);
+        throw Error("As fontes da TF foram atualizadas. Revise as partes e autorize o envio novamente.");
+      }
+      if(!resume){scenarioCheckpoint.current=null;setRaw("");setContent("");
+        setTruncated(false);}
+      const response=await generateCasesBySource(latest,{
+        checkpoint:prior,existing:scenarios,signal:abort.signal,
+        onWait:setGeneratorWait,
+        onCheckpoint:cp=>{scenarioCheckpoint.current=cp;},
+        onProgress:setSourceProgress,
+        onPreview:text=>{setActivityPhase("receiving");setSourcePreview(text);}
+      });
+      setActivityPhase("organizing");
+      const nextCases=resume?
+        onlyNewResumedCases(response.cases,scenarios,previousCases):
+        onlyNewScenarioCandidates(response.cases,scenarios);
+      if(!resume)setGenerationId(crypto.randomUUID());
+      setCases(old=>resume?[...old,...editableCopy(nextCases)]:
+        editableCopy(nextCases));
+      setGeneratedCount(resume?previousCases.length+nextCases.length:response.cases.length);
+      setContent(response.text);setRaw(response.text);
+      setTruncated(!response.allDone);
+      setDirtyOutput(false);
+      lastGenerationInput.current={
+        task:latest.overview,
+        requirements:latest.sources.map(src=>src.label).join(" · ").slice(0,6000)
+      };
+      setShowSetup(!response.allDone);
+      setMessage(response.allDone?
+        response.cases.length+" cenário(s) distinto(s) preparados após verificar "+
+          response.complete+" parte(s). Revise os títulos, passos e resultados antes de salvar.":
+        response.complete+" de "+response.complete+" parte(s) concluída(s), "+
+          response.failed+" com falha. Os cenários encontrados foram preservados. "+
+          "Retome apenas as partes pendentes.");
+      if(response.failed>0)setError(response.failed+" parte(s) não concluídas; "+
+        "abra a lista de partes para ver os erros e retome quando possível.");
+    }catch(cause){
+      setRaw(previousRaw);setTruncated(Boolean(scenarioCheckpoint.current));
+      setShowSetup(true);
+      setError(abort.signal.aborted?"Geração interrompida. Partes concluídas preservadas.":
+        messageOf(cause));
+    }finally{
+      controller.current=null;setGenerating(false);setGeneratorWait(null);
+      onBusyChange?.(false);
+    }
+  }
+
   async function generate() {
     if (!canSend || !context) return;
+    if(mode==="teste"){await generateAllSourceCases();return;}
     // Check whether a checkpoint has precisely the same approved source.
     const sentTask=needsCompactReview&&semantic.enabled&&semantic.ready&&semantic.digest
       ?semantic.digest.task:context.prepared.task.text;
