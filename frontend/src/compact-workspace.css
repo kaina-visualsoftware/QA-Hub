@@ -109,6 +109,20 @@
 .qa-tests-tools,.qa-task-area-actions{gap:7px;flex-wrap:wrap}
 .qa-tests-tools button,.qa-task-area-actions button{min-height:38px}
 .qa-execution-switch{margin:7px 0 10px}
+.qa-task-results-details{margin-top:10px;border-top:1px solid var(--qa-border);padding-top:6px}
+.qa-task-results-details>summary{
+  min-height:42px;display:flex;align-items:center;gap:9px;
+  padding:9px 3px;cursor:pointer;color:#256574;font-size:.78rem;font-weight:720;
+  list-style:none
+}
+.qa-task-results-details>summary::-webkit-details-marker{display:none}
+.qa-task-results-details>summary::after{
+  content:"";width:7px;height:7px;margin-left:auto;
+  border-right:2px solid #557780;border-bottom:2px solid #557780;
+  transform:rotate(45deg)
+}
+.qa-task-results-details[open]>summary::after{transform:rotate(225deg)}
+.qa-task-results-details .qa-task-results-distribution{margin-top:4px;border:0;box-shadow:none}
 .qa-task-panel .scenario{padding:12px 0}
 .qa-task-panel .scenario-heading h3{font-size:.86rem}
 .qa-task-panel .scenario-result-actions{margin-top:9px;gap:6px}
