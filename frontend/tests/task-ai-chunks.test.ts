@@ -86,6 +86,22 @@ describe("Criação uniforme com NVIDIA por blocos",()=>{
   expect(next.partial).toBe(false);
   expect(next.fieldsPending).toBe(false);
  });
+ it("aceita resposta NVIDIA explicitamente vazia em parte sem dados",async()=>{
+  const source="Apenas dados operacionais. ".repeat(500)+"\\n"+
+   "A conferência do cadastro por filial valida dados do pedido.";
+  let index=0;
+  vi.spyOn(supabase.functions,"invoke").mockImplementation(async(_name,args)=>{
+   index++;
+   const body=args!.body as {text:string};
+   if(index===1)return {data:{stage:"fields",provider:"NVIDIA Build",model:"fixture",
+    repaired:false,draft:{},field_evidence:{},review_fields:[]},error:null};
+   return reply(body.text);
+  });
+  const result=await generateTaskAiDraftPhased(source,{fieldsOnly:true});
+  expect(result.fields.titulo).toContain("Conferência");
+  expect(result.partial).toBe(false);
+  expect(result.fieldsPending).toBe(false);
+ });
  it("não mascara cancelamento nem executa extração local",async()=>{
   const source=makeSource(10000);
   const abort=new AbortController();
