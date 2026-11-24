@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
 import { AiStepFlow } from "../../components/ui/AiStepFlow";
 import { ToastNotice } from "../../components/ui/Toasts";
