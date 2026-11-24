@@ -98,27 +98,32 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
      <input name="doc-title" required minLength={3} maxLength={160} value={draft.titulo}
       placeholder="Ex.: Como configurar e validar a API" onChange={e=>setDraft({...draft,titulo:e.target.value})}/>
     </label>
-    <div className="qa-doc-form-grid">
-     <label className="field">Tipo<select value={draft.tipo_documentacao}
-       onChange={e=>setDraft({...draft,tipo_documentacao:e.target.value as DocDraft['tipo_documentacao']})}>
-       {Object.entries(docTypes).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-      </select></label>
-     <label className="field">TF vinculada (opcional)
-      <select disabled={tasks.isPending||tasks.isError} value={draft.tarefa_id??''}
-       onChange={e=>setDraft({...draft,tarefa_id:e.target.value||null})}>
-       <option value="">Sem vínculo com TF</option>
-       {tasks.data?.map(task=><option key={task.id} value={task.id}>
-        {task.codigo?task.codigo+' · ':''}{task.titulo}</option>)}
-      </select>
-     </label>
-    </div>
+    <label className="field">Tipo<select value={draft.tipo_documentacao}
+      onChange={e=>setDraft({...draft,tipo_documentacao:e.target.value as DocDraft['tipo_documentacao']})}>
+      {Object.entries(docTypes).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+    </select></label>
+    <details className="qa-progressive-details qa-doc-link-options"
+      defaultOpen={Boolean(initial?.tarefa_id)}>
+      <summary>Vincular a uma TF (opcional)</summary>
+      <label className="field">TF vinculada (opcional)
+        <select disabled={tasks.isPending||tasks.isError} value={draft.tarefa_id??''}
+          onChange={e=>setDraft({...draft,tarefa_id:e.target.value||null})}>
+          <option value="">Sem vínculo com TF</option>
+          {tasks.data?.map(task=><option key={task.id} value={task.id}>
+            {task.codigo?task.codigo+' · ':''}{task.titulo}</option>)}
+        </select>
+      </label>
+    </details>
     {tasks.isError&&<p role="alert" className="notice error">
      Não foi possível carregar suas TFs. <button type="button" onClick={()=>void tasks.refetch()}>Tentar novamente</button>
     </p>}
    </fieldset>
    <fieldset disabled={busy}><legend>Conteúdo da página</legend>
-    <p>Escreva em Markdown: títulos com #, listas, tabelas e blocos de código entre três crases.
-     Cole SQL para criar um bloco de código, ou cole uma imagem para inseri-la na posição do cursor.</p>
+    <details className="qa-progressive-details qa-doc-editor-help">
+      <summary>Dicas para formatar o conteúdo</summary>
+      <p>Use títulos, listas, tabelas e blocos de código Markdown.
+        SQL colado vira um bloco de código; imagens coladas são inseridas no cursor.</p>
+    </details>
     <div className="qa-doc-editor-tabs" role="group" aria-label="Modo de edição">
      <button type="button" aria-pressed={!preview} onClick={()=>setPreview(false)}><FileCode2 size={16}/> Escrever</button>
      <button type="button" aria-pressed={preview} onClick={()=>setPreview(true)}><Eye size={16}/> Visualizar</button>
@@ -136,7 +141,12 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
       <DocumentationMarkdown markdown={draft.conteudo} docId={workingId} pending={files}/>
      </div>}
    </fieldset>
-   <fieldset disabled={busy}><legend>Visibilidade e arquivos</legend>
+   <details className="qa-progressive-details qa-doc-publication-options"
+     defaultOpen={Boolean(initial?.publica)}>
+     <summary>Compartilhamento e anexos
+       <small>{draft.publica?"Pública":"Privada"}{files.length?" · "+files.length+" arquivo(s)":""}</small>
+     </summary>
+   <fieldset disabled={busy}><legend className="sr-only">Visibilidade e arquivos</legend>
     <label className="field">Quem pode consultar?
      <select value={draft.publica?'public':'private'}
       onChange={e=>setDraft({...draft,publica:e.target.value==='public'})}>
@@ -159,7 +169,11 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
       onClick={()=>setFiles(current=>current.filter(item=>item.id!==attachment.id))}>Remover</button>
     </li>)}</ul>}
    </fieldset>
-   {workingId&&<DocumentationFiles docId={workingId} owner onInsert={file=>{setPreview(false);insertSource(docAttachmentToken(file.id));}}/>}
+   </details>
+   {workingId&&<details className="qa-progressive-details qa-doc-existing-files">
+     <summary>Arquivos já vinculados</summary>
+     <DocumentationFiles docId={workingId} owner onInsert={file=>{setPreview(false);insertSource(docAttachmentToken(file.id));}}/>
+   </details>}
    {error&&<p className="notice error" role="alert">{error}</p>}
    <div className="qa-modal-actions">
     <Button variant="secondary" type="button" isDisabled={busy} onPress={close}>Cancelar</Button>
