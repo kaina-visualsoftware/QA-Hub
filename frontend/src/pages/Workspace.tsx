@@ -151,7 +151,7 @@ export function Workspace() {
               placeholder="Buscar por título, código ou módulo"/>
           </span>
         </label>
-        <details className="qa-workspace-advanced-filters" open={Boolean(status||type)||undefined}>
+        <details className="qa-workspace-advanced-filters">
           <summary><Filter size={17} aria-hidden="true"/> Filtros
             {(status||type)&&<span className="qa-filter-active-count">
               {Number(Boolean(status))+Number(Boolean(type))}
@@ -183,6 +183,7 @@ export function Workspace() {
               Limpar filtros avançados
             </button>}
           </div>
+        </details>
       <details className="qa-saved-filter-controls">
         <summary>Filtros salvos</summary>
         <div className="qa-saved-filters-content">
@@ -225,7 +226,6 @@ export function Workspace() {
           </div>)}
         </div>
       </details>
-        </details>
       </div>
       <div className="qa-filter-notice" role="status" aria-live="polite">
         <ToastNotice message={filterNotice} tone="success"/>
