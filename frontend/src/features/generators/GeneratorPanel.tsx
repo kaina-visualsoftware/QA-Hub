@@ -398,12 +398,18 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
         onlyNewResumedCases(response.cases,scenarios,previousCases):
         onlyNewScenarioCandidates(response.cases,scenarios);
       if(!resume)setGenerationId(crypto.randomUUID());
-      setCases(old=>resume?[...old,...editableCopy(nextCases)]:
-        editableCopy(nextCases));
-      setGeneratedCount(resume?previousCases.length+nextCases.length:response.cases.length);
-      setContent(response.text);setRaw(response.text);
+      // Never replace an edited draft with a partial generation.
+      // Only a fully successful fresh run may replace the previous candidate list.
+      const replaceAll=response.allDone&&!resume;
+      setCases(old=>replaceAll?editableCopy(nextCases):
+        [...old,...editableCopy(nextCases)]);
+      setGeneratedCount(replaceAll?response.cases.length:
+        previousCases.length+nextCases.length);
+      setContent(old=>replaceAll?response.text:
+        [old,response.text].filter(Boolean).join("\n\n---\n\n"));
+      setRaw(response.text);
       setTruncated(!response.allDone);
-      setDirtyOutput(false);
+      setDirtyOutput(!replaceAll&&dirtyOutput);
       lastGenerationInput.current={
         task:latest.overview,
         requirements:latest.sources.map(src=>src.label).join(" · ").slice(0,6000)
