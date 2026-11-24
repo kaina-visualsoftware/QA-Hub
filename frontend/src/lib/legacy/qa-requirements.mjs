@@ -5,6 +5,53 @@ export const REQUIREMENT_STATES=['rascunho','aprovado','arquivado'];
 export const MAX_SOURCE=30000;
 export const MAX_ITEMS=100;
 const tidy=value=>String(value??'').replace(/\r\n?/g,'\n').trim();
+
+/**
+ * Conservative structural triage. Never edits the stored original document:
+ * only text that can plausibly contain requirements reaches the local preview.
+ * Semantic validation is a separate NVIDIA step (not implied by this filter).
+ */
+export function inspectRequirementSource(raw){
+  const accepted=[],context=[],ignored=[];
+  const original=tidy(raw);
+  for(const line of original.split('\n')){
+    const value=line.trim();
+    if(!value){accepted.push('');continue;}
+    // Copied list cards from the public UI: the complete original normally
+    // follows on another line; never turn the card heading into a new RF.
+    const copiedCard=/^(?:RF|RNF|RN|CA)\s*[- ]?\s*\d{1,4}\s*·\s*.+(?:rascunho|aprovado|arquivado)\s*·\s*\d+\s*cen[aá]rio\(s\)\s*vinculado\(s\)/i;
+    if(copiedCard.test(value) ||
+       /(?:rascunho|aprovado|arquivado)\s*·\s*\d+\s*cen[aá]rio\(s\)\s*vinculado\(s\)/i.test(value) ||
+       /^(?:preview|pr[eé]via|google drive|arquivo do google drive|download|baixar|abrir)$/i.test(value)){
+      ignored.push(value);continue;
+    }
+    const withoutCode=value.replace(/^(?:RF|RNF|RN|CA)\s*[- ]?\s*\d{1,4}\s*(?:[·:]|[.)-])\s*/i,'');
+    const normalized=requirementKey(withoutCode);
+    if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(normalized) ||
+       /^(?:visual software\s+)?especificacao de requisito\b/.test(normalized) ||
+       /^(?:\d{3,}\s+)?\d+\s+itens? de requisitos?\b/.test(normalized) ||
+       /^problema a resolver\b/.test(normalized) ||
+       /^prioridade\s+(?:alta|media|baixa)\s+tipo\b/.test(normalized) ||
+       /^(?:codigo|versao)\s*(?:do documento)?\s*:\s*(?:REQ[- ]?\d+|[\d.]+)\s*$/.test(normalized)){
+      context.push(value);continue;
+    }
+    accepted.push(line);
+  }
+  return {text:accepted.join('\n').trim(),context,ignored,raw:original};
+}
+
+function isRequirementCandidate(chunk){
+  const text=requirementKey(chunk.body);
+  if(!text||/^\d[\d\s.,/:()-]*$/.test(text))return false;
+  if(/^(?:cliente de origem|cliente solicitante|analista|responsavel|criado em|atualizado em|previsao)\s*:/.test(text))return false;
+  if(/^(?:visual software\s+)?especificacao de requisito\b|^\d+\s+itens? de requisitos?\b|^problema a resolver\b/.test(text))return false;
+  // Explicit RF/RN/RNF/CA records remain eligible even if written as a terse
+  // business rule. For unstructured paste, require actionable language rather
+  // than turning every heading, date or entity name into a requirement.
+  if(chunk.explicit)return true;
+  return /\b(deve(?:m|ra|rao)?|pode(?:m)?|permitir|possibilitar|exibir|apresentar|calcular|recalcular|bloquear|impedir|validar|mostrar|manter|gerar|listar|registrar|atualizar|salvar|emitir|enviar|consultar|selecionar|remover|adicionar|restringir|obrigatorio|necessario)\b/i.test(text);
+}
+
 export const requirementKey=value=>tidy(value).normalize('NFD')
   .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 function headingType(value){
@@ -41,7 +88,8 @@ export function parseRequirements(raw,{existing=[]}={}){
   const input=tidy(raw);
   if(input.length<5)throw Error('Informe ao menos 5 caracteres para organizar os requisitos.');
   if(input.length>MAX_SOURCE)throw Error('O limite para texto é de 30.000 caracteres.');
-  const lines=input.split('\n');
+  const prepared=inspectRequirementSource(input);
+  const lines=prepared.text.split('\n');
   const chunks=[];
   let current=null,sectionType=null,acceptance=false;
   function push(){
@@ -92,8 +140,9 @@ export function parseRequirements(raw,{existing=[]}={}){
     }
   }
   push();
-  if(!chunks.length)throw Error('Nenhum requisito identificável no texto.');
-  if(chunks.length>MAX_ITEMS)throw Error('Mais de 100 itens detectados. Divida a fonte em blocos menores.');
+  const candidates=chunks.filter(isRequirementCandidate);
+  if(!candidates.length)throw Error('Nenhum requisito verificável foi identificado. Revise o contexto separado dos requisitos.');
+  if(candidates.length>MAX_ITEMS)throw Error('Mais de 100 itens detectados. Divida a fonte em blocos menores.');
 
   const used=new Set(existing.map(x=>String(x.codigo||'').toUpperCase()));
   const present=new Set(existing.filter(x=>x.estado!=='arquivado')
@@ -106,14 +155,14 @@ export function parseRequirements(raw,{existing=[]}={}){
     const value=type+'-'+String(n).padStart(3,'0');
     used.add(value);return value;
   };
-  return chunks.map((chunk,index)=>{
+  return candidates.map((chunk,index)=>{
     const tipo=chunk.tipo,code=chunk.code||next(tipo);
     if(chunk.code)used.add(chunk.code);
     const description=chunk.body.slice(0,6000);
     const duplicate=present.has(requirementKey(description))||
       seen.has(requirementKey(description))||
       existing.some(x=>String(x.codigo).toUpperCase()===code)||
-      chunks.slice(0,index).some(x=>x.code===code&&code!=null);
+      candidates.slice(0,index).some(x=>x.code===code&&code!=null);
     seen.add(requirementKey(description));
     const title=(sentence(chunk.body)||'Requisito a revisar').slice(0,240);
     return {
