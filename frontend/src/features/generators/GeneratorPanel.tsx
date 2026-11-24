@@ -376,15 +376,16 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     try{
       // Fresh scoped reads are required: files and requirements may have been
       // added AFTER creation, without closing the current generation modal.
-      const [updatedFiles,updatedDocs,updatedRequirements,updatedEvidenceFiles]=await Promise.all([
-        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch(),caseEvidenceFiles.refetch()
+      const [updatedFiles,updatedDocs,updatedRequirements,updatedEvidenceFiles,updatedSupport]=await Promise.all([
+        caseSources.refetch(),caseDocuments.refetch(),requirements.refetch(),
+        caseEvidenceFiles.refetch(),support.refetch()
       ]);
-      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error||updatedEvidenceFiles.error)
+      if(updatedFiles.error||updatedDocs.error||updatedRequirements.error||updatedEvidenceFiles.error||updatedSupport.error)
         throw Error("Não foi possível atualizar os arquivos e requisitos anexados.");
       const latest=planScenarioSources({task,scenarios,
         requirements:updatedRequirements.data??[],
         files:updatedFiles.data??[],documents:updatedDocs.data??[],
-        evidence:support.data?.evidence??[],evidenceFiles:updatedEvidenceFiles.data??[],
+        evidence:updatedSupport.data?.evidence??[],evidenceFiles:updatedEvidenceFiles.data??[],
         selectedRequirementIds:selected,
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
       if(latest.signature!==plan.signature){
