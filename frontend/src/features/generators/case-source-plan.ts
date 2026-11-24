@@ -1,13 +1,15 @@
 import type {Task,Scenario} from "../../lib/contracts";
 import {sanitizeAiContext} from "../../lib/legacy/qa-test-context.mjs";
 
-export type CaseSource={id:string;label:string;kind:"task"|"original"|"file"|"requirement"|"document"|"existing";text:string};
+export type CaseSource={id:string;label:string;kind:"task"|"original"|"file"|"requirement"|"document"|"existing"|"evidence";text:string};
 export type CasePart={id:string;label:string;kind:CaseSource["kind"];index:number;total:number;line:number;text:string};
 export type CasePlan={signature:string;parts:CasePart[];sources:CaseSource[];warnings:string[];sourceCount:number;chars:number;overview:string};
 export type CaseRequirement={id:string;codigo:string;titulo:string;descricao:string;criterios_aceite:string;estado?:string};
 export type CaseFile={id:string;tipo_fonte:string;nome_arquivo?:string|null;texto_extraido:string;mime?:string|null;versao?:number|null};
 export type CaseDocument={id:string;titulo:string;conteudo:string;tipo?:string};
-export type CaseSupport={scenarios?:Scenario[]};
+export type CaseEvidence={id:string;tipo?:string;resumo?:string;referencia?:string;cenario_id?:string|null};
+export type CaseEvidenceFile={id:string;nome_original:string;descricao?:string;mime_type:string;cenario_id?:string|null};
+
 const CHARACTER_LIMIT=4200;
 const BYTE_LIMIT=6500;
 export const CASE_PART_CONCURRENCY=2;
@@ -57,11 +59,12 @@ const caseTitle=(value:unknown)=>clean(value).slice(0,240);
  * Sources with no readable text become warnings rather than fake coverage.
  */
 export function planScenarioSources({
- task,scenarios=[],requirements=[],files=[],documents=[],selectedRequirementIds,
+ task,scenarios=[],requirements=[],files=[],documents=[],evidence=[],evidenceFiles=[],selectedRequirementIds,
  instructions=""
 }:{
  task:Task;scenarios?:Scenario[];requirements?:CaseRequirement[];
- files?:CaseFile[];documents?:CaseDocument[];selectedRequirementIds?:string[];
+ files?:CaseFile[];documents?:CaseDocument[];evidence?:CaseEvidence[];
+ evidenceFiles?:CaseEvidenceFile[];selectedRequirementIds?:string[];
  instructions?:string
 }):CasePlan{
  const overview=[
@@ -101,6 +104,26 @@ export function planScenarioSources({
   const body=clean(doc.conteudo);
   if(body)sources.push({id:"doc:"+doc.id,label:"Documento: "+doc.titulo,
    kind:"document",text:body});
+ }
+ for(const ev of evidence){
+  const body=[field("Tipo",ev.tipo),field("Resumo",ev.resumo),
+   field("Referência registrada (não consultada)",ev.referencia),
+   field("Cenário relacionado",ev.cenario_id)].filter(Boolean).join("\n");
+  if(body)sources.push({id:"evidence:"+ev.id,label:"Evidência registrada",
+   kind:"evidence",text:body});
+ }
+ for(const file of evidenceFiles){
+  const filename=clean(file.nome_original)||"Anexo de evidência";
+  const body=[field("Arquivo",filename),field("Descrição",file.descricao),
+   field("Cenário relacionado",file.cenario_id)].filter(Boolean).join("\n");
+  if(file.descricao?.trim())sources.push({
+   id:"evidence-file:"+file.id,label:"Anexo de execução: "+filename,
+   kind:"evidence",text:body});
+  // Storage files are private binaries, not indexed requirement text;
+  // the AI must not pretend to have read them.
+  warnings.push("Anexo de execução "+filename+
+    ": conteúdo binário não analisado; apenas sua descrição textual"+
+    (file.descricao?.trim()?" será considerada.": " está indisponível."));
  }
  // Existing cases inform regression and prevent variations of the same test.
  if(scenarios.length){
