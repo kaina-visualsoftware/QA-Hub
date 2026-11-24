@@ -72,6 +72,15 @@ function messageOf(error: unknown) {
   return error instanceof Error ? error.message : "Falha ao executar a operação.";
 }
 
+function caseEvidenceRecords(records:Record<string,unknown>[]|undefined){
+ return (records??[]).map((row,index)=>({
+  id:typeof row.id==="string"?row.id:"unknown-"+index,
+  tipo:typeof row.tipo==="string"?row.tipo:undefined,
+  resumo:typeof row.resumo==="string"?row.resumo:undefined,
+  referencia:typeof row.referencia==="string"?row.referencia:undefined,
+  cenario_id:typeof row.cenario_id==="string"?row.cenario_id:null
+ }));
+}
 function editableCopy(items: GeneratedCase[]) {
   return items.map((item) => ({
     ...item, selected: item.selected !== false,
@@ -167,7 +176,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
     try{
       return {plan:planScenarioSources({task,scenarios,
         requirements:requirements.data,files:caseSources.data,
-        documents:caseDocuments.data,evidence:support.data?.evidence??[],
+        documents:caseDocuments.data,evidence:caseEvidenceRecords(support.data?.evidence),
         evidenceFiles:caseEvidenceFiles.data,selectedRequirementIds:selected,
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))}),error:""};
     }catch(err){return {plan:null,error:messageOf(err)};}
@@ -385,7 +394,7 @@ export default function GeneratorPanel({ task, userId, scenarios, mode, onBusyCh
       const latest=planScenarioSources({task,scenarios,
         requirements:updatedRequirements.data??[],
         files:updatedFiles.data??[],documents:updatedDocs.data??[],
-        evidence:updatedSupport.data?.evidence??[],evidenceFiles:updatedEvidenceFiles.data??[],
+        evidence:caseEvidenceRecords(updatedSupport.data?.evidence),evidenceFiles:updatedEvidenceFiles.data??[],
         selectedRequirementIds:selected,
         instructions:sanitizeAiContext(combinedInstructions(mode,preset,extra))});
       if(latest.signature!==plan.signature){
