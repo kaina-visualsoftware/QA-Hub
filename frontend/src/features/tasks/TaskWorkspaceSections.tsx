@@ -82,52 +82,51 @@ function Detail({label,value}:{label:string;value:string|null|undefined}){
   </div>;
 }
 export function TaskOverview({task}:{task:Task}){
-  const description=task.descricao?.trim();
-  const administrative=[task.codigo,task.sistema,task.versao,task.tipo_teste,
-    task.ambiente,task.base_teste,task.empresa,task.testador]
-    .filter(value=>value?.trim()).length;
-  const technical=[task.explicacao,task.causa,task.correcao,task.conclusao,task.observacoes]
-    .filter(value=>value?.trim()).length;
-  return <div className="qa-task-overview-v2 qa-task-overview-focused">
+  const description=task.descricao?.trim()??"";
+  const summaryLimit=480;
+  const needsExpand=description.length>summaryLimit;
+  const shortDescription=needsExpand
+    ?description.slice(0,summaryLimit).replace(/\s+\S*$/,"").trimEnd()+"…"
+    :description;
+  // Code, module, version and type already appear in the page header.
+  // Keep only supplementary fields in the collapsed details.
+  const metadata=[
+    {label:"Ambiente",value:task.ambiente},
+    {label:"Base de teste",value:task.base_teste},
+    {label:"Empresa",value:task.empresa},
+    {label:"Testador",value:task.testador}
+  ].filter(item=>item.value?.trim());
+  const technical=[
+    {label:"Funcionamento",value:task.explicacao},
+    {label:"Causa identificada",value:task.causa},
+    {label:"Correção implementada",value:task.correcao},
+    {label:"Conclusão",value:task.conclusao},
+    {label:"Observações",value:task.observacoes}
+  ].filter(item=>item.value?.trim());
+  return <div className="qa-task-overview-v2 qa-task-overview-focused qa-task-overview-compact">
     <section className="panel qa-task-info-card" aria-label="Informações principais da tarefa">
-      <header className="qa-task-info-heading">
-        <h2>Informações da TF</h2>
-      </header>
+      <header className="qa-task-info-heading"><h2>Resumo da TF</h2></header>
       {description?<div className="qa-task-primary-description">
-        <h3>Descrição do problema</h3><p>{description}</p>
-      </div>:<p className="text-muted text-sm">Esta tarefa ainda não tem descrição.</p>}
-      <details className="qa-progressive-details qa-task-metadata-details">
-        <summary>Dados do cadastro <span>{administrative} {administrative===1?"informação":"informações"}</span></summary>
+        <p className="qa-task-description-preview">{shortDescription}</p>
+        {needsExpand&&<details className="qa-task-description-more">
+          <summary>Ler descrição completa</summary>
+          <p>{description}</p>
+        </details>}
+      </div>:<p className="text-muted text-sm">Nenhuma descrição informada.</p>}
+      {metadata.length>0&&<details className="qa-progressive-details qa-task-metadata-details">
+        <summary>Dados complementares</summary>
         <div className="qa-task-detail-grid">
-          <Detail label="Código" value={task.codigo}/>
-          <Detail label="Sistema ou módulo" value={task.sistema}/>
-          <Detail label="Versão" value={task.versao}/>
-          <Detail label="Tipo de teste" value={task.tipo_teste}/>
-          <Detail label="Ambiente" value={task.ambiente}/>
-          <Detail label="Base de teste" value={task.base_teste}/>
-          <Detail label="Empresa" value={task.empresa}/>
-          <Detail label="Testador" value={task.testador}/>
+          {metadata.map(item=><Detail key={item.label} label={item.label} value={item.value}/>)}
         </div>
-        {administrative===0&&<p className="text-muted text-sm">Nenhum dado complementar informado.</p>}
-      </details>
+      </details>}
     </section>
-    <details className="panel qa-task-info-card qa-task-progressive-panel"
+    {technical.length>0&&<details className="panel qa-task-info-card qa-task-progressive-panel"
       aria-label="Análise técnica da tarefa">
-      <summary className="qa-task-progressive-heading">
-        <span><h2>Análise e correção</h2>
-          <small>Funcionamento, causa, correção e conclusão</small></span>
-        <span className="qa-task-progressive-count">{technical} {technical===1?"campo":"campos"}</span>
-      </summary>
+      <summary className="qa-task-progressive-heading"><span><h2>Análise técnica</h2></span></summary>
       <div className="qa-task-technical-list">
-        <Detail label="Funcionamento" value={task.explicacao}/>
-        <Detail label="Causa identificada" value={task.causa}/>
-        <Detail label="Correção implementada" value={task.correcao}/>
-        <Detail label="Conclusão" value={task.conclusao}/>
-        <Detail label="Observações" value={task.observacoes}/>
+        {technical.map(item=><Detail key={item.label} label={item.label} value={item.value}/>)}
       </div>
-      {technical===0&&
-        <p className="text-muted text-sm">Nenhuma análise técnica registrada.</p>}
-    </details>
+    </details>}
   </div>;
 }
 
