@@ -29,7 +29,7 @@ export const MODEL_REGISTRY=Object.freeze({
   params:Object.freeze({})
  })
 });
-const BUDGETS=Object.freeze({task:null,"task-fields":3000,"task-seeds":4000,"task-scenarios":3200,
+const BUDGETS=Object.freeze({task:null,"task-fields":4096,"task-seeds":4000,"task-scenarios":3200,
  diagram:3200,summary:2800,post:3500,
  teste:11000,semantic:3200,revision:3100});
 export function modelRequestOptions(model,mode="task",stream=false){
