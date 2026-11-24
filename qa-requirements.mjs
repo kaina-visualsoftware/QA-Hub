@@ -147,9 +147,13 @@ export function parseRequirements(raw,{existing=[]}={}){
   if(candidates.length>MAX_ITEMS)throw Error('Mais de 100 itens detectados. Divida a fonte em blocos menores.');
 
   const used=new Set(existing.map(x=>String(x.codigo||'').toUpperCase()));
+  // Reserve every explicit ID in the document before generating suggested
+  // IDs. Otherwise, an earlier free-text item can consume RF-001 and collide
+  // with an explicit RF-001 that appears later in the same import.
+  for(const chunk of candidates)if(chunk.code)used.add(chunk.code);
   const present=new Set(existing.filter(x=>x.estado!=='arquivado')
     .map(x=>requirementKey(x.descricao)));
-  const seen=new Set();
+  const seen=new Set(),seenCodes=new Set();
   const next=type=>{
     let n=1;
     while(used.has(type+'-'+String(n).padStart(3,'0')))n++;
@@ -159,13 +163,12 @@ export function parseRequirements(raw,{existing=[]}={}){
   };
   return candidates.map((chunk,index)=>{
     const tipo=chunk.tipo,code=chunk.code||next(tipo);
-    if(chunk.code)used.add(chunk.code);
     const description=chunk.body.slice(0,6000);
     const duplicate=present.has(requirementKey(description))||
       seen.has(requirementKey(description))||
       existing.some(x=>String(x.codigo).toUpperCase()===code)||
-      candidates.slice(0,index).some(x=>x.code===code&&code!=null);
-    seen.add(requirementKey(description));
+      seenCodes.has(code);
+    seen.add(requirementKey(description));seenCodes.add(code);
     const title=(sentence(chunk.body)||'Requisito a revisar').slice(0,240);
     return {
       codigo:code,tipo,titulo:title,descricao:description,
