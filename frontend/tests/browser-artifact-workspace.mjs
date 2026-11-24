@@ -69,7 +69,7 @@ try{
   assert.equal(await page.getByRole("region",{name:"Fluxo rápido de QA"}).count(),0,
     "No large grid of create actions on summary");
   assert.equal(await page.getByRole("heading",{name:"Execução registrada"}).count(),0);
-  await page.getByRole("heading",{name:"Informações da TF"}).waitFor();
+  await page.getByRole("heading",{name:"Resumo da TF"}).waitFor();
   assert.equal(await page.locator(".qa-task-fab-trigger").count(),0,
     "The task screen must not show a duplicate floating actions menu");
   await page.getByRole("tab",{name:"Relatórios e posts"}).click();
