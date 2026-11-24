@@ -2180,6 +2180,13 @@
   font-size:.75rem;font-weight:750;border-radius:9px
 }
 .qa-wizard-activity-track{height:4px;overflow:hidden;background:#cfe6df;border-radius:20px}
+.qa-wizard-block-progress{
+ display:block;width:100%;height:10px;min-height:10px;
+ appearance:auto;accent-color:#16867b;border:0;border-radius:6px;
+}
+.qa-wizard-block-progress::-webkit-progress-bar{background:#d7eae7;border-radius:6px}
+.qa-wizard-block-progress::-webkit-progress-value{background:#16867b;border-radius:6px}
+.qa-wizard-block-progress::-moz-progress-bar{background:#16867b;border-radius:6px}
 .qa-wizard-activity-track>span{
   display:block;width:34%;height:100%;background:#16867b;border-radius:20px;
   animation:qa-wizard-slide 1.6s ease-in-out infinite
