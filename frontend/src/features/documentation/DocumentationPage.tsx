@@ -88,7 +88,7 @@ export default function DocumentationPage(){
       <p className="eyebrow">DOCUMENTAÇÃO PÚBLICA</p>
       <h1>{detail.data.titulo}</h1>
       <p className="text-muted">{docTypes[detail.data.tipo_documentacao]||'Documento'} · Atualizada em {new Date(detail.data.updated_at||detail.data.created_at).toLocaleDateString('pt-BR')}</p>
-     </div><span className="public-react-readonly"><Globe size={16}/> Somente leitura</span></div>
+     </div><span className="public-react-readonly"><Globe size={16}/> {user?'Pública · colaboração':'Somente leitura'}</span></div>
      <div className="qa-doc-reader-actions">
       <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
       {detail.data.tarefa_id&&<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>}
