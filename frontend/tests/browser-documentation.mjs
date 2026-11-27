@@ -187,7 +187,9 @@ try{
  await edit.locator(".qa-doc-publication-options > summary").click();
  await edit.getByLabel("Quem pode consultar?").selectOption("public");
  await edit.getByRole("button",{name:"Salvar documentação"}).click();await edit.waitFor({state:"detached"});assert.equal(record.publica,true);
- await page.keyboard.press("Escape");await page.getByRole("button",{name:"Documentações públicas",exact:true}).click();
+ await page.waitForTimeout(500);
+ await page.keyboard.press("Escape");await page.waitForTimeout(500);
+ await page.getByRole("button",{name:"Documentações públicas",exact:true}).click();
  await page.getByText(record.titulo,{exact:true}).waitFor();
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);await audit("catalog "+width);
