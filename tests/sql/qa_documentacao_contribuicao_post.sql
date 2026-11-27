@@ -152,10 +152,23 @@ select public.qa_test_assert(
 );
 delete from public.qa_documentacao_arquivos
 where id='77777777-7777-4777-8777-777777777777';
-delete from storage.objects
-where name='22222222-2222-4222-8222-222222222222/66666666-6666-4666-8666-666666666666/77777777-7777-4777-8777-777777777777.txt';
+select public.qa_test_assert(
+ exists(select 1 from pg_policies
+  where schemaname='storage' and tablename='objects'
+    and policyname='qa_doc_storage_delete'
+    and qual like '%qa_owns_documentacao%'),
+ 'owner storage cleanup policy must cover contributor-uploaded objects'
+);
 update public.qa_referencias set publica=false
 where id='66666666-6666-4666-8666-666666666666';
+reset role;
+set role anon;
+select set_config('request.jwt.claim.sub','',false);
+select public.qa_test_assert(
+ (select count(*)=0 from storage.objects
+  where name='22222222-2222-4222-8222-222222222222/66666666-6666-4666-8666-666666666666/77777777-7777-4777-8777-777777777777.txt'),
+ 'orphaned object must stop being readable after metadata removal or privatization'
+);
 reset role;
 
 -- Once private, B cannot read or contribute. The owner can still delete the row.
