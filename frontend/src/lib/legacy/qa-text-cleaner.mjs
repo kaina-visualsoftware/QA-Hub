@@ -21,7 +21,16 @@ function uiLabel(line){
 }
 
 export function isCopiedInterfaceLine(line){
-  return typeof line==="string"&&UI_ONLY_LABELS.has(uiLabel(line));
+  if(typeof line!=="string")return false;
+  if(UI_ONLY_LABELS.has(uiLabel(line)))return true;
+  const text=line.trim();
+  // UI cards are truncated summaries of a saved requirement, not source
+  // requirements. Their standalone caption must never become a new rule.
+  if(/^(?:RF|RNF|RN|CA)\s*[- ]?\s*\d{1,4}\s*·\s*.+(?:rascunho|aprovado|arquivado)\s*·\s*\d+\s*cen[aá]rio\(s\)\s*vinculado\(s\)/i.test(text))return true;
+  // The markdown copied by Google Drive may contain entire button URLs
+  // on one line. Remove *only* lines made solely of these UI links.
+  if(/^(?:\[(?:preview|download|abrir|baixar|visualizar)\]\(https?:\/\/[^)\s]+\)\s*)+$/i.test(text))return true;
+  return false;
 }
 
 export function cleanQaSourceText(value){

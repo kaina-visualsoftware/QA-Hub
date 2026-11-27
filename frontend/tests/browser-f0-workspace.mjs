@@ -96,7 +96,7 @@ try{
     const summary=page.getByRole("tab",{name:"Visão geral"});
     await summary.click();
     assert.equal(await summary.getAttribute("aria-selected"),"true");
-    await page.getByRole("heading",{name:"Informações da TF"}).waitFor();
+    await page.getByRole("heading",{name:"Resumo da TF"}).waitFor();
     const analysis=page.locator(".qa-task-progressive-panel");
     assert.equal(await analysis.getAttribute("open"),null,
       "Análise técnica deve iniciar recolhida");
@@ -127,7 +127,13 @@ try{
     assert.equal(await actions.getByRole("button",{name:"Gerar post"}).count(),1);
     assert.equal(await actions.getByRole("button",{name:"Criar relatório"}).count(),1);
     assert.equal(await actions.getByRole("button",{name:"Criar diagrama"}).count(),1);
-    assert.equal(await page.locator(".qa-task-results-legend").locator("div").count(),4);
+    const distribution=page.locator("details.qa-task-results-details");
+    assert.equal(await distribution.getAttribute("open"),null,
+      "Extra execution metrics should start collapsed");
+    await distribution.locator("summary").click();
+    assert.equal(await distribution.getAttribute("open"),"",
+      "Execution breakdown should open on user request");
+    assert.equal(await distribution.locator(".qa-task-results-legend").locator("div").count(),4);
     assert.equal(await page.getByRole("tabpanel",{name:"Relatórios e posts"})
       .getByRole("button",{name:"Novo diagrama"}).count(),0,
       "Creation must only appear in the report toolbar, not again in the gallery");
@@ -137,7 +143,7 @@ try{
     const resources=page.getByRole("tablist",{name:"Documentos e informações de apoio"});
     assert.equal(await resources.getByRole("tab").count(),4);
     await resources.getByRole("tab",{name:"Requisitos",exact:true}).click();
-    await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
+    await page.getByRole("heading",{name:"Requisitos"}).waitFor();
     assert.equal(await page.getByRole("button",{name:"Gerenciar requisitos",exact:true}).count(),1,
       "Only one Importar action should appear in the resource library");
     assert.equal(await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio").count(),0,

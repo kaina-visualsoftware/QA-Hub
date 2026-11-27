@@ -47,9 +47,7 @@ export default function RequirementsPanel({ task, userId, scenarios, onClose, re
   ];
   return <section className="panel mt-5" aria-labelledby="requirements-heading">
     <div className="section-heading">
-      <div><h2 id="requirements-heading">Requisitos e cobertura</h2>
-        <p className="text-muted">{readOnly?"Consulte os requisitos e resultados cadastrados. Para importar ou alterar, use Gerenciar requisitos.":"Importe, revise e aprove requisitos. Vincule cenários reais para acompanhar a cobertura."}</p>
-      </div>
+      <div><h2 id="requirements-heading">Requisitos</h2></div>
       {onClose&&<button type="button" aria-label="Fechar requisitos" onClick={onClose}><X size={18} /></button>}
     </div>
     {!owned ? <p className="notice error mt-4" role="alert">

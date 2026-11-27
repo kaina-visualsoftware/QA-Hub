@@ -91,6 +91,7 @@ export default function TaskPage() {
     enabled: Boolean(task)
   });
   const [activeTab, setActiveTab] = useState<TaskTab>("summary");
+  const [visibleLimit,setVisibleLimit] = useState(8);
   const [resourceView,setResourceView]=useState<TaskResourceView>("requirements");
   const [showResourceImport,setShowResourceImport]=useState(false);
   const [resourceFileType,setResourceFileType]=useState<"sources"|"evidence">("sources");
@@ -125,6 +126,7 @@ export default function TaskPage() {
   useEffect(()=>{
     setActiveTab("summary");setResourceView("requirements");setShowResourceImport(false);
     setResourceFileType("sources");setExecutionMode("list");
+    setVisibleLimit(8);setFilter("all");
     setEvidenceTarget(null);setEvidenceRequest(0);
     setEditing(false);setShowScenarioForm(false);setShowSettings(false);setShowDeleteTask(false);
     setTaskAiConsent(null);setTaskAiScenarios([]);setTaskAiPreviewSource(null);
@@ -620,7 +622,7 @@ export default function TaskPage() {
               deleteTaskMutation.reset();
               setShowDeleteTask(true);
             }}>
-            <Trash2 size={16} aria-hidden="true"/> Excluir TF
+            <Trash2 size={16} aria-hidden="true"/>
           </button>}
           <button type="button" className="qa-task-config-button"
             aria-label="Configurações da TF" title="Configurações da TF"
@@ -927,8 +929,9 @@ export default function TaskPage() {
 
     <section id="qa-task-panel-tests" role="tabpanel" aria-labelledby="qa-task-tab-tests"
       className="qa-task-panel" hidden={activeTab !== "tests"}>
+      {activeTab==="tests"&&<>
       <div className="qa-task-section-heading qa-tests-heading">
-        <div><h2>Testes da TF</h2><p>{executionMode==="guided"?"Um cenário de cada vez.":"Consulte e execute os cenários cadastrados."}</p></div>
+        <div><h2>Cenários</h2></div>
         <div className="qa-tests-tools">
           <Button onPress={startScenario} isDisabled={task.user_id!==userId}>
             <Plus size={16} aria-hidden="true"/> Cenário
@@ -956,16 +959,14 @@ export default function TaskPage() {
           canManage={own} onEdit={openScenarioEditor}
           onDelete={scenario=>void requestScenarioDeletion(scenario)}/>
       </div>
-    <section ref={executionRef} hidden={executionMode!=="list"}
+    {executionMode==="list"&&<section ref={executionRef}
       className="panel mt-5 qa-workflow-anchor" aria-label="Execução dos cenários">
-      <div className="section-heading"><div><p className="eyebrow">EXECUÇÃO</p><h2>Cenários</h2></div>
-        <span className="count-pill">{scenarios.data?.length ?? 0} casos</span></div>
       <div className="filter-line mt-4" role="group" aria-label="Filtrar cenários">
         {([["all", "Todos"], ["pending", "Pendentes"], ["failed", "Falha / bloqueio"]] as const).map(([value, label]) =>
           <button key={value} data-qa-filter={value}
             className={"filter-chip " + (filter === value ? "selected" : "")}
             onClick={() => {
-              setFilter(value);
+              setFilter(value);setVisibleLimit(8);
               if(value === "pending") requestAnimationFrame(() => {
                 const next = executionRef.current?.querySelector<HTMLButtonElement>(
                   '[data-qa-next-pending="true"]');
@@ -979,7 +980,7 @@ export default function TaskPage() {
         {scenarios.data.length ? "Nenhum cenário neste filtro." : "Esta TF ainda não possui cenários. Cadastre o primeiro."}
       </p>}
       <div className="scenarios">
-        {visible.map((scenario, index) => {
+        {visible.slice(0,visibleLimit).map((scenario, index) => {
           const notes=splitScenarioNotes(scenario.observacoes);
           return <article className="scenario" key={scenario.id}>
           <div className="scenario-heading"><div><span className="eyebrow">CENÁRIO {String(scenario.ordem).padStart(2, "0")}</span>
@@ -1020,9 +1021,15 @@ export default function TaskPage() {
           </details>
         </article>;})}
       </div>
+      {visible.length>visibleLimit&&<div className="qa-scenario-more">
+        <Button variant="secondary" onPress={()=>setVisibleLimit(n=>n+8)}>
+          Mostrar mais cenários ({visible.length-visibleLimit} restantes)
+        </Button>
+      </div>}
       <ToastNotice tone="error"
         message={saveResult.error?.message || deleteScenarioMutation.error?.message}/>
-    </section>
+    </section>}
+      </>}
     </section>
     <section id="qa-task-panel-deliverables" role="tabpanel"
       aria-labelledby="qa-task-tab-deliverables"
@@ -1032,7 +1039,6 @@ export default function TaskPage() {
           <div>
 
             <h2>Relatórios e publicações</h2>
-            <p>Analise os resultados registrados e consulte os documentos produzidos nesta TF.</p>
           </div>
         </div>
         <TaskResultsDashboard scenarios={scenarios.data??[]}/>
@@ -1074,7 +1080,6 @@ export default function TaskPage() {
           <div>
 
             <h2>Arquivos e requisitos</h2>
-            <p>Consulte os itens registrados. Use a ação desta seção para adicionar ou gerenciar seus registros.</p>
           </div>
           {(resourceView==="team"?rights.canManage||rights.canComment:own)&&
             <Button onPress={()=>{

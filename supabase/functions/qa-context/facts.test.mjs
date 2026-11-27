@@ -70,3 +70,19 @@ test("standard profile preserves 12 NVIDIA evidence slots and exact quotes while
  assert.match(messages[0].content,/sem repetir quote/);
  assert.match(messages[1].content,/O pedido não pode ser faturado/);
 });
+
+
+test("Issue #125: requirement prompt separates rules from document metadata",()=>{
+ const source="Cliente de origem: Oestetrigo (17351).\nRF-001: O sistema deve exibir o valor unitário.";
+ const instructions=semanticMessages("requisito","REQ","REQ-001",source);
+ assert.match(instructions[0].content,/Cabeçalhos de documentos/);
+ assert.match(instructions[0].content,/nunca requisitos por si/);
+ assert.match(instructions[1].content,/Cliente de origem/);
+ const response={choices:[{message:{content:JSON.stringify({facts:[
+  {category:"contexto",quote:"Cliente de origem: Oestetrigo (17351).",summary:"Metadado"},
+  {category:"regra",quote:"RF-001: O sistema deve exibir o valor unitário.",summary:"Exibir valor unitário"}
+ ]})}}]};
+ const parsed=parseModelFacts(response,source);
+ assert.deepEqual(parsed.facts.map(f=>f.category),["contexto","regra"]);
+ assert.equal(parsed.unverified,0);
+});

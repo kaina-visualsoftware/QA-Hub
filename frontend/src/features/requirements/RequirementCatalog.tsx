@@ -4,7 +4,7 @@ import { Button } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import type { Task } from "../../lib/contracts";
 import {
-  parseRequirements, prepareImport
+  parseRequirements, prepareImport, inspectRequirementSource
 } from "../../lib/legacy/qa-requirements.mjs";
 import type { DraftRequirement } from "../../lib/legacy/qa-requirements.mjs";
 import {
@@ -13,6 +13,8 @@ import {
 } from "./requirements-data";
 import type { Requirement, RequirementSource } from "./requirements-data";
 import { Check, FileUp, Pencil, Save, Trash2, X } from "lucide-react";
+import {useSemanticContext} from "../generators/useSemanticContext";
+import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
 
 function RevisionHistory({ taskId, requirementId }: { taskId: string; requirementId: string }) {
   const q = useQuery({
@@ -39,17 +41,25 @@ export default function RequirementCatalog({
 }: { task: Task; records: Requirement[]; sources: RequirementSource[];
      onChanged: () => Promise<void>; readOnly?:boolean }) {
   const [source, setSource] = useState("");
+  const [authorized, setAuthorized] = useState(false);
+  const semantic = useSemanticContext(source, "", "requisito", true);
   const [preparedSource, setPreparedSource] = useState("");
+  const [inspection, setInspection] = useState<{context:string[];ignored:string[]}|null>(null);
   const [sourceId, setSourceId] = useState("");
   const [preview, setPreview] = useState<DraftRequirement[]>([]);
   const [editItem, setEditItem] = useState<Requirement | null>(null);
   const [revisions, setRevisions] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const [visibleLimit,setVisibleLimit] = useState(12);
   const [stateFilter, setStateFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const selectedCount = preview.filter((item) => item.selected && !item.duplicate).length;
+  const suspectRecords = useMemo(() => records.filter(item =>
+    inspectRequirementSource(item.titulo).text.length === 0 &&
+    inspectRequirementSource(item.descricao).text.length === 0
+  ), [records]);
   const visible = useMemo(() => records.filter((item) => {
     const text = [item.codigo, item.titulo, item.descricao, item.criterios_aceite].join(" ").toLowerCase();
     return (stateFilter === "all" || item.estado === stateFilter) &&
@@ -63,11 +73,43 @@ export default function RequirementCatalog({
   function parseText() {
     setError(""); setMessage("");
     try {
+      const report = inspectRequirementSource(source);
+      setInspection({context:report.context,ignored:report.ignored});
       const rows = parseRequirements(source, { existing: records });
       setPreview(rows); setPreparedSource(source);
       setMessage(rows.length + " requisito(s) preparados. Nenhum dado foi salvo. Revise antes de importar.");
     } catch (reason) {
       setPreview([]); setPreparedSource(""); setError((reason as Error).message);
+    }
+  }
+  function prepareNvidiaEvidence() {
+    setError("");setMessage("");
+    try {
+      if (!semantic.ready || !semantic.complete) {
+        throw Error("Conclua a análise NVIDIA e revise as citações antes de utilizar os resultados.");
+      }
+      const seen = new Set<string>();
+      const quotes = Object.values(semantic.outcomes).flatMap(outcome => outcome.facts)
+        .filter(fact => ["regra", "aceite", "excecao", "permissao"].includes(fact.category))
+        .map(fact => fact.quote.trim())
+        .filter(quote => {
+          if (seen.has(quote)) return false;
+          seen.add(quote);
+          return true;
+        });
+      if (!quotes.length) throw Error("A NVIDIA não encontrou regras ou critérios verificáveis. Nenhum RF foi inventado.");
+      const evidence = quotes.join("\n\n");
+      if (evidence.length > 30000) {
+        throw Error("As citações superaram 30.000 caracteres. Revise os blocos; nenhum trecho foi cortado silenciosamente.");
+      }
+      const rows = parseRequirements(evidence, { existing: records });
+      const report = inspectRequirementSource(source);
+      setInspection({context: report.context,ignored: report.ignored});
+      setPreview(rows);
+      setPreparedSource(source);
+      setMessage(rows.length + " candidato(s) sustentado(s) por citações literais da NVIDIA. Revise títulos, condições e cobertura antes de salvar.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Falha ao preparar as citações verificadas.");
     }
   }
   async function importNow() {
@@ -79,7 +121,7 @@ export default function RequirementCatalog({
         ? await importRequirementSource(task.id, sourceId, source, preview, sources)
         : await importRequirementText(task.id, source, preview);
       await onChanged();
-      setPreview([]); setPreparedSource(""); setSource(""); setSourceId("");
+      setPreview([]); setPreparedSource(""); setSource(""); setSourceId("");setInspection(null);
       setMessage(result.inserted + " requisito(s) importado(s); " + result.skipped +
         " código(s) já existente(s) ignorado(s).");
     } catch (cause) { setError((cause as Error).message); }
@@ -124,11 +166,15 @@ export default function RequirementCatalog({
     {!readOnly&&<div className="generator-stats">
       <span><strong>{records.length}</strong> cadastrados</span>
       <span><strong>{records.filter((r) => r.estado === "aprovado").length}</strong> aprovados</span>
-      <span><strong>{records.filter((r) => r.estado === "rascunho").length}</strong> rascunhos</span>
-      <span><strong>{records.filter((r) => r.estado === "arquivado").length}</strong> arquivados</span>
     </div>}
+    {!!suspectRecords.length && <details className="generator-context">
+      <summary>Revisar possíveis metadados cadastrados ({suspectRecords.length})</summary>
+      <p className="text-muted text-sm mt-2">Confira estes itens antes de usá-los em testes, posts ou diagramas. Nada foi alterado automaticamente.</p>
+      <ul className="stack mt-2">{suspectRecords.map(item =>
+        <li key={item.id} className="text-sm">{item.codigo} · {item.titulo.slice(0,120)}</li>)}</ul>
+    </details>}
     {!readOnly&&<details className="generator-context" open={records.length === 0}>
-      <summary>Importar requisitos de texto (prévia e revisão)</summary>
+      <summary>Importar requisitos</summary>
       <div className="stack mt-4">
         {sources.some((item) => item.tipo_fonte === "arquivo" && item.texto_extraido.length >= 5) &&
           <label className="field">Origem de importação
@@ -136,8 +182,8 @@ export default function RequirementCatalog({
               const next = e.target.value;
               const file = sources.find((item) => item.id === next);
               setSourceId(next);
-              setSource(file?.texto_extraido || "");
-              setPreview([]); setPreparedSource("");
+              setSource(file?.texto_extraido || "");setAuthorized(false);
+              setPreview([]); setPreparedSource("");setInspection(null);
               setMessage(file ? "Texto do arquivo carregado para revisão." : "");
             }}>
               <option value="">Novo texto (fonte independente)</option>
@@ -151,7 +197,7 @@ export default function RequirementCatalog({
         <label className="field">Cole a especificação, critérios de aceite ou regras de negócio
           <textarea rows={7} maxLength={30000} value={source} readOnly={Boolean(sourceId)}
             onChange={(e) => {
-            setSource(e.target.value);
+            setSource(e.target.value);setInspection(null);setAuthorized(false);
             if (preview.length) setMessage("Texto alterado. Organize novamente antes de importar.");
           }} placeholder="RF-001: O sistema deve..." />
         </label>
@@ -159,9 +205,24 @@ export default function RequirementCatalog({
           O texto desse arquivo é imutável; a importação usará a mesma fonte no banco.
           Para editar o texto antes de importar, escolha “Novo texto”.
         </p>}
+        {source.trim().length >= 10 && <details className="generator-context">
+          <summary>Tratamento inteligente com NVIDIA (análise por partes)</summary>
+          <div className="stack mt-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={authorized} disabled={semantic.working}
+                onChange={(event) => setAuthorized(event.target.checked)} />
+              Autorizo analisar este texto pela NVIDIA. O documento original não será alterado.
+            </label>
+            <SemanticPreparationPanel semantic={semantic} authorized={authorized} disabled={busy} />
+            <Button variant="secondary" isDisabled={busy || !semantic.ready}
+              onPress={prepareNvidiaEvidence}>
+              <Check size={16}/> Preparar candidatos com evidências verificadas
+            </Button>
+          </div>
+        </details>}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onPress={parseText} isDisabled={busy || source.trim().length < 5}>
-            <FileUp size={16} /> Organizar
+            <FileUp size={16} /> Organizar manualmente
           </Button>
           {!!preview.length && <>
             <Button variant="secondary" onPress={() => setPreview((rows) =>
@@ -175,17 +236,35 @@ export default function RequirementCatalog({
             </Button>
           </>}
         </div>
+
+        {inspection && (inspection.context.length > 0 || inspection.ignored.length > 0) && (
+          <div className="generator-context" aria-label="Triagem do texto importado">
+            <p className="text-sm"><strong>Triagem do documento</strong></p>
+            <p className="text-muted text-sm mt-2">Os trechos abaixo não foram transformados em RF. O texto original permanece guardado na fonte após a importação. Para transformá-los em requisitos, descreva o comportamento verificável no texto de entrada.</p>
+            {!!inspection.context.length && <details className="mt-3">
+              <summary>Contexto e metadados ({inspection.context.length})</summary>
+              <ul className="stack mt-2">{inspection.context.map((line,index)=>
+                <li key={index} className="text-sm">{line.slice(0,650)}</li>)}</ul>
+            </details>}
+            {!!inspection.ignored.length && <details className="mt-3">
+              <summary>Controles e cartões ignorados ({inspection.ignored.length})</summary>
+              <ul className="stack mt-2">{inspection.ignored.map((line,index)=>
+                <li key={index} className="text-sm">{line.slice(0,450)}</li>)}</ul>
+            </details>}
+          </div>
+        )}
         {!!preview.length && <div className="stack">
-          <p className="text-muted text-sm">Classificações automáticas são apenas sugestões. Revise código, origem e aceitação.</p>
+          <p className="text-muted text-sm">Revise os itens selecionados antes de salvar.</p>
           {preview.map((item, index) => <article className="generator-case" key={index}>
             <label className="flex items-start gap-2">
               <input type="checkbox" checked={item.selected && !item.duplicate}
                 disabled={item.duplicate}
                 onChange={(e) => updatePreview(index, { selected: e.target.checked })} />
-              <strong className="text-sm">Incluir {item.codigo}
-                {item.suggested ? " · classificação sugerida" : ""}
+              <strong className="text-sm">{item.codigo} · {item.titulo}
                 {item.duplicate ? " · possível duplicata" : ""}</strong>
             </label>
+            <details className="qa-requirement-preview-fields" open={preview.length===1}>
+              <summary>Revisar campos{item.suggested?" · sugestão":""}</summary>
             <div className="form-grid mt-3">
               <label className="field">Tipo<select value={item.tipo} onChange={(e) => {
                 const tipo = e.target.value;
@@ -212,7 +291,10 @@ export default function RequirementCatalog({
                 value={item.criterios_aceite} onChange={(e) =>
                   updatePreview(index, { criterios_aceite: e.target.value })} /></label>
             </div>
-            <p className="text-muted text-sm mt-2">Trecho de origem: {(item.origem_trecho || item.descricao).slice(0,220)}</p>
+            <details className="qa-requirement-source-details mt-2">
+              <summary>Ver texto de origem</summary><p className="text-muted text-sm mt-2">{item.origem_trecho||item.descricao}</p>
+            </details>
+            </details>
           </article>)}
         </div>}
       </div>
@@ -220,15 +302,15 @@ export default function RequirementCatalog({
     <div className="section-heading mt-4"><h3 className="font-semibold">Requisitos cadastrados</h3>
       <span className="count-pill">{visible.length}</span></div>
     <div className="flex flex-wrap gap-2">
-      <label className="field grow-2">Buscar<input value={term} onChange={(e) => setTerm(e.target.value)}
+      <label className="field grow-2">Buscar<input value={term} onChange={(e) => {setTerm(e.target.value);setVisibleLimit(12);}}
         placeholder="Código, título, regra..." /></label>
-      <label className="field">Situação<select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+      <label className="field">Situação<select value={stateFilter} onChange={(e) => {setStateFilter(e.target.value);setVisibleLimit(12);}}>
         <option value="all">Todos</option><option value="rascunho">Rascunhos</option>
         <option value="aprovado">Aprovados</option><option value="arquivado">Arquivados</option>
       </select></label>
     </div>
     {visible.length === 0 && <p className="text-muted text-sm">Nenhum requisito encontrado neste filtro.</p>}
-    {visible.map((item) => <article className="requirement-row" key={item.id}>
+    {visible.slice(0,visibleLimit).map((item) => <article className="requirement-row" key={item.id}>
       <div className="section-heading">
         <div><strong>{item.codigo} · {item.titulo}</strong>
           <p className="text-muted text-sm">{item.tipo} · {item.estado} · revisão {item.versao || 1}</p>
@@ -242,13 +324,18 @@ export default function RequirementCatalog({
             <Button size="sm" onPress={() => void changeState(item, "aprovado")} isDisabled={busy}>
               Aprovar
             </Button>}
-          {item.estado !== "arquivado" &&
-            <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
-              isDisabled={busy}>Arquivar</Button>}
-          <Button size="sm" variant="secondary" isDisabled={busy}
-            onPress={()=>void removeSaved(item)}>
-            <Trash2 size={14} aria-hidden="true"/> Excluir
-          </Button>
+          <details className="qa-requirement-row-more">
+            <summary>Mais ações</summary>
+            <div className="qa-requirement-row-menu">
+              {item.estado !== "arquivado" &&
+                <Button size="sm" variant="secondary" onPress={() => void changeState(item, "arquivado")}
+                  isDisabled={busy}>Arquivar</Button>}
+              <Button size="sm" variant="secondary" isDisabled={busy}
+                onPress={()=>void removeSaved(item)}>
+                <Trash2 size={14} aria-hidden="true"/> Excluir
+              </Button>
+            </div>
+          </details>
         </div>}
       </div>
       <details className="qa-resource-list-detail">
@@ -291,6 +378,11 @@ export default function RequirementCatalog({
         </div>
       </form>}
     </article>)}
+    {visible.length>visibleLimit&&<div className="qa-scenario-more">
+      <Button variant="secondary" onPress={()=>setVisibleLimit(limit=>limit+12)}>
+        Mostrar mais requisitos ({visible.length-visibleLimit} restantes)
+      </Button>
+    </div>}
     <ToastNotice message={message} tone="success"/>
     <ToastNotice message={error} tone="error"/>
   </div>;

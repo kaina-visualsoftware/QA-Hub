@@ -31,11 +31,15 @@ export default function DashboardPage(){
     pending:(tasks.data?.scenarios??0)-(tasks.data?.executed??0)
   };
   return <div className="page qa-dashboard">
-    <div className="page-heading"><div><p className="eyebrow">ACOMPANHAMENTO</p>
-      <h1>Visão geral</h1></div>
-      <Link to="/" search={{newTask:true}} className="secondary-link">
-        <Plus size={17}/> Nova TF
-      </Link>
+    <div className="page-heading"><div><h1>Visão geral</h1></div>
+      <div className="qa-dashboard-header-actions">
+        <button type="button" className="secondary-link" onClick={()=>setShowInsights(true)}>
+          <ChartNoAxesCombined size={17} aria-hidden="true"/> Explorar indicadores
+        </button>
+        <Link to="/" search={{newTask:true}} className="secondary-link">
+          <Plus size={17}/> Nova TF
+        </Link>
+      </div>
     </div>
     {tasks.isPending&&<p role="status" aria-live="polite">Carregando indicadores…</p>}
     {(tasks.isError||role.isError)&&<div className="notice error" role="alert">
@@ -60,8 +64,8 @@ export default function DashboardPage(){
           <span className="qa-dashboard-skeleton-value" aria-hidden="true"/>}</article>
     </section>
     <div className="qa-dashboard-panels">
-      <section className="panel">
-        <h2>Distribuição das TFs</h2>
+      <details className="panel qa-dashboard-status-details">
+        <summary>Ver distribuição das TFs</summary>
         <div className="qa-dashboard-statuses">
           {(Object.entries(taskStatusLabels) as [Task["status"],string][]).map(([key,label])=>
             <div key={key} className="qa-dashboard-barrow">
@@ -69,8 +73,7 @@ export default function DashboardPage(){
               <div className="qa-dashboard-track"><span style={{width:(tasks.isSuccess?percentage(summary[key]||0,allCount):0)+"%"}}/></div>
             </div>)}
         </div>
-        <p className="text-muted text-sm">Baseado nas TFs acessíveis à sua conta.</p>
-      </section>
+      </details>
       <section className="panel">
         <h2>Cobertura de execução</h2>
         <div className="qa-dashboard-coverage">
@@ -83,19 +86,12 @@ export default function DashboardPage(){
           <span style={{width:(tasks.isSuccess?percentage(totals.executed,totals.scenarios):0)+"%"}}/>
         </div>
         <p className="text-muted text-sm">{tasks.isSuccess?totals.executed+" executados · "+totals.pending+" pendentes":"Indicadores em atualização."}</p>
-        <small className="text-muted">Cobertura calculada no banco a partir dos resultados gravados.
-          Execução não equivale à aprovação da TF.</small>
+        <details className="qa-dashboard-calculation">
+          <summary>Como é calculado</summary>
+          <p className="text-muted text-sm">A execução considera os resultados registrados no banco. Executar um cenário não aprova automaticamente a TF.</p>
+        </details>
       </section>
     </div>
-    <section className="panel qa-f6-dashboard-entry" aria-label="Inteligência de QA">
-      <div className="section-heading">
-        <div><h2>Análises de qualidade</h2>
-          <p className="text-muted text-sm">Cobertura por módulo e versão, mudanças reais e regressões.</p></div>
-        <button type="button" className="secondary-link" onClick={()=>setShowInsights(true)}>
-          <ChartNoAxesCombined size={17} aria-hidden="true"/> Explorar indicadores
-        </button>
-      </div>
-    </section>
     <QAModal open={showInsights} title="Inteligência de QA" eyebrow="INDICADORES"
       size="full" onClose={()=>setShowInsights(false)}>
       <Suspense fallback={<p role="status" className="notice">Carregando análises…</p>}>

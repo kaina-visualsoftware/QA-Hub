@@ -359,7 +359,7 @@ try{
   assert.equal(aiCalls,4);
   await page.getByRole("button",{name:"Fechar Gerar post com IA"}).click();
   await page.getByRole("tab",{name:"Arquivos e requisitos"}).click();
-  await page.getByRole("heading",{name:"Requisitos e cobertura"}).waitFor();
+  await page.getByRole("heading",{name:"Requisitos"}).waitFor();
   assert.equal(await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio").count(),0,
     "The resource listing must not show inline import forms");
   await page.getByRole("button",{name:"Gerenciar requisitos",exact:true}).click();
@@ -368,13 +368,14 @@ try{
   const sourceField = requirementModal.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio");
   // Lazy panel loading can make isVisible() return false before the
   // controlled native details has mounted. Wait for its summary first.
-  const importSummary=page.getByText("Importar requisitos de texto (prévia e revisão)");
+  const importSummary=requirementModal.locator("details.generator-context > summary")
+    .filter({hasText:"Importar requisitos"}).first();
   await importSummary.waitFor();
   if (!(await sourceField.isVisible())) await importSummary.click();
   await sourceField.waitFor({state:"visible"});
   await page.getByLabel("Cole a especificação, critérios de aceite ou regras de negócio")
     .fill("RF001: A remoção de desconto deve atualizar o total do pedido.");
-  await page.getByRole("button",{name:"Organizar",exact:true}).click();
+  await requirementModal.getByRole("button",{name:"Organizar manualmente",exact:true}).click();
   await page.getByRole("button",{name:/Aprovar selecionados na prévia/}).click();
   await page.getByRole("button",{name:/Salvar 1 revisado/}).click();
   await page.getByText(/1 requisito\(s\) importado/).waitFor();

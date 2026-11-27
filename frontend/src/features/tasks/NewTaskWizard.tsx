@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ClipboardList, FileCheck2, FileText, LoaderCircle, Paperclip, Plus, Sparkles, Trash2 } from "lucide-react";
 import { QAModal } from "../../components/ui/QAModal";
 import { AiStepFlow } from "../../components/ui/AiStepFlow";
 import { ToastNotice } from "../../components/ui/Toasts";
@@ -30,7 +30,6 @@ import type {GeneratorCheckpoint} from "../generators/batched-stream";
 import {recoverInterruptedWizardCases} from "./wizard-case-recovery";
 import {prepareGeneratorContext} from "../generators/context-preparation";
 import {ContextPreparationPanel} from "../generators/ContextPreparationPanel";
-import {AiBusyStatus} from "../../components/ui/AiBusyStatus";
 import {AiQuotaWait} from "../../components/ui/AiQuotaWait";
 import type {AiWaitState} from "../../lib/ai-retry";
 import {SemanticPreparationPanel} from "../generators/SemanticPreparationPanel";
@@ -54,12 +53,6 @@ type WorkKind="files"|"task"|"cases"|"save";
 type WorkStatus={
   kind:WorkKind; phase:number; detail:string;
   current?:number; total?:number;
-};
-const WORK_STEPS: Record<WorkKind,string[]>={
-  files:["Conferir anexos","Extrair texto dos arquivos","Preparar documentos"],
-  task:["Dividir texto em partes","Analisar cada parte","Revisar campos"],
-  cases:["Organizar tarefa e requisitos","Consultar NVIDIA","Receber casos","Remover repetições"],
-  save:["Criar registro da TF","Arquivar textos originais","Registrar anexos","Salvar casos de teste"]
 };
 const WORK_LABELS:Record<WorkKind,string>={
   files:"Lendo os documentos",task:"Interpretando a tarefa",
@@ -627,9 +620,6 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <span>{title}</span>
         </span>)}
     </div>
-    <div className="qa-wizard-save-hint"><ShieldCheck size={15} aria-hidden="true"/>
-      A TF será salva somente após a finalização.
-    </div>
     {work&&(work.kind!=="task"||step!==1)&&<section className="qa-wizard-work" data-process={work.kind}>
       <div className="qa-wizard-work-heading">
         <span className="qa-wizard-work-icon"><LoaderCircle aria-hidden="true" size={20}/></span>
@@ -641,30 +631,14 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           onClick={()=>controller.current?.abort()}>Cancelar</button>}
       </div>
       <AiQuotaWait state={quotaWait} onCancel={()=>controller.current?.abort()}/>
-      {work.kind==="task"&&<AiBusyStatus
-        title={work.phase===1?"NVIDIA: extraindo campos":"NVIDIA: preparando revisão"}
-        detail="O texto integral é dividido automaticamente; até dois blocos são verificados em paralelo. Os casos ficam para a etapa 3."/>}
-      <div className="qa-wizard-activity-track" aria-hidden="true"><span/></div>
-      {work.kind==="task"&&work.total!==undefined&&work.total>0&&
+      {work.total!==undefined&&work.total>0&&<>
         <progress className="qa-wizard-block-progress" max={work.total}
           value={Math.min(work.total,work.current??0)}
-          aria-label="Partes da TF analisadas"/>}
-      <ol className="qa-wizard-work-steps" aria-label="Etapas do processamento">
-        {WORK_STEPS[work.kind].map((label,index)=><li key={label}
-          className={index<work.phase?"is-complete":index===work.phase?"is-active":""}>
-          {index<work.phase?<CheckCircle2 size={15} aria-hidden="true"/>:
-            index===work.phase?<LoaderCircle size={15} aria-hidden="true"/>:
-              <span className="qa-wizard-work-dot" aria-hidden="true"/>}
-          <span>{label}</span>
-        </li>)}
-      </ol>
-      {work.total!==undefined&&work.total>0&&
-        <p className="qa-wizard-work-metric">
-          {work.kind==="task"?"Blocos verificados":
-            work.kind==="cases"?"Etapas da geração":
-            (work.kind==="files"?"Lendo":"Registrando")+" arquivo"+(work.total>1?"s":"")} ·
-          {" "+Math.min(work.current??0,work.total)+" de "+work.total}
-        </p>}
+          aria-label={work.kind==="task"?"Partes da TF analisadas":"Andamento do processamento"}/>
+        <p className="qa-wizard-work-metric" role="status">
+          {Math.min(work.total,work.current??0)} de {work.total} etapas concluídas
+        </p>
+      </>}
       {work.kind==="cases"&&streamText.length>0&&<p className="qa-wizard-work-metric">
         {streamText.length.toLocaleString("pt-BR")} caracteres recebidos
         {caseHeadingsReceived>0?" · "+caseHeadingsReceived+" cenário(s) encontrados no texto recebido":""}
@@ -674,10 +648,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     {step===1&&<section className="qa-wizard-step qa-wizard-step--task stack">
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileText size={18} aria-hidden="true"/></span>
-        <div><span className="qa-wizard-kicker">01 · ORIGEM</span>
-          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Conteúdo da tarefa</h3>
-          <p>Cole o texto ou anexe um arquivo. A divisão em partes é automática.</p>
-        </div>
+        <div><h3 id="qa-wizard-stage-heading" tabIndex={-1}>Conteúdo da tarefa</h3></div>
       </div>
       <div className="qa-wizard-source-panel qa-wizard-source-panel--compact">
         <div className="qa-wizard-source-label">
@@ -694,18 +665,19 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
           <p>TXT, MD, PDF ou DOCX · até 10 MB por arquivo</p>
         </div>
       </div>
-      <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
-        statuses={taskChunkStatuses} running={analyzing}
-        quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+      {taskChunks.length>0&&<details className="qa-wizard-more qa-wizard-blocks-compact" open={analyzing||undefined}>
+          <summary>Partes do texto ({Object.keys(taskChunkResults).length}/{taskChunks.length})</summary>
+          <TaskFieldChunkPanel chunks={taskChunks} results={taskChunkResults}
+            statuses={taskChunkStatuses} running={analyzing}
+            quotaWait={quotaWait} onCancel={()=>controller.current?.abort()}/>
+        </details>}
       {taskContextLength>250000&&<p className="text-error" role="alert">
         O limite de análise por tarefa é de 250.000 caracteres.
       </p>}
        <div className="qa-wizard-ai-panel qa-wizard-ai-panel--compact">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
-          <div><strong>Gerar dados com a NVIDIA</strong>
-            <p>Os resultados poderão ser revisados antes de salvar.</p>
-          </div>
+          <div><strong>Preencher com IA</strong></div>
         </div>
         <label className="qa-wizard-consent">
           <input type="checkbox" checked={consentTask} disabled={busy||!taskContextLength}
@@ -749,10 +721,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     {step===2&&<section className="qa-wizard-step stack">
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><ClipboardList size={18} aria-hidden="true"/></span>
-        <div><span className="qa-wizard-kicker">02 · CONFERÊNCIA</span>
-          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>Revise os dados da TF</h3>
-          <p>Confira as informações principais. Dados técnicos e evidências ficam disponíveis abaixo.</p>
-        </div>
+        <div><h3 id="qa-wizard-stage-heading" tabIndex={-1}>Revise os dados da TF</h3></div>
       </div>
       <div className="qa-wizard-review-indicator">
         <CheckCircle2 size={17} aria-hidden="true"/>
@@ -855,13 +824,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
     {step===3&&<section className="qa-wizard-step stack">
       <div className="qa-wizard-section-intro">
         <span className="qa-wizard-section-mark"><FileCheck2 size={18} aria-hidden="true"/></span>
-        <div><span className="qa-wizard-kicker">03 · COBERTURA</span>
-          <h3 id="qa-wizard-stage-heading" tabIndex={-1}>
-            {caseReview?"Revisar casos sugeridos":"Gerar casos de teste"}</h3>
-          <p>{caseReview
-            ?"Confira o que a IA criou, ajuste e selecione os casos antes de gravar."
-            :"Gere casos fundamentados na TF e nos requisitos, sem repetir cenários."}</p>
-        </div>
+        <div><h3 id="qa-wizard-stage-heading" tabIndex={-1}>{caseReview?"Revisar casos sugeridos":"Gerar casos de teste"}</h3></div>
       </div>
       {canResumeCases&&!generating&&<div className="qa-wizard-existing" role="status">
         <FileText size={16} aria-hidden="true"/>
@@ -913,9 +876,7 @@ export function NewTaskWizard({open,userId,onClose,onCreated}:Props) {
       <div className="qa-wizard-ai-panel">
         <div className="qa-wizard-ai-panel-title">
           <Sparkles size={17} aria-hidden="true"/>
-          <div><strong>Cobertura sugerida pela IA</strong>
-            <p>Fluxos positivos, negativos, alternativos e regressões quando previstos nos documentos.</p>
-          </div>
+          <div><strong>Gerar casos com IA</strong></div>
         </div>
         <label className="qa-wizard-consent">
           <input type="checkbox" checked={consentCases} disabled={busy}

@@ -1,7 +1,7 @@
 /** F2/F3 — trusted server-side validation. No model-generated citation is accepted
  * without an exact quote from the submitted chunk.
  */
-export const GOALS=["task","post","teste"];
+export const GOALS=["task","post","teste","requisito"];
 export const CATEGORIES=["regra","aceite","antes","depois","excecao","permissao","dado","resultado","contexto"];
 const normalize=content=>{
  if(Array.isArray(content))return content.map(x=>typeof x?.text==="string"?x.text:"").join("");
@@ -44,7 +44,8 @@ export function parseModelFacts(payload,source){
 const instruction={
  task:"Foque em problema, identificação, causa, alteração, requisitos e estado real de testes.",
  post:"Foque no comportamento ANTERIOR e POSTERIOR, na implementação, no caminho de acesso, permissões, condições e justificativa sustentada pela fonte.",
- teste:"Foque nos critérios de aceite, regras, negativos, limites, permissões, pré-condições, massa de dados, resultado esperado e execução real. Nunca confunda esperado com obtido."
+ teste:"Foque nos critérios de aceite, regras, negativos, limites, permissões, pré-condições, massa de dados, resultado esperado e execução real. Nunca confunda esperado com obtido.",
+ requisito:"Identifique SOMENTE regras verificáveis, funcionalidades exigidas, restrições, condições, exceções e critérios de aceite. Cabeçalhos de documentos, nome do cliente de origem, autores, datas, versão editorial, listas, contagem de itens, links e rótulos de interface são CONTEXTO ou RUÍDO, nunca requisitos por si. Cite trechos literais completos e distinga necessidade/problema de regra: o fato de faltar uma coluna hoje não prova sozinho que ela deva ser criada. Não invente códigos RF/RN nem comporte o contexto como requisito."
 };
 export function semanticMessages(goal,source,chunkId,text,{compact=false}={}){
  return [
