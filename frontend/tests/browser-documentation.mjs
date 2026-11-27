@@ -269,6 +269,7 @@ try{
  user=ownerSession;
  await page.goto(ROOT+"#/documentacoes");
  await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
+ await page.waitForTimeout(1000);
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
  await guest.goto(ROOT+"#/publicas");
  await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
@@ -300,6 +301,9 @@ try{
  await guest.reload();
  await guest.getByText("Esta documentação não é pública ou não existe.").waitFor();
  await context.close();
+ await page.reload();
+ await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
+ await page.waitForTimeout(1000);
  await page.getByRole("button",{name:"Minhas documentações",exact:true}).click();await page.getByRole("link",{name:"Visualizar "+record.titulo,exact:true}).click();
  const ownerViewer=page.getByRole("dialog",{name:record.titulo,exact:true});await ownerViewer.waitFor();
  page.once("dialog",d=>void d.accept());await ownerViewer.getByRole("button",{name:"Excluir documentação"}).click();await ownerViewer.waitFor({state:"detached"});
