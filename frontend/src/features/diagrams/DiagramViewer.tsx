@@ -102,7 +102,8 @@ export function DiagramViewer({svg,title}:{svg:string;title:string}){
         width:Math.max(1,width*zoom)+"px",height:Math.max(1,height*zoom)+"px"
       }}>
         <iframe className="qa-diagram-viewer-frame"
-          title={"Diagrama: "+title} sandbox="" referrerPolicy="no-referrer"
+          title={"Diagrama: "+title} tabIndex={-1}
+          sandbox="" referrerPolicy="no-referrer"
           srcDoc={doc}/>
       </div>
     </div>

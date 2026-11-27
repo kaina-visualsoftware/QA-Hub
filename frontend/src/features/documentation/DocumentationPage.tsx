@@ -24,12 +24,12 @@ export default function DocumentationPage(){
  const publicMode=view==='public'||!user;
  const activeScope=publicMode?'public':scope;
  const list=useQuery({queryKey:['documentations',activeScope,publicMode?'public':user?.id],queryFn:()=>listDocumentation(activeScope,publicMode?undefined:user?.id)});
- const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,publicMode?undefined:user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
+ const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
  const results=(list.data??[]).filter(item=>(type==='all'||item.tipo_documentacao===type)&&
   (item.titulo+' '+item.conteudo).toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
  function closeDetail(){void navigate({to:'/documentacoes',search:{},replace:true});}
  async function refresh(){await Promise.all([client.invalidateQueries({queryKey:['documentations']}),client.invalidateQueries({queryKey:['documentation']}),client.invalidateQueries({queryKey:['documentation-files']}),client.invalidateQueries({queryKey:['qa-references']})]);}
- async function saved(record:Documentation){setEditor(null);setMessage('Documentação salva.');await refresh();void navigate({to:'/documentacoes',search:{doc:record.id}});}
+ async function saved(record:Documentation){setEditor(null);setMessage('Documentação salva.');await refresh();void navigate({to:'/documentacoes',search:publicMode?{view:'public',doc:record.id}:{doc:record.id}});}
  async function remove(record:Documentation){
   if(!user||busy||!window.confirm('Excluir “'+record.titulo+'” e todos os seus anexos? Esta ação não pode ser desfeita.'))return;
   setBusy(true);setError('');try{await deleteDocumentation(record,user.id);closeDetail();setMessage('Documentação excluída.');await refresh();}
@@ -88,10 +88,11 @@ export default function DocumentationPage(){
       <p className="eyebrow">DOCUMENTAÇÃO PÚBLICA</p>
       <h1>{detail.data.titulo}</h1>
       <p className="text-muted">{docTypes[detail.data.tipo_documentacao]||'Documento'} · Atualizada em {new Date(detail.data.updated_at||detail.data.created_at).toLocaleDateString('pt-BR')}</p>
-     </div><span className="public-react-readonly"><Globe size={16}/> Somente leitura</span></div>
+     </div><span className="public-react-readonly"><Globe size={16}/> {user?'Pública · colaboração':'Somente leitura'}</span></div>
      <div className="qa-doc-reader-actions">
       <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
       {detail.data.tarefa_id&&<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>}
+       {user&&<Button variant="secondary" size="sm" onPress={()=>setEditor(detail.data!)}><Pencil size={16}/> Editar documentação</Button>}
      </div>
      <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
      <section className="panel qa-doc-reader" aria-label="Conteúdo da documentação">
@@ -101,6 +102,10 @@ export default function DocumentationPage(){
     </div>}
    </>}
   </main>
+  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id}
+   initial={editor==='new'?undefined:editor} userId={user.id}
+   canManageSharing={editor==='new'||editor.user_id===user.id}
+   onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
 
  const body=<div className="page qa-documentation-page">
@@ -139,7 +144,7 @@ export default function DocumentationPage(){
 
      </div>
      <div className="qa-resource-actions"><Link to="/documentacoes" search={{doc:item.id}} aria-label={'Visualizar '+item.titulo}><Eye size={16}/> Visualizar</Link>
-      {item.user_id===user?.id&&user&&<button type="button" onClick={()=>setEditor(item)} aria-label={'Editar '+item.titulo}><Pencil size={16}/> Editar</button>}
+      {(item.user_id===user?.id||item.publica)&&user&&<button type="button" onClick={()=>setEditor(item)} aria-label={'Editar '+item.titulo}><Pencil size={16}/> Editar</button>}
      </div>
     </article>)}</div>
    </section>
@@ -153,9 +158,9 @@ export default function DocumentationPage(){
     <div className="qa-doc-reader-actions">
      <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
      {detail.data.tarefa_id&&(detail.data.user_id===user?.id?<Link className="secondary-link" to="/tarefa/$taskId" params={{taskId:detail.data.tarefa_id}}>Abrir TF vinculada</Link>:<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>)}
-     {user&&detail.data.user_id===user.id&&<>
+     {user&&(detail.data.user_id===user.id||detail.data.publica)&&<>
       <Button variant="secondary" size="sm" onPress={()=>setEditor(detail.data!)}><Pencil size={16}/> Editar documentação</Button>
-      <Button variant="secondary" size="sm" isDisabled={busy} onPress={()=>void remove(detail.data!)}><Trash2 size={16}/> Excluir documentação</Button>
+      {detail.data.user_id===user?.id&&<Button variant="secondary" size="sm" isDisabled={busy} onPress={()=>void remove(detail.data!)}><Trash2 size={16}/> Excluir documentação</Button>}
      </>}
     </div>
     <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
@@ -163,7 +168,7 @@ export default function DocumentationPage(){
     <DocumentationFiles docId={detail.data.id} owner={!!user&&detail.data.user_id===user.id}/>
    </div>}
   </QAModal>}
-  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
+  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} canManageSharing={editor==='new'||editor.user_id===user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
  return body;
 }

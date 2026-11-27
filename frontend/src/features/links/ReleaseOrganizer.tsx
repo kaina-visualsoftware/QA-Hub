@@ -93,6 +93,9 @@ export default function ReleaseOrganizer({ task, version, expanded = false }:
           {(expanded||opened)&&<ReleaseListsPicker value={team} onChange={updateSavedTeam}/>}
         </div>
       </div>
+      <p className="text-muted text-sm" role="note">
+        Classificação pelo cliente: 6157 — Visual Software = INTERNA; os demais = EXTERNA.
+      </p>
       <div className="qa-release-action-row">
         <Button variant="secondary" isDisabled={!raw.trim() || !version.trim()}
           onPress={organize}><ListChecks size={16}/> Organizar lista</Button>
