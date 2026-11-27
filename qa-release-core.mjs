@@ -61,14 +61,30 @@ function cmpRel(auth,com){
  const U=a=>[...new Set(a)],T=(t,a)=>t+" ("+a.length+"): "+(a.length?a.map(x=>/^\d+$/.test(x)?"#"+x:x).join(", "):"nenhuma");
  const rep=[T("Mantidas",U(kept)),T("Removidas por não estarem na lista",U(rem)),T("Na lista, mas ausentes no comunicado",miss),T("Duplicadas no comunicado",dups),T("Duplicadas na lista autorizada",[...dA]),"Divergências de classificação ("+div.length+"):"+(div.length?"\n- "+div.join("\n- "):" nenhuma"),"Ambiguidades ("+amb.length+"):"+(amb.length?"\n- "+amb.join("\n- "):" nenhuma")].join("\n");
  return{out:out.join("\n"),rep,rt}}
+/** Classify by the client identifier in the authorized task record, not by
+ * the task number (#201632) or the release version. No implicit lookup.
+ * Client "6157 Visual Software" is internal; everything else is external.
+ */
+const INTERNAL_RELEASE_CLIENT=/(?<![#\d])6157\s*(?:[-–—]\s*)?visual\s+software\b/iu;
+export function releaseTaskScope(lines){
+ const source=Array.isArray(lines)?lines.join("\n"):String(lines??"");
+ return INTERNAL_RELEASE_CLIENT.test(source)?"INTERNA":"EXTERNA";
+}
 function parseRec(r,team){const txt=r.lines.join("\n"),n=tn(r.lines[0])[0]?"#"+tn(r.lines[0])[0].n:"",ty=typeOf(r.lines),at=[];
  const dl=r.lines.find(isData)||"",cols=dl.split("\t").map(x=>x.trim()),di=cols.findIndex(c=>/^\d{2}\/\d{2}\/\d{4}\s+\d/.test(c)),names=di>=0?cols.slice(di+1):[];
  let sp=mt(names[3],team),obs="";
+ const scope=releaseTaskScope(r.lines);
+ // Client metadata is not a sprint. Keep real configured sprint matches.
+ const clientOnly=value=>scope==="INTERNA"&&
+  INTERNAL_RELEASE_CLIENT.test(String(value??""))&&
+  !team.some(t=>has(String(value??""),t));
+ if(clientOnly(names[3]))sp="";
  if(r.lines.length===1){obs=(txt.match(/\([^)]*\)\s*$/)||[""])[0].trim();if(/^\(\s*(BUG|MELHORIA)\s*\)$/i.test(obs))obs=""}
- if(!sp&&names[3]){sp=names[3];at.push(n+": "+sp+" não está na lista da equipe; mantido como veio")}if(!sp&&!names.length)sp=team.find(t=>has(txt,t))||"";
- if(!sp&&r.lines.length===1)sp=txt.replace(obs,"").replace(/\d{1,2}\/\d{1,2}\/\d{2,4}(\s+\d{1,2}:\d{2}(:\d{2})?)?/g," ").replace(/#?\d{4,7}/,"").replace(/\(?\b(BUG|MELHORIA)\b\)?/i,"").replace(/^[\s\-*•—–|]+|[\s\-—–|]+$/g,"").replace(/\s*[—–|\t]+\s*/g," ").trim();
+ if(!sp&&names[3]&&!clientOnly(names[3])){sp=names[3];at.push(n+": "+sp+" não está na lista da equipe; mantido como veio")}if(!sp&&!names.length)sp=team.find(t=>has(txt,t))||"";
+ if(!sp&&r.lines.length===1)sp=txt.replace(obs,"")
+  .replace(INTERNAL_RELEASE_CLIENT," ").replace(/\d{1,2}\/\d{1,2}\/\d{2,4}(\s+\d{1,2}:\d{2}(:\d{2})?)?/g," ").replace(/#?\d{4,7}/,"").replace(/\(?\b(BUG|MELHORIA)\b\)?/i,"").replace(/^[\s\-*•—–|]+|[\s\-—–|]+$/g,"").replace(/\s*[—–|\t]+\s*/g," ").trim();
  if(!sp)sp="SEM SPRINT";if(!ty)at.push(n+": tipo (BUG/MELHORIA) não encontrado");
- return{n,ty,sp,obs,at}}
+ return{n,ty,sp,obs,at,scope}}
 
 
 export function organizeRelease({version,raw,team='',defaultStatus='12'}){
@@ -90,7 +106,7 @@ export function organizeRelease({version,raw,team='',defaultStatus='12'}){
       warnings.push(item.n+': status '+status+' não é 11 nem 12; não incluída');
       continue;
     }
-    groups[status].push('- '+item.n+' — '+(item.ty||'TIPO NÃO INFORMADO')+
+    groups[status].push('- '+item.n+' — '+(item.ty||'TIPO NÃO INFORMADO')+' ('+item.scope+')'+
       ' — '+(item.sp||'SPRINT NÃO INFORMADA')+(item.obs?' '+item.obs:''));
     warnings.push(...item.at);
   }
