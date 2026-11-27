@@ -5,6 +5,7 @@ import {mkdirSync} from "node:fs";
 
 const ROOT="http://127.0.0.1:4173/QA-Hub/";
 const owner="11111111-1111-4111-8111-111111111111";
+const contributorId="88888888-8888-4888-8888-888888888888";
 let user={id:owner,email:"qa-user@fixture.invalid",aud:"authenticated",role:"authenticated",
   app_metadata:{provider:"email",providers:["email"]},user_metadata:{},
   created_at:"2026-11-08T12:00:00Z"};
@@ -35,7 +36,7 @@ async function mock(route){
   });
   if(method==="OPTIONS")return route.fulfill({status:204,headers:cors});
   if(path.endsWith("/auth/v1/token"))return send({
-    access_token:"eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEifQ.sig",
+    access_token:"eyJhbGciOiJub25lIn0."+Buffer.from(JSON.stringify({sub:user.id,role:"authenticated"})).toString("base64url")+".sig",
     refresh_token:"fixture-refresh",token_type:"bearer",expires_in:3600,
     expires_at:Math.floor(Date.now()/1000)+3600,user
   });
@@ -49,22 +50,43 @@ async function mock(route){
     }
     return send(user);
   }
-  if(await mockF4Rpc(route,[task],[scenario]))return;
+  if(await mockF4Rpc(route,user.id===owner?[task]:[],user.id===owner?[scenario]:[]))return;
   if(path.endsWith("/rest/v1/qa_admins"))return send(null);
-  if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET")return send([task]);
+  if(path.endsWith("/rest/v1/qa_tarefas")&&method==="GET")return send(user.id===owner?[task]:[]);
   if(path.endsWith("/rest/v1/qa_cenarios")&&method==="GET"){
+    if(user.id!==owner)return send([]);
     if(url.searchParams.get("select")==="tarefa_id,status")
       return send([{tarefa_id:task.id,status:scenario.status}]);
     return send([scenario]);
   }
   if(path.endsWith("/rest/v1/rpc/qa_public_tasks_v1"))return send([]);
+  if(path.endsWith("/rest/v1/rpc/qa_contribute_public_documentacao")){
+    const payload=request.postDataJSON();
+    assert.deepEqual(Object.keys(payload).sort(),["p_conteudo","p_id","p_tipo_documentacao","p_titulo"]);
+    const row=referenceRows.find(item=>item.id===payload.p_id);
+    assert.ok(row?.publica,"Only public documents can be contributed to");
+    Object.assign(row,{
+      titulo:payload.p_titulo,conteudo:payload.p_conteudo,
+      tipo_documentacao:payload.p_tipo_documentacao,
+      categoria:payload.p_tipo_documentacao==="checklist"?"checklist":"nota"
+    });
+    const {user_id,tarefa_id,...safe}=row;
+    return send(safe);
+  }
   if(path.endsWith("/rest/v1/rpc/qa_public_documentacoes_v1")){
     const id=request.postDataJSON()?.p_id;
-    return send(referenceRows.filter(row=>row.publica&&(!id||row.id===id)).map(({user_id,...row})=>row));
+    return send(referenceRows.filter(row=>row.publica&&(!id||row.id===id)).map(({user_id,tarefa_id,...row})=>({...row,tarefa_id:task.publica?tarefa_id:null})));
   }
   if(path.endsWith("/rest/v1/qa_referencias")){
     const id=url.searchParams.get("id")?.replace("eq.","");
-    if(method==="GET")return send(id?referenceRows.find(row=>row.id===id)??null:referenceRows);
+    const requestedUser=url.searchParams.get("user_id")?.replace("eq.","");
+    if(method==="GET"){
+      if(id){
+        const row=referenceRows.find(row=>row.id===id);
+        return send(row&&(!requestedUser||row.user_id===requestedUser)?row:null);
+      }
+      return send(referenceRows.filter(row=>!requestedUser||row.user_id===requestedUser));
+    }
     if(method==="POST"){
       const payload=request.postDataJSON();assert.equal(payload.user_id,owner);
       const row={...payload,id:docId,created_at:"2026-11-10"};referenceRows.push(row);return send(row,201);
@@ -204,6 +226,47 @@ try{
  assert.equal(await page.locator(".app-shell").count(),0,"public pages must not inherit the private workspace shell");
  await page.goto(ROOT+"#/documentacoes");
  await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
+
+ // A second authenticated user can edit the public page and add an attachment,
+ // but cannot change its visibility, owner, or private TF linkage.
+ const ownerSession=user;
+ user={...ownerSession,id:contributorId,email:"qa-contributor@fixture.invalid"};
+ const contributorContext=await browser.newContext(),contributorPage=await contributorContext.newPage();
+ contributorPage.on("pageerror",error=>errors.push(error.message));
+ await contributorPage.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
+ await contributorPage.goto(ROOT);
+ await contributorPage.getByRole("textbox",{name:"Email"}).fill(user.email);
+ await contributorPage.getByLabel("Senha").fill("fixture");
+ await contributorPage.getByRole("button",{name:"Entrar",exact:true}).click();
+ await contributorPage.getByRole("heading",{name:"Suas tarefas de teste"}).waitFor();
+ await contributorPage.goto(ROOT+"#/documentacoes?view=public&doc="+record.id);
+ await contributorPage.getByRole("heading",{name:record.titulo,exact:true}).waitFor();
+ await contributorPage.getByRole("button",{name:"Editar documentação",exact:true}).click();
+ const contributionEditor=contributorPage.getByRole("dialog",{name:"Editar documentação",exact:true});
+ await contributionEditor.waitFor();
+ await contributionEditor.locator(".qa-doc-link-options > summary").click();
+ assert.equal(await contributionEditor.getByLabel("TF vinculada (opcional)").isDisabled(),true);
+ assert.equal(await contributionEditor.getByLabel("Quem pode consultar?").isDisabled(),true);
+ await contributionEditor.locator(".qa-doc-existing-files > summary").click();
+ assert.equal(await contributionEditor.getByRole("button",{name:"Excluir anexo",exact:true}).count(),0);
+ const contributedTitle=record.titulo+" (contribuição)";
+ await contributionEditor.getByLabel("Título",{exact:true}).fill(contributedTitle);
+ await contributionEditor.getByLabel("Texto da documentação").fill(record.conteudo+"\n\nRevisão feita pela conta B.");
+ const contributorFile=Buffer.from("Anexo enviado pela conta B");
+ samples.set("contribuicao.txt",contributorFile);
+ await contributionEditor.locator("input[type=file]").setInputFiles([
+  {name:"contribuicao.txt",mimeType:"text/plain",buffer:contributorFile}
+ ]);
+ await contributionEditor.getByRole("button",{name:"Salvar documentação"}).click();
+ await contributionEditor.waitFor({state:"detached"});
+ await contributorPage.getByRole("heading",{name:contributedTitle,exact:true}).waitFor();
+ assert.equal(referenceRows[0].user_id,owner,"contributor cannot take ownership");
+ assert.equal(referenceRows[0].publica,true,"contributor cannot privatize the page");
+ assert.equal(referenceRows[0].tarefa_id,task.id,"contributor cannot change the TF link");
+ assert.equal(files.length,6,"contributor attachment metadata must be registered");
+ assert.ok(files.at(-1).path.startsWith(contributorId+"/"+docId+"/"),"contributor uploads under their own storage folder");
+ await contributorContext.close();
+ user=ownerSession;
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
  await guest.goto(ROOT+"#/publicas");
  await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
@@ -235,8 +298,9 @@ try{
  await guest.reload();
  await guest.getByText("Esta documentação não é pública ou não existe.").waitFor();
  await context.close();
- await page.getByRole("button",{name:"Minhas documentações",exact:true}).click();await page.getByRole("link",{name:"Visualizar "+record.titulo,exact:true}).click();await viewer.waitFor();
- page.once("dialog",d=>void d.accept());await viewer.getByRole("button",{name:"Excluir documentação"}).click();await viewer.waitFor({state:"detached"});
+ await page.getByRole("button",{name:"Minhas documentações",exact:true}).click();await page.getByRole("link",{name:"Visualizar "+record.titulo,exact:true}).click();
+ const ownerViewer=page.getByRole("dialog",{name:record.titulo,exact:true});await ownerViewer.waitFor();
+ page.once("dialog",d=>void d.accept());await ownerViewer.getByRole("button",{name:"Excluir documentação"}).click();await ownerViewer.waitFor({state:"detached"});
  assert.equal(referenceRows.length,0);assert.equal(files.length,0);assert.deepEqual(errors,[]);
  console.log("Documentações: CRUD, TF link, private default, upload retry without duplicates, nested preview, publication, anonymous read/revocation, deletion and four viewport WCAG passed.");
 }finally{await browser.close();}
