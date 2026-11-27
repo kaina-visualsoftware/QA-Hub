@@ -135,8 +135,26 @@ create policy qa_doc_files_delete
 -- metadata row is inserted; registered objects remain readable only through
 -- the document's existing public/owner read rule.
 drop policy if exists qa_doc_storage_read on storage.objects;
-create policy qa_doc_storage_read
-  on storage.objects for select to anon, authenticated
+drop policy if exists qa_doc_storage_read_anon on storage.objects;
+drop policy if exists qa_doc_storage_read_authenticated on storage.objects;
+
+-- Anonymous readers can download only objects already registered as attachments
+-- of a public document. This path uses the existing, allowlisted read helper.
+create policy qa_doc_storage_read_anon
+  on storage.objects for select to anon
+  using (
+    bucket_id = 'qa-documentacoes'
+    and exists (
+      select 1 from public.qa_documentacao_arquivos f
+      where f.path = objects.name
+        and public.qa_can_read_documentacao(f.documentacao_id)
+    )
+  );
+
+-- An authenticated uploader can also read their own object between the Storage
+-- upload and the metadata INSERT. Other users see only registered public files.
+create policy qa_doc_storage_read_authenticated
+  on storage.objects for select to authenticated
   using (
     bucket_id = 'qa-documentacoes'
     and (
@@ -150,7 +168,7 @@ create policy qa_doc_storage_read
       )
       or exists (
         select 1 from public.qa_documentacao_arquivos f
-        where f.path = name
+        where f.path = objects.name
           and public.qa_can_read_documentacao(f.documentacao_id)
       )
     )
