@@ -102,9 +102,10 @@ export default function DocumentationPage(){
     </div>}
    </>}
   </main>
-  {editor&&user&&<DocumentationEditor key={editor.id} initial={editor} userId={user.id}
-   canManageSharing={editor.user_id===user.id} onSaved={record=>void saved(record)}
-   onClose={()=>{setEditor(null);void refresh();}}/>}
+  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id}
+   initial={editor==='new'?undefined:editor} userId={user.id}
+   canManageSharing={editor==='new'||editor.user_id===user.id}
+   onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
 
  const body=<div className="page qa-documentation-page">
