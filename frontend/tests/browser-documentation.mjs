@@ -267,6 +267,8 @@ try{
  assert.ok(files.at(-1).path.startsWith(contributorId+"/"+docId+"/"),"contributor uploads under their own storage folder");
  await contributorContext.close();
  user=ownerSession;
+ await page.goto(ROOT+"#/documentacoes");
+ await page.getByRole("heading",{name:"Documentações",exact:true}).waitFor();
  const context=await browser.newContext(),guest=await context.newPage();await guest.route("**/pqadmlhcsimlcclpkyov.supabase.co/**",mock);
  await guest.goto(ROOT+"#/publicas");
  await guest.getByRole("heading",{name:"Documentações públicas",exact:true}).waitFor();
