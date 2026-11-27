@@ -22,6 +22,14 @@ select public.qa_test_assert(
  'clients must not forge version history rows'
 );
 select public.qa_test_assert(
+ to_regclass('public.qa_documentacao_arquivos_user_idx') is not null,
+ 'attachment uploader foreign key must be indexed'
+);
+select public.qa_test_assert(
+ to_regclass('public.qa_documentacao_versoes_user_idx') is not null,
+ 'version author foreign key must be indexed'
+);
+select public.qa_test_assert(
  not has_function_privilege('anon','public.qa_contribute_public_documentacao(uuid,text,text,text)','EXECUTE'),
  'anonymous users must not execute the contribution RPC'
 );
