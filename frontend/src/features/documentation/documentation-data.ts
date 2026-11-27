@@ -21,9 +21,7 @@ export function looksLikeSql(text:string):boolean{
   /^(?:(?:--[^\n]*\n|\s)*)?(?:create|alter|drop|select|insert|update|delete|with|declare|begin|exec(?:ute)?|grant|revoke)\b/i.test(value);
 }
 const columns='id,user_id,categoria,titulo,conteudo,tipo_documentacao,publica,tarefa_id,created_at,updated_at';
-const savedColumns='id,categoria,titulo,conteudo,tipo_documentacao,publica,tarefa_id,created_at,updated_at';
-
-/** Contributors must not send owner-controlled fields back from the public RPC projection. */
+/** Contributors send only editable content fields; sharing and TF linkage stay owner-controlled. */
 export function documentationWritePayload(valid:DocDraft,canManageSharing:boolean,isNew:boolean){
  return {
   categoria:valid.tipo_documentacao==='checklist'?'checklist':'nota',
@@ -48,14 +46,22 @@ export async function loadDocumentation(id:string,userId?:string):Promise<Docume
 export async function saveDocumentation(draft:DocDraft,userId:string,id?:string,canManageSharing=true):Promise<Documentation>{
  const valid=documentationDraftSchema.parse(draft);
  const body={...documentationWritePayload(valid,canManageSharing,!id),updated_at:new Date().toISOString()};
- const query=id?supabase.from('qa_referencias').update(body).eq('id',id):supabase.from('qa_referencias').insert({...body,user_id:userId});
- const {data,error}=await query.select(savedColumns).single();
+ const result=id&&!canManageSharing
+  ? await supabase.rpc('qa_contribute_public_documentacao',{
+     p_id:id,p_titulo:body.titulo,p_conteudo:body.conteudo,p_tipo_documentacao:body.tipo_documentacao
+    })
+  : await (id
+     ? supabase.from('qa_referencias').update(body).eq('id',id)
+     : supabase.from('qa_referencias').insert({...body,user_id:userId})
+    ).select(columns).single();
+ const {data,error}=result;
  if(error){
   if(error.code==='23514'&&error.message.includes('qa_referencias_sem_credenciais'))
    throw Error('O conteúdo parece conter uma credencial real. Substitua senhas, tokens ou chaves por valores fictícios antes de salvar.');
   throw error;
  }
- if(!data?.id)throw Error('O salvamento não foi confirmado.');return data;
+ if(!data?.id)throw Error('O salvamento não foi confirmado.');
+ return {...data,tarefa_id:data.tarefa_id??(id&&!canManageSharing?null:valid.tarefa_id)};
 }
 export async function listDocFiles(id:string):Promise<DocFile[]>{
  const {data,error}=await supabase.from('qa_documentacao_arquivos').select(fileColumns).eq('documentacao_id',id).order('created_at');
