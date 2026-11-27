@@ -11,6 +11,7 @@ import { searchTasksPage,listSavedFilters,saveFilter,
 import { listTaskProgress } from "../lib/task-progress";
 import { taskStatusLabels } from "../lib/contracts";
 import type { Task } from "../lib/contracts";
+import { taskListTitle, taskOriginLabel } from "../features/tasks/task-origin";
 import { DeleteTaskDialog } from "../features/tasks/DeleteTaskDialog";
 import { NewTaskWizard } from "../features/tasks/NewTaskWizard";
 import { QAModal } from "../components/ui/QAModal";
@@ -275,8 +276,8 @@ export function Workspace() {
             <Link to="/tarefa/$taskId" params={{ taskId: task.id }}
               className="task-row task-row-main" onClick={() => setFocused(task.id)}>
               <span className="task-initial">{(task.codigo || "TF").slice(0, 3).toUpperCase()}</span>
-              <span className="task-text"><strong>{task.titulo}</strong>
-                <small>{task.codigo || "Sem código"} · {task.tipo_teste} · {task.sistema || "Sem módulo"}
+              <span className="task-text"><strong>{taskListTitle(task)}</strong>
+                <small>{task.codigo || "Sem código"} · {task.tipo_teste} · {task.sistema || "Sem módulo"} · {taskOriginLabel(task.empresa)}
                   {task.versao ? " · " + task.versao : ""}</small>
                 {stats && <small className="task-progress-meta">
                   {stats.executed}/{stats.total} executados · {stats.pending} pendente(s)
