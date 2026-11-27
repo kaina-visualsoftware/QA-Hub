@@ -1,23 +1,8 @@
--- Allow authenticated users to contribute to public documentation without changing ownership,
--- visibility, or the original TF link. Anonymous readers continue using the allowlisted RPC.
+-- Allow authenticated users to contribute to public documentation without changing
+-- ownership, visibility, or the original TF link. Anonymous access remains read-only.
 begin;
 
--- UPDATE needs a matching SELECT policy. Keep anonymous access on the safe RPC only.
-drop policy if exists qa_referencias_public_read_authenticated on public.qa_referencias;
-create policy qa_referencias_public_read_authenticated
-  on public.qa_referencias for select to authenticated
-  using (publica = true);
-
-drop policy if exists qa_referencias_update on public.qa_referencias;
-create policy qa_referencias_update
-  on public.qa_referencias for update to authenticated
-  using (user_id = (select auth.uid()) or publica = true)
-  with check (user_id = (select auth.uid()) or publica = true);
-
-grant update(categoria,titulo,conteudo,publica,tipo_documentacao,tarefa_id,updated_at)
-  on public.qa_referencias to authenticated;
-
--- Version history is readable only by authenticated users who can read the document.
+-- Version history: only authenticated readers can inspect snapshots.
 create table if not exists public.qa_documentacao_versoes(
   id uuid primary key default gen_random_uuid(),
   documentacao_id uuid not null references public.qa_referencias(id) on delete cascade,
@@ -33,36 +18,21 @@ alter table public.qa_documentacao_versoes enable row level security;
 revoke all on table public.qa_documentacao_versoes from public, anon, authenticated;
 grant select(id,documentacao_id,user_id,titulo,conteudo,tipo_documentacao,created_at)
   on public.qa_documentacao_versoes to authenticated;
-grant insert(documentacao_id,user_id,titulo,conteudo,tipo_documentacao)
-  on public.qa_documentacao_versoes to authenticated;
 
 drop policy if exists qa_doc_versions_read on public.qa_documentacao_versoes;
 create policy qa_doc_versions_read
   on public.qa_documentacao_versoes for select to authenticated
-  using (exists (
-    select 1 from public.qa_referencias d
-    where d.id = documentacao_id
-      and (d.user_id = (select auth.uid()) or d.publica = true)
-  ));
+  using (public.qa_can_read_documentacao(documentacao_id));
 
 drop policy if exists qa_doc_versions_insert on public.qa_documentacao_versoes;
-create policy qa_doc_versions_insert
-  on public.qa_documentacao_versoes for insert to authenticated
-  with check (
-    user_id = (select auth.uid())
-    and exists (
-      select 1 from public.qa_referencias d
-      where d.id = documentacao_id
-        and (d.user_id = (select auth.uid()) or d.publica = true)
-    )
-  );
 
--- The trigger runs as the caller. It records the previous content and protects
--- owner-controlled fields when another authenticated user contributes.
-create or replace function public.qa_documentacao_before_update()
+-- Private trigger function: it snapshots the old content and prevents contributors
+-- from changing owner-controlled fields. It is not exposed through the Data API.
+create schema if not exists private;
+create or replace function private.qa_documentacao_before_update()
 returns trigger
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -97,25 +67,86 @@ begin
   return new;
 end;
 $$;
-revoke all on function public.qa_documentacao_before_update() from public, anon;
-grant execute on function public.qa_documentacao_before_update() to authenticated;
+revoke all on function private.qa_documentacao_before_update() from public, anon, authenticated;
 
 drop trigger if exists qa_documentacao_before_update on public.qa_referencias;
 create trigger qa_documentacao_before_update
   before update on public.qa_referencias
-  for each row execute function public.qa_documentacao_before_update();
+  for each row execute function private.qa_documentacao_before_update();
 
--- Contributors may upload to public docs. Keep metadata deletion owner-only.
+-- Narrow SECURITY DEFINER RPC: authenticated users can edit only the content
+-- fields of a row that is public at the time of the update. The function never
+-- accepts or changes user_id, publica, or tarefa_id, and returns no owner ID.
+create or replace function public.qa_contribute_public_documentacao(
+  p_id uuid,
+  p_titulo text,
+  p_conteudo text,
+  p_tipo_documentacao text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_row public.qa_referencias%rowtype;
+begin
+  if v_actor is null then
+    raise exception 'Autenticação obrigatória para contribuir.'
+      using errcode = '42501';
+  end if;
+
+  if p_tipo_documentacao is null
+     or p_tipo_documentacao not in ('nota','manual','solucao','tarefa','checklist') then
+    raise exception 'Tipo de documentação inválido.' using errcode = '22023';
+  end if;
+
+  if char_length(btrim(coalesce(p_titulo,''))) not between 3 and 160 then
+    raise exception 'O título deve ter entre 3 e 160 caracteres.' using errcode = '22023';
+  end if;
+
+  if char_length(btrim(coalesce(p_conteudo,''))) not between 3 and 80000 then
+    raise exception 'O conteúdo deve ter entre 3 e 80000 caracteres.' using errcode = '22023';
+  end if;
+
+  update public.qa_referencias d
+     set titulo = btrim(p_titulo),
+         conteudo = btrim(p_conteudo),
+         tipo_documentacao = p_tipo_documentacao,
+         categoria = case when p_tipo_documentacao = 'checklist' then 'checklist' else 'nota' end
+   where d.id = p_id
+     and d.publica = true
+   returning d.* into v_row;
+
+  if not found then
+    raise exception 'Documentação inexistente ou não pública.'
+      using errcode = '42501';
+  end if;
+
+  return jsonb_build_object(
+    'id',v_row.id,
+    'categoria',v_row.categoria,
+    'titulo',v_row.titulo,
+    'conteudo',v_row.conteudo,
+    'tipo_documentacao',v_row.tipo_documentacao,
+    'publica',v_row.publica,
+    'created_at',v_row.created_at,
+    'updated_at',v_row.updated_at
+  );
+end;
+$$;
+revoke all on function public.qa_contribute_public_documentacao(uuid,text,text,text) from public, anon;
+grant execute on function public.qa_contribute_public_documentacao(uuid,text,text,text) to authenticated;
+
+-- Contributors may upload to public docs. Only the document owner can remove
+-- attachment metadata; the owner or uploader can clean up the orphaned object.
 drop policy if exists qa_doc_files_insert on public.qa_documentacao_arquivos;
 create policy qa_doc_files_insert
   on public.qa_documentacao_arquivos for insert to authenticated
   with check (
     user_id = (select auth.uid())
-    and exists (
-      select 1 from public.qa_referencias d
-      where d.id = documentacao_id
-        and (d.user_id = (select auth.uid()) or d.publica = true)
-    )
+    and public.qa_can_read_documentacao(documentacao_id)
     and exists (
       select 1 from storage.objects o
       where o.bucket_id = 'qa-documentacoes' and o.name = path
@@ -125,21 +156,13 @@ create policy qa_doc_files_insert
 drop policy if exists qa_doc_files_delete on public.qa_documentacao_arquivos;
 create policy qa_doc_files_delete
   on public.qa_documentacao_arquivos for delete to authenticated
-  using (exists (
-    select 1 from public.qa_referencias d
-    where d.id = documentacao_id
-      and d.user_id = (select auth.uid())
-  ));
+  using (public.qa_owns_documentacao(documentacao_id::text));
 
--- A contributor must be able to see their own just-uploaded object before its
--- metadata row is inserted; registered objects remain readable only through
--- the document's existing public/owner read rule.
+-- Anonymous users can download only objects already registered as attachments
+-- of a public document.
 drop policy if exists qa_doc_storage_read on storage.objects;
 drop policy if exists qa_doc_storage_read_anon on storage.objects;
 drop policy if exists qa_doc_storage_read_authenticated on storage.objects;
-
--- Anonymous readers can download only objects already registered as attachments
--- of a public document. This path uses the existing, allowlisted read helper.
 create policy qa_doc_storage_read_anon
   on storage.objects for select to anon
   using (
@@ -151,8 +174,8 @@ create policy qa_doc_storage_read_anon
     )
   );
 
--- An authenticated uploader can also read their own object between the Storage
--- upload and the metadata INSERT. Other users see only registered public files.
+-- An authenticated uploader can read their own object between the Storage upload
+-- and metadata INSERT; all registered public attachments remain readable.
 create policy qa_doc_storage_read_authenticated
   on storage.objects for select to authenticated
   using (
@@ -160,11 +183,9 @@ create policy qa_doc_storage_read_authenticated
     and (
       (
         (storage.foldername(name))[1] = (select auth.uid())::text
-        and exists (
-          select 1 from public.qa_referencias d
-          where d.id::text = (storage.foldername(name))[2]
-            and (d.user_id = (select auth.uid()) or d.publica = true)
-        )
+        and (storage.foldername(name))[2] ~*
+          '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        and public.qa_can_read_documentacao(((storage.foldername(name))[2])::uuid)
       )
       or exists (
         select 1 from public.qa_documentacao_arquivos f
@@ -180,15 +201,11 @@ create policy qa_doc_storage_insert
   with check (
     bucket_id = 'qa-documentacoes'
     and (storage.foldername(name))[1] = (select auth.uid())::text
-    and exists (
-      select 1 from public.qa_referencias d
-      where d.id::text = (storage.foldername(name))[2]
-        and (d.user_id = (select auth.uid()) or d.publica = true)
-    )
+    and (storage.foldername(name))[2] ~*
+      '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    and public.qa_can_read_documentacao(((storage.foldername(name))[2])::uuid)
   );
 
--- The document owner can clean up a contributor's object after removing its
--- metadata; the uploader can also clean up their own unregistered object.
 drop policy if exists qa_doc_storage_delete on storage.objects;
 create policy qa_doc_storage_delete
   on storage.objects for delete to authenticated
@@ -200,11 +217,7 @@ create policy qa_doc_storage_delete
     )
     and (
       (storage.foldername(name))[1] = (select auth.uid())::text
-      or exists (
-        select 1 from public.qa_referencias d
-        where d.id::text = (storage.foldername(name))[2]
-          and d.user_id = (select auth.uid())
-      )
+      or public.qa_owns_documentacao((storage.foldername(name))[2])
     )
   );
 
