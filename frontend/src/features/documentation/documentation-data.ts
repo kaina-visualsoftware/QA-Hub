@@ -21,6 +21,16 @@ export function looksLikeSql(text:string):boolean{
   /^(?:(?:--[^\n]*\n|\s)*)?(?:create|alter|drop|select|insert|update|delete|with|declare|begin|exec(?:ute)?|grant|revoke)\b/i.test(value);
 }
 const columns='id,user_id,categoria,titulo,conteudo,tipo_documentacao,publica,tarefa_id,created_at,updated_at';
+const savedColumns='id,categoria,titulo,conteudo,tipo_documentacao,publica,tarefa_id,created_at,updated_at';
+
+/** Contributors must not send owner-controlled fields back from the public RPC projection. */
+export function documentationWritePayload(valid:DocDraft,canManageSharing:boolean,isNew:boolean){
+ return {
+  categoria:valid.tipo_documentacao==='checklist'?'checklist':'nota',
+  titulo:valid.titulo,conteudo:valid.conteudo,tipo_documentacao:valid.tipo_documentacao,
+  ...((isNew||canManageSharing)?{publica:valid.publica,tarefa_id:valid.tarefa_id}:{})
+ };
+}
 const fileColumns='id,documentacao_id,nome,mime,tamanho,path,created_at';
 export async function listDocumentation(scope:'mine'|'public',userId?:string):Promise<Documentation[]>{
  if(scope==='public'){
@@ -35,11 +45,11 @@ export async function loadDocumentation(id:string,userId?:string):Promise<Docume
  if(userId){const {data,error}=await supabase.from('qa_referencias').select(columns).eq('id',id).eq('user_id',userId).maybeSingle();if(error)throw error;if(data)return data;}
  const {data,error}=await supabase.rpc('qa_public_documentacoes_v1',{p_id:id});if(error)throw error;return data?.[0]??null;
 }
-export async function saveDocumentation(draft:DocDraft,userId:string,id?:string):Promise<Documentation>{
+export async function saveDocumentation(draft:DocDraft,userId:string,id?:string,canManageSharing=true):Promise<Documentation>{
  const valid=documentationDraftSchema.parse(draft);
- const body={...valid,categoria:valid.tipo_documentacao==='checklist'?'checklist':'nota',updated_at:new Date().toISOString()};
+ const body={...documentationWritePayload(valid,canManageSharing,!id),updated_at:new Date().toISOString()};
  const query=id?supabase.from('qa_referencias').update(body).eq('id',id):supabase.from('qa_referencias').insert({...body,user_id:userId});
- const {data,error}=await query.select(columns).single();
+ const {data,error}=await query.select(savedColumns).single();
  if(error){
   if(error.code==='23514'&&error.message.includes('qa_referencias_sem_credenciais'))
    throw Error('O conteúdo parece conter uma credencial real. Substitua senhas, tokens ou chaves por valores fictícios antes de salvar.');
