@@ -24,12 +24,12 @@ export default function DocumentationPage(){
  const publicMode=view==='public'||!user;
  const activeScope=publicMode?'public':scope;
  const list=useQuery({queryKey:['documentations',activeScope,publicMode?'public':user?.id],queryFn:()=>listDocumentation(activeScope,publicMode?undefined:user?.id)});
- const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,publicMode?undefined:user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
+ const detail=useQuery({queryKey:['documentation',doc,publicMode?'public':user?.id],queryFn:()=>loadDocumentation(doc!,user?.id),enabled:!!doc,staleTime:0,refetchOnMount:'always'});
  const results=(list.data??[]).filter(item=>(type==='all'||item.tipo_documentacao===type)&&
   (item.titulo+' '+item.conteudo).toLocaleLowerCase('pt-BR').includes(search.trim().toLocaleLowerCase('pt-BR')));
  function closeDetail(){void navigate({to:'/documentacoes',search:{},replace:true});}
  async function refresh(){await Promise.all([client.invalidateQueries({queryKey:['documentations']}),client.invalidateQueries({queryKey:['documentation']}),client.invalidateQueries({queryKey:['documentation-files']}),client.invalidateQueries({queryKey:['qa-references']})]);}
- async function saved(record:Documentation){setEditor(null);setMessage('Documentação salva.');await refresh();void navigate({to:'/documentacoes',search:{doc:record.id}});}
+ async function saved(record:Documentation){setEditor(null);setMessage('Documentação salva.');await refresh();void navigate({to:'/documentacoes',search:publicMode?{view:'public',doc:record.id}:{doc:record.id}});}
  async function remove(record:Documentation){
   if(!user||busy||!window.confirm('Excluir “'+record.titulo+'” e todos os seus anexos? Esta ação não pode ser desfeita.'))return;
   setBusy(true);setError('');try{await deleteDocumentation(record,user.id);closeDetail();setMessage('Documentação excluída.');await refresh();}
@@ -102,6 +102,9 @@ export default function DocumentationPage(){
     </div>}
    </>}
   </main>
+  {editor&&user&&<DocumentationEditor key={editor.id} initial={editor} userId={user.id}
+   canManageSharing={editor.user_id===user.id} onSaved={record=>void saved(record)}
+   onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
 
  const body=<div className="page qa-documentation-page">
