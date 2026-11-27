@@ -1,10 +1,29 @@
 import {describe,it,expect} from 'vitest';
-import {docAttachmentToken,documentReferencedFileIds,documentationDraftSchema,documentationFileFormat,looksLikeSql} from '../src/features/documentation/documentation-data';
+import {docAttachmentToken,documentReferencedFileIds,documentationDraftSchema,documentationFileFormat,documentationWritePayload,looksLikeSql} from '../src/features/documentation/documentation-data';
 import {splitDocumentMarkdown} from '../src/features/documentation/DocumentationMarkdown';
 describe('Documentações',()=>{
  it('começa privada e valida texto, tipo e vínculo',()=>{
   expect(documentationDraftSchema.parse({titulo:'Manual',conteudo:'Como resolver o problema'}).publica).toBe(false);
   expect(documentationDraftSchema.safeParse({titulo:'x',conteudo:'ok',tarefa_id:'invalid'}).success).toBe(false);
+ });
+ it('mantém visibilidade e vínculo sob controle do autor durante contribuição',()=>{
+  const draft=documentationDraftSchema.parse({
+   titulo:'Manual compartilhado',conteudo:'Procedimento revisado',publica:true,
+   tarefa_id:'11111111-1111-4111-8111-111111111111'
+  });
+  const contributor=documentationWritePayload(draft,false,false);
+  expect(contributor).toEqual({
+   categoria:'nota',titulo:'Manual compartilhado',conteudo:'Procedimento revisado',
+   tipo_documentacao:'nota'
+  });
+  expect(contributor).not.toHaveProperty('publica');
+  expect(contributor).not.toHaveProperty('tarefa_id');
+  const owner=documentationWritePayload(draft,true,false);
+  expect(owner.publica).toBe(true);
+  expect(owner.tarefa_id).toBe('11111111-1111-4111-8111-111111111111');
+  const fresh=documentationWritePayload(draft,false,true);
+  expect(fresh.publica).toBe(true);
+  expect(fresh.tarefa_id).toBe('11111111-1111-4111-8111-111111111111');
  });
  it('aceita imagem, vídeo e documento com limite explícito',()=>{
   expect(documentationFileFormat({name:'video.mp4',type:'video/mp4',size:100})).toBe('mp4');

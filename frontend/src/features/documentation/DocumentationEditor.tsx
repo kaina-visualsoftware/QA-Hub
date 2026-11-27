@@ -77,7 +77,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose,canM
   let saved:Documentation|undefined;
   try{
    const valid=documentationDraftSchema.parse(draft);
-   saved=await saveDocumentation(valid,userId,workingId);
+   saved=await saveDocumentation(valid,userId,workingId,canManageSharing);
    setWorkingId(saved.id);
    for(const attachment of files){
     await uploadDocFile(attachment.file,saved.id,userId,attachment.id);
@@ -172,7 +172,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose,canM
    </details>
    {workingId&&<details className="qa-progressive-details qa-doc-existing-files">
      <summary>Arquivos já vinculados</summary>
-     <DocumentationFiles docId={workingId} owner onInsert={file=>{setPreview(false);insertSource(docAttachmentToken(file.id));}}/>
+     <DocumentationFiles docId={workingId} owner={canManageSharing} onInsert={file=>{setPreview(false);insertSource(docAttachmentToken(file.id));}}/>
    </details>}
    {error&&<p className="notice error" role="alert">{error}</p>}
    <div className="qa-modal-actions">
