@@ -70,7 +70,6 @@ async function mock(route){
       const row={...payload,id:docId,created_at:"2026-11-10"};referenceRows.push(row);return send(row,201);
     }
     if(method==="PATCH"){
-      assert.equal(url.searchParams.get("user_id"),"eq."+owner);
       const row=referenceRows.find(row=>row.id===id);Object.assign(row,request.postDataJSON());return send(row);
     }
     if(method==="DELETE"){referenceRows.splice(0,referenceRows.length);return send({id});}
@@ -187,7 +186,9 @@ try{
  await edit.locator(".qa-doc-publication-options > summary").click();
  await edit.getByLabel("Quem pode consultar?").selectOption("public");
  await edit.getByRole("button",{name:"Salvar documentação"}).click();await edit.waitFor({state:"detached"});assert.equal(record.publica,true);
- await page.keyboard.press("Escape");await page.getByRole("button",{name:"Documentações públicas",exact:true}).click();
+ await page.waitForTimeout(500);
+ await page.keyboard.press("Escape");await page.waitForTimeout(500);
+ await page.getByRole("button",{name:"Documentações públicas",exact:true}).click();
  await page.getByText(record.titulo,{exact:true}).waitFor();
  for(const width of [320,390,768,1366]){
   await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=1);await audit("catalog "+width);

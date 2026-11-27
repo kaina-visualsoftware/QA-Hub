@@ -38,7 +38,7 @@ export async function loadDocumentation(id:string,userId?:string):Promise<Docume
 export async function saveDocumentation(draft:DocDraft,userId:string,id?:string):Promise<Documentation>{
  const valid=documentationDraftSchema.parse(draft);
  const body={...valid,categoria:valid.tipo_documentacao==='checklist'?'checklist':'nota',updated_at:new Date().toISOString()};
- const query=id?supabase.from('qa_referencias').update(body).eq('id',id).eq('user_id',userId):supabase.from('qa_referencias').insert({...body,user_id:userId});
+ const query=id?supabase.from('qa_referencias').update(body).eq('id',id):supabase.from('qa_referencias').insert({...body,user_id:userId});
  const {data,error}=await query.select(columns).single();
  if(error){
   if(error.code==='23514'&&error.message.includes('qa_referencias_sem_credenciais'))

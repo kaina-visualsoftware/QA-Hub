@@ -92,6 +92,7 @@ export default function DocumentationPage(){
      <div className="qa-doc-reader-actions">
       <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
       {detail.data.tarefa_id&&<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>}
+       {user&&<Button variant="secondary" size="sm" onPress={()=>setEditor(detail.data!)}><Pencil size={16}/> Editar documentação</Button>}
      </div>
      <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
      <section className="panel qa-doc-reader" aria-label="Conteúdo da documentação">
@@ -139,7 +140,7 @@ export default function DocumentationPage(){
 
      </div>
      <div className="qa-resource-actions"><Link to="/documentacoes" search={{doc:item.id}} aria-label={'Visualizar '+item.titulo}><Eye size={16}/> Visualizar</Link>
-      {item.user_id===user?.id&&user&&<button type="button" onClick={()=>setEditor(item)} aria-label={'Editar '+item.titulo}><Pencil size={16}/> Editar</button>}
+      {(item.user_id===user?.id||item.publica)&&user&&<button type="button" onClick={()=>setEditor(item)} aria-label={'Editar '+item.titulo}><Pencil size={16}/> Editar</button>}
      </div>
     </article>)}</div>
    </section>
@@ -153,9 +154,9 @@ export default function DocumentationPage(){
     <div className="qa-doc-reader-actions">
      <Button variant="secondary" size="sm" onPress={()=>void copyLink(detail.data!)}><Link2 size={16}/> Copiar link</Button>
      {detail.data.tarefa_id&&(detail.data.user_id===user?.id?<Link className="secondary-link" to="/tarefa/$taskId" params={{taskId:detail.data.tarefa_id}}>Abrir TF vinculada</Link>:<Link className="secondary-link" to="/publicas" search={{tf:detail.data.tarefa_id}}>Abrir TF pública</Link>)}
-     {user&&detail.data.user_id===user.id&&<>
+     {user&&(detail.data.user_id===user.id||detail.data.publica)&&<>
       <Button variant="secondary" size="sm" onPress={()=>setEditor(detail.data!)}><Pencil size={16}/> Editar documentação</Button>
-      <Button variant="secondary" size="sm" isDisabled={busy} onPress={()=>void remove(detail.data!)}><Trash2 size={16}/> Excluir documentação</Button>
+      {detail.data.user_id===user?.id&&<Button variant="secondary" size="sm" isDisabled={busy} onPress={()=>void remove(detail.data!)}><Trash2 size={16}/> Excluir documentação</Button>}
      </>}
     </div>
     <ToastNotice message={message} tone="success"/><ToastNotice message={error} tone="error"/>
@@ -163,7 +164,7 @@ export default function DocumentationPage(){
     <DocumentationFiles docId={detail.data.id} owner={!!user&&detail.data.user_id===user.id}/>
    </div>}
   </QAModal>}
-  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
+  {editor&&user&&<DocumentationEditor key={editor==='new'?'new':editor.id} initial={editor==='new'?undefined:editor} userId={user.id} canManageSharing={editor==='new'||editor.user_id===user.id} onSaved={record=>void saved(record)} onClose={()=>{setEditor(null);void refresh();}}/>}
  </div>;
  return body;
 }

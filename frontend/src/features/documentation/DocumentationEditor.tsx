@@ -12,8 +12,8 @@ import type {Documentation,DocDraft,PendingDocFile} from './documentation-data';
 import DocumentationFiles from './DocumentationFiles';
 import DocumentationMarkdown from './DocumentationMarkdown';
 
-export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
- initial?:Documentation;userId:string;onSaved:(doc:Documentation)=>void;onClose:()=>void
+export default function DocumentationEditor({initial,userId,onSaved,onClose,canManageSharing=true}:{
+ initial?:Documentation;userId:string;onSaved:(doc:Documentation)=>void;onClose:()=>void;canManageSharing?:boolean
 }){
  const [draft,setDraft]=useState<DocDraft>({
   titulo:initial?.titulo??'',conteudo:initial?.conteudo??'',
@@ -106,7 +106,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
       open={Boolean(initial?.tarefa_id)}>
       <summary>Vincular a uma TF (opcional)</summary>
       <label className="field">TF vinculada (opcional)
-        <select disabled={tasks.isPending||tasks.isError} value={draft.tarefa_id??''}
+        <select disabled={!canManageSharing||tasks.isPending||tasks.isError} value={draft.tarefa_id??''}
           onChange={e=>setDraft({...draft,tarefa_id:e.target.value||null})}>
           <option value="">Sem vínculo com TF</option>
           {tasks.data?.map(task=><option key={task.id} value={task.id}>
@@ -148,7 +148,7 @@ export default function DocumentationEditor({initial,userId,onSaved,onClose}:{
      </summary>
    <fieldset disabled={busy}><legend className="sr-only">Visibilidade e arquivos</legend>
     <label className="field">Quem pode consultar?
-     <select value={draft.publica?'public':'private'}
+     <select disabled={!canManageSharing} value={draft.publica?'public':'private'}
       onChange={e=>setDraft({...draft,publica:e.target.value==='public'})}>
       <option value="private">Privada — somente você</option>
       <option value="public">Pública — qualquer visitante da biblioteca</option>
